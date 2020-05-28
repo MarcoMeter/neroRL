@@ -1,0 +1,51 @@
+# https://github.com/openai/procgen
+
+environment:
+  type: "Procgen"
+  name: "procgen:procgen-coinrun-v0"
+  frame_skip: 1
+  obs_stacks: 1
+  grayscale: False
+  resize_vis_obs: [84, 84]
+  reset_params:
+    start-seed: 0
+    num-seeds: 100
+
+model:
+  load_model: False
+  model_path: "./models/procgen-coinrun.pt"
+  checkpoint_interval: 50
+  use_recurrent: False
+  hidden_state_size: 512
+
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds: [1001, 1002, 1003, 1004, 1005]
+  interval: 50
+
+trainer:
+  algorithm: "PPO"
+  gamma: 0.99
+  lamda: 0.95
+  updates: 1000
+  epochs: 4
+  n_workers: 16
+  worker_steps: 256
+  n_mini_batch: 4
+  resume_at: 0
+  learning_rate_schedule:
+    initial: 3.0e-4
+    final: 0.0
+    power: 1.0
+    max_decay_steps: 1000
+  beta_schedule:
+    initial: 0.001
+    final: 0.0001
+    power: 1.0
+    max_decay_steps: 1000
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 1000
