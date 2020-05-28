@@ -39,7 +39,6 @@ def main():
 
     # Load environment, model, evaluation and training parameters
     configs = YamlParser(config_path).get_config()
-    env_config = configs["environment"]
 
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

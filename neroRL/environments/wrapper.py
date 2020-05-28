@@ -24,7 +24,7 @@ def wrap_environment(config, worker_id, realtime_mode=False):
     if config["type"] == "Unity":
         env = UnityWrapper(config["name"], worker_id, realtime_mode=realtime_mode)
     elif config["type"] == "ObstacleTower":
-        env = ObstacleTowerWrapper(config["name"], configs["environment"]["reset_params"], worker_id, realtime_mode=realtime_mode)
+        env = ObstacleTowerWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode)
     elif config["type"] == "Minigrid":
         env = MinigridWrapper(config["name"], realtime_mode=realtime_mode)
     elif config["type"] == "Procgen":
