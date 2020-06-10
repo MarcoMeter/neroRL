@@ -166,7 +166,8 @@ class MinigridWrapper(Env):
         else:
             reset_params = reset_params
         # Set seed
-        self._env.seed(randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1))
+        self.seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+        self._env.seed(self.seed)
         # Track rewards of an entire episode
         self._rewards = []
         # Reset the environment and retrieve the initial observation
@@ -206,7 +207,8 @@ class MinigridWrapper(Env):
         # Wrap up episode information once completed (i.e. done)
         if done:
             info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards)}
+                    "length": len(self._rewards),
+                    "seed": self.seed}
         else:
             info = None
 

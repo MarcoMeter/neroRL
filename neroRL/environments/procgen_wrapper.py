@@ -93,12 +93,13 @@ class ProcgenWrapper(Env):
         # If new reset parameters were specified, Procgen has to be restarted
         if not self._default_reset_params == reset_params:
             self._env.close()
+            self.seed = reset_params["start-seed"]
             self._env = gym.make(self._env_name, start_level = reset_params["start-seed"], num_levels = reset_params["num-seeds"])
         # Track rewards of an entire episode
         self._rewards = []
         # Reset the environment and retrieve the initial observation
         obs = self._env.reset()
-        # Retrieve the RGB frame of the agent"s vision
+        # Retrieve the RGB frame of the agent's vision
         vis_obs = obs.astype(np.float32) / 255.
 
         return vis_obs, None
@@ -130,7 +131,8 @@ class ProcgenWrapper(Env):
         # Wrap up episode information once completed (i.e. done)
         if done:
             info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards)}
+                    "length": len(self._rewards),
+                    "seed": self.seed}
         else:
             info = None
 

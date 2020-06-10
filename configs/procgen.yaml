@@ -10,6 +10,7 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
+  use_seeder: True
 
 model:
   load_model: False

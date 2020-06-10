@@ -139,6 +139,7 @@ class OTCModel(nn.Module):
 
         # Forward reccurent layer (GRU) if available
         if self.use_recurrent:
+            # print(h.unsqueeze(0).size())
             h, hxs = self.gru(h.unsqueeze(0), hxs.unsqueeze(0))
             h = h.squeeze(0)
             hxs = hxs.squeeze(0)

@@ -95,7 +95,8 @@ def main():
             vis_obs, vec_obs, _, done, info = env.step(actions)
 
     print("Episode Reward: " + str(info["reward"]))
-
+    print("Episode Length: " + str(info["length"]))
+    
 if __name__ == "__main__":
     main()
     

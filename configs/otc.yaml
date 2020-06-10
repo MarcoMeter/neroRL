@@ -31,6 +31,7 @@ environment:
     allowed-floors: 2
     total-floors: 10
     default-theme: 0
+  use_seeder: False
 
 model:
   load_model: False

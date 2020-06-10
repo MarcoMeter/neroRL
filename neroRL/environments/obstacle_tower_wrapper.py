@@ -119,7 +119,8 @@ class ObstacleTowerWrapper(Env):
         # Track current floor
         self._current_floor = self._starting_floor
         # Sample seed
-        self._env.seed(randint(start_seed, start_seed + num_seeds - 1))
+        self.seed = randint(start_seed, start_seed + num_seeds - 1)
+        self._env.seed(self.seed)
         # Reset the environment and retrieve the initial observation
         obs = self._env.reset()
         # Retrieve the RGB frame of the agent's vision and the vector observation
@@ -171,7 +172,8 @@ class ObstacleTowerWrapper(Env):
         if done:
             info = {"reward": sum(self._rewards),
                     "length": len(self._rewards),
-                    "floor": self._current_floor}
+                    "floor": self._current_floor,
+                    "seed": self.seed}
         else:
             info = None
 

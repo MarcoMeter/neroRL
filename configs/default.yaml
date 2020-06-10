@@ -23,6 +23,8 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
+  # Whether to use a seeding concept that samples seeds more likely that are harder to solve based on the anget's performance
+  use_seeder: False
 
 ### MODEL CONFIG ###
 model:

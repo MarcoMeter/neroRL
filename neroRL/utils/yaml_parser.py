@@ -58,7 +58,8 @@ class YamlParser:
             "obs_stacks": 1,
             "grayscale": False,
             "resize_vis_obs": [84, 84],
-            "reset_params": {"start-seed": 0, "num-seeds": 100}
+            "reset_params": {"start-seed": 0, "num-seeds": 100},
+            "use_seeder": False
         }
 
         model_dict = {
@@ -88,7 +89,7 @@ class YamlParser:
             "n_mini_batch": 4,
             "learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},
-            "clip_range_schedule": {"initial": 0.2}
+            "clip_range_schedule": {"initial": 0.2},
         }
 
         # Check if keys of the parent dictionaries are available, if not apply defaults from above

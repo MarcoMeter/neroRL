@@ -15,6 +15,7 @@ from neroRL.trainers.PPO.otc_model import OTCModel
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.utils.worker import Worker
+from neroRL.utils.seeder import Seeder
 from neroRL.utils.decay_schedules import polynomial_decay
 
 class PPOTrainer():
@@ -128,6 +129,9 @@ class PPOTrainer():
             self.device,
             self.mini_batch_device)
 
+        # Instantiate seeder
+        self.seeder = Seeder(configs["environment"]["reset_params"]["start-seed"], configs["environment"]["reset_params"]["num-seeds"], random_seed= not configs["environment"]["use_seeder"])
+
         # Launch workers
         print("Step 4: Launching training environments of type " + configs["environment"]["type"])
         self.workers = []
@@ -153,7 +157,7 @@ class PPOTrainer():
 
         # Reset workers
         for worker in self.workers:
-            worker.child.send(("reset", None))
+            worker.child.send(("reset", {"start-seed": self.seeder.sample_seed(), "num-seeds": 1}))
         # Grab initial observations
         for i, worker in enumerate(self.workers):
             vis_obs, vec_obs = worker.child.recv()
@@ -227,8 +231,12 @@ class PPOTrainer():
                     self.vec_obs[w] = vec_obs
                 if info:
                     episode_infos.append(info)
-                    # Reset agent (potential interface for providing reset parameters)
-                    worker.child.send(("reset", None))
+                    # Send performance data to seeder
+                    self.seeder.add_seed_result(info["seed"], info["reward"])
+                    # Update seeder
+                    self.seeder.update_logits()
+                    # Reset agent (potential interface for providing reset parameters) and sample a new seed for the envronment
+                    worker.child.send(("reset", {"start-seed": self.seeder.sample_seed(), "num-seeds": 1}))
                     # Get data from reset
                     vis_obs, vec_obs = worker.child.recv()
                     if self.vis_obs is not None:
