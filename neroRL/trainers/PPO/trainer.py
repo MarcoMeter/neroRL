@@ -233,8 +233,6 @@ class PPOTrainer():
                     episode_infos.append(info)
                     # Send performance data to seeder
                     self.seeder.add_seed_result(info["seed"], info["reward"])
-                    # Update seeder
-                    self.seeder.update_logits()
                     # Reset agent (potential interface for providing reset parameters) and sample a new seed for the envronment
                     worker.child.send(("reset", {"start-seed": self.seeder.sample_seed(), "num-seeds": 1}))
                     # Get data from reset
@@ -377,6 +375,10 @@ class PPOTrainer():
                 sample_episode_info = self.sample(self.mini_batch_device)
             else:
                 sample_episode_info = self.sample(self.device)
+
+            # Update seeder
+            self.seeder.update_logits()
+            # print((self.seeder.seed_logits * 100.))
 
             # 3.: Prepare the sampled data inside the buffer
             self.buffer.prepare_batch_dict()

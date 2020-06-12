@@ -59,9 +59,5 @@ class Seeder:
         if self.random_seed:
             return np.random.randint(0, 100)
 
-        try:
-            one_hot_sample = np.random.multinomial(1, self.seed_logits)
-        except:
-            print(self.seed_logits)
-            print(self.seed_performances)
+        one_hot_sample = np.random.multinomial(1, self.seed_logits)
         return int(np.argmax(one_hot_sample))
