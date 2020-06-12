@@ -114,7 +114,7 @@ class PPOTrainer():
         self.model.train()
 
         # Instantiate optimizer
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr_schedule["initial"])
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
         # Instantiate experience/training data buffer
         self.buffer = Buffer(
             self.n_workers,
