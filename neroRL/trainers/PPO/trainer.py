@@ -412,7 +412,7 @@ class PPOTrainer():
 
             # 6.: Evaluate model
             if self.eval:
-                if update % self.eval_interval == 0 or update == self.updates:
+                if update % self.eval_interval == 0 or update == (self.updates - 1):
                     eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
                     episode_result = self._process_episode_info(eval_episode_info)
                     print("eval: sec={:3} reward={:.2f} length={:.1f}".format(
