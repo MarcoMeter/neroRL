@@ -4,22 +4,23 @@ environment:
   type: "Procgen"
   name: "procgen:procgen-coinrun-v0"
   frame_skip: 1
-  obs_stacks: 1
+  obs_stacks: 3
   grayscale: False
   resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
     num-seeds: 100
+  use_seeder: False
 
 model:
   load_model: False
-  model_path: "./models/procgen-coinrun.pt"
+  model_path: "./models/procgen_coinrun.pt"
   checkpoint_interval: 50
   use_recurrent: False
   hidden_state_size: 512
 
 evaluation:
-  evaluate: False
+  evaluate: True
   n_workers: 3
   seeds: [1001, 1002, 1003, 1004, 1005]
   interval: 50
@@ -36,12 +37,12 @@ trainer:
   resume_at: 0
   learning_rate_schedule:
     initial: 3.0e-4
-    final: 0.0
+    final: 1.0e-7
     power: 1.0
     max_decay_steps: 1000
   beta_schedule:
     initial: 0.001
-    final: 0.0001
+    final: 0.00001
     power: 1.0
     max_decay_steps: 1000
   clip_range_schedule:
