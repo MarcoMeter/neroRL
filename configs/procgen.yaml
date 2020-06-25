@@ -14,7 +14,7 @@ environment:
 
 model:
   load_model: False
-  model_path: "./checkpoints/new_proc/20200625-193906_2/new_proc-499.pt"
+  model_path: "./models/procgen_coinrun.pt"
   checkpoint_interval: 50
   use_recurrent: False
   hidden_state_size: 512
