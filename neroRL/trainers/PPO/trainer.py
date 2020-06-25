@@ -401,7 +401,7 @@ class PPOTrainer():
 
             # 6.: Evaluate model
             if self.eval:
-                if update % self.eval_interval == 0 or update == self.updates:
+                if update % self.eval_interval == 0 or update == (self.updates - 1):
                     eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
                     episode_result = self._process_episode_info(eval_episode_info)
                     print("eval: sec={:3} reward={:.2f} length={:.1f}".format(
@@ -488,8 +488,8 @@ class PPOTrainer():
             if self.currentUpdate > 0:
                 print("Terminate: Saving model . . .")
                 try:
-                        torch.save(self.model, self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate - 1) + ".pt")
-                        print("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate - 1) + ".pt")
+                        torch.save(self.model, self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
+                        print("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
                 except:
                     pass
         except:
