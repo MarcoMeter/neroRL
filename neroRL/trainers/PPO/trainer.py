@@ -204,15 +204,15 @@ class PPOTrainer():
 
                 # Sample actions from each individual branch
                 actions = []
-                neg_log_pis = []
+                log_probs = []
                 for action_branch in policy:
                     action = action_branch.sample()
                     actions.append(action.cpu().data.numpy())
-                    neg_log_pis.append(-action_branch.log_prob(action).cpu().data.numpy())
+                    log_probs.append(action_branch.log_prob(action).cpu().data.numpy())
                 actions = np.transpose(actions)
-                neg_log_pis = np.transpose(neg_log_pis)
+                log_probs = np.transpose(log_probs)
                 self.buffer.actions[:, t] = actions
-                self.buffer.neg_log_pis[:, t] = neg_log_pis
+                self.buffer.log_probs[:, t] = log_probs
 
             # Execute actions
             for w, worker in enumerate(self.workers):
@@ -261,19 +261,18 @@ class PPOTrainer():
                                     samples['hidden_states'] if self.use_recurrent else None,
                                     self.device)
         
-        # Policy
-        neg_log_pis = []
+        # Policy Loss
+        # Retreive and process log_probs from each policy branch
+        log_probs = []
         for i, policy_branch in enumerate(policy):
-            neg_log_pis.append(-policy_branch.log_prob(samples['actions'][:, i]))
-        neg_log_pis = torch.stack(neg_log_pis, dim=1)
+            log_probs.append(policy_branch.log_prob(samples['actions'][:, i]))
+        log_probs = torch.stack(log_probs, dim=1)
 
-        ratio: torch.Tensor = torch.exp(samples['neg_log_pis'] - neg_log_pis)
-        clipped_ratio = ratio.clamp(min=1.0 - clip_range,
-                                    max=1.0 + clip_range)
-
-        policy_loss = torch.min(ratio * sampled_normalized_advantage,
-                                  clipped_ratio * sampled_normalized_advantage)
-        policy_loss = policy_loss.mean()
+        # Compute surrogates
+        ratio = torch.exp(log_probs - samples['log_probs'])
+        surr1 = ratio * sampled_normalized_advantage
+        surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * sampled_normalized_advantage
+        policy_loss = torch.min(surr1, surr2).mean()
 
         # Value
         clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range,
@@ -288,7 +287,7 @@ class PPOTrainer():
         entropy_bonus = torch.stack(entropies, dim=1).sum(1).reshape(-1).mean()
 
         # Complete loss
-        loss: torch.Tensor = -(policy_loss - 0.5 * vf_loss + beta * entropy_bonus)
+        loss = -(policy_loss - 0.5 * vf_loss + beta * entropy_bonus)
 
         # Compute gradients
         for pg in self.optimizer.param_groups:
@@ -299,7 +298,7 @@ class PPOTrainer():
         self.optimizer.step()
 
         # Monitor training statistics
-        approx_kl_divergence = .5 * ((neg_log_pis - samples['neg_log_pis']) ** 2).mean()
+        approx_kl_divergence = .5 * ((log_probs - samples['log_probs']) ** 2).mean()
         clip_fraction = (abs((ratio - 1.0)) > clip_range).type(torch.FloatTensor).mean()
 
         return [policy_loss,

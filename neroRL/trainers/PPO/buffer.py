@@ -39,7 +39,7 @@ class Buffer():
         else:
             self.vec_obs = None
         self.hidden_states = torch.zeros((n_workers, worker_steps, hidden_state_size), dtype=torch.float32)
-        self.neg_log_pis = np.zeros((n_workers, worker_steps, len(action_space_shape)), dtype=np.float32)
+        self.log_probs = np.zeros((n_workers, worker_steps, len(action_space_shape)), dtype=np.float32)
         self.values = np.zeros((n_workers, worker_steps), dtype=np.float32)
         self.advantages = np.zeros((n_workers, worker_steps), dtype=np.float32)
 
@@ -67,7 +67,7 @@ class Buffer():
         samples = {
             'actions': self.actions,
             'values': self.values,
-            'neg_log_pis': self.neg_log_pis,
+            'log_probs': self.log_probs,
             'advantages': self.advantages,
             'hidden_states': self.hidden_states,
             'dones': self.dones
