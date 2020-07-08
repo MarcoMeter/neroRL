@@ -7,7 +7,7 @@ environment:
   type: "ObstacleTower"
   name: "./UnityBuilds/ObstacleTower/ObstacleTower"
   frame_skip: 2
-  obs_stacks: 1
+  obs_stacks: 3
   grayscale: False
   resize_vis_obs: [84, 84]
   reset_params:
