@@ -80,8 +80,10 @@ class ObstacleTowerEnv(gym.Env):
 
         if realtime_mode:
             self.engine_config.set_configuration_parameters(time_scale=1.0)
+            self.reset_parameters.set_float_parameter("train-mode", 0.0)
         else:
             self.engine_config.set_configuration_parameters(time_scale=20.0)
+            self.reset_parameters.set_float_parameter("train-mode", 1.0)
         self._env.reset()
         behavior_name = list(self._env.behavior_specs)[0]
         split_name = behavior_name.split("-v")
