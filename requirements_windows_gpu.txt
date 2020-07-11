@@ -5,7 +5,7 @@ pandas
 scipy
 gym
 docopt
-mlagents_envs==0.10.0
+mlagents-envs==0.17.0
 https://download.pytorch.org/whl/cu101/torch-1.4.0-cp36-cp36m-win_amd64.whl
 https://download.pytorch.org/whl/cu101/torchvision-0.5.0-cp36-cp36m-win_amd64.whl
 tensorboard==2.0.2
