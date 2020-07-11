@@ -61,8 +61,8 @@ trainer:
   n_mini_batch: 4
   resume_at: 0
   learning_rate_schedule:
-    initial: 3.0e-5
-    final: 5.0e-6
+    initial: 7.5e-5
+    final: 1.0e-8
     power: 1.0
     max_decay_steps: 50000
   beta_schedule:
