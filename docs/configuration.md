@@ -19,6 +19,8 @@ environment:
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   # How many frames to repeat the same action
   frame_skip: 1
+  # Whether to add the last action (one-hot encoded) to the vector observation space
+  last_action_to_obs: False
   # Number of past observations, which shall be stacked to the current observation (1 means only the most recent observation)
   obs_stacks: 1
   # Whether to convert RGB visual observations to grayscale
