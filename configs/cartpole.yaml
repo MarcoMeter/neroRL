@@ -5,6 +5,7 @@ environment:
   name: "CartPole-v0"
   frame_skip: 1
   last_action_to_obs: False
+  last_reward_to_obs: False
   obs_stacks: 1
   reset_params:
     # Whether to mask the velocity of the cart and the tip of the pole

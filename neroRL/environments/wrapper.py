@@ -9,6 +9,7 @@ from neroRL.environments.wrappers.scaled_visual_observation import ScaledVisualO
 from neroRL.environments.wrappers.grayscale_visual_observation import GrayscaleVisualObsEnv
 from neroRL.environments.wrappers.pytorch_shape import PyTorchEnv
 from neroRL.environments.wrappers.last_action_to_obs import LastActionToObs
+from neroRL.environments.wrappers.last_reward_to_obs import LastRewardToObs
 
 def wrap_environment(config, worker_id, realtime_mode=False):
     """This function instantiates an environment and applies wrappers based on the specified config.
@@ -40,6 +41,9 @@ def wrap_environment(config, worker_id, realtime_mode=False):
     # Last action to obs
     if config["last_action_to_obs"]:
         env = LastActionToObs(env)
+    # Last reward to obs
+    if config["last_reward_to_obs"]:
+        env = LastRewardToObs(env)
     # Grayscale
     if config["grayscale"] and env.visual_observation_space is not None:
         env = GrayscaleVisualObsEnv(env)

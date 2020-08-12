@@ -8,6 +8,7 @@ environment:
   name: "./UnityBuilds/ObstacleTower/ObstacleTower"
   frame_skip: 2
   last_action_to_obs: False
+  last_reward_to_obs: False
   obs_stacks: 3
   grayscale: False
   resize_vis_obs: [84, 84]

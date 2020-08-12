@@ -56,6 +56,7 @@ class YamlParser:
             "name": "MiniGrid-Empty-Random-6x6-v0",
             "frame_skip": 1,
             "last_action_to_obs": False,
+            "last_reward_to_obs": False,
             "obs_stacks": 1,
             "grayscale": False,
             "resize_vis_obs": [84, 84],
