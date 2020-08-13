@@ -4,6 +4,8 @@ environment:
   type: "Procgen"
   name: "procgen:procgen-coinrun-v0"
   frame_skip: 1
+  last_action_to_obs: True
+  last_reward_to_obs: True
   obs_stacks: 3
   grayscale: False
   resize_vis_obs: [64, 64]
