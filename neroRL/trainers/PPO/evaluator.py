@@ -85,8 +85,7 @@ class Evaluator():
                             actions = []
                             for action_branch in policy:
                                 action = action_branch.sample()
-                                actions.append(action.cpu().data.numpy())
-                            actions = np.transpose(actions)
+                                actions.append(action.cpu().data.item())
                             worker.child.send(("step", actions))
 
                     # Receive and process step result if not done
