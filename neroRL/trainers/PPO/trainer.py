@@ -130,10 +130,7 @@ class PPOTrainer():
 
         # Launch workers
         print("Step 4: Launching training environments of type " + configs["environment"]["type"])
-        self.workers = []
-        for i in range(self.n_workers):
-            id = worker_id + 200 + i
-            self.workers.append(Worker(configs["environment"], id))
+        self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
 
         # Setup initial observations
         if visual_observation_space is not None:
@@ -185,6 +182,8 @@ class PPOTrainer():
             episode_infos {list} -- Results of completed episodes
         """
         episode_infos = []
+        # Save the index of a completed episode, which is needed later on to seperate the data into episodes and sequences of fixed length
+        self.episode_done_indices = [[] for w in range(self.n_workers)]
 
         # Sample actions from the model and collect experiences for training
         for t in range(self.worker_steps):
@@ -226,7 +225,10 @@ class PPOTrainer():
                 if self.vec_obs is not None:
                     self.vec_obs[w] = vec_obs
                 if info:
+                    # Store the information of the completed episode (e.g. total reward, episode length)
                     episode_infos.append(info)
+                    # Save the index of a completed episode, which is needed later on to seperate the data into episodes and sequences of fixed length
+                    self.episode_done_indices[w].append(t)
                     # Reset agent (potential interface for providing reset parameters)
                     worker.child.send(("reset", None))
                     # Get data from reset
@@ -370,7 +372,7 @@ class PPOTrainer():
                 sample_episode_info = self.sample(self.device)
 
             # 3.: Prepare the sampled data inside the buffer
-            self.buffer.prepare_batch_dict()
+            self.buffer.prepare_batch_dict(self.episode_done_indices)
 
             # 4.: Train n epochs over the sampled data using mini batches
             if torch.cuda.is_available():

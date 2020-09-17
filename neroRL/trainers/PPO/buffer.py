@@ -61,16 +61,18 @@ class Buffer():
             self.advantages[:, t] = last_advantage
             last_value = self.values[:, t]
 
-    def prepare_batch_dict(self):
-        """Flattens the training samples and stores them inside a dictionary."""
+    def prepare_batch_dict(self, episode_done_indices):
+        """Flattens the training samples and stores them inside a dictionary. If a recurrent policy is used, that data is split into episodes beforehand.
+        
+        Arguments:
+            episode_done_indices {list} -- Nested list that stores the done indices of each worker"""
         # Store unflattened samples
         samples = {
             'actions': self.actions,
             'values': self.values,
             'log_probs': self.log_probs,
             'advantages': self.advantages,
-            'hidden_states': self.hidden_states,
-            'dones': self.dones
+            'hidden_states': self.hidden_states
         }
 
     	# Add observations to dictionary
@@ -78,6 +80,40 @@ class Buffer():
             samples['vis_obs'] = self.vis_obs
         if self.vec_obs is not None:
             samples['vec_obs'] = self.vec_obs
+
+        # If recurrent, split data into episodes and apply zero-padding
+        if self.use_recurrent:
+            # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
+            for w in range(self.n_workers):
+                if episode_done_indices[w][-1] != self.worker_steps - 1:
+                    episode_done_indices[w].append(self.worker_steps - 1)
+            
+            # Split vis_obs, vec_obs, values, advantages, actions and log_probs into episodes
+            max_episode_length = 1
+            for key, value in samples.items():
+                episodes = []
+                for w in range(self.n_workers):
+                    start_index = 0
+                    for i, done_index in enumerate(episode_done_indices[w]):
+                        episode = value[w, start_index:done_index + 1]
+                        max_episode_length = len(episode) if len(episode) > max_episode_length else max_episode_length
+                        episodes.append(episode)
+                        start_index = done_index + 1
+
+                # Apply zero-padding to ensure that each episode has the same length
+                # Therfore we can train batches of episodes in parallel instead of one episode at a time
+                for i, episode in enumerate(episodes):
+                    episodes[i] = self.pad_sequence(episode, max_episode_length)
+
+                # Stack episodes (target shape: (Episode, Step, Data ...))
+                stacked_episodes = np.stack(episodes, axis=0)
+
+                # Apply data to the samples dict
+                samples[key] = stacked_episodes
+
+            # TODO: more intuitive variables...
+            self.num_episodes = len(samples["values"])
+            self.sequence_length = max_episode_length
 
         # Flatten all samples
         self.samples_flat = {}
@@ -110,15 +146,44 @@ class Buffer():
         Yields:
             {dict} -- Mini batch data for training
         """
-        # Prepare indices, but only shuffle the worker indices and not the entire batch to ensure that sequences of worker trajectories are maintained
-        num_envs_per_batch = self.n_workers // self.n_mini_batch
-        indices = np.arange(0, self.n_workers * self.worker_steps).reshape(self.n_workers, self.worker_steps)
-        worker_indices = torch.randperm(self.n_workers)
-        for start in range(0, self.n_workers, num_envs_per_batch):
-            # Arrange mini batches
-            end = start + num_envs_per_batch
-            mini_batch_indices = indices[worker_indices[start:end]].reshape(-1)
+        # Determine the number of episodes per mini batch
+        num_eps_per_batch = self.num_episodes // self.n_mini_batch
+        num_eps_per_batch = [num_eps_per_batch] * self.n_mini_batch # Arrange a list that determines the episode count for each mini batch
+        remainder = self.num_episodes % self.n_mini_batch
+        for i in range(remainder):
+            num_eps_per_batch[i] = num_eps_per_batch[i] + 1 # Add the remainder if the episode count and the number of mini batches do not share a common divider
+        # Prepare indices, but only shuffle the episode indices and not the entire batch to ensure that sequences of episodes are maintained
+        indices = np.arange(0, self.num_episodes * self.sequence_length).reshape(self.num_episodes, self.sequence_length)
+        episode_indices = torch.randperm(self.num_episodes)
+
+        # Compose mini batches
+        start = 0
+        for num_eps in num_eps_per_batch:
+            end = start + num_eps
+            mini_batch_indices = indices[episode_indices[start:end]].reshape(-1)
             mini_batch = {}
             for key, value in self.samples_flat.items():
                 mini_batch[key] = value[mini_batch_indices].to(self.device)
+            start = end
             yield mini_batch
+
+    def pad_sequence(self, sequence, target_length):
+        """[summary]
+
+        Args:
+            sequence ([type]): [description]
+            desired_length ([type]): [description]
+
+        Returns:
+            [type]: [description]
+        """
+        if isinstance(sequence, torch.Tensor):
+            sequence = sequence.numpy()
+        delta_length = target_length - len(sequence)
+        if delta_length <= 0:
+            return sequence
+        if len(sequence.shape) > 1:
+            zeros = np.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
+        else:
+            zeros = np.zeros(delta_length, dtype=sequence.dtype)
+        return np.concatenate((sequence, zeros), axis=0)
