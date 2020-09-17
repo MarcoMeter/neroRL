@@ -261,7 +261,8 @@ class PPOTrainer():
         policy, value, _ = self.model(samples['vis_obs'] if self.vis_obs is not None else None,
                                     samples['vec_obs'] if self.vec_obs is not None else None,
                                     samples['hidden_states'] if self.use_recurrent else None,
-                                    self.device)
+                                    self.device,
+                                    self.buffer.sequence_length)
         
         # Policy Loss
         # Retreive and process log_probs from each policy branch

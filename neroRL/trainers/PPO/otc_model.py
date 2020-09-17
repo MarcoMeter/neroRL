@@ -106,7 +106,7 @@ class OTCModel(nn.Module):
                                out_features=1)
         nn.init.orthogonal_(self.value.weight, 1)
 
-    def forward(self, vis_obs, vec_obs, hxs, device):
+    def forward(self, vis_obs, vec_obs, hxs, device, sequence_length = 1):
         """Forward pass of the model
 
         Arguments:
@@ -139,9 +139,21 @@ class OTCModel(nn.Module):
 
         # Forward reccurent layer (GRU) if available
         if self.use_recurrent:
-            h, hxs = self.gru(h.unsqueeze(0), hxs.unsqueeze(0))
-            h = h.squeeze(0)
-            hxs = hxs.squeeze(0)
+            if sequence_length == 1:
+                h, hxs = self.gru(h.unsqueeze(0), hxs.unsqueeze(0))
+                h = h.squeeze(0)
+                hxs = hxs.squeeze(0)
+            else:
+                # Reshape the to be fed data to sequence_length, batch_size, Data
+                h_shape = tuple(h.size())
+                h = h.view(sequence_length, (h_shape[0] // sequence_length), h_shape[1])
+                # Initialize hidden states to zero
+                hxs = torch.zeros((h_shape[0] // sequence_length), self.hidden_state_size, dtype=torch.float32, device=device)
+                h, hxs = self.gru(h, hxs.unsqueeze(0))
+                # Reshape to the original tensor size
+                h_shape = tuple(h.size())
+                h = h.view(h_shape[0] * h_shape[1], h_shape[2])
+                # assert(False)
 
         # Feed hidden layer
         h = F.relu(self.lin_hidden(h))
