@@ -144,7 +144,7 @@ class PPOTrainer():
 
         # Setup initial hidden states
         if self.use_recurrent:
-            self.hidden_state = torch.zeros((self.n_workers, self.hidden_state_size), dtype=torch.float32, device=self.device)
+            self.hidden_state = torch.zeros((self.n_workers, self.hidden_state_size), dtype=torch.float32, device=self.mini_batch_device)
         else:
             self.hidden_state = None
 
@@ -192,8 +192,6 @@ class PPOTrainer():
                 self.buffer.vis_obs[:, t] = self.vis_obs
             if self.vec_obs is not None:
                 self.buffer.vec_obs[:, t] = self.vec_obs
-            if self.use_recurrent:
-                self.buffer.hidden_states[:, t] = self.hidden_state
             
             # Gradients can be omitted for sampling data
             with torch.no_grad():
@@ -260,7 +258,7 @@ class PPOTrainer():
         sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages']).unsqueeze(1).repeat(1, len(self.action_space_shape))
         policy, value, _ = self.model(samples['vis_obs'] if self.vis_obs is not None else None,
                                     samples['vec_obs'] if self.vec_obs is not None else None,
-                                    samples['hidden_states'] if self.use_recurrent else None,
+                                    None,
                                     self.device,
                                     self.buffer.sequence_length)
         

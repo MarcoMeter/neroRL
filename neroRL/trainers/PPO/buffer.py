@@ -38,7 +38,6 @@ class Buffer():
             self.vec_obs = np.zeros((n_workers, worker_steps,) + vector_observation_space, dtype=np.float32)
         else:
             self.vec_obs = None
-        self.hidden_states = torch.zeros((n_workers, worker_steps, hidden_state_size), dtype=torch.float32)
         self.log_probs = np.zeros((n_workers, worker_steps, len(action_space_shape)), dtype=np.float32)
         self.values = np.zeros((n_workers, worker_steps), dtype=np.float32)
         self.advantages = np.zeros((n_workers, worker_steps), dtype=np.float32)
@@ -71,8 +70,7 @@ class Buffer():
             'actions': self.actions,
             'values': self.values,
             'log_probs': self.log_probs,
-            'advantages': self.advantages,
-            'hidden_states': self.hidden_states
+            'advantages': self.advantages
         }
 
     	# Add observations to dictionary
@@ -85,7 +83,7 @@ class Buffer():
         if self.use_recurrent:
             # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
             for w in range(self.n_workers):
-                if episode_done_indices[w][-1] != self.worker_steps - 1:
+                if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
                     episode_done_indices[w].append(self.worker_steps - 1)
             
             # Split vis_obs, vec_obs, values, advantages, actions and log_probs into episodes
@@ -168,22 +166,27 @@ class Buffer():
             yield mini_batch
 
     def pad_sequence(self, sequence, target_length):
-        """[summary]
+        """Pads a sequence to the target length using zeros.
 
         Args:
-            sequence ([type]): [description]
-            desired_length ([type]): [description]
+            sequence {numpy.ndarray}: The to be padded array (i.e. sequence)
+            target_length {int}: The desired length of the sequence
 
         Returns:
-            [type]: [description]
+            {numpy.ndarray}: Returns the padded sequence
         """
+        # If a tensor is provided, convert it to a numpy array
         if isinstance(sequence, torch.Tensor):
             sequence = sequence.numpy()
+        # Determine the number of zeros that have to be added to the sequence
         delta_length = target_length - len(sequence)
+        # If the sequence is already as long as the target length, don't pad
         if delta_length <= 0:
             return sequence
+        # Construct array of zeros
         if len(sequence.shape) > 1:
             zeros = np.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
         else:
             zeros = np.zeros(delta_length, dtype=sequence.dtype)
+        # Concatenate the zeros to the sequence
         return np.concatenate((sequence, zeros), axis=0)
