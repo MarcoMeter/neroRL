@@ -40,6 +40,8 @@ model:
   use_recurrent: True
   # Size of the GRU layer
   hidden_state_size: 512
+  # Length of the trained sequences, if set to 0 the sequence length is dynamically fit to episode lengths
+  sequence_length: 32
   
 ### EVALUATION CONFIG ###
 evaluation:

@@ -5,7 +5,7 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent policies.
     """
-    def __init__(self, n_workers, worker_steps, n_mini_batch, visual_observation_space, vector_observation_space, action_space_shape, use_recurrent, hidden_state_size, device, mini_batch_device):
+    def __init__(self, n_workers, worker_steps, n_mini_batch, visual_observation_space, vector_observation_space, action_space_shape, use_recurrent, hidden_state_size, sequence_length, device, mini_batch_device):
         """
         Arguments:
             n_workers {int} -- Number of environments/agents to sample training data
@@ -21,6 +21,7 @@ class Buffer():
         """
         self.device = device
         self.use_recurrent = use_recurrent
+        self.sequence_length = sequence_length
         self.n_workers = n_workers
         self.worker_steps = worker_steps
         self.n_mini_batch = n_mini_batch
@@ -86,38 +87,72 @@ class Buffer():
                 if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
                     episode_done_indices[w].append(self.worker_steps - 1)
             
-            # Split vis_obs, vec_obs, values, advantages, actions and log_probs into episodes
-            max_episode_length = 1
+            # Split vis_obs, vec_obs, values, advantages, actions and log_probs into episodes and then into sequences
+            max_sequence_length = 1
             for key, value in samples.items():
-                episodes = []
+                sequences = []
                 for w in range(self.n_workers):
                     start_index = 0
-                    for i, done_index in enumerate(episode_done_indices[w]):
+                    for done_index in episode_done_indices[w]:
+                        # Split trajectory into episodes
                         episode = value[w, start_index:done_index + 1]
-                        max_episode_length = len(episode) if len(episode) > max_episode_length else max_episode_length
-                        episodes.append(episode)
                         start_index = done_index + 1
-
+                        # Split episodes into sequences
+                        if self.sequence_length > 0:
+                            for start in range(0, len(episode), self.sequence_length):
+                                end = start + self.sequence_length
+                                sequences.append(episode[start:end])
+                                max_sequence_length = self.sequence_length
+                        else:
+                            # If the sequence length is not set to a proper value, sequences will be based on episodes
+                            sequences.append(episode)
+                            max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
+                
                 # Apply zero-padding to ensure that each episode has the same length
                 # Therfore we can train batches of episodes in parallel instead of one episode at a time
-                for i, episode in enumerate(episodes):
-                    episodes[i] = self.pad_sequence(episode, max_episode_length)
+                for i, sequence in enumerate(sequences):
+                    sequences[i] = self.pad_sequence(sequence, max_sequence_length)
 
-                # Stack episodes (target shape: (Episode, Step, Data ...))
-                stacked_episodes = np.stack(episodes, axis=0)
-
-                # Apply data to the samples dict
-                samples[key] = stacked_episodes
+                # Stack episodes (target shape: (Episode, Step, Data ...) & apply data to the samples dict
+                samples[key] = np.stack(sequences, axis=0)
 
             # TODO: more intuitive variables...
-            self.num_episodes = len(samples["values"])
-            self.sequence_length = max_episode_length
+            self.num_sequences = len(samples["values"])
+            self.actual_sequence_length = max_sequence_length
+
+        
 
         # Flatten all samples
         self.samples_flat = {}
         for key, value in samples.items():
             value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
             self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.mini_batch_device)
+
+    def pad_sequence(self, sequence, target_length):
+        """Pads a sequence to the target length using zeros.
+
+        Args:
+            sequence {numpy.ndarray}: The to be padded array (i.e. sequence)
+            target_length {int}: The desired length of the sequence
+
+        Returns:
+            {numpy.ndarray}: Returns the padded sequence
+        """
+        # If a tensor is provided, convert it to a numpy array
+        if isinstance(sequence, torch.Tensor):
+            sequence = sequence.numpy()
+        # Determine the number of zeros that have to be added to the sequence
+        delta_length = target_length - len(sequence)
+        # If the sequence is already as long as the target length, don't pad
+        if delta_length <= 0:
+            return sequence
+        # Construct array of zeros
+        if len(sequence.shape) > 1:
+            zeros = np.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
+        else:
+            zeros = np.zeros(delta_length, dtype=sequence.dtype)
+        # Concatenate the zeros to the sequence
+        return np.concatenate((sequence, zeros), axis=0)
 
     def mini_batch_generator(self):
         """A generator that returns a dictionary containing the data of a whole minibatch.
@@ -145,14 +180,14 @@ class Buffer():
             {dict} -- Mini batch data for training
         """
         # Determine the number of episodes per mini batch
-        num_eps_per_batch = self.num_episodes // self.n_mini_batch
+        num_eps_per_batch = self.num_sequences // self.n_mini_batch
         num_eps_per_batch = [num_eps_per_batch] * self.n_mini_batch # Arrange a list that determines the episode count for each mini batch
-        remainder = self.num_episodes % self.n_mini_batch
+        remainder = self.num_sequences % self.n_mini_batch
         for i in range(remainder):
-            num_eps_per_batch[i] = num_eps_per_batch[i] + 1 # Add the remainder if the episode count and the number of mini batches do not share a common divider
+            num_eps_per_batch[i] += 1 # Add the remainder if the episode count and the number of mini batches do not share a common divider
         # Prepare indices, but only shuffle the episode indices and not the entire batch to ensure that sequences of episodes are maintained
-        indices = np.arange(0, self.num_episodes * self.sequence_length).reshape(self.num_episodes, self.sequence_length)
-        episode_indices = torch.randperm(self.num_episodes)
+        indices = np.arange(0, self.num_sequences * self.actual_sequence_length).reshape(self.num_sequences, self.actual_sequence_length)
+        episode_indices = torch.randperm(self.num_sequences)
 
         # Compose mini batches
         start = 0
@@ -164,29 +199,3 @@ class Buffer():
                 mini_batch[key] = value[mini_batch_indices].to(self.device)
             start = end
             yield mini_batch
-
-    def pad_sequence(self, sequence, target_length):
-        """Pads a sequence to the target length using zeros.
-
-        Args:
-            sequence {numpy.ndarray}: The to be padded array (i.e. sequence)
-            target_length {int}: The desired length of the sequence
-
-        Returns:
-            {numpy.ndarray}: Returns the padded sequence
-        """
-        # If a tensor is provided, convert it to a numpy array
-        if isinstance(sequence, torch.Tensor):
-            sequence = sequence.numpy()
-        # Determine the number of zeros that have to be added to the sequence
-        delta_length = target_length - len(sequence)
-        # If the sequence is already as long as the target length, don't pad
-        if delta_length <= 0:
-            return sequence
-        # Construct array of zeros
-        if len(sequence.shape) > 1:
-            zeros = np.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
-        else:
-            zeros = np.zeros(delta_length, dtype=sequence.dtype)
-        # Concatenate the zeros to the sequence
-        return np.concatenate((sequence, zeros), axis=0)

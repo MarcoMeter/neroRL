@@ -68,7 +68,8 @@ class YamlParser:
             "model_path": "",
             "checkpoint_interval": 50,
             "use_recurrent": True,
-            "hidden_state_size": 512
+            "hidden_state_size": 512,
+            "sequence_length": 24
         }
 
         eval_dict = {

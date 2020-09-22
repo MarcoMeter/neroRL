@@ -17,6 +17,7 @@ model:
   checkpoint_interval: 10
   use_recurrent: True
   hidden_state_size: 128
+  sequence_length: 8
 
 evaluation:
   evaluate: False

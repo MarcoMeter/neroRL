@@ -18,7 +18,8 @@ model:
   model_path: "./models/minigrid-MiniGrid-MemoryS7-v0_recurrent.pt"
   checkpoint_interval: 10
   use_recurrent: True
-  hidden_state_size: 512
+  hidden_state_size: 128
+  sequence_length: 32
 
 evaluation:
   evaluate: False

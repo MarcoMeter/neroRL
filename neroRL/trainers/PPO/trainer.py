@@ -125,6 +125,7 @@ class PPOTrainer():
             self.action_space_shape,
             self.use_recurrent,
             self.hidden_state_size,
+            configs["model"]["sequence_length"],
             self.device,
             self.mini_batch_device)
 
@@ -260,7 +261,7 @@ class PPOTrainer():
                                     samples['vec_obs'] if self.vec_obs is not None else None,
                                     None,
                                     self.device,
-                                    self.buffer.sequence_length)
+                                    self.buffer.actual_sequence_length)
         
         # Policy Loss
         # Retreive and process log_probs from each policy branch
@@ -297,6 +298,14 @@ class PPOTrainer():
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
         self.optimizer.step()
+
+        # import os
+        # os.environ["Path"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
+        # from torchviz import make_dot
+        # dot = make_dot(loss, params=dict(self.model.named_parameters()))
+        # dot.format = "pdf"
+        # dot.render()
+        # assert(False)
 
         # Monitor training statistics
         approx_kl_divergence = .5 * ((log_probs - samples['log_probs']) ** 2).mean()
@@ -388,7 +397,7 @@ class PPOTrainer():
             # Save model
             if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
                 torch.save(self.model, self.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
-
+            print("sequence length " + str(self.buffer.actual_sequence_length))
             # 5.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
             if episode_result:
