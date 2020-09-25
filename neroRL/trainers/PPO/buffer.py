@@ -62,11 +62,11 @@ class Buffer():
             last_value = self.values[:, t]
 
     def prepare_batch_dict(self, episode_done_indices):
-        """Flattens the training samples and stores them inside a dictionary. If a recurrent policy is used, that data is split into episodes beforehand.
+        """Flattens the training samples and stores them inside a dictionary. If a recurrent policy is used, that data is split into episodes or sequences beforehand.
         
         Arguments:
             episode_done_indices {list} -- Nested list that stores the done indices of each worker"""
-        # Store unflattened samples
+        # Supply training samples
         samples = {
             'actions': self.actions,
             'values': self.values,
@@ -119,9 +119,7 @@ class Buffer():
             # TODO: more intuitive variables...
             self.num_sequences = len(samples["values"])
             self.actual_sequence_length = max_sequence_length
-
-        
-
+            
         # Flatten all samples
         self.samples_flat = {}
         for key, value in samples.items():

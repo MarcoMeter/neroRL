@@ -148,7 +148,7 @@ class OTCModel(nn.Module):
                 h_shape = tuple(h.size())
                 h = h.view(sequence_length, (h_shape[0] // sequence_length), h_shape[1])
                 # Initialize hidden states to zero
-                hxs = torch.zeros((h_shape[0] // sequence_length), self.hidden_state_size, dtype=torch.float32, device=device)
+                hxs = torch.zeros((h_shape[0] // sequence_length), self.hidden_state_size, dtype=torch.float32, device=device, requires_grad=True)
                 h, hxs = self.gru(h, hxs.unsqueeze(0))
                 # Reshape to the original tensor size
                 h_shape = tuple(h.size())
