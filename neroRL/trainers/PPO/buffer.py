@@ -86,6 +86,10 @@ class Buffer():
             for w in range(self.n_workers):
                 if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
                     episode_done_indices[w].append(self.worker_steps - 1)
+
+            # Init loss mask
+            # This will be used later on to mask the padding while computing the loss functions
+            samples['loss_mask'] = np.ones((self.n_workers, self.worker_steps), dtype=np.float32)
             
             # Split vis_obs, vec_obs, values, advantages, actions and log_probs into episodes and then into sequences
             max_sequence_length = 1

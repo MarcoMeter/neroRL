@@ -274,13 +274,17 @@ class PPOTrainer():
         ratio = torch.exp(log_probs - samples['log_probs'])
         surr1 = ratio * sampled_normalized_advantage
         surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * sampled_normalized_advantage
-        policy_loss = torch.min(surr1, surr2).mean()
+        policy_loss = torch.min(surr1, surr2)
+        policy_loss = self.masked_mean(policy_loss, samples["loss_mask"])
 
         # Value
         clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range,
                                                                       max=clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
+        vf_loss = self.masked_mean(vf_loss, samples["loss_mask"])
         vf_loss = 0.5 * vf_loss.mean()
+
+        # assert False
 
         # Entropy Bonus
         entropies = []
@@ -510,3 +514,14 @@ class PPOTrainer():
         print("Terminate: Training aborted . . .")
         self.close()
         exit(0)
+
+    def masked_mean(self, tensor: torch.Tensor, masks: torch.Tensor) -> torch.Tensor:
+        """
+        Returns the mean of the tensor but ignoring the values specified by masks.
+        Used for masking out loss functions.
+        :param tensor: Tensor which needs mean computation.
+        :param masks: Boolean tensor of masks with same dimension as tensor.
+        """
+        return (tensor.T * masks).sum() / torch.clamp(
+            (torch.ones_like(tensor.T) * masks).float().sum(), min=1.0
+        )
