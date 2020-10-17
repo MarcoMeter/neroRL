@@ -290,7 +290,7 @@ class PPOTrainer():
         entropies = []
         for policy_branch in policy:
             entropies.append(policy_branch.entropy())
-        entropy_bonus = torch.stack(entropies, dim=1).sum(1).reshape(-1).mean()
+        entropy_bonus = self.masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
 
         # Complete loss
         loss = -(policy_loss - 0.5 * vf_loss + beta * entropy_bonus)
