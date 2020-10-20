@@ -5,12 +5,12 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent policies.
     """
-    def __init__(self, n_workers, worker_steps, n_mini_batch, visual_observation_space, vector_observation_space, action_space_shape, use_recurrent, hidden_state_size, sequence_length, device, mini_batch_device):
+    def __init__(self, num_workers, worker_steps, num_mini_batches, visual_observation_space, vector_observation_space, action_space_shape, use_recurrent, hidden_state_size, sequence_length, device, mini_batch_device):
         """
         Arguments:
-            n_workers {int} -- Number of environments/agents to sample training data
+            num_workers {int} -- Number of environments/agents to sample training data
             worker_steps {int} -- Number of steps per environment/agent to sample training data
-            n_mini_batch {int} -- Number of mini batches that are used for each training epoch
+            num_mini_batches {int} -- Number of mini batches that are used for each training epoch
             visual_observation_space {Box} -- Visual observation if available, else None
             vector_observation_space {tuple} -- Vector observation space if available, else None
             action_space_shape {tuple} -- Shape of the action space
@@ -22,26 +22,26 @@ class Buffer():
         self.device = device
         self.use_recurrent = use_recurrent
         self.sequence_length = sequence_length
-        self.n_workers = n_workers
+        self.num_workers = num_workers
         self.worker_steps = worker_steps
-        self.n_mini_batch = n_mini_batch
-        self.batch_size = self.n_workers * self.worker_steps
-        self.mini_batch_size = self.batch_size // self.n_mini_batch
+        self.num_mini_batches = num_mini_batches
+        self.batch_size = self.num_workers * self.worker_steps
+        self.mini_batch_size = self.batch_size // self.num_mini_batches
         self.mini_batch_device = mini_batch_device
-        self.rewards = np.zeros((n_workers, worker_steps), dtype=np.float32)
-        self.actions = np.zeros((n_workers, worker_steps, len(action_space_shape)), dtype=np.int32)
-        self.dones = np.zeros((n_workers, worker_steps), dtype=np.bool)
+        self.rewards = np.zeros((num_workers, worker_steps), dtype=np.float32)
+        self.actions = np.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=np.int32)
+        self.dones = np.zeros((num_workers, worker_steps), dtype=np.bool)
         if visual_observation_space is not None:
-            self.vis_obs = np.zeros((n_workers, worker_steps) + visual_observation_space.shape, dtype=np.float32)
+            self.vis_obs = np.zeros((num_workers, worker_steps) + visual_observation_space.shape, dtype=np.float32)
         else:
             self.vis_obs = None
         if vector_observation_space is not None:
-            self.vec_obs = np.zeros((n_workers, worker_steps,) + vector_observation_space, dtype=np.float32)
+            self.vec_obs = np.zeros((num_workers, worker_steps,) + vector_observation_space, dtype=np.float32)
         else:
             self.vec_obs = None
-        self.log_probs = np.zeros((n_workers, worker_steps, len(action_space_shape)), dtype=np.float32)
-        self.values = np.zeros((n_workers, worker_steps), dtype=np.float32)
-        self.advantages = np.zeros((n_workers, worker_steps), dtype=np.float32)
+        self.log_probs = np.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=np.float32)
+        self.values = np.zeros((num_workers, worker_steps), dtype=np.float32)
+        self.advantages = np.zeros((num_workers, worker_steps), dtype=np.float32)
 
     def calc_advantages(self, last_value, gamma, lamda):
         """Generalized advantage estimation (GAE)
@@ -62,7 +62,7 @@ class Buffer():
             last_value = self.values[:, t]
 
     def prepare_batch_dict(self, episode_done_indices):
-        """Flattens the training samples and stores them inside a dictionary. If a recurrent policy is used, that data is split into episodes or sequences beforehand.
+        """Flattens the training samples and stores them inside a dictionary. If a recurrent policy is used, the data is split into episodes or sequences beforehand.
         
         Arguments:
             episode_done_indices {list} -- Nested list that stores the done indices of each worker"""
@@ -71,31 +71,30 @@ class Buffer():
             'actions': self.actions,
             'values': self.values,
             'log_probs': self.log_probs,
-            'advantages': self.advantages
+            'advantages': self.advantages,
+            # The loss mask is used for masking the padding while computing the loss function.
+            # This is only of significance while using recurrence.
+            'loss_mask': np.ones((self.num_workers, self.worker_steps), dtype=np.float32)
         }
 
-    	# Add observations to dictionary
+    	# Add available observations to the dictionary
         if self.vis_obs is not None:
             samples['vis_obs'] = self.vis_obs
         if self.vec_obs is not None:
             samples['vec_obs'] = self.vec_obs
 
-        # If recurrent, split data into episodes and apply zero-padding
+        # If recurrence is used, split data into sequences and apply zero-padding
         if self.use_recurrent:
             # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
-            for w in range(self.n_workers):
+            for w in range(self.num_workers):
                 if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
                     episode_done_indices[w].append(self.worker_steps - 1)
-
-            # Init loss mask
-            # This will be used later on to mask the padding while computing the loss functions
-            samples['loss_mask'] = np.ones((self.n_workers, self.worker_steps), dtype=np.float32)
             
             # Split vis_obs, vec_obs, values, advantages, actions and log_probs into episodes and then into sequences
             max_sequence_length = 1
             for key, value in samples.items():
                 sequences = []
-                for w in range(self.n_workers):
+                for w in range(self.num_workers):
                     start_index = 0
                     for done_index in episode_done_indices[w]:
                         # Split trajectory into episodes
@@ -120,7 +119,7 @@ class Buffer():
                 # Stack episodes (target shape: (Episode, Step, Data ...) & apply data to the samples dict
                 samples[key] = np.stack(sequences, axis=0)
 
-            # TODO: more intuitive variables...
+            # Store important information
             self.num_sequences = len(samples["values"])
             self.actual_sequence_length = max_sequence_length
             
@@ -150,6 +149,7 @@ class Buffer():
             return sequence
         # Construct array of zeros
         if len(sequence.shape) > 1:
+            # Case: pad multi-dimensional array like visual observation
             zeros = np.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
         else:
             zeros = np.zeros(delta_length, dtype=sequence.dtype)
@@ -166,7 +166,7 @@ class Buffer():
         # Prepare indices (shuffle)
         indices = torch.randperm(self.batch_size)
         for start in range(0, self.batch_size, self.mini_batch_size):
-            # Arrange mini batches
+            # Compose mini batches
             end = start + self.mini_batch_size
             mini_batch_indices = indices[start: end]
             mini_batch = {}
@@ -182,20 +182,21 @@ class Buffer():
             {dict} -- Mini batch data for training
         """
         # Determine the number of episodes per mini batch
-        num_eps_per_batch = self.num_sequences // self.n_mini_batch
-        num_eps_per_batch = [num_eps_per_batch] * self.n_mini_batch # Arrange a list that determines the episode count for each mini batch
-        remainder = self.num_sequences % self.n_mini_batch
+        num_sequences_per_batch = self.num_sequences // self.num_mini_batches
+        num_sequences_per_batch = [num_sequences_per_batch] * self.num_mini_batches # Arrange a list that determines the episode count for each mini batch
+        remainder = self.num_sequences % self.num_mini_batches
         for i in range(remainder):
-            num_eps_per_batch[i] += 1 # Add the remainder if the episode count and the number of mini batches do not share a common divider
+            num_sequences_per_batch[i] += 1 # Add the remainder if the episode count and the number of mini batches do not share a common divider
         # Prepare indices, but only shuffle the episode indices and not the entire batch to ensure that sequences of episodes are maintained
         indices = np.arange(0, self.num_sequences * self.actual_sequence_length).reshape(self.num_sequences, self.actual_sequence_length)
-        episode_indices = torch.randperm(self.num_sequences)
+        sequence_indices = torch.randperm(self.num_sequences)
+        # At this point it is assumed that all of the available training data (values, observations, actions, ...) is padded.
 
         # Compose mini batches
         start = 0
-        for num_eps in num_eps_per_batch:
-            end = start + num_eps
-            mini_batch_indices = indices[episode_indices[start:end]].reshape(-1)
+        for num_sequences in num_sequences_per_batch:
+            end = start + num_sequences
+            mini_batch_indices = indices[sequence_indices[start:end]].reshape(-1)
             mini_batch = {}
             for key, value in self.samples_flat.items():
                 mini_batch[key] = value[mini_batch_indices].to(self.device)
