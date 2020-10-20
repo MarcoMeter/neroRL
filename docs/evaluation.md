@@ -12,7 +12,6 @@ To evaluate a model utilize the `python eval.py` command.
         --config=<path>            Path of the Config file [default: ./configs/default.yaml].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
-        --run-id=<path>            Specifies the tag of the tensorboard summaries [default: default].
 """
 ```
 
@@ -27,9 +26,6 @@ This is usually helpfull for debugging/testing.
 
 ## --worker-id
 Setting a `--worker-id=100` is necessary if you run multiple training sessions using Unity environments, because these environments communicate with Python using sockets via distinct ports that are offset by the `--worker-id`.
-
-## --run-id
-The `--run-id=training_0` adds a tag to the training session, which is helpfull for identifying the [tensorboard](tensorboard.md) summaries.
 
 ## Example
 ```

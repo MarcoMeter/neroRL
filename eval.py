@@ -11,6 +11,7 @@ from neroRL.utils.yaml_parser import YamlParser
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.trainers.PPO.otc_model import OTCModel
+from neroRL.utils.serialization import load_checkpoint
 
 def main():
     # Docopt command line arguments
@@ -23,13 +24,11 @@ def main():
         --config=<path>            Path of the Config file [default: ./configs/default.yaml].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
-        --run-id=<path>            Specifies the tag of the tensorboard summaries [default: default].
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]
     config_path = options["--config"]
     worker_id = int(options["--worker-id"])
-    run_id = options["--run-id"]
 
     # Load environment, model, evaluation and training parameters
     configs = YamlParser(config_path).get_config()
@@ -50,15 +49,15 @@ def main():
     dummy_env.close()
 
     # Build or load model
-    if untrained:
-        print("Step 2: Creating model")
-        model = OTCModel(configs["model"], visual_observation_space,
-                                vector_observation_space, action_space_shape,
-                                configs["model"]["use_recurrent"],
-                                configs["model"]["hidden_state_size"]).to(device)
-    else:
+    print("Step 2: Creating model")
+    model = OTCModel(configs["model"], visual_observation_space,
+                            vector_observation_space, action_space_shape,
+                            configs["model"]["use_recurrent"],
+                            configs["model"]["hidden_state_size"]).to(device)
+    if not untrained:
         print("Step 2: Loading model from " + configs["model"]["model_path"])
-        model = torch.load(configs["model"]["model_path"]).to(device)
+        checkpoint = load_checkpoint(configs["model"]["model_path"])
+        model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
     # Initialize evaluator

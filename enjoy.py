@@ -17,6 +17,7 @@ from neroRL.environments.minigrid_wrapper import MinigridWrapper
 from neroRL.environments.procgen_wrapper import ProcgenWrapper
 from neroRL.environments.cartpole_wrapper import CartPoleWrapper
 from neroRL.environments.wrapper import wrap_environment
+from neroRL.utils.serialization import load_checkpoint
 
 def main():
     # Docopt command line arguments
@@ -56,15 +57,16 @@ def main():
         action_space_shape = tuple(env.action_space.nvec)
 
     # Build or load model
-    if untrained:
-        print("Step 2: Creating model")
-        model = OTCModel(configs["model"], visual_observation_space,
-                                vector_observation_space, action_space_shape,
-                                configs["model"]["use_recurrent"],
-                                configs["model"]["hidden_state_size"]).to(device)
-    else:
+    print("Step 2: Creating model")
+    model = OTCModel(configs["model"], visual_observation_space,
+                            vector_observation_space, action_space_shape,
+                            configs["model"]["use_recurrent"],
+                            configs["model"]["hidden_state_size"]).to(device)
+    if not untrained:
         print("Step 2: Loading model from " + configs["model"]["model_path"])
-        model = torch.load(configs["model"]["model_path"]).to(device)
+        checkpoint = load_checkpoint(configs["model"]["model_path"])
+        model.load_state_dict(checkpoint["model_state_dict"])
+    model.eval()
 
     # Reset environment
     print("Step 3: Resetting the environment")

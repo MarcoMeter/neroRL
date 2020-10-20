@@ -15,7 +15,6 @@ class OTCModel(nn.Module):
     def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, use_recurrent, hidden_state_size):
         """Model setup
 
-
         Arguments:
             config {dict} -- Model config that is not used yet
             vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)

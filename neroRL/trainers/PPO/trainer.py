@@ -16,6 +16,7 @@ from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.utils.worker import Worker
 from neroRL.utils.decay_schedules import polynomial_decay
+from neroRL.utils.serialization import save_checkpoint, load_checkpoint
 
 class PPOTrainer():
     """The PPOTrainer is in charge of setting up the whole training loop while utilizing the PPO algorithm based on Schulman et al. 2017."""
@@ -50,6 +51,7 @@ class PPOTrainer():
             self.mini_batch_device = torch.device("cpu")
         else:
             self.mini_batch_device = self.device
+        self.configs = configs
         self.resume_at = configs["trainer"]['resume_at']
         self.gamma = configs["trainer"]['gamma']
         self.lamda = configs["trainer"]['lamda']
@@ -102,19 +104,26 @@ class PPOTrainer():
             print("Step 2b: Initializing evaluator")
             self.evaluator = Evaluator(configs["evaluation"], configs["environment"], worker_id, visual_observation_space, vector_observation_space)
 
-        # Build or load model
-        if not configs["model"]["load_model"]:
-            print("Step 3: Creating model")
-            self.model = OTCModel(configs["model"], visual_observation_space,
-                                    vector_observation_space, self.action_space_shape,
-                                    self.use_recurrent, self.hidden_state_size).to(self.device)
-        else:
-            print("Step 3: Loading model from " + configs["model"]["model_path"])
-            self.model = torch.load(configs["model"]["model_path"]).to(self.device)
-        self.model.train()
+        # Init model
+        print("Step 3: Creating model")
+        self.model = OTCModel(configs["model"], visual_observation_space,
+                                vector_observation_space, self.action_space_shape,
+                                self.use_recurrent, self.hidden_state_size).to(self.device)
 
         # Instantiate optimizer
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
+
+        # Load checkpoint and apply data
+        if configs["model"]["load_model"]:
+            print("Step 3: Loading model from " + configs["model"]["model_path"])
+            checkpoint = load_checkpoint(configs["model"]["model_path"])
+            self.model.load_state_dict(checkpoint["model_state_dict"])
+            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            self.resume_at = checkpoint["update"] + 1
+
+        # Set model to train mode
+        self.model.train()
+
         # Instantiate experience/training data buffer
         self.buffer = Buffer(
             self.n_workers,
@@ -387,9 +396,9 @@ class PPOTrainer():
             time_end = time.time()
             update_duration = int(time_end - time_start)
 
-            # Save model
+            # Save checkpoint (update, model, optimizer, configs)
             if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
-                torch.save(self.model, self.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
+                save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(update) + ".pt", update, self.model.state_dict(), self.optimizer.state_dict(), self.configs)
 
             # 5.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
@@ -507,7 +516,7 @@ class PPOTrainer():
             if self.currentUpdate > 0:
                 print("Terminate: Saving model . . .")
                 try:
-                        torch.save(self.model, self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
+                        save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt", self.currentUpdate, self.model.state_dict(), self.optimizer.state_dict(), self.configs)
                         print("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
                 except:
                     pass
