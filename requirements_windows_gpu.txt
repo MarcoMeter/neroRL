@@ -6,8 +6,8 @@ scipy
 gym
 docopt
 mlagents-envs==0.17.0
-https://download.pytorch.org/whl/cu101/torch-1.4.0-cp36-cp36m-win_amd64.whl
-https://download.pytorch.org/whl/cu101/torchvision-0.5.0-cp36-cp36m-win_amd64.whl
+https://download.pytorch.org/whl/cu101/torch-1.6.0%2Bcu101-cp36-cp36m-win_amd64.whl
+https://download.pytorch.org/whl/cu101/torchvision-0.7.0%2Bcu101-cp36-cp36m-win_amd64.whl
 tensorboard==2.0.2
 gym-minigrid==1.0.1
 procgen
