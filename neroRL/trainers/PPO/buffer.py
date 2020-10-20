@@ -42,6 +42,8 @@ class Buffer():
         self.log_probs = np.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=np.float32)
         self.values = np.zeros((num_workers, worker_steps), dtype=np.float32)
         self.advantages = np.zeros((num_workers, worker_steps), dtype=np.float32)
+        self.num_sequences = 0
+        self.actual_sequence_length = 0
 
     def calc_advantages(self, last_value, gamma, lamda):
         """Generalized advantage estimation (GAE)

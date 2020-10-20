@@ -278,13 +278,10 @@ class PPOTrainer():
         policy_loss = self.masked_mean(policy_loss, samples["loss_mask"])
 
         # Value
-        clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range,
-                                                                      max=clip_range)
+        clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range, max=clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
         vf_loss = self.masked_mean(vf_loss, samples["loss_mask"])
-        vf_loss = 0.5 * vf_loss.mean()
-
-        # assert False
+        vf_loss = 0.5 * vf_loss
 
         # Entropy Bonus
         entropies = []
@@ -302,14 +299,6 @@ class PPOTrainer():
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
         self.optimizer.step()
-
-        # import os
-        # os.environ["Path"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
-        # from torchviz import make_dot
-        # dot = make_dot(loss, params=dict(self.model.named_parameters()))
-        # dot.format = "pdf"
-        # dot.render()
-        # assert(False)
 
         # Monitor training statistics
         approx_kl_divergence = .5 * ((log_probs - samples['log_probs']) ** 2).mean()
@@ -401,17 +390,18 @@ class PPOTrainer():
             # Save model
             if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
                 torch.save(self.model, self.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
-            print("sequence length " + str(self.buffer.actual_sequence_length))
+            
             # 5.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
             if episode_result:
-                print("{:4} sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f}".format(
+                print("{:4} sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
                     update, update_duration, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"],
-                    training_stats[2], training_stats[3], np.mean(self.buffer.values), np.std(self.buffer.values), np.mean(self.buffer.advantages), np.std(self.buffer.advantages)))
+                    training_stats[2], training_stats[3], np.mean(self.buffer.values), np.std(self.buffer.values),
+                    np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
             else:
-                print("{:4} sec={:3} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f}".format(
+                print("{:4} sec={:3} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
                     update, update_duration, training_stats[2], training_stats[3], np.mean(self.buffer.values),
-                    np.std(self.buffer.values), np.mean(self.buffer.advantages), np.std(self.buffer.advantages)))
+                    np.std(self.buffer.values), np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
 
             # 6.: Evaluate model
             if self.eval:
@@ -470,6 +460,20 @@ class PPOTrainer():
                 result[key + "_std"] = np.std([info[key] for info in episode_info])
         return result
 
+    def masked_mean(self, tensor: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        """
+        Returns the mean of the tensor but ignores the values specified by the mask.
+        This is used for masking out the padding of loss functions.
+
+        Args:
+            tensor {Tensor}: The to be masked tensor
+            mask {Tensor}: The mask that is used to mask out padded values of a loss function
+
+        Returns:
+            {tensor}: Returns the mean of the masked tensor.
+        """
+        return (tensor.T * mask).sum() / torch.clamp((torch.ones_like(tensor.T) * mask).float().sum(), min=1.0)
+
     def close(self):
         """Closes the environment and destroys the workers"""
         print("Terminate: Closing dummy ennvironment . . .")
@@ -514,14 +518,3 @@ class PPOTrainer():
         print("Terminate: Training aborted . . .")
         self.close()
         exit(0)
-
-    def masked_mean(self, tensor: torch.Tensor, masks: torch.Tensor) -> torch.Tensor:
-        """
-        Returns the mean of the tensor but ignoring the values specified by masks.
-        Used for masking out loss functions.
-        :param tensor: Tensor which needs mean computation.
-        :param masks: Boolean tensor of masks with same dimension as tensor.
-        """
-        return (tensor.T * masks).sum() / torch.clamp(
-            (torch.ones_like(tensor.T) * masks).float().sum(), min=1.0
-        )
