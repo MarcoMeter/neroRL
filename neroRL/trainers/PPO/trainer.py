@@ -390,7 +390,7 @@ class PPOTrainer():
             # Save model
             if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
                 torch.save(self.model, self.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
-            
+
             # 5.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
             if episode_result:
@@ -426,6 +426,7 @@ class PPOTrainer():
         self.writer.add_scalar("losses/value_loss", training_stats[1], update)
         self.writer.add_scalar("other/entropy", training_stats[3], update)
         self.writer.add_scalar("other/clip_fraction", training_stats[5], update)
+        self.writer.add_scalar("other/sequence_length", self.buffer.actual_sequence_length, update)
         self.writer.add_scalar("episode/value_mean", np.mean(self.buffer.values), update)
         self.writer.add_scalar("episode/advantage_mean", np.mean(self.buffer.advantages), update)
         self.writer.add_scalar("decay/learning_rate", learning_rate, update)
