@@ -12,7 +12,7 @@ class OTCModel(nn.Module):
 
         Originally, this model has been used for the Obstacle Tower Challenge without a short-term memory.
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, use_recurrent, hidden_state_size):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
         """Model setup
 
         Arguments:
@@ -20,12 +20,11 @@ class OTCModel(nn.Module):
             vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
-            use_recurrent {bool} -- Whether to use short-term memory
-            hidden_state_size {int} -- Size of the memory's hidden state
+            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
+                - layer type {stirng}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
         """
         super().__init__()
-        self.use_recurrent = use_recurrent
-        self.hidden_state_size = hidden_state_size
+        self.recurrence = recurrence
         
         # Observation encoder
         if vis_obs_space is not None:
@@ -66,8 +65,8 @@ class OTCModel(nn.Module):
             in_features_next_layer = vec_obs_shape[0]
 
         # Recurrent Layer (GRU)
-        if use_recurrent:
-            self.gru = nn.GRU(in_features_next_layer, hidden_state_size)
+        if self.recurrence is not None:
+            self.gru = nn.GRU(in_features_next_layer, self.recurrence["hidden_state_size"])
             # Init GRU layer
             for name, param in self.gru.named_parameters():
                 if 'bias' in name:
@@ -75,7 +74,7 @@ class OTCModel(nn.Module):
                 elif 'weight' in name:
                     nn.init.orthogonal_(param)
             # Hidden layer
-            self.lin_hidden = nn.Linear(in_features=hidden_state_size, out_features=512)
+            self.lin_hidden = nn.Linear(in_features=self.recurrence["hidden_state_size"], out_features=512)
         else:
             # Hidden layer
             self.lin_hidden = nn.Linear(in_features=in_features_next_layer, out_features=512)
@@ -137,7 +136,7 @@ class OTCModel(nn.Module):
             h = torch.tensor(vec_obs, dtype=torch.float32, device=device)        # Convert vec_obs to tensor
 
         # Forward reccurent layer (GRU) if available
-        if self.use_recurrent:
+        if self.recurrence is not None:
             if sequence_length == 1:
                 h, hxs = self.gru(h.unsqueeze(0), hxs.unsqueeze(0))
                 h = h.squeeze(0)
@@ -147,7 +146,7 @@ class OTCModel(nn.Module):
                 h_shape = tuple(h.size())
                 h = h.view(sequence_length, (h_shape[0] // sequence_length), h_shape[1])
                 # Initialize hidden states to zero
-                hxs = torch.zeros((h_shape[0] // sequence_length), self.hidden_state_size, dtype=torch.float32, device=device, requires_grad=True)
+                hxs = torch.zeros((h_shape[0] // sequence_length), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True)
                 h, hxs = self.gru(h, hxs.unsqueeze(0))
                 # Reshape to the original tensor size
                 h_shape = tuple(h.size())

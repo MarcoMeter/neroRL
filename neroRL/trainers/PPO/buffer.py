@@ -5,7 +5,7 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent policies.
     """
-    def __init__(self, num_workers, worker_steps, num_mini_batches, visual_observation_space, vector_observation_space, action_space_shape, use_recurrent, hidden_state_size, sequence_length, device, mini_batch_device):
+    def __init__(self, num_workers, worker_steps, num_mini_batches, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device, mini_batch_device):
         """
         Arguments:
             num_workers {int} -- Number of environments/agents to sample training data
@@ -14,14 +14,14 @@ class Buffer():
             visual_observation_space {Box} -- Visual observation if available, else None
             vector_observation_space {tuple} -- Vector observation space if available, else None
             action_space_shape {tuple} -- Shape of the action space
-            use_recurrent {bool} -- Whether to use a recurrent model
-            hidden_state_size {int} -- Size of the GRU layer (short-term memory)
+            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
+                - layer type {stirng}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
             device {torch.device} -- The device that will be used for training/storing single mini batches
             mini_batch_device {torch.device} -- The device that will be used for storing the whole batch of data. This should be CPU if not enough VRAM is available.
         """
         self.device = device
-        self.use_recurrent = use_recurrent
-        self.sequence_length = sequence_length
+        self.recurrence = recurrence
+        self.sequence_length = recurrence["sequence_length"] if recurrence is not None else None
         self.num_workers = num_workers
         self.worker_steps = worker_steps
         self.num_mini_batches = num_mini_batches
@@ -86,7 +86,7 @@ class Buffer():
             samples['vec_obs'] = self.vec_obs
 
         # If recurrence is used, split data into sequences and apply zero-padding
-        if self.use_recurrent:
+        if self.recurrence is not None:
             # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
             for w in range(self.num_workers):
                 if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:

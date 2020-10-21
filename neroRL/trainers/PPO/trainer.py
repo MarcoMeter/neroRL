@@ -60,8 +60,7 @@ class PPOTrainer():
         self.n_workers = configs["trainer"]['n_workers']
         self.worker_steps = configs["trainer"]['worker_steps']
         self.n_mini_batch = configs["trainer"]['n_mini_batch']
-        self.use_recurrent = configs["model"]["use_recurrent"]
-        self.hidden_state_size = configs["model"]["hidden_state_size"]
+        self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.lr_schedule = configs["trainer"]['learning_rate_schedule']
         self.beta_schedule = configs["trainer"]['beta_schedule']
         self.cr_schedule = configs["trainer"]['clip_range_schedule']
@@ -108,7 +107,7 @@ class PPOTrainer():
         print("Step 3: Creating model")
         self.model = OTCModel(configs["model"], visual_observation_space,
                                 vector_observation_space, self.action_space_shape,
-                                self.use_recurrent, self.hidden_state_size).to(self.device)
+                                self.recurrence).to(self.device)
 
         # Instantiate optimizer
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
@@ -132,9 +131,7 @@ class PPOTrainer():
             visual_observation_space,
             vector_observation_space,
             self.action_space_shape,
-            self.use_recurrent,
-            self.hidden_state_size,
-            configs["model"]["sequence_length"],
+            self.recurrence,
             self.device,
             self.mini_batch_device)
 
@@ -153,8 +150,8 @@ class PPOTrainer():
             self.vec_obs = None
 
         # Setup initial hidden states
-        if self.use_recurrent:
-            self.hidden_state = torch.zeros((self.n_workers, self.hidden_state_size), dtype=torch.float32, device=self.mini_batch_device)
+        if self.recurrence is not None:
+            self.hidden_state = torch.zeros((self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device)
         else:
             self.hidden_state = None
 
@@ -348,7 +345,7 @@ class PPOTrainer():
 
         for _ in range(self.epochs):
             # Retrieve the to be trained mini_batches via a generator
-            if self.use_recurrent:
+            if self.recurrence is not None:
                 mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
             else:
                 mini_batch_generator = self.buffer.mini_batch_generator()

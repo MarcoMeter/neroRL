@@ -66,10 +66,7 @@ class YamlParser:
         model_dict = {
             "load_model": False,
             "model_path": "",
-            "checkpoint_interval": 50,
-            "use_recurrent": True,
-            "hidden_state_size": 512,
-            "sequence_length": 24
+            "checkpoint_interval": 50
         }
 
         eval_dict = {
@@ -144,6 +141,21 @@ class YamlParser:
                 if "max_decay_steps" not in value["clip_range_schedule"]:
                     trainer_dict["clip_range_schedule"]["max_decay_steps"] = self._config[key]["updates"]
                 self._config[key] = trainer_dict
+            
+            # Check if the model dict contains a recurrence dict
+            # If no recurrence dict is available, it is assumed that a recurrent policy is not used
+            # In the other case check for completeness and apply defaults if necessary
+            if "recurrence" in self._config["model"]:
+                if "type" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["type"] = "gru"
+                if "sequence_length" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["sequence_length"] = 32
+                if "hidden_state_size" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["hidden_state_size"] = 128
+                if "hidden_state_init" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["hidden_state_init"] = "zero"
+                if "fake_recurrence" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["fake_recurrence"] = False
 
     def get_config(self):
         """ 

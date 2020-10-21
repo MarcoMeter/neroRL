@@ -43,9 +43,6 @@ model:
   load_model: False
   model_path: "./models/otc.pt"
   checkpoint_interval: 200
-  use_recurrent: False
-  hidden_state_size: 512
-  sequence_length: 128
 
 evaluation:
   evaluate: False

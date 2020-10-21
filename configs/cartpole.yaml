@@ -15,9 +15,12 @@ model:
   load_model: False
   model_path: "./models/cartpole_recurrent.pt"
   checkpoint_interval: 10
-  use_recurrent: True
-  hidden_state_size: 128
-  sequence_length: 8
+  recurrence:
+    type: "gru"
+    sequence_length: 8
+    hidden_state_size: 128
+    hidden_state_init: "zero"
+    fake_recurrence: False
 
 evaluation:
   evaluate: False
