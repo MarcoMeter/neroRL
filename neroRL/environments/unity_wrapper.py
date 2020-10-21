@@ -170,7 +170,7 @@ class UnityWrapper(Env):
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
         # Carry out the agent's action
-        self._env.set_actions(self._behavior_name, action.reshape([1, -1]))
+        self._env.set_actions(self._behavior_name, np.asarray(action).reshape([1, -1]))
         self._env.step()
         info, terminal_info = self._env.get_steps(self._behavior_name)
 
