@@ -8,7 +8,7 @@ class OTCModel(nn.Module):
     """A flexible actor-critic model that supports:
             - Multi-discrete action spaces
             - visual & vector observation spaces
-            - Short-term memory (GRU)
+            - Recurrent polices (either GRU or LSTM)
 
         Originally, this model has been used for the Obstacle Tower Challenge without a short-term memory.
     """
@@ -64,11 +64,14 @@ class OTCModel(nn.Module):
             # Case: only vector observation is available
             in_features_next_layer = vec_obs_shape[0]
 
-        # Recurrent Layer (GRU)
+        # Recurrent Layer (GRU or LSTM)
         if self.recurrence is not None:
-            self.gru = nn.GRU(in_features_next_layer, self.recurrence["hidden_state_size"])
-            # Init GRU layer
-            for name, param in self.gru.named_parameters():
+            if self.recurrence["type"] == "gru":
+                self.recurrent_layer = nn.GRU(in_features_next_layer, self.recurrence["hidden_state_size"])
+            elif self.recurrence["type"] == "lstm":
+                self.recurrent_layer = nn.LSTM(in_features_next_layer, self.recurrence["hidden_state_size"])
+            # Init recurrent layer
+            for name, param in self.recurrent_layer.named_parameters():
                 if 'bias' in name:
                     nn.init.constant_(param, 0)
                 elif 'weight' in name:
@@ -104,19 +107,20 @@ class OTCModel(nn.Module):
                                out_features=1)
         nn.init.orthogonal_(self.value.weight, 1)
 
-    def forward(self, vis_obs, vec_obs, hxs, device, sequence_length = 1):
+    def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
 
         Arguments:
             vis_obs {numpy.ndarray/torch,tensor} -- Visual observation (None if not available)
             vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
-            hxs {torch.tensor} -- Hidden state (None if not available)
+            recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer (None if not available)
             device {torch.device} -- Current device
+            sequence_length {int} -- Length of the fed sequences
 
         Returns:
             {list} -- Policy: List featuring categorical distributions respectively for each policy branch
             {torch.tensor} -- Value Function: Value
-            {torch.tensor} -- Hidden state
+            {tuple} -- Recurrent cell
         """
         h: torch.Tensor
 
@@ -135,23 +139,45 @@ class OTCModel(nn.Module):
         else:
             h = torch.tensor(vec_obs, dtype=torch.float32, device=device)        # Convert vec_obs to tensor
 
-        # Forward reccurent layer (GRU) if available
+        # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
             if sequence_length == 1:
-                h, hxs = self.gru(h.unsqueeze(0), hxs.unsqueeze(0))
-                h = h.squeeze(0)
-                hxs = hxs.squeeze(0)
+                # Case: sampling training data
+                h, recurrent_cell = self.recurrent_layer(h.unsqueeze(0), recurrent_cell)
+                h = h.squeeze(0) # Remove sequence length dimension
             else:
+                # Case: Model optimization
                 # Reshape the to be fed data to sequence_length, batch_size, Data
                 h_shape = tuple(h.size())
                 h = h.view(sequence_length, (h_shape[0] // sequence_length), h_shape[1])
+
                 # Initialize hidden states to zero
-                hxs = torch.zeros((h_shape[0] // sequence_length), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True)
-                h, hxs = self.gru(h, hxs.unsqueeze(0))
+                # recurrent_cell = torch.zeros((h_shape[0] // sequence_length), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True)
+                # h, recurrent_cell = self.recurrent_layer(h, recurrent_cell.unsqueeze(0))
+
+                # Init hidden states based on the mean of the latest hidden states of the training data sampling phase
+                # recurrent_cell = torch.cat((h_shape[0] // sequence_length) * [torch.mean(recurrent_cell, 1)]).unsqueeze(0)
+
+                # Sample initial hidden state based on the mean and std of the previous hidden states of the training data sampling phase
+                if self.recurrence["type"] == "gru":
+                    mean = torch.mean(recurrent_cell)
+                    std = torch.std(recurrent_cell)
+                    recurrent_cell = torch.normal(mean, std, size=(1, (h_shape[0] // sequence_length), self.recurrence["hidden_state_size"])).to(device)
+                elif self.recurrence["type"] == "lstm":
+                    # Hidden state
+                    mean = torch.mean(recurrent_cell[0])
+                    std = torch.std(recurrent_cell[0])
+                    hxs = torch.normal(mean, std, size=(1, (h_shape[0] // sequence_length), self.recurrence["hidden_state_size"])).to(device)
+                    # Hidden cell
+                    mean = torch.mean(recurrent_cell[1])
+                    std = torch.std(recurrent_cell[1])
+                    cxs = torch.normal(mean, std, size=(1, (h_shape[0] // sequence_length), self.recurrence["hidden_state_size"])).to(device)
+                    recurrent_cell = (hxs, cxs)
+                # Forward recurrent layer
+                h, recurrent_cell = self.recurrent_layer(h, recurrent_cell)
                 # Reshape to the original tensor size
                 h_shape = tuple(h.size())
                 h = h.view(h_shape[0] * h_shape[1], h_shape[2])
-                # assert(False)
 
         # Feed hidden layer
         h = F.relu(self.lin_hidden(h))
@@ -168,7 +194,7 @@ class OTCModel(nn.Module):
         for i, branch in enumerate(self.policy_branches):
             pi.append(Categorical(logits=self.policy_branches[i](h_policy)))
 
-        return pi, value, hxs
+        return pi, value, recurrent_cell
 
     def get_conv_output(self, shape):
         """Computes the output size of the convolutional layers by feeding a dumy tensor.

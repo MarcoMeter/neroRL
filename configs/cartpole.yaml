@@ -16,7 +16,7 @@ model:
   model_path: "./models/cartpole_recurrent.pt"
   checkpoint_interval: 10
   recurrence:
-    type: "gru"
+    type: "lstm"
     sequence_length: 8
     hidden_state_size: 128
     hidden_state_init: "zero"

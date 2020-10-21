@@ -19,7 +19,7 @@ model:
   checkpoint_interval: 10
   recurrence:
     type: "gru"
-    sequence_length: 32
+    sequence_length: 12
     hidden_state_size: 128
     hidden_state_init: "zero"
     fake_recurrence: False
