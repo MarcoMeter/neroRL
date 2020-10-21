@@ -252,6 +252,20 @@ class PPOTrainer():
 
         return episode_infos
 
+    def masked_mean(self, tensor: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        """
+        Returns the mean of the tensor but ignores the values specified by the mask.
+        This is used for masking out the padding of loss functions.
+
+        Args:
+            tensor {Tensor}: The to be masked tensor
+            mask {Tensor}: The mask that is used to mask out padded values of a loss function
+
+        Returns:
+            {tensor}: Returns the mean of the masked tensor.
+        """
+        return (tensor.T * mask).sum() / torch.clamp((torch.ones_like(tensor.T) * mask).float().sum(), min=1.0)
+
     def train_mini_batch(self, samples, learning_rate, clip_range, beta):
         """ Optimizes the policy based on the PPO algorithm
 
@@ -469,20 +483,6 @@ class PPOTrainer():
                 result[key + "_max"] = np.max([info[key] for info in episode_info])
                 result[key + "_std"] = np.std([info[key] for info in episode_info])
         return result
-
-    def masked_mean(self, tensor: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """
-        Returns the mean of the tensor but ignores the values specified by the mask.
-        This is used for masking out the padding of loss functions.
-
-        Args:
-            tensor {Tensor}: The to be masked tensor
-            mask {Tensor}: The mask that is used to mask out padded values of a loss function
-
-        Returns:
-            {tensor}: Returns the mean of the masked tensor.
-        """
-        return (tensor.T * mask).sum() / torch.clamp((torch.ones_like(tensor.T) * mask).float().sum(), min=1.0)
 
     def close(self):
         """Closes the environment and destroys the workers"""
