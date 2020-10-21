@@ -26,6 +26,8 @@ class OTCModel(nn.Module):
         super().__init__()
         self.recurrence = recurrence
         
+        self.activ_fn = F.relu
+
         # Observation encoder
         if vis_obs_space is not None:
             # Case: visual observation available
@@ -127,9 +129,9 @@ class OTCModel(nn.Module):
         if vis_obs is not None:
             vis_obs = torch.tensor(vis_obs, dtype=torch.float32, device=device)      # Convert vis_obs to tensor
             # Propagate input through the visual encoder
-            h = F.relu(self.conv1(vis_obs))
-            h = F.relu(self.conv2(h))
-            h = F.relu(self.conv3(h))
+            h = self.activ_fn(self.conv1(vis_obs))
+            h = self.activ_fn(self.conv2(h))
+            h = self.activ_fn(self.conv3(h))
             # Flatten the output of the convolutional layers
             h = h.reshape((-1, self.conv_out_size))
             if vec_obs is not None:
@@ -180,13 +182,13 @@ class OTCModel(nn.Module):
                 h = h.view(h_shape[0] * h_shape[1], h_shape[2])
 
         # Feed hidden layer
-        h = F.relu(self.lin_hidden(h))
+        h = self.activ_fn(self.lin_hidden(h))
 
         # Decouple policy from value
         # Feed hidden layer (policy)
-        h_policy = F.relu(self.lin_policy(h))
+        h_policy = self.activ_fn(self.lin_policy(h))
         # Feed hidden layer (value function)
-        h_value = F.relu(self.lin_value(h))
+        h_value = self.activ_fn(self.lin_value(h))
         # Output: Value Function
         value = self.value(h_value).reshape(-1)
         # Output: Policy Branches
@@ -209,3 +211,7 @@ class OTCModel(nn.Module):
         o = self.conv2(o)
         o = self.conv3(o)
         return int(np.prod(o.size()))
+
+class Swish(nn.Module):
+    def forward(self, data: torch.Tensor) -> torch.Tensor:
+        return torch.mul(data, torch.sigmoid(data))
