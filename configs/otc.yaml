@@ -43,6 +43,7 @@ model:
   load_model: False
   model_path: "./models/otc.pt"
   checkpoint_interval: 200
+  activation: "relu"
 
 evaluation:
   evaluate: False

@@ -26,7 +26,13 @@ class OTCModel(nn.Module):
         super().__init__()
         self.recurrence = recurrence
         
-        self.activ_fn = F.relu
+        # Set the activation function for most layers of the neural net
+        available_activ_fns = {
+            "relu": F.relu,
+            "leaky_relu": F.leaky_relu,
+            "swish": F.silu
+        }
+        self.activ_fn = available_activ_fns[config["activation"]]
 
         # Observation encoder
         if vis_obs_space is not None:

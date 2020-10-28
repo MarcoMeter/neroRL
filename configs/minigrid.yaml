@@ -15,12 +15,13 @@ environment:
 
 model:
   load_model: False
-  model_path: "./models/minigrid-MiniGrid-MemoryS7-v0_recurrent.pt"
-  checkpoint_interval: 10
+  model_path: "./models/minigrid4-600.pt"
+  checkpoint_interval: 100
+  activation: "relu"
   recurrence:
     type: "gru"
-    sequence_length: 12
-    hidden_state_size: 128
+    sequence_length: 16
+    hidden_state_size: 512
     hidden_state_init: "zero"
     fake_recurrence: False
 
@@ -34,24 +35,24 @@ trainer:
   algorithm: "PPO"
   gamma: 0.99
   lamda: 0.95
-  updates: 1000
-  epochs: 4
+  updates: 2000
+  epochs: 2
   n_workers: 16
   worker_steps: 256
-  n_mini_batch: 8
+  n_mini_batch: 4
   resume_at: 0
   learning_rate_schedule:
-    initial: 1.0e-4
-    final: 3.0e-6
+    initial: 3.0e-4
+    final: 3.0e-5
     power: 1.0
-    max_decay_steps: 400
+    max_decay_steps: 1000
   beta_schedule:
-    initial: 0.0001
-    final: 0.0005
+    initial: 0.01
+    final: 0.001
     power: 1.0
-    max_decay_steps: 400
+    max_decay_steps: 1000
   clip_range_schedule:
     initial: 0.2
     final: 0.2
     power: 1.0
-    max_decay_steps: 400
+    max_decay_steps: 2000

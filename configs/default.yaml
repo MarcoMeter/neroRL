@@ -36,6 +36,8 @@ model:
   model_path: "path/to/model.pt"
   # Save the model after every n-th update
   checkpoint_interval: 50
+  # Set the to be used activation function (relu, leaky_relu, swish)
+  activation: "relu"
   recurrence:
     # Supported recurrent layers: gru, lstm
     type: "gru"

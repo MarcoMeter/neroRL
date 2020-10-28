@@ -17,6 +17,7 @@ model:
   load_model: False
   model_path: "./models/procgen_coinrun.pt"
   checkpoint_interval: 50
+  activation: "relu"
 
 evaluation:
   evaluate: True

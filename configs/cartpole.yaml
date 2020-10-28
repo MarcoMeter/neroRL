@@ -15,8 +15,9 @@ model:
   load_model: False
   model_path: "./models/cartpole_recurrent.pt"
   checkpoint_interval: 10
+  activation: "relu"
   recurrence:
-    type: "lstm"
+    type: "gru"
     sequence_length: 8
     hidden_state_size: 128
     hidden_state_init: "zero"
@@ -45,7 +46,7 @@ trainer:
     max_decay_steps: 50
   beta_schedule:
     initial: 0.0001
-    final: 0.0001
+    final: 0.00001
     power: 1.0
     max_decay_steps: 50
   clip_range_schedule:

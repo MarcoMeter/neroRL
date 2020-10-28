@@ -66,7 +66,8 @@ class YamlParser:
         model_dict = {
             "load_model": False,
             "model_path": "",
-            "checkpoint_interval": 50
+            "checkpoint_interval": 50,
+            "activation": "relu"
         }
 
         eval_dict = {
