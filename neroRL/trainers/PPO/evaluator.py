@@ -6,7 +6,7 @@ from neroRL.utils.worker import Worker
 
 class Evaluator():
     """Evaluates a model based on the initially provided config."""
-    def __init__(self, eval_config, env_config, worker_id, visual_observation_space, vector_observation_space):
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space):
         """Initializes the evaluator and its environments
         
         Arguments:
@@ -17,8 +17,9 @@ class Evaluator():
             vector_observation_space {tuple} -- Vector observation space of the environment
         """
         # Set members
-        self.n_workers = eval_config["n_workers"]
-        self.seeds = eval_config["seeds"]
+        self.configs = configs
+        self.n_workers = configs["evaluation"]["n_workers"]
+        self.seeds = configs["evaluation"]["seeds"]
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
 
@@ -26,7 +27,10 @@ class Evaluator():
         self.workers = []
         for i in range(self.n_workers):
             id = worker_id + i + 200 - self.n_workers
-            self.workers.append(Worker(env_config, id))
+            self.workers.append(Worker(configs["environment"], id))
+
+        # Check for recurrent policy
+        self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
 
     def evaluate(self, model, device):
         """Evaluates a provided model on the already initialized evaluation environments.
@@ -52,11 +56,14 @@ class Evaluator():
                 vec_obs = np.zeros((self.n_workers,) + self.vector_observation_space, dtype=np.float32)
             else:
                 vec_obs = None
-            # Initialize hidden state
-            if model.use_recurrent:
-                hidden_state = torch.zeros((self.n_workers, 1, model.hidden_state_size), dtype=torch.float32, device=device)
+            # Initialize recurrent cell (hidden/cell state)
+            if self.recurrence is not None:
+                if self.recurrence["type"] == "gru":
+                    recurrent_cell = torch.zeros((self.n_workers, 1, 1, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=device)
+                elif self.recurrence["type"] == "lstm":
+                    recurrent_cell = [torch.zeros((self.n_workers, 1, 1, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device) for i in range(2)]
             else:
-                hidden_state = [None] * self.n_workers
+                recurrent_cell = None
 
             # Reset workers and set evaluation seed
             for worker in self.workers:
@@ -74,12 +81,14 @@ class Evaluator():
 
             with torch.no_grad():
                 while not np.all(dones):
-                    # Sample action and send to worker if not done
+                    # Sample action and send it to the worker if not done
                     for w, worker in enumerate(self.workers):
                         if not dones[w]:
-                            policy, _, hidden_state[w] = model(np.expand_dims(vis_obs[w], 0) if vis_obs is not None else None,
+                            # While sampling data for training we feed batches containing all workers,
+                            # but as we evaluate entire episodes, we feed one worker at a time
+                            policy, _, recurrent_cell[w] = model(np.expand_dims(vis_obs[w], 0) if vis_obs is not None else None,
                                                 np.expand_dims(vec_obs[w], 0) if vec_obs is not None else None,
-                                                hidden_state[w],
+                                                recurrent_cell[w],
                                                 device)
 
                             actions = []

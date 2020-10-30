@@ -60,8 +60,7 @@ def main():
     print("Step 2: Creating model")
     model = OTCModel(configs["model"], visual_observation_space,
                             vector_observation_space, action_space_shape,
-                            configs["model"]["use_recurrent"],
-                            configs["model"]["hidden_state_size"]).to(device)
+                            configs["model"]["recurrence"]).to(device)
     if not untrained:
         print("Step 2: Loading model from " + configs["model"]["model_path"])
         checkpoint = load_checkpoint(configs["model"]["model_path"])
@@ -73,20 +72,26 @@ def main():
     print("Step 3: Using seed " + str(seed))
     vis_obs, vec_obs = env.reset({"start-seed": seed, "num-seeds": 1})
     done = False
+    
     # Init hidden state (None if not available)
-    if model.use_recurrent:
-        hidden_state = torch.zeros((1, model.hidden_state_size), dtype=torch.float32, device=device)
+    if "recurrence" in configs["model"]:
+        if configs["model"]["recurrence"]["type"] == "gru":
+            recurrent_cell = torch.zeros((1, 1, configs["model"]["recurrence"]["hidden_state_size"]), dtype=torch.float32, device=device)
+        elif configs["model"]["recurrence"]["type"] == "lstm":
+            hxs = torch.zeros((1, 1, configs["model"]["recurrence"]["hidden_state_size"]), dtype=torch.float32, device=device)
+            cxs = torch.zeros((1, 1, configs["model"]["recurrence"]["hidden_state_size"]), dtype=torch.float32, device=device)
+            recurrent_cell = (hxs, cxs)
     else:
-        hidden_state = None
+        recurrent_cell = None
 
     # Play episode
     print("Step 4: Run single episode in realtime . . .")
     with torch.no_grad():
         while not done:
             # Sample action
-            policy, _, hidden_state = model(np.expand_dims(vis_obs, 0) if vis_obs is not None else None,
+            policy, _, recurrent_cell = model(np.expand_dims(vis_obs, 0) if vis_obs is not None else None,
                                 np.expand_dims(vec_obs, 0) if vec_obs is not None else None,
-                                hidden_state,
+                                recurrent_cell,
                                 device)
 
             actions = []

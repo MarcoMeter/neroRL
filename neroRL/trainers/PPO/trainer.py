@@ -101,7 +101,7 @@ class PPOTrainer():
         self.eval_interval = configs["evaluation"]["interval"]
         if self.eval:
             print("Step 2b: Initializing evaluator")
-            self.evaluator = Evaluator(configs["evaluation"], configs["environment"], worker_id, visual_observation_space, vector_observation_space)
+            self.evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
 
         # Init model
         print("Step 3: Creating model")
@@ -149,15 +149,15 @@ class PPOTrainer():
         else:
             self.vec_obs = None
 
-        # Setup initial hidden cell
+        # Setup initial recurrent cell
         # Dimensions: sequence_length, batch_size, hidden/cell state
         if self.recurrence is not None:
             if self.recurrence["type"] == "gru":
-                self.hidden_cell = torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device)
+                self.recurrent_cell = torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device)
             elif self.recurrence["type"] == "lstm":
-                self.hidden_cell = [torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device) for i in range(2)]
+                self.recurrent_cell = [torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device) for i in range(2)]
         else:
-            self.hidden_cell = None
+            self.recurrent_cell = None
 
         # Reset workers
         for worker in self.workers:
@@ -207,10 +207,10 @@ class PPOTrainer():
             # Gradients can be omitted for sampling data
             with torch.no_grad():
                 # Forward the model to retrieve the policy (making decisions), the states' value of the value function and the recurrent hidden states (if available)
-                policy, value, self.hidden_cell = self.model(self.vis_obs, self.vec_obs, self.hidden_cell, device)
+                policy, value, self.recurrent_cell = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
                 self.buffer.values[:, t] = value.cpu().data.numpy()
 
-                # Sample actions from each individual branch
+                # Sample actions from each individual policy branch
                 actions = []
                 log_probs = []
                 for action_branch in policy:
@@ -248,7 +248,7 @@ class PPOTrainer():
                         self.vec_obs[w] = vec_obs
 
         # Calculate advantages
-        _, last_value, _ = self.model(self.vis_obs, self.vec_obs, self.hidden_cell, device)
+        _, last_value, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
         self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
 
         return episode_infos
@@ -283,7 +283,7 @@ class PPOTrainer():
         sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages']).unsqueeze(1).repeat(1, len(self.action_space_shape))
         policy, value, _ = self.model(samples['vis_obs'] if self.vis_obs is not None else None,
                                     samples['vec_obs'] if self.vec_obs is not None else None,
-                                    self.hidden_cell,
+                                    self.recurrent_cell,
                                     self.device,
                                     self.buffer.actual_sequence_length)
         

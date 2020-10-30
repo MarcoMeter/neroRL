@@ -52,8 +52,7 @@ def main():
     print("Step 2: Creating model")
     model = OTCModel(configs["model"], visual_observation_space,
                             vector_observation_space, action_space_shape,
-                            configs["model"]["use_recurrent"],
-                            configs["model"]["hidden_state_size"]).to(device)
+                            configs["model"]["recurrence"]).to(device)
     if not untrained:
         print("Step 2: Loading model from " + configs["model"]["model_path"])
         checkpoint = load_checkpoint(configs["model"]["model_path"])
@@ -65,7 +64,7 @@ def main():
     print("Step 3: Number of Workers: " + str(configs["evaluation"]["n_workers"]))
     print("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
     print("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
-    evaluator = Evaluator(configs["evaluation"], configs["environment"], worker_id, visual_observation_space, vector_observation_space)
+    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
 
     # Evaluate
     print("Step 4: Run evaluation . . .")

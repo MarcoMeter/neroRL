@@ -168,9 +168,10 @@ class OTCModel(nn.Module):
 
                 # Sample initial hidden state based on the mean and std of the previous hidden states of the training data sampling phase
                 if self.recurrence["type"] == "gru":
-                    mean = torch.mean(recurrent_cell)
-                    std = torch.std(recurrent_cell)
-                    recurrent_cell = torch.normal(mean, std, size=(1, (h_shape[0] // sequence_length), self.recurrence["hidden_state_size"])).to(device)
+                    # mean = torch.mean(recurrent_cell)
+                    # std = torch.std(recurrent_cell)
+                    # recurrent_cell = torch.normal(mean, std, size=(1, (h_shape[0] // sequence_length), self.recurrence["hidden_state_size"])).to(device)
+                    recurrent_cell = torch.zeros((h_shape[0] // sequence_length), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
                 elif self.recurrence["type"] == "lstm":
                     # Hidden state
                     mean = torch.mean(recurrent_cell[0])
