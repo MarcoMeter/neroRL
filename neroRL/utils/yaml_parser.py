@@ -148,7 +148,7 @@ class YamlParser:
             # In the other case check for completeness and apply defaults if necessary
             if "recurrence" in self._config["model"]:
                 if "type" not in self._config["model"]["recurrence"]:
-                    self._config["model"]["recurrence"]["type"] = "gru"
+                    self._config["model"]["recurrence"]["layer_type"] = "gru"
                 if "sequence_length" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["sequence_length"] = 32
                 if "hidden_state_size" not in self._config["model"]["recurrence"]:
@@ -161,6 +161,54 @@ class YamlParser:
     def get_config(self):
         """ 
         Returns:
-            {dict} -- 2D dictionary that contains configs for the environment, model, evaluation and trainer.
+            {dict} -- Nested dictionary that contains configs for the environment, model, evaluation and trainer.
+        """
+        return self._config
+
+class GridSearchYamlParser:
+    """The GridSearchYamlParser parses a yaml file containing parameters for tuning hyperparameters based on grid search.
+    The data is parsed during initialization.
+    Retrieve the parameters using the get_config function.
+
+    The data can be accessed like:
+    parser.get_config()["search_space"]["worker_steps"]
+    """
+
+    def __init__(self, path = "./configs/tune/search.yaml"):
+        """Loads and prepares the specified config file.
+        
+        Keyword Arguments:
+            path {str} -- Yaml file path to the to be loaded config (default: {"./configs/tune/search.yaml"})
+        """
+        # Load the config file
+        stream = open(path, "r")
+        yaml = YAML()
+        yaml_args = yaml.load_all(stream)
+        
+        # Final contents of the config file will be added to a dictionary
+        self._config = {}
+
+        # Prepare data
+        for data in yaml_args:
+            self._config = self.to_dict(data)
+        
+    def to_dict(self, data):
+        """Converts CommentedMap to dictionary.
+        
+        Arguments:
+            data {ruamel.yaml.comments.CommentedMap} -- CommentedMap retrieved from the yaml file
+        
+        Returns:
+            {dict} -- Converted dictionary containing the concerned content from the yaml
+        """
+        new_dict = {}
+        for k,v in data.items():
+            new_dict[k] = v
+        return new_dict
+
+    def get_config(self):
+        """ 
+        Returns:
+            {dict} -- Dictionary that contains the config for the grid search.
         """
         return self._config

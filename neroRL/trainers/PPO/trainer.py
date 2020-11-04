@@ -152,9 +152,9 @@ class PPOTrainer():
         # Setup initial recurrent cell
         # Dimensions: sequence_length, batch_size, hidden/cell state
         if self.recurrence is not None:
-            if self.recurrence["type"] == "gru":
+            if self.recurrence["layer_type"] == "gru":
                 self.recurrent_cell = torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device)
-            elif self.recurrence["type"] == "lstm":
+            elif self.recurrence["layer_type"] == "lstm":
                 self.recurrent_cell = [torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device) for i in range(2)]
         else:
             self.recurrent_cell = None

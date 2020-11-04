@@ -58,9 +58,9 @@ class Evaluator():
                 vec_obs = None
             # Initialize recurrent cell (hidden/cell state)
             if self.recurrence is not None:
-                if self.recurrence["type"] == "gru":
+                if self.recurrence["layer_type"] == "gru":
                     recurrent_cell = torch.zeros((self.n_workers, 1, 1, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=device)
-                elif self.recurrence["type"] == "lstm":
+                elif self.recurrence["layer_type"] == "lstm":
                     recurrent_cell = [torch.zeros((self.n_workers, 1, 1, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device) for i in range(2)]
             else:
                 recurrent_cell = None

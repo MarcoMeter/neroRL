@@ -74,9 +74,9 @@ class OTCModel(nn.Module):
 
         # Recurrent Layer (GRU or LSTM)
         if self.recurrence is not None:
-            if self.recurrence["type"] == "gru":
+            if self.recurrence["layer_type"] == "gru":
                 self.recurrent_layer = nn.GRU(in_features_next_layer, self.recurrence["hidden_state_size"])
-            elif self.recurrence["type"] == "lstm":
+            elif self.recurrence["layer_type"] == "lstm":
                 self.recurrent_layer = nn.LSTM(in_features_next_layer, self.recurrence["hidden_state_size"])
             # Init recurrent layer
             for name, param in self.recurrent_layer.named_parameters():
@@ -167,12 +167,12 @@ class OTCModel(nn.Module):
                 # recurrent_cell = torch.cat((h_shape[0] // sequence_length) * [torch.mean(recurrent_cell, 1)]).unsqueeze(0)
 
                 # Sample initial hidden state based on the mean and std of the previous hidden states of the training data sampling phase
-                if self.recurrence["type"] == "gru":
+                if self.recurrence["layer_type"] == "gru":
                     # mean = torch.mean(recurrent_cell)
                     # std = torch.std(recurrent_cell)
                     # recurrent_cell = torch.normal(mean, std, size=(1, (h_shape[0] // sequence_length), self.recurrence["hidden_state_size"])).to(device)
                     recurrent_cell = torch.zeros((h_shape[0] // sequence_length), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
-                elif self.recurrence["type"] == "lstm":
+                elif self.recurrence["layer_type"] == "lstm":
                     # Hidden state
                     mean = torch.mean(recurrent_cell[0])
                     std = torch.std(recurrent_cell[0])

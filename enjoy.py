@@ -75,9 +75,9 @@ def main():
     
     # Init hidden state (None if not available)
     if "recurrence" in configs["model"]:
-        if configs["model"]["recurrence"]["type"] == "gru":
+        if configs["model"]["recurrence"]["layer_type"] == "gru":
             recurrent_cell = torch.zeros((1, 1, configs["model"]["recurrence"]["hidden_state_size"]), dtype=torch.float32, device=device)
-        elif configs["model"]["recurrence"]["type"] == "lstm":
+        elif configs["model"]["recurrence"]["layer_type"] == "lstm":
             hxs = torch.zeros((1, 1, configs["model"]["recurrence"]["hidden_state_size"]), dtype=torch.float32, device=device)
             cxs = torch.zeros((1, 1, configs["model"]["recurrence"]["hidden_state_size"]), dtype=torch.float32, device=device)
             recurrent_cell = (hxs, cxs)

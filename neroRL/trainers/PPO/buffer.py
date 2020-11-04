@@ -15,7 +15,7 @@ class Buffer():
             vector_observation_space {tuple} -- Vector observation space if available, else None
             action_space_shape {tuple} -- Shape of the action space
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer type {stirng}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
+                - layer_type {str}, sequence_length {int}, hidden_state_size {int}, hiddens_state_init {str}, fake recurrence {bool}
             device {torch.device} -- The device that will be used for training/storing single mini batches
             mini_batch_device {torch.device} -- The device that will be used for storing the whole batch of data. This should be CPU if not enough VRAM is available.
         """

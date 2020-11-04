@@ -19,7 +19,7 @@ model:
   checkpoint_interval: 100
   activation: "relu"
   recurrence:
-    type: "gru"
+    layer_type: "gru"
     sequence_length: 16
     hidden_state_size: 512
     hidden_state_init: "zero"

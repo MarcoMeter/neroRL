@@ -14,10 +14,10 @@ environment:
 model:
   load_model: False
   model_path: "./models/cartpole_recurrent.pt"
-  checkpoint_interval: 10
+  checkpoint_interval: 25
   activation: "relu"
   recurrence:
-    type: "gru"
+    layer_type: "gru"
     sequence_length: 8
     hidden_state_size: 128
     hidden_state_init: "zero"

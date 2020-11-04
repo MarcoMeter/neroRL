@@ -1,0 +1,128 @@
+import copy
+import itertools
+import os
+
+from ruamel.yaml import YAML
+from neroRL.trainers.PPO.trainer import PPOTrainer
+
+class GridSearch:
+    """To conduct a grid search for hyperparameter tuning, this class permutes the hyperparameter choices of the to be searched space.
+    Further, the permutations are used to modify an exisiting config.
+    The final configs can be dumped to files or used to sequentially run training sessions based on these.
+    """
+    def __init__(self, base_config, tune_config):
+        """Retrieves the configuration data and creates all permutations of the hyperparameter search space.
+
+        Arguments:
+            base_config {dict}: Original configuration
+            tune_config {dict}: Configuration that provides the to be permuted hyperparameter choices
+        """
+        self.base_config = base_config
+        self.tune_config = tune_config
+
+        # Permute hyperparameters as specified by the search config
+        keys, values = zip(*tune_config.items())
+        permutations = [dict(zip(keys, v)) for v in itertools.product(*values)]
+        self._final_configs = []
+        # Store a tuple of the final config and the used permuted hyperparameters
+        for permutation in permutations:
+            self._final_configs.append((self.generate_config(permutation), permutation))
+
+    def generate_config(self, permutation):
+        """Generates a new config by modifying the original config using a single permutation of the hyperparmeter choices.
+
+        Argumentss:
+            permutation {dict}: Single permutation that is used to modify the original config
+
+        Returns:
+            {dict}: New config that uses a single hyperparameter permutation
+        """
+        # Duplicate the original config file
+        new_config = copy.deepcopy(self.base_config) # A shallow copy does not work here
+        # It is assumed that the nested config has a depth of 2
+        # Depth 0, e.g. environment, model, trainer, ...
+        for key, value in new_config.items():
+            # Depth 1, e.g. algorithm, gamma, lamda, ...
+            if isinstance(value, dict):
+                for ke, val in value.items():
+                    # Depth 2, e.g. sequence_length, hidden_state_size, ...
+                    if isinstance(val, dict):
+                        for k, v in val.items():
+                            # Apply new value
+                            if k in permutation:
+                                new_config[key][ke][k] = permutation[k]
+                    else:
+                        # Apply new value
+                        if ke in permutation:
+                            new_config[key][ke] = permutation[ke]
+            else:
+                pass
+        return new_config
+
+    def write_permuted_configs_to_file(self, root_path):
+        """Write all permuted configurations to files.
+        All config files are named afters its ID.
+        These will be plased in the configs directory of the to be created root directoy.
+        In addition, an info.txt is being created that shows the used permutation for each file.
+
+        Args:
+            root_path {str}: Name of the target root directory
+        """
+        # Create directories
+        if not os.path.exists(root_path):
+            os.makedirs(root_path + "configs/")
+
+        # Write config files
+        yaml=YAML()
+        yaml.default_flow_style = False
+        for i, item in enumerate(self._final_configs):
+            config, permutation = item
+            # Add the permutation to the config to easily keep track of it
+            config["permutation"] = permutation
+            # Write config to file, but check whethere the file already exists
+            f = open(root_path + "configs/" + str(i) + ".yaml", "x")
+            yaml.dump(config, f)
+            # Create/Append info.txt to store the config's ID along with its used permutation
+            f = open(root_path + "info.txt", "a")
+            f.write(str(i) + ": " + str(permutation) +"\n\n")
+
+    def get_permuted_configs(self):
+        """Returns a list of all configs and its permutations.
+
+        Returns:
+            {list}: Returns a list of tuples. Each tuple contains the final config and the used permutation.
+        """
+        return self._final_configs
+
+    def run_trainings_sequentially(self, num_repetitions = 1, run_id="default", worker_id = 2, low_mem_fix = False):
+        """Conducts one training session per generated config file.
+        All training sessions can be repeated n-times.
+
+        Args:
+            num_repetitions {int}: Number of times a training session is being repeated. Defaults to 1.
+            run_id {str}: The used string to name various things like the directory of the checkpoints. Defaults to "default".
+            worker_id (int, optional): Sets the communication port for Unity environments. Defaults to 2.
+            low_mem_fix (bool, optional): Whether to load one mini_batch at a time. This is needed for GPUs with low memory (e.g. 2GB). Defaults to False.
+        """
+        print("Initialize Grid Search Training")
+        print("Num training runs: " + str(num_repetitions * len(self._final_configs)))
+        count = 0
+        for i in range(num_repetitions):
+            for j, item in enumerate(self._final_configs):
+                config, permutation = item
+                # Add the permutation to the config to easily keep track of it
+                config["permutation"] = permutation
+                # Init trainer
+                if config["trainer"]["algorithm"] == "PPO":
+                    trainer = PPOTrainer(config, worker_id, run_id + "_" + str(i) + "_" + str(j), low_mem_fix)
+                else:
+                    assert(False), "Unsupported algorithm specified"
+
+                # Start training
+                trainer.run_training_loop()
+
+                # Clean up after training
+                trainer.close()
+
+                count += 1
+                print("Completed training sessions: " + str(count) + "/" + str(num_repetitions * len(self._final_configs)))
