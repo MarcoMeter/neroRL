@@ -174,7 +174,7 @@ class GridSearchYamlParser:
     parser.get_config()["search_space"]["worker_steps"]
     """
 
-    def __init__(self, path = "./configs/tune/search.yaml"):
+    def __init__(self, path = "./configs/tune/example.yaml"):
         """Loads and prepares the specified config file.
         
         Keyword Arguments:

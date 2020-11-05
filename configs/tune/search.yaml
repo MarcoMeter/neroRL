@@ -1,3 +1,0 @@
-"layer_type": ["gru", "lstm"]
-"sequence_length": [4, 8, -1]
-"hidden_state_size": [16, 32, 48, 64, 80, 96, 112, 128]

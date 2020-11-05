@@ -11,7 +11,7 @@ def main():
 
     Options:
         --config=<path>             Path of the config file [default: ./configs/default.yaml].
-        --tune=<path>               Path to the config file that features the hyperparameter search space for tuning [default: ./configs/tune/search.yaml]
+        --tune=<path>               Path to the config file that features the hyperparameter search space for tuning [default: ./configs/tune/example.yaml]
         --num-repetitions=<n>       How many times to repeat the training of one config [default: 1]
         --worker-id=<n>             Sets the port for each environment instance [default: 2].
         --run-id=<path>             Specifies the tag of the tensorboard summaries [default: default].
@@ -41,7 +41,7 @@ def main():
     # Retrieve permuted configs
     configs = grid_search.get_permuted_configs()
 
-    # Generate configs or run trainings sequentially
+    # Generate configs or run training sessions sequentially
     if generate_only:
         grid_search.write_permuted_configs_to_file(out_path)
     else:
