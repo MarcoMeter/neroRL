@@ -1,0 +1,13 @@
+# This is an exemplary configuration to tune hyperparameters via a grid search.
+# Every parameter of a regular training configuration can be used.
+# At first a parameter's key has to be specified followed by a list of choices.
+# The grid search algorithm will generate all parameter combinations among each entry and each choice.
+# For each combination, a new config file is created that sources the other values from the original training config.
+
+# Be aware! Some parameter combinations could cause undesired side effects.
+# Like providing different environment names and types would conflict (e.g. type: Minigrid and name: /UnityBuilds/ObstacleTower).
+
+# Example: Tune hyperparameters for a recurrent policy.
+"layer_type": ["gru", "lstm"]
+"sequence_length": [4, 8, -1]
+"hidden_state_size": [16, 32, 48, 64, 80, 96, 112, 128]
