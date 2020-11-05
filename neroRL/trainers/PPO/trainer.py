@@ -69,7 +69,7 @@ class PPOTrainer():
         self.mini_batch_size = self.batch_size // self.n_mini_batch
         assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
         self.writer = SummaryWriter(out_path + "summaries/" + run_id + timestamp)
-        self.write_hyperparameters(configs["trainer"])
+        self.write_hyperparameters(configs)
 
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
@@ -464,10 +464,14 @@ class PPOTrainer():
                 if "std" not in key:
                     self.writer.add_scalar("evaluation/" + key, episode_result[key], update)
 
-    def write_hyperparameters(self, config):
+    def write_hyperparameters(self, configs):
         """Writes hyperparameters to tensorboard"""
-        for key, value in config.items():
-            self.writer.add_text("Hyperparameters", key + " " + str(value))
+        for key, value in configs.items():
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    self.writer.add_text("Hyperparameters", k + " " + str(v))
+            else:
+                self.writer.add_text("Hyperparameters", key + " " + str(value))
 
     @staticmethod
     def _process_episode_info(episode_info):
