@@ -8,6 +8,6 @@
 # Like providing different environment names and types would conflict (e.g. type: Minigrid and name: /UnityBuilds/ObstacleTower).
 
 # Example: Tune hyperparameters for a recurrent policy.
-"layer_type": ["gru", "lstm"]
-"sequence_length": [4, 8, -1]
-"hidden_state_size": [16, 32, 48, 64, 80, 96, 112, 128]
+layer_type: ["gru", "lstm"]
+sequence_length: [4, 8, -1]
+hidden_state_size: [16, 32, 48, 64, 80, 96, 112, 128]
