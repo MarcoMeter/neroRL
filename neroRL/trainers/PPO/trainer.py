@@ -20,7 +20,7 @@ from neroRL.utils.serialization import save_checkpoint, load_checkpoint
 
 class PPOTrainer():
     """The PPOTrainer is in charge of setting up the whole training loop while utilizing the PPO algorithm based on Schulman et al. 2017."""
-    def __init__(self, configs, worker_id, run_id  = "default", low_mem_fix = False):
+    def __init__(self, configs, worker_id, run_id  = "default", low_mem_fix = False, out_path = "./"):
         """Initializes the trainer, the model, the buffer, the evaluator and launches training environments
 
         Arguments:
@@ -32,12 +32,12 @@ class PPOTrainer():
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
         signal(SIGINT, self.handler)
         # Create directories for storing checkpoints, models and tensorboard summaries based on the current time and provided run_id
-        if not os.path.exists("summaries"):
-            os.makedirs("summaries")
-        if not os.path.exists("checkpoints"):
-            os.makedirs("checkpoints")
+        if not os.path.exists(out_path + "summaries"):
+            os.makedirs(out_path + "summaries")
+        if not os.path.exists(out_path + "checkpoints"):
+            os.makedirs(out_path + "checkpoints")
         timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
-        self.checkpoint_path = "checkpoints/" + run_id + timestamp
+        self.checkpoint_path = out_path + "checkpoints/" + run_id + timestamp
         os.makedirs(self.checkpoint_path)
 
         # Determine cuda availability
@@ -68,7 +68,7 @@ class PPOTrainer():
         self.batch_size = self.n_workers * self.worker_steps
         self.mini_batch_size = self.batch_size // self.n_mini_batch
         assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
-        self.writer = SummaryWriter("summaries/" + run_id + timestamp)
+        self.writer = SummaryWriter(out_path + "summaries/" + run_id + timestamp)
         self.write_hyperparameters(configs["trainer"])
 
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]

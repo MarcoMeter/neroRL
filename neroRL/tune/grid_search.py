@@ -31,7 +31,7 @@ class GridSearch:
     def generate_config(self, permutation):
         """Generates a new config by modifying the original config using a single permutation of the hyperparmeter choices.
 
-        Argumentss:
+        Arguments:
             permutation {dict}: Single permutation that is used to modify the original config
 
         Returns:
@@ -65,11 +65,11 @@ class GridSearch:
         These will be plased in the configs directory of the to be created root directoy.
         In addition, an info.txt is being created that shows the used permutation for each file.
 
-        Args:
+        Arguments:
             root_path {str}: Name of the target root directory
         """
         # Create directories
-        if not os.path.exists(root_path):
+        if not os.path.exists(root_path) or not os.path.exists(root_path + "configs/"):
             os.makedirs(root_path + "configs/")
 
         # Write config files
@@ -94,15 +94,16 @@ class GridSearch:
         """
         return self._final_configs
 
-    def run_trainings_sequentially(self, num_repetitions = 1, run_id="default", worker_id = 2, low_mem_fix = False):
+    def run_trainings_sequentially(self, num_repetitions = 1, run_id="default", worker_id = 2, low_mem_fix = False, out_path = "./"):
         """Conducts one training session per generated config file.
         All training sessions can be repeated n-times.
 
         Args:
             num_repetitions {int}: Number of times a training session is being repeated. Defaults to 1.
             run_id {str}: The used string to name various things like the directory of the checkpoints. Defaults to "default".
-            worker_id (int, optional): Sets the communication port for Unity environments. Defaults to 2.
-            low_mem_fix (bool, optional): Whether to load one mini_batch at a time. This is needed for GPUs with low memory (e.g. 2GB). Defaults to False.
+            worker_id {int}: Sets the communication port for Unity environments. Defaults to 2.
+            low_mem_fix {bool}: Whether to load one mini_batch at a time. This is needed for GPUs with low memory (e.g. 2GB). Defaults to False.
+            out_path {string}: Target location to save files such as checkpoints and summaries. Defaults to "./"
         """
         print("Initialize Grid Search Training")
         print("Num training runs: " + str(num_repetitions * len(self._final_configs)))
@@ -114,7 +115,7 @@ class GridSearch:
                 config["permutation"] = permutation
                 # Init trainer
                 if config["trainer"]["algorithm"] == "PPO":
-                    trainer = PPOTrainer(config, worker_id, run_id + "_" + str(i) + "_" + str(j), low_mem_fix)
+                    trainer = PPOTrainer(config, worker_id, run_id + "_" + str(i) + "_" + str(j), low_mem_fix, out_path)
                 else:
                     assert(False), "Unsupported algorithm specified"
 
