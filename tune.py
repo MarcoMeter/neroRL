@@ -17,7 +17,7 @@ def main():
         --run-id=<path>             Specifies the tag of the tensorboard summaries [default: default].
         --low-mem-fix               Whether to load one mini_batch at a time. This is needed for GPUs with low memory (e.g. 2GB) [default: False].
         --generate-only             Whether to only generate the config files [default: False]
-        --out=<path>                Where to output the generated config files [default: "./grid_search/"]
+        --out=<path>                Where to output the generated config files [default: ./grid_search/]
     """
     options = docopt(_USAGE)
     config_path = options["--config"]

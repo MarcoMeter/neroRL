@@ -17,16 +17,38 @@ class GridSearch:
             base_config {dict}: Original configuration
             tune_config {dict}: Configuration that provides the to be permuted hyperparameter choices
         """
+        # Original config that is used to source all other values
         self.base_config = base_config
-        self.tune_config = tune_config
 
-        # Permute hyperparameters as specified by the search config
-        keys, values = zip(*tune_config.items())
-        permutations = [dict(zip(keys, v)) for v in itertools.product(*values)]
+        # Permute all parameters of the tuning config
+        permutations = self.permute(tune_config)
+
+        # Create a new config for each permutation
         self._final_configs = []
         # Store a tuple of the final config and the used permuted hyperparameters
         for permutation in permutations:
             self._final_configs.append((self.generate_config(permutation), permutation))
+
+    def permute(self, tune_config):
+        """Permutes all parameters as specified by the tuning config.
+
+        Arguments:
+            tune_config {dict}: The to be permuted tuning config
+
+        Returns:
+            {list}: Returns a list that contains all possible permutations of the provided tuning config
+        """
+        # Permute each subset individually
+        permutations = {}
+        for key in tune_config:
+            keys, values = zip(*tune_config[key].items())
+            permutations[key] = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+        # Permute subsets altogether
+        keys, values = zip(*permutations.items())
+        permutations = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+        return permutations
 
     def generate_config(self, permutation):
         """Generates a new config by modifying the original config using a single permutation of the hyperparmeter choices.
@@ -39,24 +61,35 @@ class GridSearch:
         """
         # Duplicate the original config file
         new_config = copy.deepcopy(self.base_config) # A shallow copy does not work here
-        # It is assumed that the nested config has a depth of 2
-        # Depth 0, e.g. environment, model, trainer, ...
-        for key, value in new_config.items():
-            # Depth 1, e.g. algorithm, gamma, lamda, ...
-            if isinstance(value, dict):
-                for ke, val in value.items():
-                    # Depth 2, e.g. sequence_length, hidden_state_size, ...
-                    if isinstance(val, dict):
-                        for k, v in val.items():
+
+        # Apply general singular hyperparameters
+        if "hyperparameters" in permutation:
+            # It is assumed that the nested config has a depth of 2
+            # Depth 0, e.g. environment, model, trainer, ...
+            for key, value in new_config.items():
+                # Depth 1, e.g. algorithm, gamma, lamda, ...
+                if isinstance(value, dict):
+                    for ke, val in value.items():
+                        # Depth 2, e.g. sequence_length, hidden_state_size, ...
+                        if isinstance(val, dict):
+                            for k, v in val.items():
+                                # Apply new value
+                                if k in permutation["hyperparameters"]:
+                                    new_config[key][ke][k] = permutation[k]
+                        else:
                             # Apply new value
-                            if k in permutation:
-                                new_config[key][ke][k] = permutation[k]
-                    else:
-                        # Apply new value
-                        if ke in permutation:
-                            new_config[key][ke] = permutation[ke]
+                            if ke in permutation["hyperparameters"]:
+                                new_config[key][ke] = permutation[ke]
             else:
                 pass
+
+        # Apply decay schedules
+        for key in list(permutation.keys()):
+            if key != "hyperparameters":
+                for k, v in new_config["trainer"][key].items():
+                    if k in permutation[key]:
+                        new_config["trainer"][key][k] = permutation[key][k]
+
         return new_config
 
     def write_permuted_configs_to_file(self, root_path):
