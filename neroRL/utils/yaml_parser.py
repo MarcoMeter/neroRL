@@ -26,26 +26,10 @@ class YamlParser:
 
         # Prepare data
         for data in yaml_args:
-            self._config["environment"] = self.to_dict(data.get("environment"))
-            self._config["model"] = self.to_dict(data.get("model"))
-            self._config["evaluation"] = self.to_dict(data.get("evaluation"))
-            self._config["trainer"] = self.to_dict(data.get("trainer"))
+            self._config = dict(data)
 
+        # Process config, like adding missing keys with default values
         self.process_config()
-        
-    def to_dict(self, data):
-        """Converts CommentedMap to dictionary.
-        
-        Arguments:
-            data {ruamel.yaml.comments.CommentedMap} -- CommentedMap retrieved from the yaml file
-        
-        Returns:
-            {dict} -- Converted dictionary containing the concerned content from the yaml
-        """
-        new_dict = {}
-        for k,v in data.items():
-            new_dict[k] = v
-        return new_dict
 
     def process_config(self):
         """Ensures that the config is complete. If incomplete, default values will be applied to missing entries.
@@ -190,21 +174,7 @@ class GridSearchYamlParser:
 
         # Prepare data
         for data in yaml_args:
-            self._config = self.to_dict(data)
-        
-    def to_dict(self, data):
-        """Converts CommentedMap to dictionary.
-        
-        Arguments:
-            data {ruamel.yaml.comments.CommentedMap} -- CommentedMap retrieved from the yaml file
-        
-        Returns:
-            {dict} -- Converted dictionary containing the concerned content from the yaml
-        """
-        new_dict = {}
-        for k,v in data.items():
-            new_dict[k] = v
-        return new_dict
+            self._config = dict(data)
 
     def get_config(self):
         """ 
