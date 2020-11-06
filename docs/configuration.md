@@ -50,10 +50,19 @@ model:
   model_path: "path/to/model.pt"
   # Save the model after every n-th update
   checkpoint_interval: 50
-  # Whether to add a GRU layer right after the model's observation encoder
-  use_recurrent: True
-  # Size of the GRU layer
-  hidden_state_size: 512
+  # Set the to be used activation function (relu, leaky_relu, swish)
+  activation: "relu"
+  recurrence:
+    # Supported recurrent layers: gru, lstm
+    layer_type: "gru"
+    # Length of the trained sequences, if set to 0 or smaller the sequence length is dynamically fit to episode lengths
+    sequence_length: 32
+    # Size of the recurrent layer's hidden state
+    hidden_state_size: 128
+    # How to initialize the hidden state
+    hidden_state_init: "zero"
+    # Whether to fake the recurrence by adding hidden states to the experience tuples and then omit the usage of BPTT
+    fake_recurrence: False
 ```
 
 Every tool may use the model_path.

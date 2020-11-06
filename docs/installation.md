@@ -18,7 +18,7 @@ To install the necessary python packages choose one of the available requirement
 `pip install -r requirements_windows_gpu.txt`
 
 It should not be an issue to install a newer [PyTorch](https://pytorch.org/get-started/locally/) version or to use Python v3.7.
-However, the version of Unity ML-Agents (mlagents_envs==0.10.0) and Gym-Minigrid (gym-minigrid==1.0.1) should not be changed, because this framework implements distinct wrappers which are not likely to support any other version.
+However, the version of Unity ML-Agents (mlagents_envs==0.17.0) and Gym-Minigrid (gym-minigrid==1.0.1) should not be changed, because this framework implements distinct wrappers which are not likely to support any other version.
 For MacOS, remove the lines for torch and torchvision from the requirements.txt and follow the instructions from [PyTorch](https://pytorch.org/get-started/locally/).
 
 ## Obstacle Tower Environment
@@ -28,8 +28,8 @@ Obstacle Tower can be build form [source](https://github.com/Unity-Technologies/
 
 | *Platform*     | *Download Link*                                                                     |
 | --- | --- |
-| Linux (x86_64) | https://storage.googleapis.com/obstacle-tower-build/v3.1/obstacletower_v3.1_linux.zip   |
-| Mac OS X       | https://storage.googleapis.com/obstacle-tower-build/v3.1/obstacletower_v3.1_osx.zip     |
-| Windows        | https://storage.googleapis.com/obstacle-tower-build/v3.1/obstacletower_v3.1_windows.zip |
+| Linux (x86_64) | https://storage.googleapis.com/obstacle-tower-build/v4.1/obstacletower_v4.1_linux.zip   |
+| Mac OS X       | https://storage.googleapis.com/obstacle-tower-build/v4.1/obstacletower_v4.1_osx.zip     |
+| Windows        | https://storage.googleapis.com/obstacle-tower-build/v4.1/obstacletower_v4.1_windows.zip |
 
-For checksums on these files, see [this](https://storage.googleapis.com/obstacle-tower-build/v3.1/ote-v3.1-checksums.txt).
+For checksums on these files, see [this](https://storage.googleapis.com/obstacle-tower-build/v4.1/ote-v4.1-checksums.txt).

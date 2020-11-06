@@ -13,7 +13,7 @@ To evaluate a series of model checkpoints utilize the `python eval_checkpoints.p
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --path=<path>              Specifies the tag of the tensorboard summaries [default: None].
         --name=<path>              Specifies the full path to save the output file [default: results.res].
-    """
+"""
 ```
 
 ## --config
