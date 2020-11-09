@@ -32,6 +32,7 @@ In the case of tuning hyperparemeters based on grid search, the specified config
 This flag is used to specify a config that features the to be tuned hyperparameters and its choices.
 For grid search, all combinations of each parameter's choice is generated.
 For each permutation, the base config file as specified by `--config` is overriden for the to be tuned hyperparameters.
+An [example](#example-tuning-config) can be found below.
 
 ## --num-repetitions
 This determines the number of times a training session is being repeated.
@@ -65,5 +66,22 @@ This command will conduct sequentially training sessions using the Minigrd envir
 ## Example Tuning Config
 
 ```
+# Example: Tune a few hyperparameters and decay schedules
+hyperparameters:
+  worker-steps: [64, 128]
+  num-workers: [8, 16]
 
+learning_rate_schedule:
+  initial: [3.0e-3, 1.0e-4]
+  final: [1.0e-5, 1.0e-6]
+
+beta_schedule:
+  initial: [0.01, 0.001, 0.001]
+  final: [0.0001] # As we are using decaying schedules, these choices should not be greater than the initial values.
 ```
+
+Every single parameter from a config can be used, but it has to be noted that not every parameter combination is desirable.
+For example, choosing different environment names and type conflict.
+
+In general, you specify most parameters and its choices under the `hyperparameters` section.
+Deyacing schedules, like for the learning rate, have to be treated seperately, like seen above.
