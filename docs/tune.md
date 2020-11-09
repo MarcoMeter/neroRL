@@ -32,7 +32,7 @@ In the case of tuning hyperparemeters based on grid search, the specified config
 This flag is used to specify a config that features the to be tuned hyperparameters and its choices.
 For grid search, all combinations of each parameter's choice is generated.
 For each permutation, the base config file as specified by `--config` is overriden for the to be tuned hyperparameters.
-An [example](#example-tuning-config) can be found below.
+An [example](#example-tuning-config) can be found at the bottom of this page.
 
 ## --num-repetitions
 This determines the number of times a training session is being repeated.
