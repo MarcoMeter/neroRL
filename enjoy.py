@@ -60,7 +60,7 @@ def main():
     print("Step 2: Creating model")
     model = OTCModel(configs["model"], visual_observation_space,
                             vector_observation_space, action_space_shape,
-                            configs["model"]["recurrence"]).to(device)
+                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None).to(device)
     if not untrained:
         print("Step 2: Loading model from " + configs["model"]["model_path"])
         checkpoint = load_checkpoint(configs["model"]["model_path"])
