@@ -25,7 +25,7 @@ Therefore make use of the `--config=./configs/otc.yaml` argument to specify your
 Setting a `--worker-id=100` is necessary if you run multiple training sessions using Unity environments (e.g. Obstacle Tower), because these environments communicate with Python using sockets via distinct ports that are offset by the `--worker-id`.
 
 ## --run-id
-The `--run-id=training_0` adds a tag to the training session, which is helpfull for identifying the [tensorboard](tensorboard.md) summaries.
+The `--run-id=training_0` adds a tag to the training session, which is helpfull for identifying the [tensorboard](tensorboard.md) summaries and model checkpoints.
 
 ## --low-mem-fix
 If you are training on a GPU with not enough VRAM you can try the `--low-mem-fix` option. This ensures that only one mini batch at a time is moved to the GPU's memory instead of the entire batch, which exceeds the GPU's memory.
