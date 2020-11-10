@@ -4,6 +4,7 @@ The agent environment interaction is then shown in realtime for one episode on a
 TODO: Additionally a video can be rendered.
 """
 
+import logging
 import torch
 import numpy as np
 from docopt import docopt
@@ -18,6 +19,13 @@ from neroRL.environments.procgen_wrapper import ProcgenWrapper
 from neroRL.environments.cartpole_wrapper import CartPoleWrapper
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.serialization import load_checkpoint
+
+# Setup logger
+logging.basicConfig(level = logging.INFO, handlers=[])
+logger = logging.getLogger("enjoy")
+console = logging.StreamHandler()
+console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+logger.addHandler(console)
 
 def main():
     # Docopt command line arguments
@@ -45,7 +53,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Launch environment
-    print("Step 1: Launching environment")
+    logger.info("Step 1: Launching environment")
     env = wrap_environment(configs["environment"], worker_id, realtime_mode = True)
     
     # Retrieve observation space
@@ -57,19 +65,19 @@ def main():
         action_space_shape = tuple(env.action_space.nvec)
 
     # Build or load model
-    print("Step 2: Creating model")
+    logger.info("Step 2: Creating model")
     model = OTCModel(configs["model"], visual_observation_space,
                             vector_observation_space, action_space_shape,
                             configs["model"]["recurrence"] if "recurrence" in configs["model"] else None).to(device)
     if not untrained:
-        print("Step 2: Loading model from " + configs["model"]["model_path"])
+        logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
         checkpoint = load_checkpoint(configs["model"]["model_path"])
         model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
     # Reset environment
-    print("Step 3: Resetting the environment")
-    print("Step 3: Using seed " + str(seed))
+    logger.info("Step 3: Resetting the environment")
+    logger.info("Step 3: Using seed " + str(seed))
     vis_obs, vec_obs = env.reset({"start-seed": seed, "num-seeds": 1})
     done = False
     
@@ -85,7 +93,7 @@ def main():
         recurrent_cell = None
 
     # Play episode
-    print("Step 4: Run single episode in realtime . . .")
+    logger.info("Step 4: Run single episode in realtime . . .")
     with torch.no_grad():
         while not done:
             # Sample action
@@ -101,7 +109,7 @@ def main():
 
             vis_obs, vec_obs, _, done, info = env.step(actions)
 
-    print("Episode Reward: " + str(info["reward"]))
+    logger.info("Episode Reward: " + str(info["reward"]))
 
 if __name__ == "__main__":
     main()

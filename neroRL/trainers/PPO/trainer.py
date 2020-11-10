@@ -1,3 +1,4 @@
+import logging
 import os
 import torch
 import numpy as np
@@ -31,14 +32,26 @@ class PPOTrainer():
         """
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
         signal(SIGINT, self.handler)
-        # Create directories for storing checkpoints, models and tensorboard summaries based on the current time and provided run_id
+        # Create directories for storing checkpoints, logs and tensorboard summaries based on the current time and provided run_id
         if not os.path.exists(out_path + "summaries"):
             os.makedirs(out_path + "summaries")
         if not os.path.exists(out_path + "checkpoints"):
             os.makedirs(out_path + "checkpoints")
+        if not os.path.exists(out_path + "logs") or not os.path.exists(out_path + "logs/" + run_id):
+            os.makedirs(out_path + "logs/" + run_id)
         timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
         self.checkpoint_path = out_path + "checkpoints/" + run_id + timestamp
         os.makedirs(self.checkpoint_path)
+
+        # Setup logger
+        logging.basicConfig(level = logging.INFO, handlers=[])
+        self.logger = logging.getLogger("train")
+        console = logging.StreamHandler()
+        console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+        path = out_path + "logs/" + run_id + timestamp[:-1] + ".log"
+        logfile = logging.FileHandler(path, mode="w")
+        self.logger.addHandler(console)
+        self.logger.addHandler(logfile)
 
         # Determine cuda availability
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -73,13 +86,13 @@ class PPOTrainer():
 
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
-        print("Step 1: Provided config:")
+        self.logger.info("Step 1: Provided config:")
         for key in configs:
-            print("Step 1: " + str(key) + ":")
+            self.logger.info("Step 1: " + str(key) + ":")
             for k, v in configs[key].items():
-                print("Step 1: " + str(k) + ": " + str(v))
+                self.logger.info("Step 1: " + str(k) + ": " + str(v))
 
-        print("Step 2: Creating dummy environment")
+        self.logger.info("Step 2: Creating dummy environment")
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
         
@@ -91,20 +104,20 @@ class PPOTrainer():
             self.action_space_shape = tuple(self.dummy_env.action_space.nvec)
         self.dummy_env.close()
 
-        print("Step 2: Visual Observation Space: " + str(visual_observation_space))
-        print("Step 2: Vector Observation Space: " + str(vector_observation_space))
-        print("Step 2: Action Space Shape: " + str(self.action_space_shape))
-        print("Step 2: Action Names: " + str(self.dummy_env.action_names))
+        self.logger.info("Step 2: Visual Observation Space: " + str(visual_observation_space))
+        self.logger.info("Step 2: Vector Observation Space: " + str(vector_observation_space))
+        self.logger.info("Step 2: Action Space Shape: " + str(self.action_space_shape))
+        self.logger.info("Step 2: Action Names: " + str(self.dummy_env.action_names))
 
         # Prepare evaluator if configured
         self.eval = configs["evaluation"]["evaluate"]
         self.eval_interval = configs["evaluation"]["interval"]
         if self.eval:
-            print("Step 2b: Initializing evaluator")
+            self.logger.info("Step 2b: Initializing evaluator")
             self.evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
 
         # Init model
-        print("Step 3: Creating model")
+        self.logger.info("Step 3: Creating model")
         self.model = OTCModel(configs["model"], visual_observation_space,
                                 vector_observation_space, self.action_space_shape,
                                 self.recurrence).to(self.device)
@@ -114,7 +127,7 @@ class PPOTrainer():
 
         # Load checkpoint and apply data
         if configs["model"]["load_model"]:
-            print("Step 3: Loading model from " + configs["model"]["model_path"])
+            self.logger.info("Step 3: Loading model from " + configs["model"]["model_path"])
             checkpoint = load_checkpoint(configs["model"]["model_path"])
             self.model.load_state_dict(checkpoint["model_state_dict"])
             self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
@@ -136,7 +149,7 @@ class PPOTrainer():
             self.mini_batch_device)
 
         # Launch workers
-        print("Step 4: Launching training environments of type " + configs["environment"]["type"])
+        self.logger.info("Step 4: Launching training environments of type " + configs["environment"]["type"])
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
 
         # Setup initial observations
@@ -373,9 +386,9 @@ class PPOTrainer():
             6. Evaluates model every n-th update if configured
         """
         if(self.resume_at > 0):
-            print("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
+            self.logger.info("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
         else:
-            print("Step 5: Starting training using " + str(self.device) + " . . .")
+            self.logger.info("Step 5: Starting training using " + str(self.device) + " . . .")
         # List that stores the most recent episodes for training statistics
         episode_info = deque(maxlen=100)
 
@@ -418,12 +431,12 @@ class PPOTrainer():
             # 5.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
             if episode_result:
-                print("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
+                self.logger.info("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
                     update, update_duration, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"],
                     training_stats[2], training_stats[3], np.mean(self.buffer.values), np.std(self.buffer.values),
                     np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
             else:
-                print("{:4} sec={:2} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
+                self.logger.info("{:4} sec={:2} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
                     update, update_duration, training_stats[2], training_stats[3], np.mean(self.buffer.values),
                     np.std(self.buffer.values), np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
 
@@ -432,7 +445,7 @@ class PPOTrainer():
                 if update % self.eval_interval == 0 or update == (self.updates - 1):
                     eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
                     episode_result = self._process_episode_info(eval_episode_info)
-                    print("eval: sec={:3} reward={:.2f} length={:.1f}".format(
+                    self.logger.info("eval: sec={:3} reward={:.2f} length={:.1f}".format(
                         eval_duration, episode_result["reward_mean"], episode_result["length_mean"]))
                     self.write_eval_summary(update, episode_result)
             
@@ -491,19 +504,19 @@ class PPOTrainer():
 
     def close(self):
         """Closes the environment and destroys the workers"""
-        print("Terminate: Closing dummy ennvironment . . .")
+        self.logger.info("Terminate: Closing dummy ennvironment . . .")
         try:
             self.dummy_env.close()
         except:
             pass
 
-        print("Terminate: Closing Summary Writer . . .")
+        self.logger.info("Terminate: Closing Summary Writer . . .")
         try:
             self.writer.close()
         except:
             pass
 
-        print("Terminate: Shutting down workers . . .")
+        self.logger.info("Terminate: Shutting down workers . . .")
         try:
             for worker in self.workers:
                 worker.child.send(("close", None))
@@ -511,7 +524,7 @@ class PPOTrainer():
             pass
 
         if self.eval:
-            print("Terminate: Closing evaluator")
+            self.logger.info("Terminate: Closing evaluator")
             try:
                 self.evaluator.close()
             except:
@@ -519,10 +532,10 @@ class PPOTrainer():
         
         try:
             if self.currentUpdate > 0:
-                print("Terminate: Saving model . . .")
+                self.logger.info("Terminate: Saving model . . .")
                 try:
                         save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt", self.currentUpdate, self.model.state_dict(), self.optimizer.state_dict(), self.configs)
-                        print("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
+                        self.logger.info("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
                 except:
                     pass
         except:
@@ -530,6 +543,6 @@ class PPOTrainer():
 
     def handler(self, signal_received, frame):
         """Invoked by the Ctrl-C event, the trainer is being closed and the python program is being exited."""
-        print("Terminate: Training aborted . . .")
+        self.logger.info("Terminate: Training aborted . . .")
         self.close()
         exit(0)
