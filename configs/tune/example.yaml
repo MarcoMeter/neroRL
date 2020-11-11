@@ -12,8 +12,8 @@
 
 # Example: Tune a few hyperparameters and decay schedules
 hyperparameters:
-  worker-steps: [64, 128]
-  num-workers: [8, 16]
+  worker_steps: [64, 128]
+  num_workers: [8, 16]
 
 learning_rate_schedule:
   initial: [3.0e-3, 1.0e-4]
