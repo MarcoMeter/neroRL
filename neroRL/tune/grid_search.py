@@ -75,11 +75,11 @@ class GridSearch:
                             for k, v in val.items():
                                 # Apply new value
                                 if k in permutation["hyperparameters"]:
-                                    new_config[key][ke][k] = permutation[k]
+                                    new_config[key][ke][k] = permutation["hyperparameters"][k]
                         else:
                             # Apply new value
                             if ke in permutation["hyperparameters"]:
-                                new_config[key][ke] = permutation[ke]
+                                new_config[key][ke] = permutation["hyperparameters"]
             else:
                 pass
 
