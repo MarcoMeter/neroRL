@@ -79,7 +79,7 @@ class GridSearch:
                         else:
                             # Apply new value
                             if ke in permutation["hyperparameters"]:
-                                new_config[key][ke] = permutation["hyperparameters"]
+                                new_config[key][ke] = permutation["hyperparameters"][ke]
             else:
                 pass
 
@@ -89,7 +89,7 @@ class GridSearch:
                 for k, v in new_config["trainer"][key].items():
                     if k in permutation[key]:
                         new_config["trainer"][key][k] = permutation[key][k]
-
+                        
         return new_config
 
     def write_permuted_configs_to_file(self, root_path):

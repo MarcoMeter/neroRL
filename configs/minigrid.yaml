@@ -36,7 +36,7 @@ trainer:
   gamma: 0.99
   lamda: 0.95
   updates: 2000
-  epochs: 2
+  epochs: 4
   n_workers: 16
   worker_steps: 256
   n_mini_batch: 4
