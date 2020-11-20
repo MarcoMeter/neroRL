@@ -7,7 +7,7 @@ WIP
 1. Training data is sampled from the current policy
 2. Sampled data is split into episodes
 3. (Optional) episodes are split into sequences
-4. Apply zero zero padding to retrieve sequences of fixed length
+4. Apply zero padding to retrieve sequences of fixed length
 5. For computing losses, padded values get masked
 
 ## Further details
