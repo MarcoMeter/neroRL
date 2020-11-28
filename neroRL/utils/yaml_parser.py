@@ -131,7 +131,7 @@ class YamlParser:
             # If no recurrence dict is available, it is assumed that a recurrent policy is not used
             # In the other case check for completeness and apply defaults if necessary
             if "recurrence" in self._config["model"]:
-                if "type" not in self._config["model"]["recurrence"]:
+                if "layer_type" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["layer_type"] = "gru"
                 if "sequence_length" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["sequence_length"] = 32
