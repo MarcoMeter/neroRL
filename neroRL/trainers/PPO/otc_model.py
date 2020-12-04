@@ -7,12 +7,12 @@ from torch.nn import functional as F
 class OTCModel(nn.Module):
     """A flexible actor-critic model that supports:
             - Multi-discrete action spaces
-            - visual & vector observation spaces
+            - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
 
-        Originally, this model has been used for the Obstacle Tower Challenge without a short-term memory.
+        Originally, this model has been used for the Obstacle Tower Challenge without a recurrent layer.
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence, buffer = None):
         """Model setup
 
         Arguments:
@@ -22,9 +22,11 @@ class OTCModel(nn.Module):
             action_space_shape {tuple} -- Dimensions of the action space
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
                 - layer type {stirng}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
+            buffer {Buffer} - Reference to the buffer that contains the training samples. It is used to get the mean of recurrent cell states.
         """
         super().__init__()
         self.recurrence = recurrence
+        self.buffer = buffer
         
         # Set the activation function for most layers of the neural net
         available_activ_fns = {
@@ -83,7 +85,7 @@ class OTCModel(nn.Module):
                 if 'bias' in name:
                     nn.init.constant_(param, 0)
                 elif 'weight' in name:
-                    nn.init.orthogonal_(param)
+                    nn.init.orthogonal_(param, np.sqrt(2))
             # Hidden layer
             self.lin_hidden = nn.Linear(in_features=self.recurrence["hidden_state_size"], out_features=512)
         else:
@@ -132,6 +134,7 @@ class OTCModel(nn.Module):
         """
         h: torch.Tensor
 
+        # Forward observation encoder
         if vis_obs is not None:
             vis_obs = torch.tensor(vis_obs, dtype=torch.float32, device=device)      # Convert vis_obs to tensor
             # Propagate input through the visual encoder
@@ -150,7 +153,7 @@ class OTCModel(nn.Module):
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
             if sequence_length == 1:
-                # Case: sampling training data
+                # Case: sampling training data or model optimization using fake recurrence
                 h, recurrent_cell = self.recurrent_layer(h.unsqueeze(0), recurrent_cell)
                 h = h.squeeze(0) # Remove sequence length dimension
             else:
@@ -159,31 +162,15 @@ class OTCModel(nn.Module):
                 h_shape = tuple(h.size())
                 h = h.view(sequence_length, (h_shape[0] // sequence_length), h_shape[1])
 
-                # Initialize hidden states to zero
-                # recurrent_cell = torch.zeros((h_shape[0] // sequence_length), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True)
-                # h, recurrent_cell = self.recurrent_layer(h, recurrent_cell.unsqueeze(0))
-
-                # Init hidden states based on the mean of the latest hidden states of the training data sampling phase
-                # recurrent_cell = torch.cat((h_shape[0] // sequence_length) * [torch.mean(recurrent_cell, 1)]).unsqueeze(0)
-
-                # Sample initial hidden state based on the mean and std of the previous hidden states of the training data sampling phase
+                # Init recurrent cell state for each sequence
+                hxs, cxs = self.init_recurrent_cell_states(h_shape[0] // sequence_length, device)
                 if self.recurrence["layer_type"] == "gru":
-                    # mean = torch.mean(recurrent_cell)
-                    # std = torch.std(recurrent_cell)
-                    # recurrent_cell = torch.normal(mean, std, size=(1, (h_shape[0] // sequence_length), self.recurrence["hidden_state_size"])).to(device)
-                    recurrent_cell = torch.zeros((h_shape[0] // sequence_length), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
+                    recurrent_cell = hxs
                 elif self.recurrence["layer_type"] == "lstm":
-                    # Hidden state
-                    mean = torch.mean(recurrent_cell[0])
-                    std = torch.std(recurrent_cell[0])
-                    hxs = torch.normal(mean, std, size=(1, (h_shape[0] // sequence_length), self.recurrence["hidden_state_size"])).to(device)
-                    # Hidden cell
-                    mean = torch.mean(recurrent_cell[1])
-                    std = torch.std(recurrent_cell[1])
-                    cxs = torch.normal(mean, std, size=(1, (h_shape[0] // sequence_length), self.recurrence["hidden_state_size"])).to(device)
                     recurrent_cell = (hxs, cxs)
                 # Forward recurrent layer
                 h, recurrent_cell = self.recurrent_layer(h, recurrent_cell)
+
                 # Reshape to the original tensor size
                 h_shape = tuple(h.size())
                 h = h.view(h_shape[0] * h_shape[1], h_shape[2])
@@ -206,7 +193,7 @@ class OTCModel(nn.Module):
         return pi, value, recurrent_cell
 
     def get_conv_output(self, shape):
-        """Computes the output size of the convolutional layers by feeding a dumy tensor.
+        """Computes the output size of the convolutional layers by feeding a dummy tensor.
 
         Arguments:
             shape {tuple} -- Input shape of the data feeding the first convolutional layer
@@ -218,7 +205,47 @@ class OTCModel(nn.Module):
         o = self.conv2(o)
         o = self.conv3(o)
         return int(np.prod(o.size()))
+ 
+    def init_recurrent_cell_states(self, num_sequences, device):
+        """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
+        These states can be initialized in 4 ways:
 
-class Swish(nn.Module):
-    def forward(self, data: torch.Tensor) -> torch.Tensor:
-        return torch.mul(data, torch.sigmoid(data))
+        - zero
+        - one
+        - mean (based on the recurrent cell states of the sampled training data)
+        - sample (based on the mean of all recurrent cell states of the sampled training data, the std is set to 0.01)
+
+        Arugments:
+            num_sequences {int}: The number of sequences determines the number of the to be generated initial recurrent cell states.
+            device {torch.device}: Target device.
+
+        Returns:
+            {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned using initial values.
+        """
+        cxs = None
+        if self.recurrence["hidden_state_init"] == "zero":
+            hxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
+            if self.recurrence["layer_type"] == "lstm":
+                cxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
+        elif self.recurrence["hidden_state_init"] == "one":
+            hxs = torch.ones((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
+            if self.recurrence["layer_type"] == "lstm":
+                cxs = torch.ones((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
+        elif self.recurrence["hidden_state_init"] == "mean":
+            mean = np.mean(self.buffer.hxs.reshape(self.buffer.num_workers * self.buffer.worker_steps, self.recurrence["hidden_state_size"]), axis=0)
+            mean = [mean for i in range(num_sequences)]
+            hxs = torch.tensor(mean, device=device, requires_grad=True).unsqueeze(0)
+            if self.recurrence["layer_type"] == "lstm":
+                mean = np.mean(self.buffer.cxs.reshape(self.buffer.num_workers * self.buffer.worker_steps, self.recurrence["hidden_state_size"]), axis=0)
+                mean = [mean for i in range(num_sequences)]
+                cxs = torch.tensor(mean, device=device, requires_grad=True).unsqueeze(0)
+        elif self.recurrence["hidden_state_init"] == "sample":
+            mean = np.mean(self.buffer.hxs.reshape(self.buffer.num_workers * self.buffer.worker_steps, self.recurrence["hidden_state_size"]), axis=0)
+            mean = [mean for i in range(num_sequences)]
+            hxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["hidden_state_size"]), requires_grad=True).to(device)
+            if self.recurrence["layer_type"] == "lstm":
+                mean = np.mean(self.buffer.cxs.reshape(self.buffer.num_workers * self.buffer.worker_steps, self.recurrence["hidden_state_size"]), axis=0)
+                mean = [mean for i in range(num_sequences)]
+                cxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["hidden_state_size"]), requires_grad=True).to(device)
+        return hxs, cxs
+   

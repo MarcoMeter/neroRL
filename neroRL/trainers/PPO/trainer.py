@@ -116,11 +116,23 @@ class PPOTrainer():
             self.logger.info("Step 2b: Initializing evaluator")
             self.evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
 
+        # Instantiate experience/training data buffer
+        self.buffer = Buffer(
+            self.n_workers,
+            self.worker_steps,
+            self.n_mini_batch,
+            visual_observation_space,
+            vector_observation_space,
+            self.action_space_shape,
+            self.recurrence,
+            self.device,
+            self.mini_batch_device)
+
         # Init model
         self.logger.info("Step 3: Creating model")
         self.model = OTCModel(configs["model"], visual_observation_space,
                                 vector_observation_space, self.action_space_shape,
-                                self.recurrence).to(self.device)
+                                self.recurrence, self.buffer).to(self.device)
 
         # Instantiate optimizer
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
@@ -135,18 +147,6 @@ class PPOTrainer():
 
         # Set model to train mode
         self.model.train()
-
-        # Instantiate experience/training data buffer
-        self.buffer = Buffer(
-            self.n_workers,
-            self.worker_steps,
-            self.n_mini_batch,
-            visual_observation_space,
-            vector_observation_space,
-            self.action_space_shape,
-            self.recurrence,
-            self.device,
-            self.mini_batch_device)
 
         # Launch workers
         self.logger.info("Step 4: Launching training environments of type " + configs["environment"]["type"])
@@ -165,10 +165,13 @@ class PPOTrainer():
         # Setup initial recurrent cell
         # Dimensions: sequence_length, batch_size, hidden/cell state
         if self.recurrence is not None:
+            hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.mini_batch_device)
             if self.recurrence["layer_type"] == "gru":
-                self.recurrent_cell = torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device)
+                #self.recurrent_cell = torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device)
+                self.recurrent_cell = hxs
             elif self.recurrence["layer_type"] == "lstm":
-                self.recurrent_cell = [torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device) for i in range(2)]
+                #self.recurrent_cell = [torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device) for i in range(2)]
+                self.recurrent_cell = (hxs, cxs)
         else:
             self.recurrent_cell = None
 
@@ -211,14 +214,21 @@ class PPOTrainer():
 
         # Sample actions from the model and collect experiences for training
         for t in range(self.worker_steps):
-            # Save the initial observations and hidden states
-            if self.vis_obs is not None:
-                self.buffer.vis_obs[:, t] = self.vis_obs
-            if self.vec_obs is not None:
-                self.buffer.vec_obs[:, t] = self.vec_obs
-            
             # Gradients can be omitted for sampling data
             with torch.no_grad():
+                # Save the initial observations and hidden states
+                if self.vis_obs is not None:
+                    self.buffer.vis_obs[:, t] = self.vis_obs
+                if self.vec_obs is not None:
+                    self.buffer.vec_obs[:, t] = self.vec_obs
+                # Store recurrent cell states inside the buffer
+                if self.recurrence is not None:
+                    if self.recurrence["layer_type"] == "gru":
+                        self.buffer.hxs[:, t] = self.recurrent_cell.cpu().numpy()
+                    elif self.recurrence["layer_type"] == "lstm":
+                        self.buffer.hxs[:, t] = self.recurrent_cell[0].cpu().numpy()
+                        self.buffer.cxs[:, t] = self.recurrent_cell[1].cpu().numpy()
+
                 # Forward the model to retrieve the policy (making decisions), the states' value of the value function and the recurrent hidden states (if available)
                 policy, value, self.recurrent_cell = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
                 self.buffer.values[:, t] = value.cpu().data.numpy()
@@ -259,7 +269,15 @@ class PPOTrainer():
                         self.vis_obs[w] = vis_obs
                     if self.vec_obs is not None:
                         self.vec_obs[w] = vec_obs
-
+                    # Reset recurrent cell
+                    if self.recurrence is not None:
+                        hxs, cxs = self.model.init_recurrent_cell_states(1, self.mini_batch_device)
+                        if self.recurrence["layer_type"] == "gru":
+                            self.recurrent_cell[:, w] = hxs
+                        elif self.recurrence["layer_type"] == "lstm":
+                            self.recurrent_cell[0][:, w] = hxs
+                            self.recurrent_cell[1][:, w] = cxs
+                            
         # Calculate advantages
         _, last_value, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
         self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
@@ -294,9 +312,18 @@ class PPOTrainer():
         """
         sampled_return = samples['values'] + samples['advantages']
         sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages']).unsqueeze(1).repeat(1, len(self.action_space_shape))
+        
+        # If fake recurrence is used, feed sampled recurrent cell states to the model
+        recurrent_cell = None
+        if self.recurrence is not None and self.recurrence["fake_recurrence"]:
+            if self.recurrence["layer_type"] == "gru":
+                recurrent_cell = samples["hxs"].unsqueeze(0)
+            elif self.recurrence["layer_type"] == "lstm":
+                recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+        
         policy, value, _ = self.model(samples['vis_obs'] if self.vis_obs is not None else None,
                                     samples['vec_obs'] if self.vec_obs is not None else None,
-                                    self.recurrent_cell,
+                                    recurrent_cell,
                                     self.device,
                                     self.buffer.actual_sequence_length)
         
@@ -362,7 +389,9 @@ class PPOTrainer():
 
         for _ in range(self.epochs):
             # Retrieve the to be trained mini_batches via a generator
-            if self.recurrence is not None:
+            # Use the recurrent mini batch generator for training a recurrent policy
+            # In the case of using fake recurrence, use the none-recurrent mini batch generator
+            if self.recurrence is not None and not self.recurrence["fake_recurrence"]:
                 mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
             else:
                 mini_batch_generator = self.buffer.mini_batch_generator()
@@ -408,7 +437,7 @@ class PPOTrainer():
                 sample_episode_info = self.sample(self.mini_batch_device)
             else:
                 sample_episode_info = self.sample(self.device)
-
+            
             # 3.: Prepare the sampled data inside the buffer
             self.buffer.prepare_batch_dict(self.episode_done_indices)
 
@@ -416,7 +445,7 @@ class PPOTrainer():
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
             training_stats = self.train_epochs(learning_rate, clip_range, beta)
-
+            
             # Store recent episode infos
             episode_info.extend(sample_episode_info)
     

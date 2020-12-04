@@ -39,6 +39,8 @@ class Buffer():
             self.vec_obs = np.zeros((num_workers, worker_steps,) + vector_observation_space, dtype=np.float32)
         else:
             self.vec_obs = None
+        self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
+        self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
         self.log_probs = np.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=np.float32)
         self.values = np.zeros((num_workers, worker_steps), dtype=np.float32)
         self.advantages = np.zeros((num_workers, worker_steps), dtype=np.float32)
@@ -85,46 +87,52 @@ class Buffer():
         if self.vec_obs is not None:
             samples['vec_obs'] = self.vec_obs
 
-        # If recurrence is used, split data into sequences and apply zero-padding
         if self.recurrence is not None:
-            # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
-            for w in range(self.num_workers):
-                if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
-                    episode_done_indices[w].append(self.worker_steps - 1)
-            
-            # Split vis_obs, vec_obs, values, advantages, actions and log_probs into episodes and then into sequences
             max_sequence_length = 1
-            for key, value in samples.items():
-                sequences = []
+            # If recurrence is used, split data into sequences and apply zero-padding
+            if not self.recurrence["fake_recurrence"]:
+                # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
                 for w in range(self.num_workers):
-                    start_index = 0
-                    for done_index in episode_done_indices[w]:
-                        # Split trajectory into episodes
-                        episode = value[w, start_index:done_index + 1]
-                        start_index = done_index + 1
-                        # Split episodes into sequences
-                        if self.sequence_length > 0:
-                            for start in range(0, len(episode), self.sequence_length):
-                                end = start + self.sequence_length
-                                sequences.append(episode[start:end])
-                                max_sequence_length = self.sequence_length
-                        else:
-                            # If the sequence length is not set to a proper value, sequences will be based on episodes
-                            sequences.append(episode)
-                            max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
+                    if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
+                        episode_done_indices[w].append(self.worker_steps - 1)
                 
-                # Apply zero-padding to ensure that each episode has the same length
-                # Therfore we can train batches of episodes in parallel instead of one episode at a time
-                for i, sequence in enumerate(sequences):
-                    sequences[i] = self.pad_sequence(sequence, max_sequence_length)
+                # Split vis_obs, vec_obs, values, advantages, actions and log_probs into episodes and then into sequences
+                for key, value in samples.items():
+                    sequences = []
+                    for w in range(self.num_workers):
+                        start_index = 0
+                        for done_index in episode_done_indices[w]:
+                            # Split trajectory into episodes
+                            episode = value[w, start_index:done_index + 1]
+                            start_index = done_index + 1
+                            # Split episodes into sequences
+                            if self.sequence_length > 0:
+                                for start in range(0, len(episode), self.sequence_length):
+                                    end = start + self.sequence_length
+                                    sequences.append(episode[start:end])
+                                    max_sequence_length = self.sequence_length
+                            else:
+                                # If the sequence length is not set to a proper value, sequences will be based on episodes
+                                sequences.append(episode)
+                                max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
+                    
+                    # Apply zero-padding to ensure that each episode has the same length
+                    # Therfore we can train batches of episodes in parallel instead of one episode at a time
+                    for i, sequence in enumerate(sequences):
+                        sequences[i] = self.pad_sequence(sequence, max_sequence_length)
 
-                # Stack episodes (target shape: (Episode, Step, Data ...) & apply data to the samples dict
-                samples[key] = np.stack(sequences, axis=0)
+                    # Stack episodes (target shape: (Episode, Step, Data ...) & apply data to the samples dict
+                    samples[key] = np.stack(sequences, axis=0)
+            # In the case of using fake recurrence, just add the recurrent cell states to the buffer
+            else:
+                samples["hxs"] = self.hxs
+                if self.recurrence["layer_type"] == "lstm":
+                    samples["cxs"] = self.cxs
 
             # Store important information
             self.num_sequences = len(samples["values"])
             self.actual_sequence_length = max_sequence_length
-            
+        
         # Flatten all samples
         self.samples_flat = {}
         for key, value in samples.items():
