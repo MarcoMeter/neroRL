@@ -32,9 +32,6 @@ class UnityWrapper(Env):
             realtime_mode {bool} -- Whether to run the environment in real time or as fast as possible (default: {False})
             config {dict} -- Specifies the reset parameters of the environment (default: {None})
         """
-        # Disable logging
-        logging.disable(logging.INFO)
-
         # Initialize channels
         self.reset_parameters = EnvironmentParametersChannel()
         self.engine_config = EngineConfigurationChannel()
