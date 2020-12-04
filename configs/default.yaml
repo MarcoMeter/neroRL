@@ -45,9 +45,9 @@ model:
     sequence_length: 32
     # Size of the recurrent layer's hidden state
     hidden_state_size: 128
-    # How to initialize the hidden state
+    # How to initialize the hidden state (zero, one, mean, sample)
     hidden_state_init: "zero"
-    # Whether to fake the recurrence by adding hidden states to the experience tuples and then omit the usage of BPTT
+    # Whether to fake the recurrence by adding recurrent cell states to the experience tuples and then omit the usage of BPTT
     fake_recurrence: False
   
 ### EVALUATION CONFIG ###
