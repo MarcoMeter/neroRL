@@ -13,16 +13,26 @@ WIP
 ## Further details
 
 - Padding
-    - zero are added to the end of a sequence
+    - zeros are added to the end of a sequence
     - every kind of data (e.g. observations, advantages, values, log probabilities, ...) is padded
 
-- Hidden state initialization
-    - Hidden states are initialized using zeros
-
+- Recurrent cell state initialization choices:
+    - zero
+    - one
+    - mean
+        - the mean of the hidden states of the collected training data
+    - sample
+        - sampled from agaussian distribution
+        - based on the mean of the hidden states of the collected training data
+        - the standard deviation is set to 0.01
+       
+- Fake Recurrence
+    - recurrent cell states are added to the experience tuples of the sampled training data
+    - BPTT is omitted by not feeding sequences
+       
 ## TODO
 
 - Add fully connected layer between the visual encoder and the recurrent layer?
-- Implement fake reccurrence, where hidden states are added to the experience tuples while sampling data
 - Extrapolate padding instead of zero padding?
 - Add pasdding before or after the data of the sequence?
-- Implement different options for initializing the hidden states
+- Fix up checkpoints, because the values for the hidden state initialization need now to be stored inside the checkpoints.
