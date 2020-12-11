@@ -160,11 +160,13 @@ class Buffer():
         # Construct array of zeros
         if len(sequence.shape) > 1:
             # Case: pad multi-dimensional array like visual observation
-            zeros = np.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
+            # padding = np.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
+            padding = np.full(((delta_length,) + sequence.shape[1:]), sequence[0], dtype=sequence.dtype)
         else:
-            zeros = np.zeros(delta_length, dtype=sequence.dtype)
+            # padding = np.zeros(delta_length, dtype=sequence.dtype)
+            padding = np.full(delta_length, sequence[0], dtype=sequence.dtype)
         # Concatenate the zeros to the sequence
-        return np.concatenate((sequence, zeros), axis=0)
+        return np.concatenate((padding, sequence), axis=0)
 
     def mini_batch_generator(self):
         """A generator that returns a dictionary containing the data of a whole minibatch.
