@@ -455,7 +455,13 @@ class PPOTrainer():
 
             # Save checkpoint (update, model, optimizer, configs)
             if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
-                save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(update) + ".pt", update, self.model.state_dict(), self.optimizer.state_dict(), self.configs)
+                save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(update) + ".pt",
+                                update,
+                                self.model.state_dict(),
+                                self.optimizer.state_dict(),
+                                np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0) if self.recurrence is not None else None,
+                                np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0) if self.recurrence is not None else None,
+                                self.configs)
 
             # 5.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
@@ -563,7 +569,13 @@ class PPOTrainer():
             if self.currentUpdate > 0:
                 self.logger.info("Terminate: Saving model . . .")
                 try:
-                        save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt", self.currentUpdate, self.model.state_dict(), self.optimizer.state_dict(), self.configs)
+                        save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt",
+                                        self.currentUpdate,
+                                        self.model.state_dict(),
+                                        self.optimizer.state_dict(),
+                                        np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0) if self.recurrence is not None else None,
+                                        np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0) if self.recurrence is not None else None,
+                                        self.configs)
                         self.logger.info("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
                 except:
                     pass

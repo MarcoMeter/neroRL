@@ -39,8 +39,8 @@ class Buffer():
             self.vec_obs = np.zeros((num_workers, worker_steps,) + vector_observation_space, dtype=np.float32)
         else:
             self.vec_obs = None
-        self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
-        self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
+        self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32)
+        self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32)
         self.log_probs = np.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=np.float32)
         self.values = np.zeros((num_workers, worker_steps), dtype=np.float32)
         self.advantages = np.zeros((num_workers, worker_steps), dtype=np.float32)
