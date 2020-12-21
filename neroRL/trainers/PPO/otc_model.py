@@ -30,8 +30,9 @@ class OTCModel(nn.Module):
         
         # Set the activation function for most layers of the neural net
         available_activ_fns = {
-            "relu": F.relu,
+            "elu", F.elu,
             "leaky_relu": F.leaky_relu,
+            "relu": F.relu,
             "swish": F.silu
         }
         self.activ_fn = available_activ_fns[config["activation"]]
