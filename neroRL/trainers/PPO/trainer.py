@@ -86,6 +86,7 @@ class PPOTrainer():
 
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
+        # Start logging the training setup
         self.logger.info("Step 1: Provided config:")
         for key in configs:
             self.logger.info("Step 1: " + str(key) + ":")
@@ -95,7 +96,6 @@ class PPOTrainer():
         self.logger.info("Step 2: Creating dummy environment")
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
-        
         visual_observation_space = self.dummy_env.visual_observation_space
         vector_observation_space = self.dummy_env.vector_observation_space
         if isinstance(self.dummy_env.action_space, spaces.Discrete):
@@ -118,21 +118,15 @@ class PPOTrainer():
 
         # Instantiate experience/training data buffer
         self.buffer = Buffer(
-            self.n_workers,
-            self.worker_steps,
-            self.n_mini_batch,
-            visual_observation_space,
-            vector_observation_space,
-            self.action_space_shape,
-            self.recurrence,
-            self.device,
-            self.mini_batch_device)
+            self.n_workers, self.worker_steps, self.n_mini_batch,
+            visual_observation_space, vector_observation_space,
+            self.action_space_shape, self.recurrence,
+            self.device, self.mini_batch_device)
 
         # Init model
         self.logger.info("Step 3: Creating model")
-        self.model = OTCModel(configs["model"], visual_observation_space,
-                                vector_observation_space, self.action_space_shape,
-                                self.recurrence, self.buffer).to(self.device)
+        self.model = OTCModel(configs["model"], visual_observation_space, vector_observation_space,
+                                self.action_space_shape, self.recurrence).to(self.device)
 
         # Instantiate optimizer
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
@@ -142,6 +136,8 @@ class PPOTrainer():
             self.logger.info("Step 3: Loading model from " + configs["model"]["model_path"])
             checkpoint = load_checkpoint(configs["model"]["model_path"])
             self.model.load_state_dict(checkpoint["model_state_dict"])
+            if self.recurrence is not None:
+                self.model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
             self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
             self.resume_at = checkpoint["update"] + 1
 
@@ -163,14 +159,11 @@ class PPOTrainer():
             self.vec_obs = None
 
         # Setup initial recurrent cell
-        # Dimensions: sequence_length, batch_size, hidden/cell state
         if self.recurrence is not None:
             hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.mini_batch_device)
             if self.recurrence["layer_type"] == "gru":
-                #self.recurrent_cell = torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device)
                 self.recurrent_cell = hxs
             elif self.recurrence["layer_type"] == "lstm":
-                #self.recurrent_cell = [torch.zeros((1, self.n_workers, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device) for i in range(2)]
                 self.recurrent_cell = (hxs, cxs)
         else:
             self.recurrent_cell = None
@@ -269,7 +262,7 @@ class PPOTrainer():
                         self.vis_obs[w] = vis_obs
                     if self.vec_obs is not None:
                         self.vec_obs[w] = vec_obs
-                    # Reset recurrent cell
+                    # Reset recurrent cell states
                     if self.recurrence is not None:
                         hxs, cxs = self.model.init_recurrent_cell_states(1, self.mini_batch_device)
                         if self.recurrence["layer_type"] == "gru":
@@ -431,17 +424,23 @@ class PPOTrainer():
             beta = polynomial_decay(self.beta_schedule["initial"], self.beta_schedule["final"], self.beta_schedule["max_decay_steps"], self.beta_schedule["power"], update)
             clip_range = polynomial_decay(self.cr_schedule["initial"], self.cr_schedule["final"], self.cr_schedule["max_decay_steps"], self.cr_schedule["power"], update)
 
-            # 2., 2a.: Sample data from each worker for worker steps
+            # 2.: Sample data from each worker for worker steps
             if self.low_mem_fix:
                 self.model.cpu() # Sample on CPU
                 sample_episode_info = self.sample(self.mini_batch_device)
             else:
                 sample_episode_info = self.sample(self.device)
             
-            # 3.: Prepare the sampled data inside the buffer
+            # 3.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
+            if self.recurrence is not None:
+                self.model.set_mean_recurrent_cell_states(
+                        np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0),
+                        np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0))
+
+            # 4.: Prepare the sampled data inside the buffer
             self.buffer.prepare_batch_dict(self.episode_done_indices)
 
-            # 4.: Train n epochs over the sampled data using mini batches
+            # 5.: Train n epochs over the sampled data using mini batches
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
             training_stats = self.train_epochs(learning_rate, clip_range, beta)
@@ -459,8 +458,8 @@ class PPOTrainer():
                                 update,
                                 self.model.state_dict(),
                                 self.optimizer.state_dict(),
-                                np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0) if self.recurrence is not None else None,
-                                np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0) if self.recurrence is not None else None,
+                                self.model.mean_hxs if self.recurrence is not None else None,
+                                self.model.mean_cxs if self.recurrence is not None else None,
                                 self.configs)
 
             # 5.: Write training statistics to console
@@ -573,8 +572,8 @@ class PPOTrainer():
                                         self.currentUpdate,
                                         self.model.state_dict(),
                                         self.optimizer.state_dict(),
-                                        np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0) if self.recurrence is not None else None,
-                                        np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0) if self.recurrence is not None else None,
+                                        np.mean(self.model.mean_hxs) if self.recurrence is not None else None,
+                                        np.mean(self.model.mean_cxs) if self.recurrence is not None else None,
                                         self.configs)
                         self.logger.info("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
                 except:

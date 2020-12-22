@@ -12,7 +12,7 @@ class OTCModel(nn.Module):
 
         Originally, this model has been used for the Obstacle Tower Challenge without a recurrent layer.
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence, buffer = None):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
         """Model setup
 
         Arguments:
@@ -22,11 +22,12 @@ class OTCModel(nn.Module):
             action_space_shape {tuple} -- Dimensions of the action space
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
                 - layer type {stirng}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
-            buffer {Buffer} - Reference to the buffer that contains the training samples. It is used to get the mean of recurrent cell states.
         """
         super().__init__()
+        # Members for using a recurrent policy
         self.recurrence = recurrence
-        self.buffer = buffer
+        self.mean_hxs = np.zeros(recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
+        self.mean_cxs = np.zeros(recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
         
         # Set the activation function for most layers of the neural net
         available_activ_fns = {
@@ -233,20 +234,25 @@ class OTCModel(nn.Module):
             if self.recurrence["layer_type"] == "lstm":
                 cxs = torch.ones((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
         elif self.recurrence["hidden_state_init"] == "mean":
-            mean = np.mean(self.buffer.hxs.reshape(self.buffer.num_workers * self.buffer.worker_steps, self.recurrence["hidden_state_size"]), axis=0)
-            mean = [mean for i in range(num_sequences)]
+            mean = [self.mean_hxs for i in range(num_sequences)]
             hxs = torch.tensor(mean, device=device, requires_grad=True).unsqueeze(0)
             if self.recurrence["layer_type"] == "lstm":
-                mean = np.mean(self.buffer.cxs.reshape(self.buffer.num_workers * self.buffer.worker_steps, self.recurrence["hidden_state_size"]), axis=0)
-                mean = [mean for i in range(num_sequences)]
+                mean = [self.mean_cxs for i in range(num_sequences)]
                 cxs = torch.tensor(mean, device=device, requires_grad=True).unsqueeze(0)
         elif self.recurrence["hidden_state_init"] == "sample":
-            mean = np.mean(self.buffer.hxs.reshape(self.buffer.num_workers * self.buffer.worker_steps, self.recurrence["hidden_state_size"]), axis=0)
-            mean = [mean for i in range(num_sequences)]
+            mean = [self.mean_hxs for i in range(num_sequences)]
             hxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["hidden_state_size"]), requires_grad=True).to(device)
             if self.recurrence["layer_type"] == "lstm":
-                mean = np.mean(self.buffer.cxs.reshape(self.buffer.num_workers * self.buffer.worker_steps, self.recurrence["hidden_state_size"]), axis=0)
-                mean = [mean for i in range(num_sequences)]
+                mean = [self.mean_cxs for i in range(num_sequences)]
                 cxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["hidden_state_size"]), requires_grad=True).to(device)
         return hxs, cxs
-   
+
+    def set_mean_recurrent_cell_states(self, mean_hxs, mean_cxs):
+        """Sets the mean values (hidden state size) for recurrent cell statres.
+
+        Args:
+            mean_hxs {np.ndarray}: Mean hidden state
+            mean_cxs {np.ndarray}: Mean cell state (in the case of using an LSTM layer)
+        """
+        self.mean_hxs = mean_hxs
+        self.mean_cxs = mean_cxs
