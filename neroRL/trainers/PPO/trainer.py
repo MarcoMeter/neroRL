@@ -139,7 +139,7 @@ class PPOTrainer():
             if self.recurrence is not None:
                 self.model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
             self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-            self.resume_at = checkpoint["update"] + 1
+            # self.resume_at = checkpoint["update"] + 1
 
         # Set model to train mode
         self.model.train()
@@ -572,8 +572,8 @@ class PPOTrainer():
                                         self.currentUpdate,
                                         self.model.state_dict(),
                                         self.optimizer.state_dict(),
-                                        np.mean(self.model.mean_hxs) if self.recurrence is not None else None,
-                                        np.mean(self.model.mean_cxs) if self.recurrence is not None else None,
+                                        self.model.mean_hxs if self.recurrence is not None else None,
+                                        self.model.mean_cxs if self.recurrence is not None else None,
                                         self.configs)
                         self.logger.info("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
                 except:
