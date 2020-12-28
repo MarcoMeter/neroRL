@@ -55,7 +55,6 @@ def main():
     # Launch environment
     logger.info("Step 1: Launching environment")
     env = wrap_environment(configs["environment"], worker_id, realtime_mode = True)
-    
     # Retrieve observation space
     visual_observation_space = env.visual_observation_space
     vector_observation_space = env.vector_observation_space
@@ -73,6 +72,8 @@ def main():
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
         checkpoint = load_checkpoint(configs["model"]["model_path"])
         model.load_state_dict(checkpoint["model_state_dict"])
+        if "recurrence" in configs["model"]:
+            model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
 
     # Reset environment
@@ -83,11 +84,10 @@ def main():
     
     # Init hidden state (None if not available)
     if "recurrence" in configs["model"]:
+        hxs, cxs = model.init_recurrent_cell_states(1, device)
         if configs["model"]["recurrence"]["layer_type"] == "gru":
-            recurrent_cell = torch.zeros((1, 1, configs["model"]["recurrence"]["hidden_state_size"]), dtype=torch.float32, device=device)
+            recurrent_cell = hxs
         elif configs["model"]["recurrence"]["layer_type"] == "lstm":
-            hxs = torch.zeros((1, 1, configs["model"]["recurrence"]["hidden_state_size"]), dtype=torch.float32, device=device)
-            cxs = torch.zeros((1, 1, configs["model"]["recurrence"]["hidden_state_size"]), dtype=torch.float32, device=device)
             recurrent_cell = (hxs, cxs)
     else:
         recurrent_cell = None

@@ -47,7 +47,6 @@ def main():
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
     dummy_env = wrap_environment(configs["environment"], worker_id)
-
     visual_observation_space = dummy_env.visual_observation_space
     vector_observation_space = dummy_env.vector_observation_space
     if isinstance(dummy_env.action_space, spaces.Discrete):
@@ -60,11 +59,13 @@ def main():
     logger.info("Step 2: Creating model")
     model = OTCModel(configs["model"], visual_observation_space,
                             vector_observation_space, action_space_shape,
-                            configs["model"]["recurrence"]).to(device)
+                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None).to(device)
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
         checkpoint = load_checkpoint(configs["model"]["model_path"])
         model.load_state_dict(checkpoint["model_state_dict"])
+        if "recurrence" in configs["model"]:
+            model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
 
     # Initialize evaluator

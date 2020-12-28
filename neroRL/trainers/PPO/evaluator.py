@@ -56,15 +56,21 @@ class Evaluator():
                 vec_obs = np.zeros((self.n_workers,) + self.vector_observation_space, dtype=np.float32)
             else:
                 vec_obs = None
-            # Initialize recurrent cell (hidden/cell state)
-            if self.recurrence is not None:
-                if self.recurrence["layer_type"] == "gru":
-                    recurrent_cell = torch.zeros((self.n_workers, 1, 1, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=device)
-                elif self.recurrence["layer_type"] == "lstm":
-                    recurrent_cell = [torch.zeros((self.n_workers, 1, 1, self.recurrence["hidden_state_size"]), dtype=torch.float32, device=self.mini_batch_device) for i in range(2)]
-            else:
-                recurrent_cell = None
 
+            # Initialize recurrent cell (hidden/cell state)
+            # We specifically initialize a recurrent cell for each worker,
+            # because one of the available initialization methods samples a hidden cell state.
+            recurrent_cell = []
+            for _ in range(self.n_workers):
+                if self.recurrence is not None:
+                    hxs, cxs = model.init_recurrent_cell_states(1, device)
+                    if self.recurrence["layer_type"] == "gru":
+                        recurrent_cell.append(hxs)
+                    elif self.recurrence["layer_type"] == "lstm":
+                        recurrent_cell.append((hxs, cxs))
+                else:
+                    recurrent_cell.append(None)
+            
             # Reset workers and set evaluation seed
             for worker in self.workers:
                 worker.child.send(("reset", {"start-seed": seed, "num-seeds": 1}))
