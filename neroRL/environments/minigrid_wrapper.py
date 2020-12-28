@@ -202,6 +202,7 @@ class MinigridWrapper(Env):
         # Render the environment in realtime
         if self._realtime_mode:
             self._env.render(tile_size = 96)
+            time.sleep(0.5)
         
         # Wrap up episode information once completed (i.e. done)
         if done:
