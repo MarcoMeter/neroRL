@@ -70,14 +70,13 @@ def main():
     for k, v in configs["evaluation"].items():
         print("Step 2: " + str(k) + ": " + str(v))
     print("Step 2: Init Evaluator")
-    evaluator = Evaluator(configs["evaluation"], configs["environment"], worker_id, visual_observation_space, vector_observation_space)
+    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
 
     # Init model
     print("Step 2: Initialize model")
     model = OTCModel(configs["model"], visual_observation_space,
                                 vector_observation_space, action_space_shape,
-                                configs["model"]["use_recurrent"],
-                                configs["model"]["hidden_state_size"]).to(device)
+                                configs["model"]["recurrence"]).to(device)
     model.eval()
 
     # Load checkpoint paths
@@ -91,7 +90,10 @@ def main():
     results = []
     current_checkpoint = 0
     for checkpoint in checkpoints:
-        model.load_state_dict(load_checkpoint(checkpoint)["model_state_dict"])
+        loaded_checkpoint = load_checkpoint(checkpoint)
+        model.load_state_dict(loaded_checkpoint["model_state_dict"])
+        if "recurrence" in configs["model"]:
+            model.set_mean_recurrent_cell_states(loaded_checkpoint["hxs"], loaded_checkpoint["cxs"])
         _, res = evaluator.evaluate(model, device)
         results.append(res)
         current_checkpoint = current_checkpoint + 1
