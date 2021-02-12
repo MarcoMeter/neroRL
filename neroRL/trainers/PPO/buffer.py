@@ -129,7 +129,7 @@ class Buffer():
                     # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
                     samples[key] = np.stack(sequences, axis=0)
 
-                    if (key == "hxs" or key == "cxs") and not max_sequence_length > 1:
+                    if (key == "hxs" or key == "cxs"):
                         # Select the very first recurrent cell state of a sequence and add it to the samples
                         samples[key] = samples[key][:, 0]
 
