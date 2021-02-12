@@ -191,7 +191,7 @@ class PPOTrainer():
         """
         return (adv - adv.mean()) / (adv.std() + 1e-8)
 
-    def sample(self, device) -> (Dict[str, np.ndarray], List):
+    def sample(self, device):
         """Sample data (batch) with current policy from all workers for worker_steps.
         At the end the advantages are computed.
         
@@ -217,10 +217,10 @@ class PPOTrainer():
                 # Store recurrent cell states inside the buffer
                 if self.recurrence is not None:
                     if self.recurrence["layer_type"] == "gru":
-                        self.buffer.hxs[:, t] = self.recurrent_cell.cpu().numpy()
+                        self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
                     elif self.recurrence["layer_type"] == "lstm":
-                        self.buffer.hxs[:, t] = self.recurrent_cell[0].cpu().numpy()
-                        self.buffer.cxs[:, t] = self.recurrent_cell[1].cpu().numpy()
+                        self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu().numpy()
+                        self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
 
                 # Forward the model to retrieve the policy (making decisions), the states' value of the value function and the recurrent hidden states (if available)
                 policy, value, self.recurrent_cell = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
@@ -306,9 +306,9 @@ class PPOTrainer():
         sampled_return = samples['values'] + samples['advantages']
         sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages']).unsqueeze(1).repeat(1, len(self.action_space_shape))
         
-        # If fake recurrence is used, feed sampled recurrent cell states to the model
+        # Retrieve sampled recurrent cell states to feed the model
         recurrent_cell = None
-        if self.recurrence is not None and self.recurrence["fake_recurrence"]:
+        if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
                 recurrent_cell = samples["hxs"].unsqueeze(0)
             elif self.recurrence["layer_type"] == "lstm":

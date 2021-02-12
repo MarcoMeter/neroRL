@@ -162,20 +162,14 @@ class OTCModel(nn.Module):
                 # Case: Model optimization
                 # Reshape the to be fed data to sequence_length, batch_size, Data
                 h_shape = tuple(h.size())
-                h = h.view(sequence_length, (h_shape[0] // sequence_length), h_shape[1])
+                h = h.reshape(sequence_length, (h_shape[0] // sequence_length), h_shape[1])
 
-                # Init recurrent cell state for each sequence
-                hxs, cxs = self.init_recurrent_cell_states(h_shape[0] // sequence_length, device)
-                if self.recurrence["layer_type"] == "gru":
-                    recurrent_cell = hxs
-                elif self.recurrence["layer_type"] == "lstm":
-                    recurrent_cell = (hxs, cxs)
                 # Forward recurrent layer
                 h, recurrent_cell = self.recurrent_layer(h, recurrent_cell)
 
                 # Reshape to the original tensor size
                 h_shape = tuple(h.size())
-                h = h.view(h_shape[0] * h_shape[1], h_shape[2])
+                h = h.reshape(h_shape[0] * h_shape[1], h_shape[2])
 
         # Feed hidden layer
         h = self.activ_fn(self.lin_hidden(h))
@@ -224,7 +218,7 @@ class OTCModel(nn.Module):
         Returns:
             {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned using initial values.
         """
-        cxs = None
+        hxs, cxs = None, None
         if self.recurrence["hidden_state_init"] == "zero":
             hxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
             if self.recurrence["layer_type"] == "lstm":
