@@ -1,6 +1,7 @@
 from neroRL.environments.unity_wrapper import UnityWrapper
 from neroRL.environments.obstacle_tower_wrapper import ObstacleTowerWrapper
 from neroRL.environments.minigrid_wrapper import MinigridWrapper
+from neroRL.environments.minigrid_vec_wrapper import MinigridVecWrapper
 from neroRL.environments.procgen_wrapper import ProcgenWrapper
 from neroRL.environments.cartpole_wrapper import CartPoleWrapper
 from neroRL.environments.wrappers.frame_skip import FrameSkipEnv
@@ -29,10 +30,12 @@ def wrap_environment(config, worker_id, realtime_mode=False):
         env = ObstacleTowerWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode)
     elif config["type"] == "Minigrid":
         env = MinigridWrapper(config["name"], realtime_mode=realtime_mode)
+    elif config["type"] == "MinigridVec":
+        env = MinigridVecWrapper(config["name"], realtime_mode=realtime_mode)
     elif config["type"] == "Procgen":
         env = ProcgenWrapper(config["name"], realtime_mode=realtime_mode)
     elif config["type"] == "CartPole":
-        env = CartPoleWrapper(config["name"], realtime_mode=realtime_mode)
+        env = CartPoleWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode)
 
     # Wrap environment
     # Frame Skip

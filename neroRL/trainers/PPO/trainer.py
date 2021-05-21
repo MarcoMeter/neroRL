@@ -304,8 +304,9 @@ class PPOTrainer():
             training_stats {list} -- Losses, entropy, kl-divergence and clip fraction
         """
         sampled_return = samples['values'] + samples['advantages']
+        # Repeat is necessary for multi-discrete action spaces
         sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages']).unsqueeze(1).repeat(1, len(self.action_space_shape))
-        
+
         # Retrieve sampled recurrent cell states to feed the model
         recurrent_cell = None
         if self.recurrence is not None:
@@ -338,7 +339,7 @@ class PPOTrainer():
         clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range, max=clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
         vf_loss = self.masked_mean(vf_loss, samples["loss_mask"])
-        vf_loss = 0.5 * vf_loss
+        vf_loss = .25 * vf_loss
 
         # Entropy Bonus
         entropies = []
@@ -347,7 +348,7 @@ class PPOTrainer():
         entropy_bonus = self.masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
 
         # Complete loss
-        loss = -(policy_loss - 0.5 * vf_loss + beta * entropy_bonus)
+        loss = -(policy_loss - vf_loss + beta * entropy_bonus)
 
         # Compute gradients
         for pg in self.optimizer.param_groups:

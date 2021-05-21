@@ -87,13 +87,13 @@ class Buffer():
         if self.vec_obs is not None:
             samples['vec_obs'] = self.vec_obs
 
+        max_sequence_length = 1
         if self.recurrence is not None:
             # Add collected recurrent cell states to the dictionary
             samples["hxs"] =  self.hxs
             if self.recurrence["layer_type"] == "lstm":
                 samples["cxs"] = self.cxs
 
-            max_sequence_length = 1
             # If recurrence is used, split data into sequences and apply zero-padding
             if not self.recurrence["fake_recurrence"]:
                 # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
