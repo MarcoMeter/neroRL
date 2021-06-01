@@ -362,12 +362,12 @@ class PPOTrainer():
         approx_kl_divergence = .5 * ((log_probs - samples['log_probs']) ** 2).mean()
         clip_fraction = (abs((ratio - 1.0)) > clip_range).type(torch.FloatTensor).mean()
 
-        return [policy_loss,
-                vf_loss,
-                loss,
-                entropy_bonus,
-                approx_kl_divergence,
-                clip_fraction]
+        return [policy_loss.cpu().data.numpy(),
+                vf_loss.cpu().data.numpy(),
+                loss.cpu().data.numpy(),
+                entropy_bonus.cpu().data.numpy(),
+                approx_kl_divergence.cpu().data.numpy(),
+                clip_fraction.cpu().data.numpy()]
 
     def train_epochs(self, learning_rate: float, clip_range: float, beta: float):
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
@@ -396,7 +396,7 @@ class PPOTrainer():
                                          samples=mini_batch)
                 train_info.append(res)
         # Return the mean of the training statistics
-        return np.mean(train_info, axis=0)
+        return train_info
 
     def run_training_loop(self):
         """Orchestrates the PPO training:
@@ -445,6 +445,7 @@ class PPOTrainer():
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
             training_stats = self.train_epochs(learning_rate, clip_range, beta)
+            training_stats = np.mean(training_stats, axis=0)
             
             # Store recent episode infos
             episode_info.extend(sample_episode_info)
