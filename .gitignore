@@ -11,3 +11,4 @@ csharp_timers.json
 .vs/
 .vscode/.ropeproject/config.py
 .vscode/.ropeproject/objectdb
+.vscode/

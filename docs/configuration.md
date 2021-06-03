@@ -61,8 +61,6 @@ model:
     hidden_state_size: 128
     # How to initialize the hidden state
     hidden_state_init: "zero"
-    # Whether to fake the recurrence by adding hidden states to the experience tuples and then omit the usage of BPTT
-    fake_recurrence: False
 ```
 
 Every tool may use the model_path.

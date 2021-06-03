@@ -20,10 +20,9 @@ model:
   activation: "relu"
   recurrence:
     layer_type: "gru"
-    sequence_length: 1
+    sequence_length: 16
     hidden_state_size: 32
-    hidden_state_init: "one"
-    fake_recurrence: True
+    hidden_state_init: "zero"
 
 evaluation:
   evaluate: False

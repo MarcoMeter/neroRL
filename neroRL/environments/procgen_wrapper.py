@@ -122,7 +122,7 @@ class ProcgenWrapper(Env):
             time.sleep(0.033)
 
         # Execute action
-        obs, reward, done, info = self._env.step(action)
+        obs, reward, done, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
         vis_obs = obs.astype(np.float32)  / 255.

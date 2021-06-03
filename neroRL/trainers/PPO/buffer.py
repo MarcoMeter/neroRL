@@ -95,43 +95,42 @@ class Buffer():
                 samples["cxs"] = self.cxs
 
             # If recurrence is used, split data into sequences and apply zero-padding
-            if not self.recurrence["fake_recurrence"]:
-                # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
+            # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
+            for w in range(self.num_workers):
+                if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
+                    episode_done_indices[w].append(self.worker_steps - 1)
+            
+            # Split vis_obs, vec_obs, values, advantages, recurrent cell states, actions and log_probs into episodes and then into sequences
+            for key, value in samples.items():
+                sequences = []
                 for w in range(self.num_workers):
-                    if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
-                        episode_done_indices[w].append(self.worker_steps - 1)
+                    start_index = 0
+                    for done_index in episode_done_indices[w]:
+                        # Split trajectory into episodes
+                        episode = value[w, start_index:done_index + 1]
+                        start_index = done_index + 1
+                        # Split episodes into sequences
+                        if self.sequence_length > 0:
+                            for start in range(0, len(episode), self.sequence_length):
+                                end = start + self.sequence_length
+                                sequences.append(episode[start:end])
+                            max_sequence_length = self.sequence_length
+                        else:
+                            # If the sequence length is not set to a proper value, sequences will be based on episodes
+                            sequences.append(episode)
+                            max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
                 
-                # Split vis_obs, vec_obs, values, advantages, recurrent cell states, actions and log_probs into episodes and then into sequences
-                for key, value in samples.items():
-                    sequences = []
-                    for w in range(self.num_workers):
-                        start_index = 0
-                        for done_index in episode_done_indices[w]:
-                            # Split trajectory into episodes
-                            episode = value[w, start_index:done_index + 1]
-                            start_index = done_index + 1
-                            # Split episodes into sequences
-                            if self.sequence_length > 0:
-                                for start in range(0, len(episode), self.sequence_length):
-                                    end = start + self.sequence_length
-                                    sequences.append(episode[start:end])
-                                max_sequence_length = self.sequence_length
-                            else:
-                                # If the sequence length is not set to a proper value, sequences will be based on episodes
-                                sequences.append(episode)
-                                max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
-                    
-                    # Apply zero-padding to ensure that each episode has the same length
-                    # Therfore we can train batches of episodes in parallel instead of one episode at a time
-                    for i, sequence in enumerate(sequences):
-                        sequences[i] = self.pad_sequence(sequence, max_sequence_length)
+                # Apply zero-padding to ensure that each episode has the same length
+                # Therfore we can train batches of episodes in parallel instead of one episode at a time
+                for i, sequence in enumerate(sequences):
+                    sequences[i] = self.pad_sequence(sequence, max_sequence_length)
 
-                    # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
-                    samples[key] = np.stack(sequences, axis=0)
+                # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
+                samples[key] = np.stack(sequences, axis=0)
 
-                    if (key == "hxs" or key == "cxs"):
-                        # Select the very first recurrent cell state of a sequence and add it to the samples
-                        samples[key] = samples[key][:, 0]
+                if (key == "hxs" or key == "cxs"):
+                    # Select the very first recurrent cell state of a sequence and add it to the samples
+                    samples[key] = samples[key][:, 0]
 
         # Store important information
         self.num_sequences = len(samples["values"])
@@ -140,7 +139,7 @@ class Buffer():
         # Flatten all samples
         self.samples_flat = {}
         for key, value in samples.items():
-            if (not key == "hxs" and not key == "cxs") or self.recurrence["fake_recurrence"]:
+            if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
             self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.mini_batch_device)
 

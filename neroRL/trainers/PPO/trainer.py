@@ -384,8 +384,7 @@ class PPOTrainer():
         for _ in range(self.epochs):
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
-            # In the case of using fake recurrence, use the none-recurrent mini batch generator
-            if self.recurrence is not None and not self.recurrence["fake_recurrence"]:
+            if self.recurrence is not None:
                 mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
             else:
                 mini_batch_generator = self.buffer.mini_batch_generator()
