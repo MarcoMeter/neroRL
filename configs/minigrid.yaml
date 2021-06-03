@@ -15,15 +15,14 @@ environment:
 
 model:
   load_model: False
-  model_path: "./models/minigrid4-600.pt"
+  model_path: "./models/good_minigrid-900.pt"
   checkpoint_interval: 100
   activation: "leaky_relu"
   recurrence:
     layer_type: "lstm"
-    sequence_length: 8
-    hidden_state_size: 256
+    sequence_length: 16
+    hidden_state_size: 512
     hidden_state_init: "zero"
-    fake_recurrence: False
 
 evaluation:
   evaluate: False
@@ -35,7 +34,7 @@ trainer:
   algorithm: "PPO"
   gamma: 0.99
   lamda: 0.95
-  updates: 1000
+  updates: 2000
   epochs: 4
   n_workers: 16
   worker_steps: 256
@@ -43,14 +42,14 @@ trainer:
   resume_at: 0
   learning_rate_schedule:
     initial: 3.0e-4
-    final: 3.0e-5
+    final: 3.0e-6
     power: 1.0
     max_decay_steps: 1000
   beta_schedule:
     initial: 0.01
     final: 0.001
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 2000
   clip_range_schedule:
     initial: 0.2
     final: 0.2

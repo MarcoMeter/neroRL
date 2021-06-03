@@ -191,7 +191,7 @@ class PPOTrainer():
         """
         return (adv - adv.mean()) / (adv.std() + 1e-8)
 
-    def sample(self, device) -> (Dict[str, np.ndarray], List):
+    def sample(self, device):
         """Sample data (batch) with current policy from all workers for worker_steps.
         At the end the advantages are computed.
         
@@ -217,10 +217,10 @@ class PPOTrainer():
                 # Store recurrent cell states inside the buffer
                 if self.recurrence is not None:
                     if self.recurrence["layer_type"] == "gru":
-                        self.buffer.hxs[:, t] = self.recurrent_cell.cpu().numpy()
+                        self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
                     elif self.recurrence["layer_type"] == "lstm":
-                        self.buffer.hxs[:, t] = self.recurrent_cell[0].cpu().numpy()
-                        self.buffer.cxs[:, t] = self.recurrent_cell[1].cpu().numpy()
+                        self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu().numpy()
+                        self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
 
                 # Forward the model to retrieve the policy (making decisions), the states' value of the value function and the recurrent hidden states (if available)
                 policy, value, self.recurrent_cell = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
@@ -304,11 +304,12 @@ class PPOTrainer():
             training_stats {list} -- Losses, entropy, kl-divergence and clip fraction
         """
         sampled_return = samples['values'] + samples['advantages']
+        # Repeat is necessary for multi-discrete action spaces
         sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages']).unsqueeze(1).repeat(1, len(self.action_space_shape))
-        
-        # If fake recurrence is used, feed sampled recurrent cell states to the model
+
+        # Retrieve sampled recurrent cell states to feed the model
         recurrent_cell = None
-        if self.recurrence is not None and self.recurrence["fake_recurrence"]:
+        if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
                 recurrent_cell = samples["hxs"].unsqueeze(0)
             elif self.recurrence["layer_type"] == "lstm":
@@ -338,7 +339,7 @@ class PPOTrainer():
         clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range, max=clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
         vf_loss = self.masked_mean(vf_loss, samples["loss_mask"])
-        vf_loss = 0.5 * vf_loss
+        vf_loss = .25 * vf_loss
 
         # Entropy Bonus
         entropies = []
@@ -347,7 +348,7 @@ class PPOTrainer():
         entropy_bonus = self.masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
 
         # Complete loss
-        loss = -(policy_loss - 0.5 * vf_loss + beta * entropy_bonus)
+        loss = -(policy_loss - vf_loss + beta * entropy_bonus)
 
         # Compute gradients
         for pg in self.optimizer.param_groups:
@@ -361,12 +362,12 @@ class PPOTrainer():
         approx_kl_divergence = .5 * ((log_probs - samples['log_probs']) ** 2).mean()
         clip_fraction = (abs((ratio - 1.0)) > clip_range).type(torch.FloatTensor).mean()
 
-        return [policy_loss,
-                vf_loss,
-                loss,
-                entropy_bonus,
-                approx_kl_divergence,
-                clip_fraction]
+        return [policy_loss.cpu().data.numpy(),
+                vf_loss.cpu().data.numpy(),
+                loss.cpu().data.numpy(),
+                entropy_bonus.cpu().data.numpy(),
+                approx_kl_divergence.cpu().data.numpy(),
+                clip_fraction.cpu().data.numpy()]
 
     def train_epochs(self, learning_rate: float, clip_range: float, beta: float):
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
@@ -383,8 +384,7 @@ class PPOTrainer():
         for _ in range(self.epochs):
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
-            # In the case of using fake recurrence, use the none-recurrent mini batch generator
-            if self.recurrence is not None and not self.recurrence["fake_recurrence"]:
+            if self.recurrence is not None:
                 mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
             else:
                 mini_batch_generator = self.buffer.mini_batch_generator()
@@ -395,7 +395,7 @@ class PPOTrainer():
                                          samples=mini_batch)
                 train_info.append(res)
         # Return the mean of the training statistics
-        return np.mean(train_info, axis=0)
+        return train_info
 
     def run_training_loop(self):
         """Orchestrates the PPO training:
@@ -444,6 +444,7 @@ class PPOTrainer():
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
             training_stats = self.train_epochs(learning_rate, clip_range, beta)
+            training_stats = np.mean(training_stats, axis=0)
             
             # Store recent episode infos
             episode_info.extend(sample_episode_info)

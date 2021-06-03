@@ -7,98 +7,9 @@ from random import randint
 from neroRL.environments.env import Env
 from gym_minigrid.wrappers import ViewSizeWrapper
 
-class MinigridWrapper(Env):
+class MinigridVecWrapper(Env):
     """This class wraps Gym Minigrid environments.
     https://github.com/maximecb/gym-minigrid
-    Available Environments:
-        Empty
-            - MiniGrid-Empty-5x5-v0
-            - MiniGrid-Empty-Random-5x5-v0
-            - MiniGrid-Empty-6x6-v0
-            - MiniGrid-Empty-Random-6x6-v0
-            - MiniGrid-Empty-8x8-v0
-            - MiniGrid-Empty-16x16-v0
-        Four rooms
-            - MiniGrid-FourRooms-v0
-        Door & key
-            - MiniGrid-DoorKey-5x5-v0
-            - MiniGrid-DoorKey-6x6-v0
-            - MiniGrid-DoorKey-8x8-v0
-            - MiniGrid-DoorKey-16x16-v0
-        Multi-room
-            - MiniGrid-MultiRoom-N2-S4-v0
-            - MiniGrid-MultiRoom-N4-S5-v0
-            - MiniGrid-MultiRoom-N6-v0
-        Fetch
-            - MiniGrid-Fetch-5x5-N2-v0
-            - MiniGrid-Fetch-6x6-N2-v0
-            - MiniGrid-Fetch-8x8-N3-v0
-        Go-to-door
-            - MiniGrid-GoToDoor-5x5-v0
-            - MiniGrid-GoToDoor-6x6-v0
-            - MiniGrid-GoToDoor-8x8-v0
-        Put near
-            - MiniGrid-PutNear-6x6-N2-v0
-            - MiniGrid-PutNear-8x8-N2-v0
-        Red and blue doors
-            - MiniGrid-RedBlueDoors-6x6-v0
-            - MiniGrid-RedBlueDoors-8x8-v0
-        Memory
-            - MiniGrid-MemoryS17Random-v0
-            - MiniGrid-MemoryS13Random-v0
-            - MiniGrid-MemoryS13-v0
-            - MiniGrid-MemoryS11-v0
-            - MiniGrid-MemoryS9-v0
-            - MiniGrid-MemoryS7-v0
-        Locked room
-            - MiniGrid-LockedRoom-v0
-        Key corridor
-            - MiniGrid-KeyCorridorS3R1-v0
-            - MiniGrid-KeyCorridorS3R2-v0
-            - MiniGrid-KeyCorridorS3R3-v0
-            - MiniGrid-KeyCorridorS4R3-v0
-            - MiniGrid-KeyCorridorS5R3-v0
-            - MiniGrid-KeyCorridorS6R3-v0
-        Unlock
-            - MiniGrid-Unlock-v0
-        Unlock Pickup
-            - MiniGrid-UnlockPickup-v0
-        Blocked unlock pickup
-            - MiniGrid-BlockedUnlockPickup-v0
-        Obstructed mazed
-            - MiniGrid-ObstructedMaze-1Dl-v0
-            - MiniGrid-ObstructedMaze-1Dlh-v0
-            - MiniGrid-ObstructedMaze-1Dlhb-v0
-            - MiniGrid-ObstructedMaze-2Dl-v0
-            - MiniGrid-ObstructedMaze-2Dlh-v0
-            - MiniGrid-ObstructedMaze-2Dlhb-v0
-            - MiniGrid-ObstructedMaze-1Q-v0
-            - MiniGrid-ObstructedMaze-2Q-v0
-            - MiniGrid-ObstructedMaze-Full-v0
-        Distributional shift
-            - MiniGrid-DistShift1-v0
-            - MiniGrid-DistShift2-v0
-        Lava gap
-            - MiniGrid-LavaGapS5-v0
-            - MiniGrid-LavaGapS6-v0
-            - MiniGrid-LavaGapS7-v0
-        Lava crossing
-            - MiniGrid-LavaCrossingS9N1-v0
-            - MiniGrid-LavaCrossingS9N2-v0
-            - MiniGrid-LavaCrossingS9N3-v0
-            - MiniGrid-LavaCrossingS11N5-v0
-        Simple crossing
-            - MiniGrid-SimpleCrossingS9N1-v0
-            - MiniGrid-SimpleCrossingS9N2-v0
-            - MiniGrid-SimpleCrossingS9N3-v0
-            - MiniGrid-SimpleCrossingS11N5-v0
-        Dynaimc obstacles
-            - MiniGrid-Dynamic-Obstacles-5x5-v0
-            - MiniGrid-Dynamic-Obstacles-Random-5x5-v0
-            - MiniGrid-Dynamic-Obstacles-6x6-v0
-            - MiniGrid-Dynamic-Obstacles-Random-6x6-v0
-            - MiniGrid-Dynamic-Obstacles-8x8-v0
-            - MiniGrid-Dynamic-Obstacles-16x16-v0
     """
 
     def __init__(self, env_name, reset_params = None, realtime_mode = False, record_trajectory = False):
@@ -117,17 +28,14 @@ class MinigridWrapper(Env):
             self._default_reset_params = reset_params
 
         self._env = gym.make(env_name)
-        self._env = ViewSizeWrapper(self._env, 3)
+        self.agent_view_size = 3
+        self._env = ViewSizeWrapper(self._env, self.agent_view_size)
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
 
         # Prepare observation space
-        self._visual_observation_space = spaces.Box(
-                low = 0,
-                high = 1.0,
-                shape = (84, 84, 3),
-                dtype = np.float32)
+        self._vector_observation_space = (self.agent_view_size**2*5,)
 
     @property
     def unwrapped(self):
@@ -137,12 +45,12 @@ class MinigridWrapper(Env):
     @property
     def visual_observation_space(self):
         """Returns the shape of the visual component of the observation space as a tuple."""
-        return self._visual_observation_space
+        return None
 
     @property
     def vector_observation_space(self):
         """Returns the shape of the vector component of the observation space as a tuple."""
-        return None
+        return self._vector_observation_space
 
     @property
     def action_space(self):
@@ -185,8 +93,11 @@ class MinigridWrapper(Env):
         # Reset the environment and retrieve the initial observation
         obs = self._env.reset()
         # Retrieve the RGB frame of the agent"s vision
-        vis_obs = self._env.get_obs_render(obs["image"], tile_size=12)
-        vis_obs = vis_obs.astype(np.float32) / 255.
+        # vis_obs = self._env.get_obs_render(obs["image"], tile_size=12)
+        # vis_obs = vis_obs.astype(np.float32) / 255.
+
+        # Vector observation
+        vec_obs = self.process_obs(obs["image"])
 
         # Render environment?
         if self._realtime_mode:
@@ -194,11 +105,15 @@ class MinigridWrapper(Env):
 
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [None],
+            "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [vec_obs],
             "rewards": [0.0], "frame_rate": 1
         }
 
-        return vis_obs, None
+        # import matplotlib.pyplot as plt
+        # plt.imshow(self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8))
+        # plt.show()
+
+        return None, vec_obs
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -216,7 +131,9 @@ class MinigridWrapper(Env):
         obs, reward, done, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
-        vis_obs = self._env.get_obs_render(obs["image"], tile_size=12)  / 255.
+        # vis_obs = self._env.get_obs_render(obs["image"], tile_size=12)  / 255.
+        # Vector observation
+        vec_obs = self.process_obs(obs["image"])
 
         # Render the environment in realtime
         if self._realtime_mode:
@@ -236,8 +153,29 @@ class MinigridWrapper(Env):
         else:
             info = None
 
-        return vis_obs, None, reward, done, info
+        return None, vec_obs, reward, done, info
 
     def close(self):
         """Shuts down the environment."""
         self._env.close()
+
+    def process_obs(self, obs):
+        one_hot_obs = []
+        for i in range(obs.shape[0]):
+            for j in range(obs.shape[1]):
+                # print(obs[i,j,0])
+                # if i == 1 and j == 2:
+                #     one_hot_obs.append([1, 0, 0, 0, 0]) # agent tile
+                # else:
+                if obs[i,j,0] == 1:
+                    one_hot_obs.append([0, 1, 0, 0, 0]) # walkable tile
+                elif obs[i,j,0] == 2:
+                    one_hot_obs.append([0, 0, 1, 0, 0]) # blocked tile
+                elif obs[i,j,0] == 5:
+                    one_hot_obs.append([0, 0, 0, 1, 0]) # key tile
+                elif obs[i,j,0] == 6:
+                    one_hot_obs.append([0, 0, 0, 0, 1]) # circle tile
+                else:
+                    one_hot_obs.append([0, 0, 0, 0, 0]) # anything else
+        # return flattened one-hot encoded observation
+        return np.asarray(one_hot_obs, dtype=np.float32).reshape(-1)
