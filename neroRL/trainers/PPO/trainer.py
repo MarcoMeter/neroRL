@@ -352,25 +352,32 @@ class PPOTrainer():
         # Complete loss
         loss = -(policy_loss - vf_loss + beta * entropy_bonus)
 
+        # Monte-Carlo approximate to determine early stopping
+        with torch.no_grad():
+            early_stop = False
+            approx_kl = self.masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
+            if self.use_early_stop and approx_kl > 1.5 * self.early_stop_target:
+                early_stop = True
+
+
         # Compute gradients
-        for pg in self.optimizer.param_groups:
-            pg['lr'] = learning_rate
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
-        self.optimizer.step()
+        if not early_stop:
+            for pg in self.optimizer.param_groups:
+                pg['lr'] = learning_rate
+            self.optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
+            self.optimizer.step()
 
         # Monitor training statistics
-        with torch.no_grad():
-            approx_kl = self.masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
-            clip_fraction = (abs((ratio - 1.0)) > clip_range).type(torch.FloatTensor).mean()
+        clip_fraction = (abs((ratio - 1.0)) > clip_range).type(torch.FloatTensor).mean()
 
         return [policy_loss.cpu().data.numpy(),
                 vf_loss.cpu().data.numpy(),
                 loss.cpu().data.numpy(),
                 entropy_bonus.cpu().data.numpy(),
                 approx_kl.cpu().data.numpy(),
-                clip_fraction.cpu().data.numpy()]
+                clip_fraction.cpu().data.numpy()], early_stop
 
     def train_epochs(self, learning_rate: float, clip_range: float, beta: float):
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
@@ -383,25 +390,27 @@ class PPOTrainer():
         Returns:
             {numpy.ndarray} -- Mean training statistics of one training epoch"""
         train_info = []
+        early_stop = False
 
         for _ in range(self.epochs):
-            # Retrieve the to be trained mini_batches via a generator
-            # Use the recurrent mini batch generator for training a recurrent policy
-            if self.recurrence is not None:
-                mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
-            else:
-                mini_batch_generator = self.buffer.mini_batch_generator()
-            for i, mini_batch in enumerate(mini_batch_generator):
-                res = self.train_mini_batch(learning_rate=learning_rate,
-                                         clip_range=clip_range,
-                                         beta = beta,
-                                         samples=mini_batch)
-                train_info.append(res)
-                # Early stopping of the mini batch updates?
-                if self.use_early_stop and res[4] > 1.5 * self.early_stop_target:
-                    print("early stop at : "  + str(i) + " " + str(res[4]))
-                    break
-        # Return the mean of the training statistics
+            if not early_stop:
+                # Retrieve the to be trained mini_batches via a generator
+                # Use the recurrent mini batch generator for training a recurrent policy
+                if self.recurrence is not None:
+                    mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
+                else:
+                    mini_batch_generator = self.buffer.mini_batch_generator()
+                for i, mini_batch in enumerate(mini_batch_generator):
+                    res, early_stop = self.train_mini_batch(learning_rate=learning_rate,
+                                            clip_range=clip_range,
+                                            beta = beta,
+                                            samples=mini_batch)
+                    train_info.append(res)
+                    # Early stopping of the mini batch updates?
+                    if early_stop:
+                        print("early stop at epoch: " +str(_) + " mini batch: "  + str(i) + " " + str(res[4]))
+                        break
+        # Return training statistics
         return train_info
 
     def run_training_loop(self):
