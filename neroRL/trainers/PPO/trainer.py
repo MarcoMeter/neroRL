@@ -73,6 +73,8 @@ class PPOTrainer():
         self.n_workers = configs["trainer"]['n_workers']
         self.worker_steps = configs["trainer"]['worker_steps']
         self.n_mini_batch = configs["trainer"]['n_mini_batch']
+        self.use_early_stop = configs["trainer"]['use_early_stop']
+        self.early_stop_target = configs["trainer"]['early_stop_target']
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.lr_schedule = configs["trainer"]['learning_rate_schedule']
         self.beta_schedule = configs["trainer"]['beta_schedule']
@@ -359,8 +361,9 @@ class PPOTrainer():
         self.optimizer.step()
 
         # Monitor training statistics
-        approx_kl = self.masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
-        clip_fraction = (abs((ratio - 1.0)) > clip_range).type(torch.FloatTensor).mean()
+        with torch.no_grad():
+            approx_kl = self.masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
+            clip_fraction = (abs((ratio - 1.0)) > clip_range).type(torch.FloatTensor).mean()
 
         return [policy_loss.cpu().data.numpy(),
                 vf_loss.cpu().data.numpy(),
@@ -394,10 +397,9 @@ class PPOTrainer():
                                          beta = beta,
                                          samples=mini_batch)
                 train_info.append(res)
-                # early stop?
-                if res[4] > 1.5 * 0.01:
-                    print("early stop at : "  + str(i))
-                    print(res[4])
+                # Early stopping of the mini batch updates?
+                if self.use_early_stop and res[4] > 1.5 * self.early_stop_target:
+                    print("early stop at : "  + str(i) + " " + str(res[4]))
                     break
         # Return the mean of the training statistics
         return train_info

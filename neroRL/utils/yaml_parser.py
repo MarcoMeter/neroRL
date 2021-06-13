@@ -71,6 +71,8 @@ class YamlParser:
             "n_workers": 16,
             "worker_steps": 256,
             "n_mini_batch": 4,
+            "use_early_stop": False,
+            "early_stop_target": 0.01,
             "learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},
             "clip_range_schedule": {"initial": 0.2}

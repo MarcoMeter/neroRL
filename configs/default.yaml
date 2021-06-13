@@ -79,6 +79,10 @@ trainer:
   # Number of mini batches that are trained throughout one epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
   n_mini_batch: 4
+  # Whether or not to use early stopping. If the new policy diverges too far from the old one, early stopping
+  # will break the current epoch.
+  use_early_stop: False
+  early_stop_target: 0.01
   # On which step to resume the training. This affects the hyperparameter schedules only.
   resume_at: 0
   # Polynomial Decay Schedules
