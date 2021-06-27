@@ -39,7 +39,7 @@ def main():
         assert(False), "Unsupported algorithm specified"
 
     # Start training
-    trainer.run_training_loop()
+    trainer.run_training()
 
     # Clean up after training
     trainer.close()
