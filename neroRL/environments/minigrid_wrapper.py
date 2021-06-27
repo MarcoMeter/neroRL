@@ -185,7 +185,7 @@ class MinigridWrapper(Env):
         # Reset the environment and retrieve the initial observation
         obs = self._env.reset()
         # Retrieve the RGB frame of the agent"s vision
-        vis_obs = self._env.get_obs_render(obs["image"], tile_size=12)
+        vis_obs = self._env.get_obs_render(obs["image"], tile_size=28)
         vis_obs = vis_obs.astype(np.float32) / 255.
 
         # Render environment?
@@ -216,7 +216,7 @@ class MinigridWrapper(Env):
         obs, reward, done, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
-        vis_obs = self._env.get_obs_render(obs["image"], tile_size=12)  / 255.
+        vis_obs = self._env.get_obs_render(obs["image"], tile_size=28)  / 255.
 
         # Render the environment in realtime
         if self._realtime_mode:
@@ -231,8 +231,10 @@ class MinigridWrapper(Env):
         
         # Wrap up episode information once completed (i.e. done)
         if done:
+            success = 1.0 if sum(self._rewards) > 0 else 0.0
             info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards)}
+                    "length": len(self._rewards),
+                    "success": success}
         else:
             info = None
 
