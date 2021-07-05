@@ -280,8 +280,6 @@ class PPOTrainer():
             episode_infos {list} -- Results of completed episodes
         """
         episode_infos = []
-        # Save the index of a completed episode, which is needed later on to seperate the data into episodes and sequences of fixed length
-        self.episode_done_indices = [[] for w in range(self.n_workers)]
 
         # Sample actions from the model and collect experiences for training
         for t in range(self.worker_steps):
@@ -330,8 +328,6 @@ class PPOTrainer():
                 if info:
                     # Store the information of the completed episode (e.g. total reward, episode length)
                     episode_infos.append(info)
-                    # Save the index of a completed episode, which is needed later on to seperate the data into episodes and sequences of fixed length
-                    self.episode_done_indices[w].append(t)
                     # Reset agent (potential interface for providing reset parameters)
                     worker.child.send(("reset", None))
                     # Get data from reset
