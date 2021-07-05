@@ -65,11 +65,8 @@ class Buffer():
             self.advantages[:, t] = last_advantage
             last_value = self.values[:, t]
 
-    def prepare_batch_dict(self, episode_done_indices):
-        """Flattens the training samples and stores them inside a dictionary. If a recurrent policy is used, the data is split into episodes or sequences beforehand.
-        
-        Arguments:
-            episode_done_indices {list} -- Nested list that stores the done indices of each worker"""
+    def prepare_batch_dict(self):
+        """Flattens the training samples and stores them inside a dictionary. If a recurrent policy is used, the data is split into episodes or sequences beforehand."""
         # Supply training samples
         samples = {
             'actions': self.actions,
@@ -94,9 +91,12 @@ class Buffer():
             if self.recurrence["layer_type"] == "lstm":
                 samples["cxs"] = self.cxs
 
-            # If recurrence is used, split data into sequences and apply zero-padding
-            # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
+            # Split data into sequences and apply zero-padding
+            # Retrieve the indices of dones as these are the last step of a whole episode
+            episode_done_indices = []
             for w in range(self.num_workers):
+                episode_done_indices.append(list(self.dones[w].nonzero()[0]))
+                # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
                 if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
                     episode_done_indices[w].append(self.worker_steps - 1)
             

@@ -220,7 +220,7 @@ class PPOTrainer():
                         np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0))
 
             # 4.: Prepare the sampled data inside the buffer
-            self.buffer.prepare_batch_dict(self.episode_done_indices)
+            self.buffer.prepare_batch_dict()
 
             # 5.: Train n epochs over the sampled data using mini batches
             if torch.cuda.is_available():
