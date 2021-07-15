@@ -1,0 +1,55 @@
+environment:
+  type: "Unity"
+  name: "./UnityBuilds/MortarMayhem/MortarMayhem"
+  frame_skip: 1
+  last_action_to_obs: True
+  last_reward_to_obs: True
+  obs_stacks: 1
+  grayscale: False
+  resize_vis_obs: [84, 84]
+  reset_params:
+    start-seed: 0
+    num-seeds: 100
+
+model:
+  load_model: True
+  model_path: "./models/mortar_mayhem-6450.pt"
+  checkpoint_interval: 50
+  activation: "relu"
+  recurrence:
+    layer_type: "gru"
+    sequence_length: 16
+    hidden_state_size: 512
+    hidden_state_init: "zero"
+
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds: [1001, 1002, 1003, 1004, 1005]
+  interval: 10
+
+trainer:
+  algorithm: "PPO"
+  gamma: 0.99
+  lamda: 0.95
+  updates: 10000
+  epochs: 3
+  n_workers: 18
+  worker_steps: 256
+  n_mini_batch: 8
+  resume_at: 3089
+  learning_rate_schedule:
+    initial: 3.0e-4
+    final: 3.0e-6
+    power: 1.0
+    max_decay_steps: 10000
+  beta_schedule:
+    initial: 0.001
+    final: 0.0001
+    power: 1.0
+    max_decay_steps: 10000
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 1000

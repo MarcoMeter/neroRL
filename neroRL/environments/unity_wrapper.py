@@ -4,6 +4,7 @@ import random
 
 from gym import error, spaces
 from mlagents_envs.environment import UnityEnvironment
+from mlagents_envs.base_env import ActionTuple
 from mlagents_envs.side_channel.environment_parameters_channel import (
     EnvironmentParametersChannel,
 )
@@ -41,27 +42,33 @@ class UnityWrapper(Env):
         if realtime_mode:
             self.engine_config.set_configuration_parameters(time_scale=1.0, width=1280, height=720)
         else:
-            self.engine_config.set_configuration_parameters(time_scale=20.0, width=128, height=128)
+            self.engine_config.set_configuration_parameters(time_scale=10.0, width=128, height=128)
 
         # Launch the environment's executable
-        self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+        self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+        # self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
         # Reset the environment
         self._env.reset()
         # Retrieve behavior configuration
         self._behavior_name = list(self._env.behavior_specs)[0]
         self._behavior_spec = self._env.behavior_specs[self._behavior_name]
 
+        # Check whether this Unity environment is supported
+        self._verify_environment()
+
         # Set action space properties
-        if len(self._behavior_spec.action_shape) == 1:
-            self._action_space = spaces.Discrete(self._behavior_spec.action_shape[0])
-        else:
-            self._action_space = spaces.MultiDiscrete(self._behavior_spec.action_shape)
-        self._action_names = ["Not available"]
-        
+        if self._behavior_spec.action_spec.is_discrete():
+            num_action_branches = self._behavior_spec.action_spec.discrete_size
+            action_branch_dimensions = self._behavior_spec.action_spec.discrete_branches
+            if num_action_branches == 1:
+                self._action_space = spaces.Discrete(action_branch_dimensions[0])
+            else:
+                self._action_space = spaces.MultiDiscrete(action_branch_dimensions)
+
         # Count visual and vector observations
         self._num_vis_obs, self._num_vec_obs = 0, 0
         self._vec_obs_indices = []
-        for index, obs in enumerate(self._behavior_spec.observation_shapes):
+        for index, obs in enumerate(self._behavior_spec.observation_specs):
             if len(obs) > 1:
                 self._num_vis_obs = self._num_vis_obs + 1
                 self._vis_obs_index = index
@@ -69,18 +76,14 @@ class UnityWrapper(Env):
                 self._num_vec_obs = self._num_vec_obs + 1
                 self._vec_obs_indices.append(index)
 
-        # Verify the environment
-        self._verify_environment()
-
         # Set visual observation space property
         if self._num_vis_obs == 1:
-            height = self._behavior_spec.observation_shapes[self._vis_obs_index][0]
-            width = self._behavior_spec.observation_shapes[self._vis_obs_index][1]
-            depth = self._behavior_spec.observation_shapes[self._vis_obs_index][2]
+            vis_obs_shape = self._behavior_spec.observation_specs[self._vis_obs_index].shape
+
             self._visual_observation_space = spaces.Box(
                 low = 0,
                 high = 1.0,
-                shape = (height, width, depth),
+                shape = vis_obs_shape,
                 dtype = np.float32)
         else:
             self._visual_observation_space = None
@@ -88,7 +91,7 @@ class UnityWrapper(Env):
         # Set vector observation space property
         if self._num_vec_obs > 0:
             # Determine the length of vec obs by summing the length of each distinct one
-            vec_obs_length = sum([self._behavior_spec.observation_shapes[i][0] for i in self._vec_obs_indices])
+            vec_obs_length = sum([self._behavior_spec.observation_specs[i][0] for i in self._vec_obs_indices])
             self._vector_observatoin_space = (vec_obs_length, )
         else:
             self._vector_observatoin_space = None
@@ -108,7 +111,7 @@ class UnityWrapper(Env):
 
     @property
     def action_names(self):
-        return self._action_names
+        return ["No"]
 
     @property
     def visual_observation_space(self):
@@ -146,7 +149,7 @@ class UnityWrapper(Env):
         # Reset and verify the environment
         self._env.reset()
         info, terminal_info = self._env.get_steps(self._behavior_name)
-        self._verify_environment(len(info))
+        self._verify_environment()
         
         # Retrieve initial observations
         vis_obs, vec_obs, _, _ = self._process_agent_info(info, terminal_info)
@@ -167,7 +170,9 @@ class UnityWrapper(Env):
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
         # Carry out the agent's action
-        self._env.set_actions(self._behavior_name, np.asarray(action).reshape([1, -1]))
+        action_tuple = ActionTuple()
+        action_tuple.add_discrete(np.asarray(action).reshape([1, -1]))
+        self._env.set_actions(self._behavior_name, action_tuple)
         self._env.step()
         info, terminal_info = self._env.get_steps(self._behavior_name)
 
@@ -227,29 +232,33 @@ class UnityWrapper(Env):
 
         return vis_obs, vec_obs, use_info.reward[0], done
 
-    def _verify_environment(self, num_agents = None):
-        """Checks if the environment meets the requirements of this wrapper.
-        Only one agent and at maximum one visual observation is allowed.
-        Only Discrete and MultiDiscrete action spaces are supported.
-
-        Arguments:
-            num_agents {int} -- Number of agents (default: {None})
-        """
-        # Verify number of agent types
+    def _verify_environment(self):
+        # Verify number of agent behavior types
         if len(self._env.behavior_specs) != 1:
             raise UnityEnvironmentException("The unity environment containts more than one agent type.")
+        # Verify number of agents
+        decision_steps, _ = self._env.get_steps(self._behavior_name)
+        if len(decision_steps) > 1:
+            raise UnityEnvironmentException("The unity environment contains more than one agent, which is not supported.")
         # Verify action space type
-        if int(self._behavior_spec.action_type.value) == 1:
-            raise UnityEnvironmentException("Continuous action spaces are not supported. Only discrete and MultiDiscrete spaces are supported.")
+        if not self._behavior_spec.action_spec.is_discrete() or self._behavior_spec.action_spec.is_continuous():
+            raise UnityEnvironmentException("Continuous action spaces are not supported. " 
+                                            "Only discrete and MultiDiscrete spaces are supported.")
+        # Verify that at least one observation is provided
+        num_vis_obs = 0
+        num_vec_obs = 0
+        for obs_spec in self._behavior_spec.observation_specs:
+            if len(obs_spec.shape) == 3:
+                num_vis_obs += 1
+            elif(len(obs_spec.shape)) == 1:
+                num_vec_obs += 1
+        if num_vis_obs == 0 and num_vec_obs == 0:
+            raise UnityEnvironmentException("The unity environment does not contain any observations.")
         # Verify number of visual observations
-        if self._num_vis_obs > 1:
+        if num_vis_obs > 1:
             raise UnityEnvironmentException("The unity environment contains more than one visual observation.")
-        # Verify agent count
-        if num_agents is not None and num_agents > 1:
-            raise UnityEnvironmentException("The unity environment contains more than one agent.")
         
-
-
+     
 class UnityEnvironmentException(error.Error):
     """Any error related to running the Unity environment."""
     pass
