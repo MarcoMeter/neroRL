@@ -80,8 +80,7 @@ def main():
     logger.info("Step 3: Resetting the environment")
     logger.info("Step 3: Using seed " + str(seed))
     reset_params = configs["environment"]["reset_params"]
-    reset_params["start-seed"] = seed
-    reset_params["num-seeds"] = 1
+    reset_params["seed"] = seed
     vis_obs, vec_obs = env.reset(reset_params)
     done = False
     
