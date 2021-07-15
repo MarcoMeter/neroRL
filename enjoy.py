@@ -79,7 +79,10 @@ def main():
     # Reset environment
     logger.info("Step 3: Resetting the environment")
     logger.info("Step 3: Using seed " + str(seed))
-    vis_obs, vec_obs = env.reset({"start-seed": seed, "num-seeds": 1})
+    reset_params = configs["environment"]["reset_params"]
+    reset_params["start-seed"] = seed
+    reset_params["num-seeds"] = 1
+    vis_obs, vec_obs = env.reset(reset_params)
     done = False
     
     # Init hidden state (None if not available)

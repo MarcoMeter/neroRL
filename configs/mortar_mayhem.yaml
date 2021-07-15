@@ -10,7 +10,7 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
-    arena-size: 5
+    arena-size: 3
     allowed-commands: 4
     command-count: 2
     command-delay: 1
