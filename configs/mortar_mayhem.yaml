@@ -15,6 +15,7 @@ environment:
     command-count: 2
     command-delay: 1
     explosion-delay: 4
+    explosion-frameskip: 1
 
 model:
   load_model: True
@@ -39,10 +40,10 @@ trainer:
   lamda: 0.95
   updates: 10000
   epochs: 3
-  n_workers: 18
+  n_workers: 16
   worker_steps: 256
   n_mini_batch: 8
-  resume_at: 3089
+  resume_at: 0
   learning_rate_schedule:
     initial: 3.0e-4
     final: 3.0e-6
