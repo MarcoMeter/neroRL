@@ -10,11 +10,18 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
+    # The dimensions of the environment (min: 3, max: 5)
     arena-size: 3
+    # The number of commands that are enabled (min: 4, max: 9)
+    # Available commands: Up, Down, Left, Right, Stay, Up Left, Up Right, Down Left, Down Right 
     allowed-commands: 4
+    # The number of commands that the agent has to watch and execute
     command-count: 2
+    # The number of steps between showing each command
     command-delay: 1
+    # The number of steps between explosions
     explosion-delay: 4
+    # To speed up the explosion, the number of frames to skip can be increased
     explosion-frameskip: 1
 
 model:
