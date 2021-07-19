@@ -1,14 +1,20 @@
 # Recurrent Policy Implementation and Usage
 
-WIP
+The recurrent policy implementation is based on our [baseline/reference implementation](https://github.com/MarcoMeter/recurrent-ppo-truncated-bptt).
 
 ## Flow of processing the training data
 
-1. Training data is sampled from the current policy
-2. Sampled data is split into episodes
-3. (Optional) episodes are split into sequences
-4. Apply zero padding to retrieve sequences of fixed length
-5. For computing losses, padded values get masked
+1. Training data
+   1. Training data is sampled from the current policy
+   2. Sampled data is split into episodes
+   3. Episodes are split into sequences (based on the `sequence_length` hyperparameter)
+   4. Zero padding is applied to retrieve sequences of fixed length
+   5. Recurrent cell states are collected from the beginning of the sequences (truncated bptt)
+2. Forward pass of the model
+   1. While feeding the model for optimization, the data is flattened to feed an entire batch (faster)
+   2. Before feeding it to the recurrent layer, the data is reshaped to `(num_sequences, sequence_length, data)`
+3. Loss computation
+   1. Zero padded values are masked during the computation of the losses
 
 ## Further details
 
@@ -26,13 +32,3 @@ WIP
         - based on the mean of the hidden states of the collected training data
         - the standard deviation is set to 0.01
        
-- Fake Recurrence
-    - recurrent cell states are added to the experience tuples of the sampled training data
-    - BPTT is omitted by not feeding sequences
-       
-## TODO
-
-- Add fully connected layer between the visual encoder and the recurrent layer?
-- Extrapolate padding instead of zero padding?
-- Add pasdding before or after the data of the sequence?
-- Fix up checkpoints, because the values for the hidden state initialization need now to be stored inside the checkpoints.
