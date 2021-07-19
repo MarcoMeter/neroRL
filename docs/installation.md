@@ -2,24 +2,29 @@
 
 ## Dependencies
 
-- Python 3.6.*
-- (Optional) CUDA 10.1
+- Python >= 3.7
+- (Optional) CUDA 11.1
+
+## Install PyTorch
+
+Install PyTorch as described [here](https://pytorch.org/get-started/locally/).
+neroRL is tested with PyTorch version 1.8.1.
+
+## Install ml-agents-envs
+
+If you want to train Obstacle Tower, install ml-agents version 0.17.0:
+
+`pip install mlagents-envs==0.17.0`
+
+For other Unity environments install version 0.27.0:
+
+`pip install mlagents-envs==0.27.0`
 
 ## Setting up the python environment
 
-To install the necessary python packages choose one of the available requirements.txt files like:
+Use the requirements.txt to install the remaining dependencies:
 
-`pip install -r requirements_linux.txt`
-
-`pip install -r requirements_linux_gpu.txt`
-
-`pip install -r requirements_windows.txt`
-
-`pip install -r requirements_windows_gpu.txt`
-
-It should not be an issue to install a newer [PyTorch](https://pytorch.org/get-started/locally/) version or to use Python v3.7.
-However, the version of Unity ML-Agents (mlagents_envs==0.17.0) and Gym-Minigrid (gym-minigrid==1.0.1) should not be changed, because this framework implements distinct wrappers which are not likely to support any other version.
-For MacOS, remove the lines for torch and torchvision from the requirements.txt and follow the instructions from [PyTorch](https://pytorch.org/get-started/locally/).
+`pip install -r requirements.txt`
 
 ## Obstacle Tower Environment
 
