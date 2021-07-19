@@ -1,17 +1,12 @@
 import numpy as np
-import logging
-import random
 
 from gym import error, spaces
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.base_env import ActionTuple
-from mlagents_envs.side_channel.environment_parameters_channel import (
-    EnvironmentParametersChannel,
-)
-from mlagents_envs.side_channel.engine_configuration_channel import (
-    EngineConfigurationChannel,
-)
+from mlagents_envs.side_channel.environment_parameters_channel import (EnvironmentParametersChannel,)
+from mlagents_envs.side_channel.engine_configuration_channel import (EngineConfigurationChannel,)
 from neroRL.environments.env import Env
+from random import randint
 
 class UnityWrapper(Env):
     """This class wraps Unity environments.
@@ -46,7 +41,9 @@ class UnityWrapper(Env):
 
         # Launch the environment's executable
         self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+        # If the Unity Editor chould be used instead of a build
         # self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+
         # Reset the environment
         self._env.reset()
         # Retrieve behavior configuration
@@ -111,7 +108,7 @@ class UnityWrapper(Env):
 
     @property
     def action_names(self):
-        return ["No"]
+        return ["Action names are not available."]
 
     @property
     def visual_observation_space(self):
@@ -144,7 +141,17 @@ class UnityWrapper(Env):
 
         # Apply reset parameters
         for key, value in reset_params.items():
-            self.reset_parameters.set_float_parameter(key, value)
+            # Skip reset parameters that are not used by the Unity environment
+            if key != "start-seed" and key != "num-seeds":
+                self.reset_parameters.set_float_parameter(key, value)
+
+        # Sample the to be used seed
+        if reset_params["start-seed"] > -1:
+            seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+        else:
+            # Use unlimited seeds
+            seed = -1
+        self.reset_parameters.set_float_parameter("seed", seed)
 
         # Reset and verify the environment
         self._env.reset()
@@ -258,7 +265,6 @@ class UnityWrapper(Env):
         if num_vis_obs > 1:
             raise UnityEnvironmentException("The unity environment contains more than one visual observation.")
         
-     
 class UnityEnvironmentException(error.Error):
     """Any error related to running the Unity environment."""
     pass
