@@ -16,23 +16,27 @@ class UnityWrapper(Env):
         - Only one visual observation
         - Only discrete and multi-discrete action spaces (no continuous action space)"""
 
-    def __init__(self, env_path, worker_id = 1, no_graphis = False, realtime_mode = False, config = None):
+    def __init__(self, env_path, reset_params, worker_id = 1, no_graphis = False, realtime_mode = False):
         """Instantiates the Unity Environment from a specified executable.
         
         Arguments:
             env_path {string} -- Path to the executable of the environment
+            reset_params {dict} -- Reset parameters of the environment such as the seed
         
         Keyword Arguments:
             worker_id {int} -- Port of the environment"s instance (default: {1})
             no_graphis {bool} -- Whether to allow the executable to render or not (default: {False})
             realtime_mode {bool} -- Whether to run the environment in real time or as fast as possible (default: {False})
-            config {dict} -- Specifies the reset parameters of the environment (default: {None})
         """
         # Initialize channels
         self.reset_parameters = EnvironmentParametersChannel()
         self.engine_config = EngineConfigurationChannel()
 
-        self._config = config
+        # Prepare default reset parameters
+        self._default_reset_parameters = {}
+        for key, value in reset_params.items():
+            self._default_reset_parameters[key] = value
+
         self._realtime_mode = realtime_mode
         if realtime_mode:
             self.engine_config.set_configuration_parameters(time_scale=1.0, width=1280, height=720)
@@ -131,11 +135,9 @@ class UnityWrapper(Env):
         # Track rewards of an entire episode
         self._rewards = []
 
-        # Process config: Either load global or new config (if specified)
+        # Use initial or new reset parameters
         if reset_params is None:
-            reset_params = {}
-            if self._config is not None:
-                reset_params = self._config
+            reset_params = self._default_reset_parameters
         else:
             reset_params = reset_params
 

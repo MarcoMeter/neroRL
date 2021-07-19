@@ -18,9 +18,9 @@ environment:
     explosion-frameskip: 1
 
 model:
-  load_model: True
+  load_model: False
   model_path: "./models/mortar_mayhem-6450.pt"
-  checkpoint_interval: 50
+  checkpoint_interval: 200
   activation: "relu"
   recurrence:
     layer_type: "gru"
@@ -29,16 +29,16 @@ model:
     hidden_state_init: "zero"
 
 evaluation:
-  evaluate: False
+  evaluate: True
   n_workers: 3
   seeds: [1001, 1002, 1003, 1004, 1005]
-  interval: 10
+  interval: 200
 
 trainer:
   algorithm: "PPO"
   gamma: 0.99
   lamda: 0.95
-  updates: 10000
+  updates: 2000
   epochs: 3
   n_workers: 16
   worker_steps: 256
