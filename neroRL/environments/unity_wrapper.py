@@ -42,7 +42,7 @@ class UnityWrapper(Env):
         if realtime_mode:
             self.engine_config.set_configuration_parameters(time_scale=1.0, width=1280, height=720)
         else:
-            self.engine_config.set_configuration_parameters(time_scale=10.0, width=128, height=128)
+            self.engine_config.set_configuration_parameters(time_scale=30.0, width=256, height=256)
 
         # Launch the environment's executable
         self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
