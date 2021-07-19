@@ -25,15 +25,15 @@ def wrap_environment(config, worker_id, realtime_mode=False):
     """
     # Instantiate environment
     if config["type"] == "Unity":
-        env = UnityWrapper(config["name"], worker_id, realtime_mode=realtime_mode)
+        env = UnityWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode)
     elif config["type"] == "ObstacleTower":
         env = ObstacleTowerWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode)
     elif config["type"] == "Minigrid":
-        env = MinigridWrapper(config["name"], realtime_mode=realtime_mode)
+        env = MinigridWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode)
     elif config["type"] == "MinigridVec":
-        env = MinigridVecWrapper(config["name"], realtime_mode=realtime_mode)
+        env = MinigridVecWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode)
     elif config["type"] == "Procgen":
-        env = ProcgenWrapper(config["name"], realtime_mode=realtime_mode)
+        env = ProcgenWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode)
     elif config["type"] == "CartPole":
         env = CartPoleWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode)
 
