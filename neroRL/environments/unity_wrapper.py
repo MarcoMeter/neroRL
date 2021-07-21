@@ -36,6 +36,8 @@ class UnityWrapper(Env):
         self._default_reset_parameters = {}
         for key, value in reset_params.items():
             self._default_reset_parameters[key] = value
+            if key != "start-seed" or key != "num-seeds":
+                self.reset_parameters.set_float_parameter(key, value)
 
         self._realtime_mode = realtime_mode
         if realtime_mode:
@@ -144,7 +146,7 @@ class UnityWrapper(Env):
         # Apply reset parameters
         for key, value in reset_params.items():
             # Skip reset parameters that are not used by the Unity environment
-            if key != "start-seed" and key != "num-seeds":
+            if key != "start-seed" or key != "num-seeds":
                 self.reset_parameters.set_float_parameter(key, value)
 
         # Sample the to be used seed
