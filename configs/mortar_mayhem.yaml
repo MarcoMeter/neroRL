@@ -10,19 +10,29 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
-    # The dimensions of the environment (min: 3, max: 5)
-    arena-size: 3
-    # The number of commands that are enabled (min: 4, max: 9)
+    # The dimensions of the environment (min: 3, max: 5, default: 5)
+    arena-size: 5
+    # The number of commands that are enabled (min: 4, max: 9, default: 4)
     # Available commands: Up, Down, Left, Right, Stay, Up Left, Up Right, Down Left, Down Right 
     allowed-commands: 4
-    # The number of commands that the agent has to watch and execute
-    command-count: 2
-    # The number of steps between showing each command
-    command-delay: 1
-    # The number of steps between explosions
-    explosion-delay: 4
-    # To speed up the explosion, the number of frames to skip can be increased
-    explosion-frameskip: 1
+    # The number of commands that the agent has to watch and execute (min: 1, default: 3)
+    command-count: 3
+    # The number of agent steps that each command is visible (min: 1, default: 12)
+    command-duration: 12
+    # The number of steps between showing each command (min: 0, default: 2)
+    command-delay: 2
+    # Whether to use an alternative command visualization (defalut: False)
+    use-command-alternative: False
+    # The number of agent steps that the explosion is being visualized (min: 1, default: 8)
+    explosion-duration: 8
+    # The number of agent steps between explosions (min: 0, default: 8)
+    explosion-delay: 8
+    # The reward that the agent receives upon failing
+    reward-command-failure: -0.1
+    # The reward that the agent receives for moving to the commanded tile
+    reward-command-success: 0.1
+    # The reward that the agent receives for executing each command correctly
+    reward-episode-success: 0.0
 
 model:
   load_model: False
@@ -31,7 +41,7 @@ model:
   activation: "relu"
   recurrence:
     layer_type: "gru"
-    sequence_length: 16
+    sequence_length: -1
     hidden_state_size: 512
     hidden_state_init: "zero"
 
@@ -45,7 +55,7 @@ trainer:
   algorithm: "PPO"
   gamma: 0.99
   lamda: 0.95
-  updates: 2000
+  updates: 5000
   epochs: 3
   n_workers: 16
   worker_steps: 256
