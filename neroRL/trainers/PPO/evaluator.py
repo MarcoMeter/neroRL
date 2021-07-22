@@ -7,7 +7,7 @@ from neroRL.utils.video_recorder import VideoRecorder
 
 class Evaluator():
     """Evaluates a model based on the initially provided config."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, video_path = "video", record_video = False):
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, video_path = "video", record_video = False, frame_rate = 1):
         """Initializes the evaluator and its environments
         
         Arguments:
@@ -25,6 +25,7 @@ class Evaluator():
         self.vector_observation_space = vector_observation_space
         self.video_path = video_path
         self.record_video = record_video
+        self.frame_rate = frame_rate
 
         # Launch environments
         self.workers = []
@@ -147,7 +148,7 @@ class Evaluator():
                                     trajectory_data["episode_reward"] = info["reward"]
                                     trajectory_data["seed"] = seed
                                     # Init VideoRecorder
-                                    video_recorder = VideoRecorder(self.video_path + "_" + str(w))
+                                    video_recorder = VideoRecorder(self.video_path + "_" + str(w), self.frame_rate)
                                     # Render and serialize video
                                     video_recorder.render_video(trajectory_data)
         

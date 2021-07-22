@@ -4,11 +4,12 @@ import numpy as np
 class VideoRecorder:
     """The VideoRecorder can be used to capture videos of the agent's behavior using enjoy.py or eval.py.
     Along with the agent's behavior a debug frame is rendered that shows information such as the action probabilities and the state's value."""
-    def __init__(self, video_path):
+    def __init__(self, video_path, frame_rate):
         """Instantiates the VideoRecorder and initializes some members that affect the rendering of the video.
         
         Arguments:
             video_path {string} -- Path and filename for saving the to be recorded video.
+            frame_rate {int} -- The frame rate of the to be rendered video.
         """
         self.font_face = cv2.FONT_HERSHEY_SIMPLEX
         self.scale = 0.4
@@ -19,16 +20,18 @@ class VideoRecorder:
         self.height = 420
         self.video_path = video_path
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')   # Video codec
+        self.frame_rate = int(frame_rate)
 
     def render_video(self, trajectory_data):
         """Triggers the process of rendering the trajectory data to a video.
         The rendering is done with the help of OpenCV.
         
         Arguments:
-            trajectory_data {dift} -- This dictionary provides all the necessary informatio to render one episode of an agent behaving in its environment.
+            trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
         """
         # Init VideoWriter, the frame rate is defined by each environment individually
-        out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4", self.fourcc,trajectory_data["frame_rate"], (self.width * 2, self.height))
+        out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
+                                self.fourcc, self.frame_rate, (self.width * 2, self.height))
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
             env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR

@@ -119,7 +119,7 @@ class ProcgenWrapper(Env):
         # Prepare trajectory recording
         self._trajectory = {
             "vis_obs": [self._env.render(mode = "rgb_array")], "vec_obs": [None],
-            "rewards": [0.0], "actions": [], "frame_rate": 20
+            "rewards": [0.0], "actions": []
         }
 
         return vis_obs, None

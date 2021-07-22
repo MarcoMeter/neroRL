@@ -42,6 +42,7 @@ def main():
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --seed=<n>                 The to be played seed of an episode [default: 0].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
+        --framerate=<n>            Specifies the frame rate of a video shall be rendered. [default: 6]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]
@@ -49,6 +50,7 @@ def main():
     worker_id = int(options["--worker-id"])
     seed = int(options["--seed"])
     video_path = options["--video"]
+    frame_rate = options["--framerate"]
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -155,7 +157,7 @@ def main():
         trajectory_data["episode_reward"] = info["reward"]
         trajectory_data["seed"] = seed
         # Init video recorder
-        video_recorder = VideoRecorder(video_path)
+        video_recorder = VideoRecorder(video_path, frame_rate)
         # Render and serialize video
         video_recorder.render_video(trajectory_data)
 

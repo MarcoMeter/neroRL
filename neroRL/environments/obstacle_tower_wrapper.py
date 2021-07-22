@@ -144,7 +144,7 @@ class ObstacleTowerWrapper(Env):
         # Prepare trajectory recording
         self._trajectory = {
             "vis_obs": [(vis_obs * 255).astype(np.uint8)], "vec_obs": [vec_obs],
-            "rewards": [0.0], "actions": [], "frame_rate": 20
+            "rewards": [0.0], "actions": []
         }
 
         if self._retro_vis_obs:
