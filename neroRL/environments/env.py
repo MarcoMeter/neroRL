@@ -33,6 +33,11 @@ class Env(ABC):
         """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
         raise NotImplementedError("This abstract property has to be implemented by a child.")
 
+    @abstractproperty
+    def get_episode_trajectory(self):
+        """Returns a dictionary containing a complete trajectory of data comprising an entire episode. This is only used for recording a video."""
+        raise NotImplementedError("This abstract property has to be implemented by a child.")
+
     @abstractmethod
     def reset(self, reset_params = None):
         """Reset the environment. The provided config is a dictionary featuring reset parameters for the environment (e.g. seed)."""

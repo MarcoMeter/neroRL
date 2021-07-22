@@ -27,7 +27,7 @@ class ProcgenWrapper(Env):
         procgen:procgen-starpilot-v0
     """
 
-    def __init__(self, env_name, reset_params = None,  realtime_mode = False):
+    def __init__(self, env_name, reset_params = None,  realtime_mode = False, record_trajectory = False):
         """Instantiates the Procgen environment.
 
         Arguments:
@@ -36,17 +36,25 @@ class ProcgenWrapper(Env):
         Keyword Arguments:
             reset_params {dict} -- Provides parameters, like a seed, to configure the environment. (default: {None})
             realtime_mode {bool} -- Whether the environment should run in realtime or as fast as possible (default: {False})
+            record_trajectory {bool} -- Whether to record the trajectory of an entire episode. This can be used for video recording. (default: {False})
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
             self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
         else:
             self._default_reset_params = reset_params
+
         self._realtime_mode = realtime_mode
+        self._record = record_trajectory
 
         # Initialize environment
         self._env_name = env_name
-        self._env = gym.make(self._env_name, start_level = self._default_reset_params["start-seed"], num_levels = self._default_reset_params["num-seeds"])
+        if self._realtime_mode:
+            self._env = gym.make(self._env_name, start_level = self._default_reset_params["start-seed"],
+                            num_levels = self._default_reset_params["num-seeds"], render_mode = "human")
+        else:
+            self._env = gym.make(self._env_name, start_level = self._default_reset_params["start-seed"],
+                            num_levels = self._default_reset_params["num-seeds"])
 
         # Prepare observation space
         self._visual_observation_space = self._env.observation_space
@@ -74,7 +82,14 @@ class ProcgenWrapper(Env):
     @property
     def action_names(self):
         """Returns a list of action names."""
-        return ["left down", "left", "left up", "down", "No-op", "up", "right down", "right", "right up", "D", "A", "W", "S", "Q", "E"]
+        return [["left down", "left", "left up", "down", "No-op", "up", "right down", "right", "right up", "D", "A", "W", "S", "Q", "E"]]
+
+    @property
+    def get_episode_trajectory(self):
+        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
+        """
+        self._trajectory["action_names"] = self.action_names
+        return self._trajectory if self._trajectory else None
 
     def reset(self, reset_params = None):
         """Resets the environment.
@@ -101,6 +116,12 @@ class ProcgenWrapper(Env):
         # Retrieve the RGB frame of the agent"s vision
         vis_obs = obs.astype(np.float32) / 255.
 
+        # Prepare trajectory recording
+        self._trajectory = {
+            "vis_obs": [self._env.render(mode = "rgb_array")], "vec_obs": [None],
+            "rewards": [0.0], "actions": []
+        }
+
         return vis_obs, None
 
     def step(self, action):
@@ -116,16 +137,18 @@ class ProcgenWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. episode length) retrieved from the environment once an episode completed
         """
-        # Render environment?
-        if self._realtime_mode:
-            self._env.render()
-            time.sleep(0.033)
-
         # Execute action
         obs, reward, done, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
         vis_obs = obs.astype(np.float32)  / 255.
+
+        # Record trajectory data
+        if self._record:
+            self._trajectory["vis_obs"].append(self._env.render(mode = "rgb_array"))
+            self._trajectory["vec_obs"].append(None)
+            self._trajectory["rewards"].append(reward)
+            self._trajectory["actions"].append(action)
 
         # Wrap up episode information once completed (i.e. done)
         if done:

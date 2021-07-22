@@ -190,12 +190,12 @@ class MinigridWrapper(Env):
 
         # Render environment?
         if self._realtime_mode:
-            self._env.render(tile_size = 96)
+            self._env.render(tile_size = 96, mode = "human")
 
         # Prepare trajectory recording
         self._trajectory = {
             "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [None],
-            "rewards": [0.0], "frame_rate": 1
+            "rewards": [0.0], "actions": []
         }
 
         return vis_obs, None
@@ -228,6 +228,7 @@ class MinigridWrapper(Env):
             self._trajectory["vis_obs"].append(self._env.render(tile_size = 96, mode="rgb_array").astype(np.uint8))
             self._trajectory["vec_obs"].append(None)
             self._trajectory["rewards"].append(reward)
+            self._trajectory["actions"].append(action)
         
         # Wrap up episode information once completed (i.e. done)
         if done:

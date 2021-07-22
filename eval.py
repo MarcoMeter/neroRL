@@ -7,6 +7,7 @@ import torch
 import numpy as np
 from docopt import docopt
 from gym import spaces
+import sys
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.trainers.PPO.evaluator import Evaluator
@@ -32,11 +33,21 @@ def main():
         --config=<path>            Path of the Config file [default: ./configs/default.yaml].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
+        --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]
     config_path = options["--config"]
     worker_id = int(options["--worker-id"])
+    video_path = options["--video"]
+
+    # Determine whether to record a video. A video is only recorded if the video flag is used.
+    record_video = False
+    for i, arg in enumerate(sys.argv):
+        if "--video" in arg:
+            record_video = True
+            logger.info("Step 0: Video recording enabled. Video will be saved to " + video_path)
+            break
 
     # Load environment, model, evaluation and training parameters
     configs = YamlParser(config_path).get_config()
@@ -73,7 +84,7 @@ def main():
     logger.info("Step 3: Number of Workers: " + str(configs["evaluation"]["n_workers"]))
     logger.info("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
     logger.info("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
-    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
+    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space, video_path, record_video)
 
     # Evaluate
     logger.info("Step 4: Run evaluation . . .")
