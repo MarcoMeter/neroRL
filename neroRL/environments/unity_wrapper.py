@@ -16,7 +16,7 @@ class UnityWrapper(Env):
         - Only one visual observation
         - Only discrete and multi-discrete action spaces (no continuous action space)"""
 
-    def __init__(self, env_path, reset_params, worker_id = 1, no_graphis = False, realtime_mode = False):
+    def __init__(self, env_path, reset_params, worker_id = 1, no_graphis = False, realtime_mode = False,  record_trajectory = False):
         """Instantiates the Unity Environment from a specified executable.
         
         Arguments:
@@ -27,6 +27,7 @@ class UnityWrapper(Env):
             worker_id {int} -- Port of the environment"s instance (default: {1})
             no_graphis {bool} -- Whether to allow the executable to render or not (default: {False})
             realtime_mode {bool} -- Whether to run the environment in real time or as fast as possible (default: {False})
+            record_trajectory {bool} -- Whether to record the trajectory of an entire episode. This can be used for video recording. (default: {False})
         """
         # Initialize channels
         self.reset_parameters = EnvironmentParametersChannel()
@@ -44,6 +45,9 @@ class UnityWrapper(Env):
             self.engine_config.set_configuration_parameters(time_scale=1.0, width=1280, height=720)
         else:
             self.engine_config.set_configuration_parameters(time_scale=30.0, width=256, height=256)
+
+        # Whether to record the trajectory of an entire episode
+        self._record = record_trajectory
 
         # Launch the environment's executable
         self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
@@ -99,6 +103,10 @@ class UnityWrapper(Env):
         else:
             self._vector_observatoin_space = None
 
+        # Videos can only be recorded if the environment provides visual observations
+        if self._record and self._visual_observation_space is None:
+            UnityEnvironmentException("Videos cannot be rendered for a Unity environment that does not provide visual observations.")
+
     @property
     def unwrapped(self):
         """        
@@ -115,6 +123,13 @@ class UnityWrapper(Env):
     @property
     def action_names(self):
         return ["Action names are not available."]
+
+    @property
+    def get_episode_trajectory(self):
+        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
+        """
+        self._trajectory["action_names"] = self.action_names
+        return self._trajectory if self._trajectory else None
 
     @property
     def visual_observation_space(self):
@@ -164,6 +179,13 @@ class UnityWrapper(Env):
         
         # Retrieve initial observations
         vis_obs, vec_obs, _, _ = self._process_agent_info(info, terminal_info)
+
+        # Prepare trajectory recording
+        self._trajectory = {
+            "vis_obs": [vis_obs], "vec_obs": [vec_obs],
+            "rewards": [0.0], "actions": [], "frame_rate": 20
+        }
+
         return vis_obs, vec_obs
 
     def step(self, action):
@@ -190,6 +212,13 @@ class UnityWrapper(Env):
         # Process step results
         vis_obs, vec_obs, reward, done = self._process_agent_info(info, terminal_info)
         self._rewards.append(reward)
+
+        # Record trajectory data
+        if self._record:
+            self._trajectory["vis_obs"].append(vis_obs)
+            self._trajectory["vec_obs"].append(vec_obs)
+            self._trajectory["rewards"].append(reward)
+            self._trajectory["actions"].append(action)
 
         # Episode information
         if done:

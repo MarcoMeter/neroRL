@@ -12,7 +12,7 @@ class CartPoleWrapper(Env):
         CartPole-v1
     """
 
-    def __init__(self, env_name, reset_params = None, realtime_mode = False):
+    def __init__(self, env_name, reset_params = None, realtime_mode = False, record_trajectory = False):
         """Instantiates the CartPole environment.
 
         Arguments:
@@ -26,7 +26,9 @@ class CartPoleWrapper(Env):
             self._default_reset_params = {"mask-velocity": False}
         else:
             self._default_reset_params = reset_params
+
         self._realtime_mode = realtime_mode
+        self._record = record_trajectory
 
         # Initialize environment
         self._env_name = env_name
@@ -62,6 +64,13 @@ class CartPoleWrapper(Env):
         """Returns a list of action names."""
         return ["move right", "move left"]
 
+    @property
+    def get_episode_trajectory(self):
+        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
+        """
+        self._trajectory["action_names"] = self.action_names
+        return self._trajectory if self._trajectory else None
+
     def reset(self, reset_params = None):
         """Resets the environment.
         
@@ -85,6 +94,17 @@ class CartPoleWrapper(Env):
         vis_obs = None
         vec_obs = self._env.reset()
 
+        # Render environment?
+        if self._realtime_mode:
+            self._env.render(mode="human")
+
+        # Prepare trajectory recording
+        if self._record:
+            self._trajectory = {
+                "vis_obs": [self._env.render(mode="rgb_array")], "vec_obs": [vec_obs],
+                "rewards": [0.0], "actions": [], "frame_rate": 20
+            }
+
         return vis_obs, vec_obs * self._obs_mask
 
     def step(self, action):
@@ -100,17 +120,24 @@ class CartPoleWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further information (e.g. episode length) retrieved from the environment once an episode completed
         """
-        # Render environment?
-        if self._realtime_mode:
-            self._env.render()
-            time.sleep(0.033)
-
         # Execute action
         obs, reward, done, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the agent's current observation
         vis_obs = None
         vec_obs = obs
+
+        # Render environment?
+        if self._realtime_mode:
+            self._env.render(mode="human")
+            time.sleep(0.033)
+
+        # Record trajectory data
+        if self._record:
+            self._trajectory["vis_obs"].append(self._env.render(mode="rgb_array"))
+            self._trajectory["vec_obs"].append(vec_obs)
+            self._trajectory["rewards"].append(reward)
+            self._trajectory["actions"].append(action)
 
         # Wrap up episode information once completed (i.e. done)
         if done:

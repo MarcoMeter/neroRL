@@ -228,6 +228,7 @@ class MinigridWrapper(Env):
             self._trajectory["vis_obs"].append(self._env.render(tile_size = 96, mode="rgb_array").astype(np.uint8))
             self._trajectory["vec_obs"].append(None)
             self._trajectory["rewards"].append(reward)
+            self._trajectory["actions"].append(action)
         
         # Wrap up episode information once completed (i.e. done)
         if done:

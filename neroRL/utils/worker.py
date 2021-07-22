@@ -3,7 +3,7 @@ import multiprocessing.connection
 
 from neroRL.environments.wrapper import wrap_environment
 
-def worker_process(remote: multiprocessing.connection.Connection, env_config, worker_id: int):
+def worker_process(remote: multiprocessing.connection.Connection, env_config, worker_id: int, record_video = False):
     """Initializes the environment and executes its interface.
 
     Arguments:
@@ -14,7 +14,7 @@ def worker_process(remote: multiprocessing.connection.Connection, env_config, wo
 
     # Initialize and wrap the environment
     try:
-        env = wrap_environment(env_config, worker_id)
+        env = wrap_environment(env_config, worker_id, record_trajectory = record_video)
     except KeyboardInterrupt:
         pass
 
@@ -30,6 +30,8 @@ def worker_process(remote: multiprocessing.connection.Connection, env_config, wo
                 remote.send(env.close())
                 remote.close()
                 break
+            elif cmd == "video":
+                remote.send(env.get_episode_trajectory)
             else:
                 raise NotImplementedError
         except:
@@ -40,12 +42,12 @@ class Worker:
     child: multiprocessing.connection.Connection
     process: multiprocessing.Process
     
-    def __init__(self, env_config, worker_id: int):
+    def __init__(self, env_config, worker_id: int, record_video = False):
         """
         Arguments:
             env_config {dict -- The configuration data of the desired environment
             worker_id {int} -- worker_id {int} -- Id for the environment's process. This is necessary for Unity ML-Agents environments, because these operate on different ports.
         """
         self.child, parent = multiprocessing.Pipe()
-        self.process = multiprocessing.Process(target=worker_process, args=(parent, env_config, worker_id))
+        self.process = multiprocessing.Process(target=worker_process, args=(parent, env_config, worker_id, record_video))
         self.process.start()

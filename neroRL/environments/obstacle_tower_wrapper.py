@@ -18,7 +18,7 @@ class ObstacleTowerWrapper(Env):
     If flattened to a single dimension, 10 actions result.
     """
 
-    def __init__(self, env_path, reset_params = None, worker_id = 1, no_graphis = False, realtime_mode = False):
+    def __init__(self, env_path, reset_params = None, worker_id = 1, no_graphis = False, realtime_mode = False, record_trajectory = False):
         """Instantiates the Obstacle Tower environment. It reduces the original action space by one dimension.
         
         Arguments:
@@ -27,6 +27,7 @@ class ObstacleTowerWrapper(Env):
             worker_id {int} -- Specifies the offset for the port to communicate with the environment (default: {1})
             no_graphics {bool} -- Whether to render the environment or not (default: {False})
             realtime_mode {bool} -- Whether the environment should run in realtime or as fast as possible (default: {False})
+            record_trajectory {bool} -- Whether to record the trajectory of an entire episode. This can be used for video recording. (default: {False})
         """
         # Prepare reset parameters
         # As the keys "num-seeds", "start-seed", "retro-vis-obs" and "flat-action-space" cannot be interpreted by the environment
@@ -46,6 +47,9 @@ class ObstacleTowerWrapper(Env):
 
         # Instantiate environment
         self._env = ObstacleTowerEnv(env_path, config = reset_params_clone, worker_id = worker_id, realtime_mode = realtime_mode, retro = False)
+
+        # Whether to record the trajectory of an entire episode
+        self._record = record_trajectory
 
         # Flattened actions for a singular discrete action space
         self.flat_actions = [
@@ -96,6 +100,13 @@ class ObstacleTowerWrapper(Env):
         else:
             return [["No-Op", "Forward"], ["No-Op", "Rotate CC", "Rotate C"], ["No-Op", "Jump"]]
 
+    @property
+    def get_episode_trajectory(self):
+        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
+        """
+        self._trajectory["action_names"] = self.action_names
+        return self._trajectory if self._trajectory else None
+
     def reset(self, reset_params = None):
         """Resets the environment.
         
@@ -129,6 +140,13 @@ class ObstacleTowerWrapper(Env):
             vis_obs = self._add_stats_to_image(vis_obs, obs[1], obs[2])
         normalized_time = np.clip(obs[2], 0, 10000) / 10000.
         vec_obs = np.array([obs[1], normalized_time])
+
+        # Prepare trajectory recording
+        self._trajectory = {
+            "vis_obs": [(vis_obs * 255).astype(np.uint8)], "vec_obs": [vec_obs],
+            "rewards": [0.0], "actions": [], "frame_rate": 20
+        }
+
         if self._retro_vis_obs:
             return vis_obs, None
         else:
@@ -166,6 +184,13 @@ class ObstacleTowerWrapper(Env):
         # Update current floor
         if reward >= 1:
             self._current_floor +=1
+
+        # Record trajectory data
+        if self._record:
+            self._trajectory["vis_obs"].append((vis_obs * 255).astype(np.uint8))
+            self._trajectory["vec_obs"].append(vec_obs)
+            self._trajectory["rewards"].append(reward)
+            self._trajectory["actions"].append(action)
 
         # Wrap up episode information once completed (i.e. done)
         if done:

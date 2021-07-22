@@ -92,9 +92,6 @@ class MinigridVecWrapper(Env):
         self._rewards = []
         # Reset the environment and retrieve the initial observation
         obs = self._env.reset()
-        # Retrieve the RGB frame of the agent"s vision
-        # vis_obs = self._env.get_obs_render(obs["image"], tile_size=12)
-        # vis_obs = vis_obs.astype(np.float32) / 255.
 
         # Vector observation
         vec_obs = self.process_obs(obs["image"])
@@ -108,11 +105,6 @@ class MinigridVecWrapper(Env):
             "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [vec_obs],
             "rewards": [0.0], "frame_rate": 1
         }
-
-        # import matplotlib.pyplot as plt
-        # plt.imshow(self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8))
-        # plt.show()
-
         return None, vec_obs
 
     def step(self, action):
@@ -145,11 +137,14 @@ class MinigridVecWrapper(Env):
             self._trajectory["vis_obs"].append(self._env.render(tile_size = 96, mode="rgb_array").astype(np.uint8))
             self._trajectory["vec_obs"].append(None)
             self._trajectory["rewards"].append(reward)
+            self._trajectory["actions"].append(action)
         
         # Wrap up episode information once completed (i.e. done)
         if done:
+            success = 1.0 if sum(self._rewards) > 0 else 0.0
             info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards)}
+                    "length": len(self._rewards),
+                    "success": success}
         else:
             info = None
 
