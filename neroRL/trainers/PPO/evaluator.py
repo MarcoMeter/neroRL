@@ -3,10 +3,11 @@ import torch
 import time
 
 from neroRL.utils.worker import Worker
+from neroRL.utils.video_recorder import VideoRecorder
 
 class Evaluator():
     """Evaluates a model based on the initially provided config."""
-    def __init__(self, eval_config, env_config, worker_id, visual_observation_space, vector_observation_space):
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, video_path = "video", record_video = False, frame_rate = 1):
         """Initializes the evaluator and its environments
         
         Arguments:
@@ -17,16 +18,23 @@ class Evaluator():
             vector_observation_space {tuple} -- Vector observation space of the environment
         """
         # Set members
-        self.n_workers = eval_config["n_workers"]
-        self.seeds = eval_config["seeds"]
+        self.configs = configs
+        self.n_workers = configs["evaluation"]["n_workers"]
+        self.seeds = configs["evaluation"]["seeds"]
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
+        self.video_path = video_path
+        self.record_video = record_video
+        self.frame_rate = frame_rate
 
         # Launch environments
         self.workers = []
         for i in range(self.n_workers):
             id = worker_id + i + 200 - self.n_workers
-            self.workers.append(Worker(env_config, id))
+            self.workers.append(Worker(configs["environment"], id, record_video = record_video))
+
+        # Check for recurrent policy
+        self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
 
     def evaluate(self, model, device):
         """Evaluates a provided model on the already initialized evaluation environments.
@@ -52,12 +60,21 @@ class Evaluator():
                 vec_obs = np.zeros((self.n_workers,) + self.vector_observation_space, dtype=np.float32)
             else:
                 vec_obs = None
-            # Initialize hidden state
-            if model.use_recurrent:
-                hidden_state = torch.zeros((self.n_workers, 1, model.hidden_state_size), dtype=torch.float32, device=device)
-            else:
-                hidden_state = [None] * self.n_workers
 
+            # Initialize recurrent cell (hidden/cell state)
+            # We specifically initialize a recurrent cell for each worker,
+            # because one of the available initialization methods samples a hidden cell state.
+            recurrent_cell = []
+            for _ in range(self.n_workers):
+                if self.recurrence is not None:
+                    hxs, cxs = model.init_recurrent_cell_states(1, device)
+                    if self.recurrence["layer_type"] == "gru":
+                        recurrent_cell.append(hxs)
+                    elif self.recurrence["layer_type"] == "lstm":
+                        recurrent_cell.append((hxs, cxs))
+                else:
+                    recurrent_cell.append(None)
+            
             # Reset workers and set evaluation seed
             for worker in self.workers:
                 worker.child.send(("reset", {"start-seed": seed, "num-seeds": 1}))
@@ -72,21 +89,42 @@ class Evaluator():
             # Every worker plays its episode
             dones = np.zeros(self.n_workers, dtype=bool)
 
+            # Store data for video recording
+            log_probs = [[] for worker in self.workers]
+            entropies = [[] for worker in self.workers]
+            values = [[] for worker in self.workers]
+            actions = [[] for worker in self.workers]
+
             with torch.no_grad():
                 while not np.all(dones):
-                    # Sample action and send to worker if not done
+                    # Sample action and send it to the worker if not done
                     for w, worker in enumerate(self.workers):
                         if not dones[w]:
-                            policy, _, hidden_state[w] = model(np.expand_dims(vis_obs[w], 0) if vis_obs is not None else None,
+                            # While sampling data for training we feed batches containing all workers,
+                            # but as we evaluate entire episodes, we feed one worker at a time
+                            policy, value, recurrent_cell[w] = model(np.expand_dims(vis_obs[w], 0) if vis_obs is not None else None,
                                                 np.expand_dims(vec_obs[w], 0) if vec_obs is not None else None,
-                                                hidden_state[w],
+                                                recurrent_cell[w],
                                                 device)
 
-                            actions = []
+                            _actions = []
+                            probs = []
+                            entropy = []
+                            # Sample action
                             for action_branch in policy:
                                 action = action_branch.sample()
-                                actions.append(action.cpu().data.item())
-                            worker.child.send(("step", actions))
+                                _actions.append(action.cpu().data.item())
+                                probs.append(action_branch.probs)
+                                entropy.append(action_branch.entropy().item())
+
+                            # Store data for video recording
+                            actions[w].append(_actions)
+                            log_probs[w].append(probs)
+                            entropies[w].append(entropy)
+                            values[w].append(value)
+
+                            # Step environment
+                            worker.child.send(("step", _actions))
 
                     # Receive and process step result if not done
                     for w, worker in enumerate(self.workers):
@@ -99,6 +137,20 @@ class Evaluator():
                             if info:
                                 info["seed"] = seed
                                 episode_infos.append(info)
+                                # record video for this particular worker
+                                if self.record_video:
+                                    worker.child.send(("video", None))
+                                    trajectory_data = worker.child.recv()
+                                    trajectory_data["actions"] = actions[w]
+                                    trajectory_data["log_probs"] = log_probs[w]
+                                    trajectory_data["entropies"] = entropies[w]
+                                    trajectory_data["values"] = values[w]
+                                    trajectory_data["episode_reward"] = info["reward"]
+                                    trajectory_data["seed"] = seed
+                                    # Init VideoRecorder
+                                    video_recorder = VideoRecorder(self.video_path + "_" + str(w), self.frame_rate)
+                                    # Render and serialize video
+                                    video_recorder.render_video(trajectory_data)
         
             # Seconds needed for a whole update
             time_end = time.time()

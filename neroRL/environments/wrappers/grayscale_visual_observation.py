@@ -53,6 +53,12 @@ class GrayscaleVisualObsEnv(Env):
         """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
         return self._env.action_names
 
+    @property
+    def get_episode_trajectory(self):
+        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
+        """
+        return self._env.get_episode_trajectory
+
     def reset(self, reset_params = None):
         """Reset the environment. The provided config is a dictionary featuring reset parameters of the environment such as the seed.
         

@@ -1,6 +1,7 @@
 from neroRL.environments.unity_wrapper import UnityWrapper
 from neroRL.environments.obstacle_tower_wrapper import ObstacleTowerWrapper
 from neroRL.environments.minigrid_wrapper import MinigridWrapper
+from neroRL.environments.minigrid_vec_wrapper import MinigridVecWrapper
 from neroRL.environments.procgen_wrapper import ProcgenWrapper
 from neroRL.environments.cartpole_wrapper import CartPoleWrapper
 from neroRL.environments.wrappers.frame_skip import FrameSkipEnv
@@ -11,28 +12,31 @@ from neroRL.environments.wrappers.pytorch_shape import PyTorchEnv
 from neroRL.environments.wrappers.last_action_to_obs import LastActionToObs
 from neroRL.environments.wrappers.last_reward_to_obs import LastRewardToObs
 
-def wrap_environment(config, worker_id, realtime_mode=False):
+def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory = False):
     """This function instantiates an environment and applies wrappers based on the specified config.
 
     Arguments:
         config {dict} -- The to be applied wrapping configuration
         worker_id {int} -- The worker id that sets off the port for communication with Unity environments
         realtime_mode {bool} -- Whether to render and run the environment in realtime
+        record_trajectory {bool} -- Whether to record the trajectory of an entire episode. This can be used for video recording. (default: {False})
 
     Returns:
         {Env} -- The wrapped environment
     """
     # Instantiate environment
     if config["type"] == "Unity":
-        env = UnityWrapper(config["name"], worker_id, realtime_mode=realtime_mode)
+        env = UnityWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode, record_trajectory=record_trajectory)
     elif config["type"] == "ObstacleTower":
-        env = ObstacleTowerWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode)
+        env = ObstacleTowerWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode, record_trajectory=record_trajectory)
     elif config["type"] == "Minigrid":
-        env = MinigridWrapper(config["name"], realtime_mode=realtime_mode)
+        env = MinigridWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
+    elif config["type"] == "MinigridVec":
+        env = MinigridVecWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
     elif config["type"] == "Procgen":
-        env = ProcgenWrapper(config["name"], realtime_mode=realtime_mode)
+        env = ProcgenWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
     elif config["type"] == "CartPole":
-        env = CartPoleWrapper(config["name"], realtime_mode=realtime_mode)
+        env = CartPoleWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
 
     # Wrap environment
     # Frame Skip

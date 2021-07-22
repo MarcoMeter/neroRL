@@ -13,10 +13,15 @@ environment:
 
 model:
   load_model: False
-  model_path: "./models/cartpole_recurrent.pt"
-  checkpoint_interval: 10
-  use_recurrent: True
-  hidden_state_size: 128
+  model_path: "./checkpoints/cartpole/20210722-103713_2/cartpole-199.pt"
+  checkpoint_interval: 25
+  activation: "relu"
+  recurrence:
+    layer_type: "gru"
+    sequence_length: 16
+    hidden_state_size: 128
+    hidden_state_init: "zero"
+    reset_hidden_state: False
 
 evaluation:
   evaluate: False
@@ -28,20 +33,20 @@ trainer:
   algorithm: "PPO"
   gamma: 0.99
   lamda: 0.95
-  updates: 50
+  updates: 200
   epochs: 4
   n_workers: 16
-  worker_steps: 512
-  n_mini_batch: 8
+  worker_steps: 256
+  n_mini_batch: 4
   resume_at: 0
   learning_rate_schedule:
     initial: 1.0e-4
-    final: 1.0e-5
+    final: 1.0e-4
     power: 1.0
     max_decay_steps: 50
   beta_schedule:
-    initial: 0.0001
-    final: 0.0001
+    initial: 0.00001
+    final: 0.000001
     power: 1.0
     max_decay_steps: 50
   clip_range_schedule:

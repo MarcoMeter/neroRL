@@ -12,7 +12,8 @@ To evaluate a model utilize the `python eval.py` command.
         --config=<path>            Path of the Config file [default: ./configs/default.yaml].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
-        --run-id=<path>            Specifies the tag of the tensorboard summaries [default: default].
+        --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
+        --framerate=<n>            Specifies the frame rate of a video shall be rendered. [default: 6]
 """
 ```
 
@@ -28,8 +29,11 @@ This is usually helpfull for debugging/testing.
 ## --worker-id
 Setting a `--worker-id=100` is necessary if you run multiple training sessions using Unity environments, because these environments communicate with Python using sockets via distinct ports that are offset by the `--worker-id`.
 
-## --run-id
-The `--run-id=training_0` adds a tag to the training session, which is helpfull for identifying the [tensorboard](tensorboard.md) summaries.
+## --video
+To render a video, you can use the `--video=target_path` flag.
+
+## --framerate
+If a video shall be rendered, this flag can be used to modify the video's frame rate.
 
 ## Example
 ```

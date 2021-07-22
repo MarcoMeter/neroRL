@@ -2,15 +2,25 @@
 Evaluates an agent based on a configurated environment and evaluation.
 """
 
+import logging
 import torch
 import numpy as np
 from docopt import docopt
 from gym import spaces
+import sys
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.trainers.PPO.otc_model import OTCModel
+from neroRL.utils.serialization import load_checkpoint
+
+# Setup logger
+logging.basicConfig(level = logging.INFO, handlers=[])
+logger = logging.getLogger("eval")
+console = logging.StreamHandler()
+console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+logger.addHandler(console)
 
 def main():
     # Docopt command line arguments
@@ -23,13 +33,21 @@ def main():
         --config=<path>            Path of the Config file [default: ./configs/default.yaml].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
-        --run-id=<path>            Specifies the tag of the tensorboard summaries [default: default].
+        --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]
     config_path = options["--config"]
     worker_id = int(options["--worker-id"])
-    run_id = options["--run-id"]
+    video_path = options["--video"]
+
+    # Determine whether to record a video. A video is only recorded if the video flag is used.
+    record_video = False
+    for i, arg in enumerate(sys.argv):
+        if "--video" in arg:
+            record_video = True
+            logger.info("Step 0: Video recording enabled. Video will be saved to " + video_path)
+            break
 
     # Load environment, model, evaluation and training parameters
     configs = YamlParser(config_path).get_config()
@@ -38,9 +56,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
-    print("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
+    logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
     dummy_env = wrap_environment(configs["environment"], worker_id)
-
     visual_observation_space = dummy_env.visual_observation_space
     vector_observation_space = dummy_env.vector_observation_space
     if isinstance(dummy_env.action_space, spaces.Discrete):
@@ -50,35 +67,36 @@ def main():
     dummy_env.close()
 
     # Build or load model
-    if untrained:
-        print("Step 2: Creating model")
-        model = OTCModel(configs["model"], visual_observation_space,
-                                vector_observation_space, action_space_shape,
-                                configs["model"]["use_recurrent"],
-                                configs["model"]["hidden_state_size"]).to(device)
-    else:
-        print("Step 2: Loading model from " + configs["model"]["model_path"])
-        model = torch.load(configs["model"]["model_path"]).to(device)
+    logger.info("Step 2: Creating model")
+    model = OTCModel(configs["model"], visual_observation_space,
+                            vector_observation_space, action_space_shape,
+                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None).to(device)
+    if not untrained:
+        logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
+        checkpoint = load_checkpoint(configs["model"]["model_path"])
+        model.load_state_dict(checkpoint["model_state_dict"])
+        if "recurrence" in configs["model"]:
+            model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
 
     # Initialize evaluator
-    print("Step 3: Initialize evaluator")
-    print("Step 3: Number of Workers: " + str(configs["evaluation"]["n_workers"]))
-    print("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
-    print("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
-    evaluator = Evaluator(configs["evaluation"], configs["environment"], worker_id, visual_observation_space, vector_observation_space)
+    logger.info("Step 3: Initialize evaluator")
+    logger.info("Step 3: Number of Workers: " + str(configs["evaluation"]["n_workers"]))
+    logger.info("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
+    logger.info("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
+    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space, video_path, record_video)
 
     # Evaluate
-    print("Step 4: Run evaluation . . .")
+    logger.info("Step 4: Run evaluation . . .")
     eval_duration, raw_episode_results = evaluator.evaluate(model, device)
     episode_result = _process_episode_info(raw_episode_results)
 
     # Print results
-    print("RESULT: sec={:3}     mean reward={:.2f} std={:.2f}     mean length={:.1f} std={:.2f}".format(
+    logger.info("RESULT: sec={:3}     mean reward={:.2f} std={:.2f}     mean length={:.1f} std={:.2f}".format(
         eval_duration, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"]))
 
     # Close
-    print("Step 5: Closing evaluator . . .")
+    logger.info("Step 5: Closing evaluator . . .")
     evaluator.close()
 
 def _process_episode_info(episode_info):

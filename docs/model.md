@@ -10,7 +10,7 @@ The actor-critc architecture of the underlying model can be described best by as
 
 3. The vector observation, featuring game state variables, is concatenated to the previous output.
 
-4. If `use_recurrent` is set to true inside the [config](configuration.md), a GRU layer is added right after this concatenation.
+4. If `recurrence` is setup in the [config](configuration.md), a recurrent layer is added right after this concatenation.
 
 5. The propagation proceeds with a fully connected layer.
 

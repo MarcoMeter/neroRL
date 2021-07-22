@@ -12,14 +12,12 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
-  use_seeder: False
 
 model:
   load_model: False
   model_path: "./models/procgen_coinrun.pt"
   checkpoint_interval: 50
-  use_recurrent: False
-  hidden_state_size: 512
+  activation: "relu"
 
 evaluation:
   evaluate: True

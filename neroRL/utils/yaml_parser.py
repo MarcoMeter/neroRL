@@ -26,26 +26,10 @@ class YamlParser:
 
         # Prepare data
         for data in yaml_args:
-            self._config["environment"] = self.to_dict(data.get("environment"))
-            self._config["model"] = self.to_dict(data.get("model"))
-            self._config["evaluation"] = self.to_dict(data.get("evaluation"))
-            self._config["trainer"] = self.to_dict(data.get("trainer"))
+            self._config = dict(data)
 
+        # Process config, like adding missing keys with default values
         self.process_config()
-        
-    def to_dict(self, data):
-        """Converts CommentedMap to dictionary.
-        
-        Arguments:
-            data {ruamel.yaml.comments.CommentedMap} -- CommentedMap retrieved from the yaml file
-        
-        Returns:
-            {dict} -- Converted dictionary containing the concerned content from the yaml
-        """
-        new_dict = {}
-        for k,v in data.items():
-            new_dict[k] = v
-        return new_dict
 
     def process_config(self):
         """Ensures that the config is complete. If incomplete, default values will be applied to missing entries.
@@ -67,8 +51,7 @@ class YamlParser:
             "load_model": False,
             "model_path": "",
             "checkpoint_interval": 50,
-            "use_recurrent": True,
-            "hidden_state_size": 512
+            "activation": "relu"
         }
 
         eval_dict = {
@@ -143,10 +126,59 @@ class YamlParser:
                 if "max_decay_steps" not in value["clip_range_schedule"]:
                     trainer_dict["clip_range_schedule"]["max_decay_steps"] = self._config[key]["updates"]
                 self._config[key] = trainer_dict
+            
+            # Check if the model dict contains a recurrence dict
+            # If no recurrence dict is available, it is assumed that a recurrent policy is not used
+            # In the other case check for completeness and apply defaults if necessary
+            if "recurrence" in self._config["model"]:
+                if "layer_type" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["layer_type"] = "gru"
+                if "sequence_length" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["sequence_length"] = 32
+                if "hidden_state_size" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["hidden_state_size"] = 128
+                if "hidden_state_init" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["hidden_state_init"] = "zero"
+                if "reset_hidden_state" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["reset_hidden_state"] = True
 
     def get_config(self):
         """ 
         Returns:
-            {dict} -- 2D dictionary that contains configs for the environment, model, evaluation and trainer.
+            {dict} -- Nested dictionary that contains configs for the environment, model, evaluation and trainer.
+        """
+        return self._config
+
+class GridSearchYamlParser:
+    """The GridSearchYamlParser parses a yaml file containing parameters for tuning hyperparameters based on grid search.
+    The data is parsed during initialization.
+    Retrieve the parameters using the get_config function.
+
+    The data can be accessed like:
+    parser.get_config()["search_space"]["worker_steps"]
+    """
+
+    def __init__(self, path = "./configs/tune/example.yaml"):
+        """Loads and prepares the specified config file.
+        
+        Keyword Arguments:
+            path {str} -- Yaml file path to the to be loaded config (default: {"./configs/tune/search.yaml"})
+        """
+        # Load the config file
+        stream = open(path, "r")
+        yaml = YAML()
+        yaml_args = yaml.load_all(stream)
+        
+        # Final contents of the config file will be added to a dictionary
+        self._config = {}
+
+        # Prepare data
+        for data in yaml_args:
+            self._config = dict(data)
+
+    def get_config(self):
+        """ 
+        Returns:
+            {dict} -- Dictionary that contains the config for the grid search.
         """
         return self._config

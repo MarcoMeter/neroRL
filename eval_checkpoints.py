@@ -24,6 +24,7 @@ from neroRL.utils.yaml_parser import YamlParser
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.trainers.PPO.otc_model import OTCModel
+from neroRL.utils.serialization import load_checkpoint
 
 def main():
     # Docopt command line arguments
@@ -69,20 +70,31 @@ def main():
     for k, v in configs["evaluation"].items():
         print("Step 2: " + str(k) + ": " + str(v))
     print("Step 2: Init Evaluator")
-    evaluator = Evaluator(configs["evaluation"], configs["environment"], worker_id, visual_observation_space, vector_observation_space)
+    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
+
+    # Init model
+    print("Step 2: Initialize model")
+    model = OTCModel(configs["model"], visual_observation_space,
+                                vector_observation_space, action_space_shape,
+                                configs["model"]["recurrence"]).to(device)
+    model.eval()
 
     # Load checkpoint paths
-    print("Step 3: Load Checkpoint Paths")
+    print("Step 4: Load Checkpoint Paths")
     checkpoints = get_sorted_checkpoints(path)
     print("Step 3: Number of Loaded Checkpoint Paths: " + str(len(checkpoints)))
 
     # Evaluate checkpoints
-    print("Step 4: Start Evaluation . . .")
+    print("Step 5: Start Evaluation . . .")
     print("Progress:")
     results = []
     current_checkpoint = 0
     for checkpoint in checkpoints:
-        _, res = evaluator.evaluate(torch.load(checkpoint), device)
+        loaded_checkpoint = load_checkpoint(checkpoint)
+        model.load_state_dict(loaded_checkpoint["model_state_dict"])
+        if "recurrence" in configs["model"]:
+            model.set_mean_recurrent_cell_states(loaded_checkpoint["hxs"], loaded_checkpoint["cxs"])
+        _, res = evaluator.evaluate(model, device)
         results.append(res)
         current_checkpoint = current_checkpoint + 1
         prog = current_checkpoint / len(checkpoints)
@@ -91,12 +103,11 @@ def main():
 
     # Save results to file
     print("")
-    print("Step 5: Save to File: " + name)
+    print("Step 6: Save to File: " + name)
     results = np.asarray(results).reshape(len(checkpoints), len(configs["evaluation"]["seeds"]), configs["evaluation"]["n_workers"])
     outfile = open(name, "wb")
     pickle.dump(results, outfile)
     outfile.close()
-
 
 def get_sorted_checkpoints(dirpath):
     """Generates the full file paths to each checkpoint and sorts them alphabetically.

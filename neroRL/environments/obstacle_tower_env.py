@@ -29,11 +29,10 @@ class UnityGymException(error.Error):
     pass
 
 
-logging.basicConfig(level=logging.INFO)
-logging.disable(logging.INFO)
-logging.disable(logging.WARNING)
+# Disable obstacle tower and mlagents logging
+logging.getLogger("mlagents_envs.environment").disabled = True
 logger = logging.getLogger("gym_unity")
-
+logger.disabled = True
 
 class ObstacleTowerEnv(gym.Env):
     ALLOWED_VERSIONS = ["4.0?team=0"]

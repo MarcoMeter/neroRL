@@ -9,5 +9,7 @@
 - [Enjoy (i.e. watch) a model](enjoy.md)
 - [Configuration File](configuration.md)
 - [Model Architecture](model.md)
+- [Recurrent Policy Implementation and Usage](recurrent_policy.md)
+- [Hyperparameter Tuning using Grid Search](tune.md)
 - [Steps to add another environment](add_environment.md)
 - [Tensorboard](tensorboard.md)

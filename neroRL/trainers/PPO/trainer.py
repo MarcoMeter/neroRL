@@ -1,3 +1,4 @@
+import logging
 import os
 import torch
 import numpy as np
@@ -16,10 +17,11 @@ from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.utils.worker import Worker
 from neroRL.utils.decay_schedules import polynomial_decay
+from neroRL.utils.serialization import save_checkpoint, load_checkpoint
 
 class PPOTrainer():
     """The PPOTrainer is in charge of setting up the whole training loop while utilizing the PPO algorithm based on Schulman et al. 2017."""
-    def __init__(self, configs, worker_id, run_id  = "default", low_mem_fix = False):
+    def __init__(self, configs, worker_id, run_id  = "default", low_mem_fix = False, out_path = "./"):
         """Initializes the trainer, the model, the buffer, the evaluator and launches training environments
 
         Arguments:
@@ -29,15 +31,27 @@ class PPOTrainer():
             low_mem_fix {bool} -- Determines whethere to do the training/sampling on cpu or gpu. This is necessary for too small GPU memory capacities (default: {False})
         """
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
-        signal(SIGINT, self.handler)
-        # Create directories for storing checkpoints, models and tensorboard summaries based on the current time and provided run_id
-        if not os.path.exists("summaries"):
-            os.makedirs("summaries")
-        if not os.path.exists("checkpoints"):
-            os.makedirs("checkpoints")
+        signal(SIGINT, self._handler)
+        # Create directories for storing checkpoints, logs and tensorboard summaries based on the current time and provided run_id
+        if not os.path.exists(out_path + "summaries"):
+            os.makedirs(out_path + "summaries")
+        if not os.path.exists(out_path + "checkpoints"):
+            os.makedirs(out_path + "checkpoints")
+        if not os.path.exists(out_path + "logs") or not os.path.exists(out_path + "logs/" + run_id):
+            os.makedirs(out_path + "logs/" + run_id)
         timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
-        self.checkpoint_path = "checkpoints/" + run_id + timestamp
+        self.checkpoint_path = out_path + "checkpoints/" + run_id + timestamp
         os.makedirs(self.checkpoint_path)
+
+        # Setup logger
+        logging.basicConfig(level = logging.INFO, handlers=[])
+        self.logger = logging.getLogger("train")
+        console = logging.StreamHandler()
+        console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+        path = out_path + "logs/" + run_id + timestamp[:-1] + ".log"
+        logfile = logging.FileHandler(path, mode="w")
+        self.logger.addHandler(console)
+        self.logger.addHandler(logfile)
 
         # Determine cuda availability
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -50,6 +64,7 @@ class PPOTrainer():
             self.mini_batch_device = torch.device("cpu")
         else:
             self.mini_batch_device = self.device
+        self.configs = configs
         self.resume_at = configs["trainer"]['resume_at']
         self.gamma = configs["trainer"]['gamma']
         self.lamda = configs["trainer"]['lamda']
@@ -58,8 +73,7 @@ class PPOTrainer():
         self.n_workers = configs["trainer"]['n_workers']
         self.worker_steps = configs["trainer"]['worker_steps']
         self.n_mini_batch = configs["trainer"]['n_mini_batch']
-        self.use_recurrent = configs["model"]["use_recurrent"]
-        self.hidden_state_size = configs["model"]["hidden_state_size"]
+        self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.lr_schedule = configs["trainer"]['learning_rate_schedule']
         self.beta_schedule = configs["trainer"]['beta_schedule']
         self.cr_schedule = configs["trainer"]['clip_range_schedule']
@@ -67,21 +81,21 @@ class PPOTrainer():
         self.batch_size = self.n_workers * self.worker_steps
         self.mini_batch_size = self.batch_size // self.n_mini_batch
         assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
-        self.writer = SummaryWriter("summaries/" + run_id + timestamp)
-        self.write_hyperparameters(configs["trainer"])
+        self.writer = SummaryWriter(out_path + "summaries/" + run_id + timestamp)
+        self._write_hyperparameters(configs)
 
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
-        print("Step 1: Provided config:")
+        # Start logging the training setup
+        self.logger.info("Step 1: Provided config:")
         for key in configs:
-            print("Step 1: " + str(key) + ":")
+            self.logger.info("Step 1: " + str(key) + ":")
             for k, v in configs[key].items():
-                print("Step 1: " + str(k) + ": " + str(v))
+                self.logger.info("Step 1: " + str(k) + ": " + str(v))
 
-        print("Step 2: Creating dummy environment")
+        self.logger.info("Step 2: Creating dummy environment")
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
-        
         visual_observation_space = self.dummy_env.visual_observation_space
         vector_observation_space = self.dummy_env.vector_observation_space
         if isinstance(self.dummy_env.action_space, spaces.Discrete):
@@ -90,50 +104,49 @@ class PPOTrainer():
             self.action_space_shape = tuple(self.dummy_env.action_space.nvec)
         self.dummy_env.close()
 
-        print("Step 2: Visual Observation Space: " + str(visual_observation_space))
-        print("Step 2: Vector Observation Space: " + str(vector_observation_space))
-        print("Step 2: Action Space Shape: " + str(self.action_space_shape))
-        print("Step 2: Action Names: " + str(self.dummy_env.action_names))
+        self.logger.info("Step 2: Visual Observation Space: " + str(visual_observation_space))
+        self.logger.info("Step 2: Vector Observation Space: " + str(vector_observation_space))
+        self.logger.info("Step 2: Action Space Shape: " + str(self.action_space_shape))
+        self.logger.info("Step 2: Action Names: " + str(self.dummy_env.action_names))
 
         # Prepare evaluator if configured
         self.eval = configs["evaluation"]["evaluate"]
         self.eval_interval = configs["evaluation"]["interval"]
         if self.eval:
-            print("Step 2b: Initializing evaluator")
-            self.evaluator = Evaluator(configs["evaluation"], configs["environment"], worker_id, visual_observation_space, vector_observation_space)
+            self.logger.info("Step 2b: Initializing evaluator")
+            self.evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
 
-        # Build or load model
-        if not configs["model"]["load_model"]:
-            print("Step 3: Creating model")
-            self.model = OTCModel(configs["model"], visual_observation_space,
-                                    vector_observation_space, self.action_space_shape,
-                                    self.use_recurrent, self.hidden_state_size).to(self.device)
-        else:
-            print("Step 3: Loading model from " + configs["model"]["model_path"])
-            self.model = torch.load(configs["model"]["model_path"]).to(self.device)
-        self.model.train()
+        # Instantiate experience/training data buffer
+        self.buffer = Buffer(
+            self.n_workers, self.worker_steps, self.n_mini_batch,
+            visual_observation_space, vector_observation_space,
+            self.action_space_shape, self.recurrence,
+            self.device, self.mini_batch_device)
+
+        # Init model
+        self.logger.info("Step 3: Creating model")
+        self.model = OTCModel(configs["model"], visual_observation_space, vector_observation_space,
+                                self.action_space_shape, self.recurrence).to(self.device)
 
         # Instantiate optimizer
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
-        # Instantiate experience/training data buffer
-        self.buffer = Buffer(
-            self.n_workers,
-            self.worker_steps,
-            self.n_mini_batch,
-            visual_observation_space,
-            vector_observation_space,
-            self.action_space_shape,
-            self.use_recurrent,
-            self.hidden_state_size,
-            self.device,
-            self.mini_batch_device)
+
+        # Load checkpoint and apply data
+        if configs["model"]["load_model"]:
+            self.logger.info("Step 3: Loading model from " + configs["model"]["model_path"])
+            checkpoint = load_checkpoint(configs["model"]["model_path"])
+            self.model.load_state_dict(checkpoint["model_state_dict"])
+            if self.recurrence is not None:
+                self.model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
+            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            # self.resume_at = checkpoint["update"] + 1
+
+        # Set model to train mode
+        self.model.train()
 
         # Launch workers
-        print("Step 4: Launching training environments of type " + configs["environment"]["type"])
-        self.workers = []
-        for i in range(self.n_workers):
-            id = worker_id + 200 + i
-            self.workers.append(Worker(configs["environment"], id))
+        self.logger.info("Step 4: Launching training environments of type " + configs["environment"]["type"])
+        self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
 
         # Setup initial observations
         if visual_observation_space is not None:
@@ -145,11 +158,15 @@ class PPOTrainer():
         else:
             self.vec_obs = None
 
-        # Setup initial hidden states
-        if self.use_recurrent:
-            self.hidden_state = torch.zeros((self.n_workers, self.hidden_state_size), dtype=torch.float32, device=self.device)
+        # Setup initial recurrent cell
+        if self.recurrence is not None:
+            hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.mini_batch_device)
+            if self.recurrence["layer_type"] == "gru":
+                self.recurrent_cell = hxs
+            elif self.recurrence["layer_type"] == "lstm":
+                self.recurrent_cell = (hxs, cxs)
         else:
-            self.hidden_state = None
+            self.recurrent_cell = None
 
         # Reset workers
         for worker in self.workers:
@@ -162,19 +179,97 @@ class PPOTrainer():
             if self.vec_obs is not None:
                 self.vec_obs[i] = vec_obs
 
-    @staticmethod
-    def _normalize(adv: np.ndarray):
-        """Normalizes the advantage
-
-        Arguments:
-            adv {numpy.ndarray} -- The to be normalized advantage
-
-        Returns:
-            (adv - adv.mean()) / (adv.std() + 1e-8) {np.ndarray} -- The normalized advantage
+    def run_training(self):
+        """Orchestrates the PPO training:
+            1. Decays training parameters in relation to training progression
+            2. Samples data from current policy
+                2a. Computes advantages
+            3. Organizes the mini batches
+            4. Optimizes policy and value functions
+            5. Processes training statistics and results
+            6. Evaluates model every n-th update if configured
         """
-        return (adv - adv.mean()) / (adv.std() + 1e-8)
+        if(self.resume_at > 0):
+            self.logger.info("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
+        else:
+            self.logger.info("Step 5: Starting training using " + str(self.device) + " . . .")
+        # List that stores the most recent episodes for training statistics
+        episode_info = deque(maxlen=100)
 
-    def sample(self, device) -> (Dict[str, np.ndarray], List):
+        # Training loop
+        for update in range(self.resume_at, self.updates):
+            self.currentUpdate = update
+            time_start = time.time()
+
+            # 1.: Decay hyperparameters polynomially based on the provided config
+            learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"], self.lr_schedule["max_decay_steps"], self.lr_schedule["power"], update)
+            beta = polynomial_decay(self.beta_schedule["initial"], self.beta_schedule["final"], self.beta_schedule["max_decay_steps"], self.beta_schedule["power"], update)
+            clip_range = polynomial_decay(self.cr_schedule["initial"], self.cr_schedule["final"], self.cr_schedule["max_decay_steps"], self.cr_schedule["power"], update)
+
+            # 2.: Sample data from each worker for worker steps
+            if self.low_mem_fix:
+                self.model.cpu() # Sample on CPU
+                sample_episode_info = self._sample_training_data(self.mini_batch_device)
+            else:
+                sample_episode_info = self._sample_training_data(self.device)
+            
+            # 3.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
+            if self.recurrence is not None:
+                self.model.set_mean_recurrent_cell_states(
+                        np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0),
+                        np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0))
+
+            # 4.: Prepare the sampled data inside the buffer
+            self.buffer.prepare_batch_dict()
+
+            # 5.: Train n epochs over the sampled data using mini batches
+            if torch.cuda.is_available():
+                self.model.cuda() # Train on GPU
+            training_stats = self._train_epochs(learning_rate, clip_range, beta)
+            training_stats = np.mean(training_stats, axis=0)
+            
+            # Store recent episode infos
+            episode_info.extend(sample_episode_info)
+    
+            # Seconds needed for a whole update
+            time_end = time.time()
+            update_duration = int(time_end - time_start)
+
+            # Save checkpoint (update, model, optimizer, configs)
+            if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
+                save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(update) + ".pt",
+                                update,
+                                self.model.state_dict(),
+                                self.optimizer.state_dict(),
+                                self.model.mean_hxs if self.recurrence is not None else None,
+                                self.model.mean_cxs if self.recurrence is not None else None,
+                                self.configs)
+
+            # 5.: Write training statistics to console
+            episode_result = self._process_episode_info(episode_info)
+            if episode_result:
+                self.logger.info("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
+                    update, update_duration, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"],
+                    training_stats[2], training_stats[3], np.mean(self.buffer.values), np.std(self.buffer.values),
+                    np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
+            else:
+                self.logger.info("{:4} sec={:2} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
+                    update, update_duration, training_stats[2], training_stats[3], np.mean(self.buffer.values),
+                    np.std(self.buffer.values), np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
+
+            # 6.: Evaluate model
+            if self.eval:
+                if update % self.eval_interval == 0 or update == (self.updates - 1):
+                    eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
+                    episode_result = self._process_episode_info(eval_episode_info)
+                    self.logger.info("eval: sec={:3} reward={:.2f} length={:.1f}".format(
+                        eval_duration, episode_result["reward_mean"], episode_result["length_mean"]))
+                    self._write_eval_summary(update, episode_result)
+            
+            # Write training statistics to tensorboard
+            self._write_training_summary(update, training_stats, episode_result, learning_rate, clip_range, beta)
+
+    def _sample_training_data(self, device):
         """Sample data (batch) with current policy from all workers for worker_steps.
         At the end the advantages are computed.
         
@@ -188,21 +283,26 @@ class PPOTrainer():
 
         # Sample actions from the model and collect experiences for training
         for t in range(self.worker_steps):
-            # Save the initial observations and hidden states
-            if self.vis_obs is not None:
-                self.buffer.vis_obs[:, t] = self.vis_obs
-            if self.vec_obs is not None:
-                self.buffer.vec_obs[:, t] = self.vec_obs
-            if self.use_recurrent:
-                self.buffer.hidden_states[:, t] = self.hidden_state
-            
             # Gradients can be omitted for sampling data
             with torch.no_grad():
+                # Save the initial observations and hidden states
+                if self.vis_obs is not None:
+                    self.buffer.vis_obs[:, t] = self.vis_obs
+                if self.vec_obs is not None:
+                    self.buffer.vec_obs[:, t] = self.vec_obs
+                # Store recurrent cell states inside the buffer
+                if self.recurrence is not None:
+                    if self.recurrence["layer_type"] == "gru":
+                        self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
+                    elif self.recurrence["layer_type"] == "lstm":
+                        self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu().numpy()
+                        self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
+
                 # Forward the model to retrieve the policy (making decisions), the states' value of the value function and the recurrent hidden states (if available)
-                policy, value, self.hidden_state = self.model(self.vis_obs, self.vec_obs, self.hidden_state, device)
+                policy, value, self.recurrent_cell = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
                 self.buffer.values[:, t] = value.cpu().data.numpy()
 
-                # Sample actions from each individual branch
+                # Sample actions from each individual policy branch
                 actions = []
                 log_probs = []
                 for action_branch in policy:
@@ -226,6 +326,7 @@ class PPOTrainer():
                 if self.vec_obs is not None:
                     self.vec_obs[w] = vec_obs
                 if info:
+                    # Store the information of the completed episode (e.g. total reward, episode length)
                     episode_infos.append(info)
                     # Reset agent (potential interface for providing reset parameters)
                     worker.child.send(("reset", None))
@@ -235,80 +336,23 @@ class PPOTrainer():
                         self.vis_obs[w] = vis_obs
                     if self.vec_obs is not None:
                         self.vec_obs[w] = vec_obs
-
+                    # Reset recurrent cell states
+                    if self.recurrence is not None:
+                        if self.recurrence["reset_hidden_state"]:
+                            hxs, cxs = self.model.init_recurrent_cell_states(1, self.mini_batch_device)
+                            if self.recurrence["layer_type"] == "gru":
+                                self.recurrent_cell[:, w] = hxs
+                            elif self.recurrence["layer_type"] == "lstm":
+                                self.recurrent_cell[0][:, w] = hxs
+                                self.recurrent_cell[1][:, w] = cxs
+                                
         # Calculate advantages
-        _, last_value, _ = self.model(self.vis_obs, self.vec_obs, self.hidden_state, device)
+        _, last_value, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
         self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
 
         return episode_infos
 
-    def train_mini_batch(self, samples, learning_rate, clip_range, beta):
-        """ Optimizes the policy based on the PPO algorithm
-
-        Arguments:
-            samples {dict} -- The sampled mini-batch to optimize the model
-            learning_rate {float} -- The to be used learning rate
-            clip_range {float} -- The to be used clip range
-            beta {float} -- The to be used entropy coefficient
-        
-        Returns:
-            training_stats {list} -- Losses, entropy, kl-divergence and clip fraction
-        """
-        sampled_return = samples['values'] + samples['advantages']
-        sampled_normalized_advantage = PPOTrainer._normalize(samples['advantages']).unsqueeze(1).repeat(1, len(self.action_space_shape))
-        policy, value, _ = self.model(samples['vis_obs'] if self.vis_obs is not None else None,
-                                    samples['vec_obs'] if self.vec_obs is not None else None,
-                                    samples['hidden_states'] if self.use_recurrent else None,
-                                    self.device)
-        
-        # Policy Loss
-        # Retreive and process log_probs from each policy branch
-        log_probs = []
-        for i, policy_branch in enumerate(policy):
-            log_probs.append(policy_branch.log_prob(samples['actions'][:, i]))
-        log_probs = torch.stack(log_probs, dim=1)
-
-        # Compute surrogates
-        ratio = torch.exp(log_probs - samples['log_probs'])
-        surr1 = ratio * sampled_normalized_advantage
-        surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * sampled_normalized_advantage
-        policy_loss = torch.min(surr1, surr2).mean()
-
-        # Value
-        clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range,
-                                                                      max=clip_range)
-        vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
-        vf_loss = 0.5 * vf_loss.mean()
-
-        # Entropy Bonus
-        entropies = []
-        for policy_branch in policy:
-            entropies.append(policy_branch.entropy())
-        entropy_bonus = torch.stack(entropies, dim=1).sum(1).reshape(-1).mean()
-
-        # Complete loss
-        loss = -(policy_loss - 0.5 * vf_loss + beta * entropy_bonus)
-
-        # Compute gradients
-        for pg in self.optimizer.param_groups:
-            pg['lr'] = learning_rate
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
-        self.optimizer.step()
-
-        # Monitor training statistics
-        approx_kl_divergence = .5 * ((log_probs - samples['log_probs']) ** 2).mean()
-        clip_fraction = (abs((ratio - 1.0)) > clip_range).type(torch.FloatTensor).mean()
-
-        return [policy_loss,
-                vf_loss,
-                loss,
-                entropy_bonus,
-                approx_kl_divergence,
-                clip_fraction]
-
-    def train_epochs(self, learning_rate: float, clip_range: float, beta: float):
+    def _train_epochs(self, learning_rate: float, clip_range: float, beta: float):
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
         
         Arguments:
@@ -322,96 +366,114 @@ class PPOTrainer():
 
         for _ in range(self.epochs):
             # Retrieve the to be trained mini_batches via a generator
-            if self.use_recurrent:
+            # Use the recurrent mini batch generator for training a recurrent policy
+            if self.recurrence is not None:
                 mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
             else:
                 mini_batch_generator = self.buffer.mini_batch_generator()
             for mini_batch in mini_batch_generator:
-                res = self.train_mini_batch(learning_rate=learning_rate,
+                res = self._train_mini_batch(learning_rate=learning_rate,
                                          clip_range=clip_range,
                                          beta = beta,
                                          samples=mini_batch)
                 train_info.append(res)
         # Return the mean of the training statistics
-        return np.mean(train_info, axis=0)
+        return train_info
 
-    def run_training_loop(self):
-        """Orchestrates the PPO training:
-            1. Decays training parameters in relation to training progression
-            2. Samples data from current policy
-                2a. Computes advantages
-            3. Organizes the mini batches
-            4. Optimizes policy and value functions
-            5. Processes training statistics and results
-            6. Evaluates model every n-th update if configured
+    def _train_mini_batch(self, samples, learning_rate, clip_range, beta):
+        """ Optimizes the policy based on the PPO algorithm
+
+        Arguments:
+            samples {dict} -- The sampled mini-batch to optimize the model
+            learning_rate {float} -- The to be used learning rate
+            clip_range {float} -- The to be used clip range
+            beta {float} -- The to be used entropy coefficient
+        
+        Returns:
+            training_stats {list} -- Losses, entropy, kl-divergence and clip fraction
         """
-        if(self.resume_at > 0):
-            print("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
-        else:
-            print("Step 5: Starting training using " + str(self.device) + " . . .")
-        # List that stores the most recent episodes for training statistics
-        episode_info = deque(maxlen=100)
+        # Retrieve sampled recurrent cell states to feed the model
+        recurrent_cell = None
+        if self.recurrence is not None:
+            if self.recurrence["layer_type"] == "gru":
+                recurrent_cell = samples["hxs"].unsqueeze(0)
+            elif self.recurrence["layer_type"] == "lstm":
+                recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+        
+        policy, value, _ = self.model(samples['vis_obs'] if self.vis_obs is not None else None,
+                                    samples['vec_obs'] if self.vec_obs is not None else None,
+                                    recurrent_cell,
+                                    self.device,
+                                    self.buffer.actual_sequence_length)
+        
+        # Policy Loss
+        # Retreive and process log_probs from each policy branch
+        log_probs = []
+        for i, policy_branch in enumerate(policy):
+            log_probs.append(policy_branch.log_prob(samples['actions'][:, i]))
+        log_probs = torch.stack(log_probs, dim=1)
 
-        # Training loop
-        for update in range(self.resume_at, self.updates):
-            self.currentUpdate = update
-            time_start = time.time()
+        # Compute surrogates
+        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        # Repeat is necessary for multi-discrete action spaces
+        normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
+        ratio = torch.exp(log_probs - samples['log_probs'])
+        surr1 = ratio * normalized_advantage
+        surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * normalized_advantage
+        policy_loss = torch.min(surr1, surr2)
+        policy_loss = PPOTrainer._masked_mean(policy_loss, samples["loss_mask"])
 
-            # 1.: Decay hyperparameters polynomially based on the provided config
-            learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"], self.lr_schedule["max_decay_steps"], self.lr_schedule["power"], update)
-            beta = polynomial_decay(self.beta_schedule["initial"], self.beta_schedule["final"], self.beta_schedule["max_decay_steps"], self.beta_schedule["power"], update)
-            clip_range = polynomial_decay(self.cr_schedule["initial"], self.cr_schedule["final"], self.cr_schedule["max_decay_steps"], self.cr_schedule["power"], update)
+        # Value
+        sampled_return = samples['values'] + samples['advantages']
+        clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range, max=clip_range)
+        vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
+        vf_loss = PPOTrainer._masked_mean(vf_loss, samples["loss_mask"])
+        vf_loss = .25 * vf_loss
 
-            # 2., 2a.: Sample data from each worker for worker steps
-            if self.low_mem_fix:
-                self.model.cpu() # Sample on CPU
-                sample_episode_info = self.sample(self.mini_batch_device)
-            else:
-                sample_episode_info = self.sample(self.device)
+        # Entropy Bonus
+        entropies = []
+        for policy_branch in policy:
+            entropies.append(policy_branch.entropy())
+        entropy_bonus = PPOTrainer._masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
 
-            # 3.: Prepare the sampled data inside the buffer
-            self.buffer.prepare_batch_dict()
+        # Complete loss
+        loss = -(policy_loss - vf_loss + beta * entropy_bonus)
 
-            # 4.: Train n epochs over the sampled data using mini batches
-            if torch.cuda.is_available():
-                self.model.cuda() # Train on GPU
-            training_stats = self.train_epochs(learning_rate, clip_range, beta)
+        # Compute gradients
+        for pg in self.optimizer.param_groups:
+            pg['lr'] = learning_rate
+        self.optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
+        self.optimizer.step()
 
-            # Store recent episode infos
-            episode_info.extend(sample_episode_info)
-    
-            # Seconds needed for a whole update
-            time_end = time.time()
-            update_duration = int(time_end - time_start)
+        # Monitor training statistics
+        approx_kl = PPOTrainer._masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
+        clip_fraction = (abs((ratio - 1.0)) > clip_range).type(torch.FloatTensor).mean()
 
-            # Save model
-            if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
-                torch.save(self.model, self.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
+        return [policy_loss.cpu().data.numpy(),
+                vf_loss.cpu().data.numpy(),
+                loss.cpu().data.numpy(),
+                entropy_bonus.cpu().data.numpy(),
+                approx_kl.cpu().data.numpy(),
+                clip_fraction.cpu().data.numpy()]
 
-            # 5.: Write training statistics to console
-            episode_result = self._process_episode_info(episode_info)
-            if episode_result:
-                print("{:4} sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f}".format(
-                    update, update_duration, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"],
-                    training_stats[2], training_stats[3], np.mean(self.buffer.values), np.std(self.buffer.values), np.mean(self.buffer.advantages), np.std(self.buffer.advantages)))
-            else:
-                print("{:4} sec={:3} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f}".format(
-                    update, update_duration, training_stats[2], training_stats[3], np.mean(self.buffer.values),
-                    np.std(self.buffer.values), np.mean(self.buffer.advantages), np.std(self.buffer.advantages)))
+    @staticmethod
+    def _masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
+            """
+            Returns the mean of the tensor but ignores the values specified by the mask.
+            This is used for masking out the padding of the loss functions.
 
-            # 6.: Evaluate model
-            if self.eval:
-                if update % self.eval_interval == 0 or update == (self.updates - 1):
-                    eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
-                    episode_result = self._process_episode_info(eval_episode_info)
-                    print("eval: sec={:3} reward={:.2f} length={:.1f}".format(
-                        eval_duration, episode_result["reward_mean"], episode_result["length_mean"]))
-                    self.write_eval_summary(update, episode_result)
-            
-            # Write training statistics to tensorboard
-            self.write_training_summary(update, training_stats, episode_result, learning_rate, clip_range, beta)
+            Args:
+                tensor {Tensor} -- The to be masked tensor
+                mask {Tensor} -- The mask that is used to mask out padded values of a loss function
 
-    def write_training_summary(self, update, training_stats, episode_result, learning_rate, clip_range, beta):
+            Returns:
+                {Tensor} -- Returns the mean of the masked tensor.
+            """
+            return (tensor.T * mask).sum() / torch.clamp((torch.ones_like(tensor.T) * mask).float().sum(), min=1.0)
+
+    def _write_training_summary(self, update, training_stats, episode_result, learning_rate, clip_range, beta):
         """Writes to an event file based on the run-id argument."""
         if episode_result:
             for key in episode_result:
@@ -422,23 +484,28 @@ class PPOTrainer():
         self.writer.add_scalar("losses/value_loss", training_stats[1], update)
         self.writer.add_scalar("other/entropy", training_stats[3], update)
         self.writer.add_scalar("other/clip_fraction", training_stats[5], update)
+        self.writer.add_scalar("other/sequence_length", self.buffer.actual_sequence_length, update)
         self.writer.add_scalar("episode/value_mean", np.mean(self.buffer.values), update)
         self.writer.add_scalar("episode/advantage_mean", np.mean(self.buffer.advantages), update)
         self.writer.add_scalar("decay/learning_rate", learning_rate, update)
         self.writer.add_scalar("decay/clip_range", clip_range, update)
         self.writer.add_scalar("decay/beta", beta, update)
 
-    def write_eval_summary(self, update, episode_result):
+    def _write_eval_summary(self, update, episode_result):
         """Writes to an event file based on the run-id argument."""
         if episode_result:
             for key in episode_result:
                 if "std" not in key:
                     self.writer.add_scalar("evaluation/" + key, episode_result[key], update)
 
-    def write_hyperparameters(self, config):
+    def _write_hyperparameters(self, configs):
         """Writes hyperparameters to tensorboard"""
-        for key, value in config.items():
-            self.writer.add_text("Hyperparameters", key + " " + str(value))
+        for key, value in configs.items():
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    self.writer.add_text("Hyperparameters", k + " " + str(v))
+            else:
+                self.writer.add_text("Hyperparameters", key + " " + str(value))
 
     @staticmethod
     def _process_episode_info(episode_info):
@@ -458,19 +525,19 @@ class PPOTrainer():
 
     def close(self):
         """Closes the environment and destroys the workers"""
-        print("Terminate: Closing dummy ennvironment . . .")
+        self.logger.info("Terminate: Closing dummy ennvironment . . .")
         try:
             self.dummy_env.close()
         except:
             pass
 
-        print("Terminate: Closing Summary Writer . . .")
+        self.logger.info("Terminate: Closing Summary Writer . . .")
         try:
             self.writer.close()
         except:
             pass
 
-        print("Terminate: Shutting down workers . . .")
+        self.logger.info("Terminate: Shutting down workers . . .")
         try:
             for worker in self.workers:
                 worker.child.send(("close", None))
@@ -478,7 +545,7 @@ class PPOTrainer():
             pass
 
         if self.eval:
-            print("Terminate: Closing evaluator")
+            self.logger.info("Terminate: Closing evaluator")
             try:
                 self.evaluator.close()
             except:
@@ -486,17 +553,23 @@ class PPOTrainer():
         
         try:
             if self.currentUpdate > 0:
-                print("Terminate: Saving model . . .")
+                self.logger.info("Terminate: Saving model . . .")
                 try:
-                        torch.save(self.model, self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
-                        print("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
+                        save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt",
+                                        self.currentUpdate,
+                                        self.model.state_dict(),
+                                        self.optimizer.state_dict(),
+                                        self.model.mean_hxs if self.recurrence is not None else None,
+                                        self.model.mean_cxs if self.recurrence is not None else None,
+                                        self.configs)
+                        self.logger.info("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
                 except:
                     pass
         except:
             pass
 
-    def handler(self, signal_received, frame):
+    def _handler(self, signal_received, frame):
         """Invoked by the Ctrl-C event, the trainer is being closed and the python program is being exited."""
-        print("Terminate: Training aborted . . .")
+        self.logger.info("Terminate: Training aborted . . .")
         self.close()
         exit(0)
