@@ -122,7 +122,7 @@ class UnityWrapper(Env):
 
     @property
     def action_names(self):
-        return ["Action names are not available."]
+        return None
 
     @property
     def get_episode_trajectory(self):
@@ -182,8 +182,8 @@ class UnityWrapper(Env):
 
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [vis_obs], "vec_obs": [vec_obs],
-            "rewards": [0.0], "actions": [], "frame_rate": 20
+            "vis_obs": [vis_obs * 255], "vec_obs": [vec_obs],
+            "rewards": [0.0], "actions": [], "frame_rate": 10
         }
 
         return vis_obs, vec_obs
@@ -215,7 +215,7 @@ class UnityWrapper(Env):
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(vis_obs)
+            self._trajectory["vis_obs"].append(vis_obs * 255)
             self._trajectory["vec_obs"].append(vec_obs)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)

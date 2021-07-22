@@ -31,7 +31,7 @@ class VideoRecorder:
         out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4", self.fourcc,trajectory_data["frame_rate"], (self.width * 2, self.height))
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
-            env_frame = trajectory_data["vis_obs"][i][...,::-1] # Convert RGB to BGR, OpenCV expects BGR
+            env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
             env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
 
             # Setup debug frame
@@ -49,14 +49,23 @@ class VideoRecorder:
                 self.draw_text_overlay(debug_frame, 215, 60, trajectory_data["seed"], "seed")
                 # Selected action
                 for index, action in enumerate(trajectory_data["actions"][i]):
-                    self.draw_text_overlay(debug_frame, 5 + (210 * (index % 2)), 60 + (20 * (int(index / 2))), str(action) + " " + trajectory_data["action_names"][index][action], "action " + str(index))
+                    if trajectory_data["action_names"] is not None:
+                        action_name = trajectory_data["action_names"][index][action]
+                    else:
+                        action_name = ""
+                    self.draw_text_overlay(debug_frame, 5 + (210 * (index % 2)), 60 + (20 * (int(index / 2))),
+                                            str(action) + " " + action_name, "action " + str(index))
                 # Action probabilities
                 next_y = 100
                 for x, probs in enumerate(trajectory_data["log_probs"][i]):
                     self.draw_text_overlay(debug_frame, 5 , next_y, round(trajectory_data["entropies"][i][x], 5), "entropy dim" + str(x))
                     next_y += 20
                     for y, prob in enumerate(probs.squeeze(dim=0)):
-                        self.draw_bar(debug_frame, 0, next_y, round(prob.item(), 10), str(trajectory_data["action_names"][x][y]), y == trajectory_data["actions"][i][x])
+                        if trajectory_data["action_names"] is not None:
+                            label = str(trajectory_data["action_names"][x][y])
+                        else:
+                            label = ""
+                        self.draw_bar(debug_frame, 0, next_y, round(prob.item(), 10), label, y == trajectory_data["actions"][i][x])
                         next_y += 20
                     next_y += 10
             else:
