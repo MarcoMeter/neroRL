@@ -52,15 +52,17 @@ model:
   checkpoint_interval: 50
   # Set the to be used activation function (relu, leaky_relu, swish)
   activation: "relu"
-  recurrence:
     # Supported recurrent layers: gru, lstm
     layer_type: "gru"
     # Length of the trained sequences, if set to 0 or smaller the sequence length is dynamically fit to episode lengths
     sequence_length: 32
     # Size of the recurrent layer's hidden state
     hidden_state_size: 128
-    # How to initialize the hidden state
+    # How to initialize the hidden state (zero, one, mean, sample)
     hidden_state_init: "zero"
+    # Whether to reset the hidden state before a new episode.
+    # Environments that use short episodes are likely to profit from not resetting the hidden state.
+    reset_hidden_state: True
 ```
 
 Every tool may use the model_path.

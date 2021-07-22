@@ -23,6 +23,7 @@ model:
     sequence_length: 8
     hidden_state_size: 256
     hidden_state_init: "zero"
+    reset_hidden_state: False
 
 evaluation:
   evaluate: False

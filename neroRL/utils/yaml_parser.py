@@ -139,6 +139,8 @@ class YamlParser:
                     self._config["model"]["recurrence"]["hidden_state_size"] = 128
                 if "hidden_state_init" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["hidden_state_init"] = "zero"
+                if "reset_hidden_state" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["reset_hidden_state"] = True
 
     def get_config(self):
         """ 

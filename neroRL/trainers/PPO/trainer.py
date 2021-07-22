@@ -337,14 +337,15 @@ class PPOTrainer():
                     if self.vec_obs is not None:
                         self.vec_obs[w] = vec_obs
                     # Reset recurrent cell states
-                    # if self.recurrence is not None:
-                    #     hxs, cxs = self.model.init_recurrent_cell_states(1, self.mini_batch_device)
-                    #     if self.recurrence["layer_type"] == "gru":
-                    #         self.recurrent_cell[:, w] = hxs
-                    #     elif self.recurrence["layer_type"] == "lstm":
-                    #         self.recurrent_cell[0][:, w] = hxs
-                    #         self.recurrent_cell[1][:, w] = cxs
-                            
+                    if self.recurrence is not None:
+                        if self.recurrence["reset_hidden_state"]:
+                            hxs, cxs = self.model.init_recurrent_cell_states(1, self.mini_batch_device)
+                            if self.recurrence["layer_type"] == "gru":
+                                self.recurrent_cell[:, w] = hxs
+                            elif self.recurrence["layer_type"] == "lstm":
+                                self.recurrent_cell[0][:, w] = hxs
+                                self.recurrent_cell[1][:, w] = cxs
+                                
         # Calculate advantages
         _, last_value, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
         self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
