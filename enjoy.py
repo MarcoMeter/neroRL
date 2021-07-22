@@ -159,6 +159,8 @@ def main():
         # Render and serialize video
         video_recorder.render_video(trajectory_data)
 
+    env.close()
+
 if __name__ == "__main__":
     main()
     

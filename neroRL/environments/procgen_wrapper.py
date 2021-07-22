@@ -49,7 +49,12 @@ class ProcgenWrapper(Env):
 
         # Initialize environment
         self._env_name = env_name
-        self._env = gym.make(self._env_name, start_level = self._default_reset_params["start-seed"], num_levels = self._default_reset_params["num-seeds"])
+        if self._realtime_mode:
+            self._env = gym.make(self._env_name, start_level = self._default_reset_params["start-seed"],
+                            num_levels = self._default_reset_params["num-seeds"], render_mode = "human")
+        else:
+            self._env = gym.make(self._env_name, start_level = self._default_reset_params["start-seed"],
+                            num_levels = self._default_reset_params["num-seeds"])
 
         # Prepare observation space
         self._visual_observation_space = self._env.observation_space
@@ -75,16 +80,16 @@ class ProcgenWrapper(Env):
         return self._env.action_space
 
     @property
+    def action_names(self):
+        """Returns a list of action names."""
+        return [["left down", "left", "left up", "down", "No-op", "up", "right down", "right", "right up", "D", "A", "W", "S", "Q", "E"]]
+
+    @property
     def get_episode_trajectory(self):
         """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
         """
         self._trajectory["action_names"] = self.action_names
         return self._trajectory if self._trajectory else None
-
-    @property
-    def action_names(self):
-        """Returns a list of action names."""
-        return ["left down", "left", "left up", "down", "No-op", "up", "right down", "right", "right up", "D", "A", "W", "S", "Q", "E"]
 
     def reset(self, reset_params = None):
         """Resets the environment.
@@ -110,10 +115,6 @@ class ProcgenWrapper(Env):
         obs = self._env.reset()
         # Retrieve the RGB frame of the agent"s vision
         vis_obs = obs.astype(np.float32) / 255.
-
-        # Render environment?
-        if self._realtime_mode:
-            self._env.render()
 
         # Prepare trajectory recording
         self._trajectory = {
@@ -141,11 +142,6 @@ class ProcgenWrapper(Env):
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
         vis_obs = obs.astype(np.float32)  / 255.
-
-        # Render environment?
-        if self._realtime_mode:
-            self._env.render()
-            time.sleep(0.033)
 
         # Record trajectory data
         if self._record:
