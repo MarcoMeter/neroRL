@@ -102,8 +102,8 @@ class MinigridVecWrapper(Env):
 
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [vec_obs],
-            "rewards": [0.0], "frame_rate": 1
+            "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [None],
+            "rewards": [0.0], "actions": [], "frame_rate": 1
         }
         return None, vec_obs
 
