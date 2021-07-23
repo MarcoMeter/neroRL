@@ -34,12 +34,14 @@ def main():
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
+        --framerate=<n>            Specifies the frame rate of a video shall be rendered. [default: 6]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]
     config_path = options["--config"]
     worker_id = int(options["--worker-id"])
     video_path = options["--video"]
+    frame_rate = options["--framerate"]
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -84,7 +86,7 @@ def main():
     logger.info("Step 3: Number of Workers: " + str(configs["evaluation"]["n_workers"]))
     logger.info("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
     logger.info("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
-    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space, video_path, record_video)
+    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space, video_path, record_video, frame_rate)
 
     # Evaluate
     logger.info("Step 4: Run evaluation . . .")

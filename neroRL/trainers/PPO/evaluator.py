@@ -121,7 +121,7 @@ class Evaluator():
                             actions[w].append(_actions)
                             log_probs[w].append(probs)
                             entropies[w].append(entropy)
-                            values[w].append(value)
+                            values[w].append(value.cpu().numpy())
 
                             # Step environment
                             worker.child.send(("step", _actions))

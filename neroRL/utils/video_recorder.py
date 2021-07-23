@@ -132,9 +132,9 @@ class VideoRecorder:
 
     @staticmethod
     def line_plot(data: np.ndarray, label: str, marker_pos = 10) -> np.ndarray:
+        matplotlib.use('Agg')
         font = {"weight" : "bold", "size" : 22}
         matplotlib.rc('font', **font)
-
         # Setup figure
         plt.style.use("dark_background")
         fig = plt.figure(dpi=180)
