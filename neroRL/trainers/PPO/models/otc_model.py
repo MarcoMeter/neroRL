@@ -4,6 +4,10 @@ from torch import nn
 from torch.distributions import Categorical
 from torch.nn import functional as F
 
+from neroRL.trainers.PPO.models.encoder_model import CNNEncoder
+from neroRL.trainers.PPO.models.recurrent_model import RecurrentModel
+
+
 class OTCModel(nn.Module):
     """A flexible actor-critic model that supports:
             - Multi-discrete action spaces
@@ -40,59 +44,28 @@ class OTCModel(nn.Module):
 
         # Observation encoder
         if vis_obs_space is not None:
+            self.encoder = CNNEncoder(vis_obs_space, config)
+
             # Case: visual observation available
             vis_obs_shape = vis_obs_space.shape
-            # Visual Encoder made of 3 convolutional layers
-            self.conv1 = nn.Conv2d(in_channels=vis_obs_shape[0],
-                                out_channels=32,
-                                kernel_size=8,
-                                stride=4,
-                                padding=0)
-            nn.init.orthogonal_(self.conv1.weight, np.sqrt(2))
-
-            self.conv2 = nn.Conv2d(in_channels=32,
-                                out_channels=64,
-                                kernel_size=4,
-                                stride=2,
-                                padding=0)
-            nn.init.orthogonal_(self.conv2.weight, np.sqrt(2))
-
-            self.conv3 = nn.Conv2d(in_channels=64,
-                                out_channels=64,
-                                kernel_size=3,
-                                stride=1,
-                                padding=0)
-            nn.init.orthogonal_(self.conv3.weight, np.sqrt(2))
-
             # Compute output size of convolutional layers
-            self.conv_out_size = self.get_conv_output(vis_obs_shape)
-            in_features_next_layer = self.conv_out_size
+            conv_out_size = self.get_enc_output(vis_obs_shape)
+            in_features_next_layer = conv_out_size
 
             # Determine number of features for the next layer's input
             if vec_obs_shape is not None:
                 # Case: vector observation is also available
                 in_features_next_layer = in_features_next_layer + vec_obs_shape[0]
+
         else:
             # Case: only vector observation is available
             in_features_next_layer = vec_obs_shape[0]
 
         # Recurrent Layer (GRU or LSTM)
         if self.recurrence is not None:
-            if self.recurrence["layer_type"] == "gru":
-                self.recurrent_layer = nn.GRU(in_features_next_layer, self.recurrence["hidden_state_size"], batch_first=True)
-            elif self.recurrence["layer_type"] == "lstm":
-                self.recurrent_layer = nn.LSTM(in_features_next_layer, self.recurrence["hidden_state_size"], batch_first=True)
-            # Init recurrent layer
-            for name, param in self.recurrent_layer.named_parameters():
-                if 'bias' in name:
-                    nn.init.constant_(param, 0)
-                elif 'weight' in name:
-                    nn.init.orthogonal_(param, np.sqrt(2))
+            self.recurrent_layer = RecurrentModel(self.recurrence["layer_type"], in_features_next_layer, self.recurrence["hidden_state_size"])
             # Hidden layer
             self.lin_hidden = nn.Linear(in_features=self.recurrence["hidden_state_size"], out_features=512)
-        else:
-            # Hidden layer
-            self.lin_hidden = nn.Linear(in_features=in_features_next_layer, out_features=512)
 
         # Init Hidden layer
         nn.init.orthogonal_(self.lin_hidden.weight, np.sqrt(2))
@@ -138,13 +111,7 @@ class OTCModel(nn.Module):
 
         # Forward observation encoder
         if vis_obs is not None:
-            vis_obs = torch.tensor(vis_obs, dtype=torch.float32, device=device)      # Convert vis_obs to tensor
-            # Propagate input through the visual encoder
-            h = self.activ_fn(self.conv1(vis_obs))
-            h = self.activ_fn(self.conv2(h))
-            h = self.activ_fn(self.conv3(h))
-            # Flatten the output of the convolutional layers
-            h = h.reshape((-1, self.conv_out_size))
+            h = self.encoder(vis_obs, device)
             if vec_obs is not None:
                 vec_obs = torch.tensor(vec_obs, dtype=torch.float32, device=device)    # Convert vec_obs to tensor
                 # Add vector observation to the flattened output of the visual encoder if available
@@ -154,22 +121,8 @@ class OTCModel(nn.Module):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
-            if sequence_length == 1:
-                # Case: sampling training data or model optimization using fake recurrence
-                h, recurrent_cell = self.recurrent_layer(h.unsqueeze(1), recurrent_cell)
-                h = h.squeeze(1) # Remove sequence length dimension
-            else:
-                # Case: Model optimization
-                # Reshape the to be fed data to batch_size, sequence_length, data
-                h_shape = tuple(h.size())
-                h = h.reshape((h_shape[0] // sequence_length), sequence_length, h_shape[1])
-
-                # Forward recurrent layer
-                h, recurrent_cell = self.recurrent_layer(h, recurrent_cell)
-
-                # Reshape to the original tensor size
-                h_shape = tuple(h.size())
-                h = h.reshape(h_shape[0] * h_shape[1], h_shape[2])
+            h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
+            
 
         # Feed hidden layer
         h = self.activ_fn(self.lin_hidden(h))
@@ -188,7 +141,7 @@ class OTCModel(nn.Module):
 
         return pi, value, recurrent_cell
 
-    def get_conv_output(self, shape):
+    def get_enc_output(self, shape):
         """Computes the output size of the convolutional layers by feeding a dummy tensor.
 
         Arguments:
@@ -197,9 +150,7 @@ class OTCModel(nn.Module):
         Returns:
             {int} -- Number of output features returned by the utilized convolutional layers
         """
-        o = self.conv1(torch.zeros(1, *shape))
-        o = self.conv2(o)
-        o = self.conv3(o)
+        o = self.encoder(torch.zeros(1, *shape), "cpu")
         return int(np.prod(o.size()))
  
     def init_recurrent_cell_states(self, num_sequences, device):

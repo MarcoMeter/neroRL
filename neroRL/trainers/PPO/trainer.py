@@ -12,7 +12,7 @@ from sys import exit
 from signal import signal, SIGINT
 
 from neroRL.environments.wrapper import wrap_environment
-from neroRL.trainers.PPO.otc_model import OTCModel
+from neroRL.trainers.PPO.models.otc_model import OTCModel
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.utils.worker import Worker
