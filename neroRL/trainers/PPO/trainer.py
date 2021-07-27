@@ -12,7 +12,7 @@ from sys import exit
 from signal import signal, SIGINT
 
 from neroRL.environments.wrapper import wrap_environment
-from neroRL.trainers.PPO.models.otc_model import OTCModel
+from neroRL.trainers.PPO.models.otc_model import ActorCriticSharedWeights
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.utils.worker import Worker
@@ -125,7 +125,7 @@ class PPOTrainer():
 
         # Init model
         self.logger.info("Step 3: Creating model")
-        self.model = OTCModel(configs["model"], visual_observation_space, vector_observation_space,
+        self.model = ActorCriticSharedWeights(configs["model"], visual_observation_space, vector_observation_space,
                                 self.action_space_shape, self.recurrence).to(self.device)
 
         # Instantiate optimizer

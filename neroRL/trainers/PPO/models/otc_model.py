@@ -5,20 +5,92 @@ from torch.distributions import Categorical
 from torch.nn import functional as F
 
 from neroRL.trainers.PPO.models.encoder_model import CNNEncoder
-from neroRL.trainers.PPO.models.recurrent_model import RecurrentModel, Base
+from neroRL.trainers.PPO.models.recurrent_model import GRU, LSTM
 
 
-class OTCModel(nn.Module, Base):
+class Base():
+    def __init__(self, recurrence):
+        self.recurrence = recurrence
+
+        self.mean_hxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
+        self.mean_cxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
+
+    def init_recurrent_cell_states(self, num_sequences, device):
+        """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
+        These states can be initialized in 4 ways:
+        - zero
+        - one
+        - mean (based on the recurrent cell states of the sampled training data)
+        - sample (based on the mean of all recurrent cell states of the sampled training data, the std is set to 0.01)
+        Arugments:
+            num_sequences {int}: The number of sequences determines the number of the to be generated initial recurrent cell states.
+            device {torch.device}: Target device.
+        Returns:
+            {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned using initial values.
+        """
+        hxs, cxs = None, None
+        if self.recurrence["hidden_state_init"] == "zero":
+            hxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
+            if self.recurrence["layer_type"] == "lstm":
+                cxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
+        elif self.recurrence["hidden_state_init"] == "one":
+            hxs = torch.ones((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
+            if self.recurrence["layer_type"] == "lstm":
+                cxs = torch.ones((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device, requires_grad=True).unsqueeze(0)
+        elif self.recurrence["hidden_state_init"] == "mean":
+            mean = [self.mean_hxs for i in range(num_sequences)]
+            hxs = torch.tensor(mean, device=device, requires_grad=True).unsqueeze(0)
+            if self.recurrence["layer_type"] == "lstm":
+                mean = [self.mean_cxs for i in range(num_sequences)]
+                cxs = torch.tensor(mean, device=device, requires_grad=True).unsqueeze(0)
+        elif self.recurrence["hidden_state_init"] == "sample":
+            mean = [self.mean_hxs for i in range(num_sequences)]
+            hxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["hidden_state_size"]), requires_grad=True).to(device)
+            if self.recurrence["layer_type"] == "lstm":
+                mean = [self.mean_cxs for i in range(num_sequences)]
+                cxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["hidden_state_size"]), requires_grad=True).to(device)
+        return hxs, cxs
+
+    def set_mean_recurrent_cell_states(self, mean_hxs, mean_cxs):
+        """Sets the mean values (hidden state size) for recurrent cell statres.
+        Args:
+            mean_hxs {np.ndarray}: Mean hidden state
+            mean_cxs {np.ndarray}: Mean cell state (in the case of using an LSTM layer)
+        """
+        self.mean_hxs = mean_hxs
+        self.mean_cxs = mean_cxs
+
+    def getActivationFunc(self, config):
+        # Set the activation function for most layers of the neural net
+        if config["activation"] == "elu":
+            return F.elu
+        elif config["activation"] == "leaky_relu":
+            return F.leaky_relu
+        elif config["activation"] == "relu":
+            return F.relu
+        elif config["activation"] == "elu":
+            return F.silu
+
+    def getEncoder(self, config, vis_obs_space):
+        if config["encoder"] == "cnn":
+            return CNNEncoder(vis_obs_space, config)
+    
+    def getRecurrentLayer(self, recurrence, input_shape):
+        if recurrence["layer_type"] == "gru":
+            return GRU(input_shape, recurrence["hidden_state_size"])
+        elif recurrence["layer_type"] == "lstm":
+            return LSTM(input_shape, recurrence["hidden_state_size"])
+
+
+class ActorCriticSharedWeights(nn.Module, Base):
     """A flexible actor-critic model that supports:
             - Multi-discrete action spaces
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
-
         Originally, this model has been used for the Obstacle Tower Challenge without a recurrent layer.
     """
     def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
         """Model setup
-
         Arguments:
             config {dict} -- Model config that is not used yet
             vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
@@ -34,11 +106,11 @@ class OTCModel(nn.Module, Base):
         nn.Module.__init__(self)
         Base.__init__(self, self.recurrence)
         
-        self.activ_fn = self.available_activ_fns[config["activation"]]
+        self.activ_fn = self.getActivationFunc(config)
 
         # Observation encoder
         if vis_obs_space is not None:
-            self.encoder = CNNEncoder(vis_obs_space, config)
+            self.encoder = self.getEncoder(config, vis_obs_space)
 
             # Case: visual observation available
             vis_obs_shape = vis_obs_space.shape
@@ -57,7 +129,7 @@ class OTCModel(nn.Module, Base):
 
         # Recurrent Layer (GRU or LSTM)
         if self.recurrence is not None:
-            self.recurrent_layer = RecurrentModel(self.recurrence["layer_type"], in_features_next_layer, self.recurrence["hidden_state_size"])
+            self.recurrent_layer = self.getRecurrentLayer(recurrence, in_features_next_layer)
             # Hidden layer
             self.lin_hidden = nn.Linear(in_features=self.recurrence["hidden_state_size"], out_features=512)
 
@@ -88,14 +160,12 @@ class OTCModel(nn.Module, Base):
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
-
         Arguments:
             vis_obs {numpy.ndarray/torch,tensor} -- Visual observation (None if not available)
             vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
             recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer (None if not available)
             device {torch.device} -- Current device
             sequence_length {int} -- Length of the fed sequences
-
         Returns:
             {list} -- Policy: List featuring categorical distributions respectively for each policy branch
             {torch.tensor} -- Value Function: Value
@@ -137,14 +207,10 @@ class OTCModel(nn.Module, Base):
 
     def get_enc_output(self, shape):
         """Computes the output size of the convolutional layers by feeding a dummy tensor.
-
         Arguments:
             shape {tuple} -- Input shape of the data feeding the first convolutional layer
-
         Returns:
             {int} -- Number of output features returned by the utilized convolutional layers
         """
         o = self.encoder(torch.zeros(1, *shape), "cpu")
         return int(np.prod(o.size()))
- 
-    

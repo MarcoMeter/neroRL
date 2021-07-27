@@ -43,7 +43,7 @@ model:
   # DAAC: Actor model also estimates the advantages(Note: if True = > parameter are not shared)
   pi_estimate_advantages: True
   # Set the to be used encoder
-  encoder: CNN
+  encoder: "cnn"
 
   recurrence:
     # Supported recurrent layers: gru, lstm
