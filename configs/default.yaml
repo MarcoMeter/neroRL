@@ -87,7 +87,7 @@ trainer:
   # Number of environments that are used for sampling data
   n_workers: 16
   # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
-  worker_steps: 20
+  worker_steps: 256
   # Number of times that the whole batch of data is used for optimization using PPO
   # Each epoch trains on a random permutation of the sampled training batch
   epochs: 4
