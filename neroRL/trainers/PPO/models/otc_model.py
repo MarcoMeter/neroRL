@@ -72,11 +72,11 @@ class Base(nn.Module):
         elif config["activation"] == "elu":
             return F.silu
 
-    def getEncoder(self, config, vis_obs_space):
+    def get_encoder(self, config, vis_obs_space):
         if config["encoder"] == "cnn":
             return CNNEncoder(vis_obs_space, config)
     
-    def getRecurrentLayer(self, recurrence, input_shape):
+    def get_recurrent_layer(self, recurrence, input_shape):
         if recurrence["layer_type"] == "gru":
             return GRU(input_shape, recurrence["hidden_state_size"])
         elif recurrence["layer_type"] == "lstm":
@@ -103,7 +103,7 @@ class Actor(nn.Module):
 
         # Observation encoder
         if vis_obs_space is not None:
-            self.encoder = self.getEncoder(config, vis_obs_space)
+            self.encoder = self.get_encoder(config, vis_obs_space)
 
             # Case: visual observation available
             vis_obs_shape = vis_obs_space.shape
@@ -122,7 +122,7 @@ class Actor(nn.Module):
 
         # Recurrent Layer (GRU or LSTM)
         if self.recurrence is not None:
-            self.recurrent_layer = self.getRecurrentLayer(recurrence, in_features_next_layer)
+            self.recurrent_layer = self.get_recurrent_layer(recurrence, in_features_next_layer)
             # Hidden layer
             self.lin_hidden = nn.Linear(in_features=self.recurrence["hidden_state_size"], out_features=512)
 
@@ -223,7 +223,7 @@ class Critic(Base):
 
         # Observation encoder
         if vis_obs_space is not None:
-            self.encoder = self.getEncoder(config, vis_obs_space)
+            self.encoder = self.get_encoder(config, vis_obs_space)
 
             # Case: visual observation available
             vis_obs_shape = vis_obs_space.shape
@@ -242,7 +242,7 @@ class Critic(Base):
 
         # Recurrent Layer (GRU or LSTM)
         if self.recurrence is not None:
-            self.recurrent_layer = self.getRecurrentLayer(recurrence, in_features_next_layer)
+            self.recurrent_layer = self.get_recurrent_layer(recurrence, in_features_next_layer)
             # Hidden layer
             self.lin_hidden = nn.Linear(in_features=self.recurrence["hidden_state_size"], out_features=512)
 
@@ -349,7 +349,7 @@ class ActorCriticSharedWeights(Base):
 
         # Observation encoder
         if vis_obs_space is not None:
-            self.encoder = self.getEncoder(config, vis_obs_space)
+            self.encoder = self.get_encoder(config, vis_obs_space)
 
             # Case: visual observation available
             vis_obs_shape = vis_obs_space.shape
@@ -368,7 +368,7 @@ class ActorCriticSharedWeights(Base):
 
         # Recurrent Layer (GRU or LSTM)
         if self.recurrence is not None:
-            self.recurrent_layer = self.getRecurrentLayer(recurrence, in_features_next_layer)
+            self.recurrent_layer = self.get_recurrent_layer(recurrence, in_features_next_layer)
             # Hidden layer
             self.lin_hidden = nn.Linear(in_features=self.recurrence["hidden_state_size"], out_features=512)
 
