@@ -4,8 +4,8 @@ from torch import nn
 from torch.distributions import Categorical
 from torch.nn import functional as F
 
-from neroRL.trainers.PPO.models.encoder_model import CNNEncoder
-from neroRL.trainers.PPO.models.recurrent_model import GRU, LSTM
+from neroRL.trainers.PPO.models.encoder import CNNEncoder
+from neroRL.trainers.PPO.models.recurrent import GRU, LSTM
 
 
 class Base(nn.Module):
@@ -312,7 +312,7 @@ class ActorCriticSeperateWeights(Base):
     def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
         Base.__init__(self, self.recurrence)
 
-        self.actor = Actor(config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
+        self.actor = Actor(config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence)
         self.critic = Critic(config, vis_obs_space, vec_obs_shape, recurrence)
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
