@@ -186,8 +186,6 @@ class PPOTrainer():
             return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
                                 action_space_shape, recurrence).to(device)
         else:
-            if model_config["pi_estimate_advantages"]:
-                return None # TODO
             return ActorCriticSeperateWeights(model_config, visual_observation_space, vector_observation_space,
                                 action_space_shape, recurrence).to(device)
 
