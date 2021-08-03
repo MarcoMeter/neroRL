@@ -8,13 +8,43 @@ from neroRL.trainers.PPO.models.encoder import CNNEncoder
 from neroRL.trainers.PPO.models.recurrent import GRU, LSTM
 
 
-class Base(nn.Module):
-    def __init__(self, recurrence):
+class ActorCriticBase(nn.Module):
+    def __init__(self, config, recurrence, vis_obs_space, vec_obs_shape):
         super().__init__()
         self.recurrence = recurrence
 
         self.mean_hxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
+
+        self.activ_fn = self.getActivationFunc(config)
+
+        # Observation encoder
+        if vis_obs_space is not None:
+            self.encoder = self.get_encoder(config, vis_obs_space)
+
+            # Case: visual observation available
+            vis_obs_shape = vis_obs_space.shape
+            # Compute output size of convolutional layers
+            conv_out_size = self.get_enc_output(vis_obs_shape)
+            in_features_next_layer = conv_out_size
+
+            # Determine number of features for the next layer's input
+            if vec_obs_shape is not None:
+                # Case: vector observation is also available
+                in_features_next_layer = in_features_next_layer + vec_obs_shape[0]
+
+        else:
+            # Case: only vector observation is available
+            in_features_next_layer = vec_obs_shape[0]
+
+        # Recurrent Layer (GRU or LSTM)
+        if self.recurrence is not None:
+            self.recurrent_layer = self.get_recurrent_layer(recurrence, in_features_next_layer)
+            # Hidden layer
+            self.lin_hidden = nn.Linear(in_features=self.recurrence["hidden_state_size"], out_features=512)
+
+        # Init Hidden layer
+        nn.init.orthogonal_(self.lin_hidden.weight, np.sqrt(2))
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
@@ -82,6 +112,16 @@ class Base(nn.Module):
         elif recurrence["layer_type"] == "lstm":
             return LSTM(input_shape, recurrence["hidden_state_size"])
 
+    def get_enc_output(self, shape):
+        """Computes the output size of the convolutional layers by feeding a dummy tensor.
+        Arguments:
+            shape {tuple} -- Input shape of the data feeding the first convolutional layer
+        Returns:
+            {int} -- Number of output features returned by the utilized convolutional layers
+        """
+        o = self.encoder(torch.zeros(1, *shape), "cpu")
+        return int(np.prod(o.size()))
+
 class Actor(nn.Module):
     def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
         """Model setup
@@ -94,42 +134,8 @@ class Actor(nn.Module):
                 - layer type {stirng}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
         """
 
-        # Members for using a recurrent policy
-        self.recurrence = recurrence
-
-        Base.__init__(self, self.recurrence)
+        ActorCriticBase.__init__(self, config, recurrence, vis_obs_space, vec_obs_shape)
         
-        self.activ_fn = self.getActivationFunc(config)
-
-        # Observation encoder
-        if vis_obs_space is not None:
-            self.encoder = self.get_encoder(config, vis_obs_space)
-
-            # Case: visual observation available
-            vis_obs_shape = vis_obs_space.shape
-            # Compute output size of convolutional layers
-            conv_out_size = self.get_enc_output(vis_obs_shape)
-            in_features_next_layer = conv_out_size
-
-            # Determine number of features for the next layer's input
-            if vec_obs_shape is not None:
-                # Case: vector observation is also available
-                in_features_next_layer = in_features_next_layer + vec_obs_shape[0]
-
-        else:
-            # Case: only vector observation is available
-            in_features_next_layer = vec_obs_shape[0]
-
-        # Recurrent Layer (GRU or LSTM)
-        if self.recurrence is not None:
-            self.recurrent_layer = self.get_recurrent_layer(recurrence, in_features_next_layer)
-            # Hidden layer
-            self.lin_hidden = nn.Linear(in_features=self.recurrence["hidden_state_size"], out_features=512)
-
-        # Init Hidden layer
-        nn.init.orthogonal_(self.lin_hidden.weight, np.sqrt(2))
-
-        # Decouple policy from value
         # Hidden layer of the policy
         self.lin_policy = nn.Linear(in_features=512, out_features=512)
         nn.init.orthogonal_(self.lin_policy.weight, np.sqrt(2))
@@ -186,17 +192,7 @@ class Actor(nn.Module):
 
         return pi, recurrent_cell
 
-    def get_enc_output(self, shape):
-        """Computes the output size of the convolutional layers by feeding a dummy tensor.
-        Arguments:
-            shape {tuple} -- Input shape of the data feeding the first convolutional layer
-        Returns:
-            {int} -- Number of output features returned by the utilized convolutional layers
-        """
-        o = self.encoder(torch.zeros(1, *shape), "cpu")
-        return int(np.prod(o.size()))
-
-class Critic(Base):
+class Critic(ActorCriticBase):
     """A flexible actor-critic model that supports:
             - Multi-discrete action spaces
             - Visual & vector observation spaces
@@ -215,39 +211,7 @@ class Critic(Base):
         """
 
         # Members for using a recurrent policy
-        self.recurrence = recurrence
-
-        Base.__init__(self, self.recurrence)
-        
-        self.activ_fn = self.getActivationFunc(config)
-
-        # Observation encoder
-        if vis_obs_space is not None:
-            self.encoder = self.get_encoder(config, vis_obs_space)
-
-            # Case: visual observation available
-            vis_obs_shape = vis_obs_space.shape
-            # Compute output size of convolutional layers
-            conv_out_size = self.get_enc_output(vis_obs_shape)
-            in_features_next_layer = conv_out_size
-
-            # Determine number of features for the next layer's input
-            if vec_obs_shape is not None:
-                # Case: vector observation is also available
-                in_features_next_layer = in_features_next_layer + vec_obs_shape[0]
-
-        else:
-            # Case: only vector observation is available
-            in_features_next_layer = vec_obs_shape[0]
-
-        # Recurrent Layer (GRU or LSTM)
-        if self.recurrence is not None:
-            self.recurrent_layer = self.get_recurrent_layer(recurrence, in_features_next_layer)
-            # Hidden layer
-            self.lin_hidden = nn.Linear(in_features=self.recurrence["hidden_state_size"], out_features=512)
-
-        # Init Hidden layer
-        nn.init.orthogonal_(self.lin_hidden.weight, np.sqrt(2))
+        ActorCriticBase.__init__(self, config, recurrence, vis_obs_space, vec_obs_shape)
 
         # Hidden layer of the value function
         self.lin_value = nn.Linear(in_features=512, out_features=512)
@@ -298,19 +262,8 @@ class Critic(Base):
 
         return value, recurrent_cell
 
-    def get_enc_output(self, shape):
-        """Computes the output size of the convolutional layers by feeding a dummy tensor.
-        Arguments:
-            shape {tuple} -- Input shape of the data feeding the first convolutional layer
-        Returns:
-            {int} -- Number of output features returned by the utilized convolutional layers
-        """
-        o = self.encoder(torch.zeros(1, *shape), "cpu")
-        return int(np.prod(o.size()))
-
-class ActorCriticSeperateWeights(Base):
+class ActorCriticSeperateWeights():
     def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
-        Base.__init__(self, self.recurrence)
 
         self.actor = Actor(config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence)
         self.critic = Critic(config, vis_obs_space, vec_obs_shape, recurrence)
@@ -322,7 +275,7 @@ class ActorCriticSeperateWeights(Base):
         return actor_result, critic_result
 
 
-class ActorCriticSharedWeights(Base):
+class ActorCriticSharedWeights(ActorCriticBase):
     """A flexible actor-critic model that supports:
             - Multi-discrete action spaces
             - Visual & vector observation spaces
@@ -341,39 +294,7 @@ class ActorCriticSharedWeights(Base):
         """
 
         # Members for using a recurrent policy
-        self.recurrence = recurrence
-
-        Base.__init__(self, self.recurrence)
-        
-        self.activ_fn = self.getActivationFunc(config)
-
-        # Observation encoder
-        if vis_obs_space is not None:
-            self.encoder = self.get_encoder(config, vis_obs_space)
-
-            # Case: visual observation available
-            vis_obs_shape = vis_obs_space.shape
-            # Compute output size of convolutional layers
-            conv_out_size = self.get_enc_output(vis_obs_shape)
-            in_features_next_layer = conv_out_size
-
-            # Determine number of features for the next layer's input
-            if vec_obs_shape is not None:
-                # Case: vector observation is also available
-                in_features_next_layer = in_features_next_layer + vec_obs_shape[0]
-
-        else:
-            # Case: only vector observation is available
-            in_features_next_layer = vec_obs_shape[0]
-
-        # Recurrent Layer (GRU or LSTM)
-        if self.recurrence is not None:
-            self.recurrent_layer = self.get_recurrent_layer(recurrence, in_features_next_layer)
-            # Hidden layer
-            self.lin_hidden = nn.Linear(in_features=self.recurrence["hidden_state_size"], out_features=512)
-
-        # Init Hidden layer
-        nn.init.orthogonal_(self.lin_hidden.weight, np.sqrt(2))
+        ActorCriticBase.__init__(self, config, recurrence, vis_obs_space, vec_obs_shape)
 
         # Decouple policy from value
         # Hidden layer of the policy
@@ -444,12 +365,3 @@ class ActorCriticSharedWeights(Base):
 
         return pi, value, recurrent_cell
 
-    def get_enc_output(self, shape):
-        """Computes the output size of the convolutional layers by feeding a dummy tensor.
-        Arguments:
-            shape {tuple} -- Input shape of the data feeding the first convolutional layer
-        Returns:
-            {int} -- Number of output features returned by the utilized convolutional layers
-        """
-        o = self.encoder(torch.zeros(1, *shape), "cpu")
-        return int(np.prod(o.size()))
