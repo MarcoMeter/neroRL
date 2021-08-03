@@ -15,7 +15,7 @@ class ActorCriticBase(nn.Module):
         self.mean_hxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
 
-        self.activ_fn = self.getActivationFunc(config)
+        self.activ_fn = self.get_activation_function(config)
 
     def create_base_model(self, config, vis_obs_space, vec_obs_shape):
         # Observation encoder
@@ -93,7 +93,7 @@ class ActorCriticBase(nn.Module):
         self.mean_hxs = mean_hxs
         self.mean_cxs = mean_cxs
 
-    def getActivationFunc(self, config):
+    def get_activation_function(self, config):
         # Set the activation function for most layers of the neural net
         if config["activation"] == "elu":
             return F.elu
@@ -101,7 +101,7 @@ class ActorCriticBase(nn.Module):
             return F.leaky_relu
         elif config["activation"] == "relu":
             return F.relu
-        elif config["activation"] == "elu":
+        elif config["activation"] == "swish":
             return F.silu
 
     def create_encoder(self, config, vis_obs_space):
