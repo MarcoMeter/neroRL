@@ -39,9 +39,9 @@ model:
   # Set the to be used activation function (elu, leaky_relu, relu, swish)
   activation: "relu"
   # Wether the actor and critic model should share its parameters
-  share_parameters: False
+  share_parameters: True
   # DAAC: Actor model also estimates the advantages(Note: if True = > parameter are not shared)
-  pi_estimate_advantages: True
+  pi_estimate_advantages: False
   # Set the to be used encoder
   encoder: "cnn"
 
