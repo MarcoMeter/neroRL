@@ -18,6 +18,8 @@ class ActorCriticBase(nn.Module):
         self.activ_fn = self.get_activation_function(config)
 
     def create_base_model(self, config, vis_obs_space, vec_obs_shape):
+        encoder, recurrent_layer, hidden_layer = None, None, None
+
         # Observation encoder
         if vis_obs_space is not None:
             encoder = self.create_encoder(config, vis_obs_space)
