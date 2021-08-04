@@ -114,7 +114,8 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         return recurrent_cell 
 
     def pack_recurrent_cell(self, actor_recurrent_cell, critic_recurrent_cell, device):
-        # Unpack recurrent cell, if GRU is used then unpacking might not be possible, so zip the recurrent cell with None and then unpack it
+        # Unpack recurrent cell
+        # If GRU is used then unpacking might not be possible, so zip the recurrent cell with None and then unpack it
         actor_hxs, actor_cxs = actor_recurrent_cell if isinstance(actor_recurrent_cell, tuple) else (actor_recurrent_cell, None)
         critic_hxs, critic_cxs = critic_recurrent_cell if isinstance(critic_recurrent_cell, tuple) else (critic_recurrent_cell, None)
 
@@ -131,7 +132,8 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         return recurrent_cell
 
     def unpack_recurrent_cell(self, recurrent_cell):
-        # Unpack recurrent cell, if GRU is used then unpacking might not be possible, so zip the recurrent cell with None and then unpack it
+        # Unpack recurrent cell
+        # If GRU is used then unpacking might not be possible, so zip the recurrent cell with None and then unpack it
         (hxs, cxs) = recurrent_cell if isinstance(recurrent_cell, tuple) else (recurrent_cell, None)
 
         actor_hxs, critic_hxs = hxs[:, :, :, 0], hxs[:, :, :, 1]
@@ -144,7 +146,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # return (actor_hxs, actor_cxs), (critic_hxs, critic_cxs)
         return actor_recurrent_cell, critic_recurrent_cell
-        
+
 class ActorCriticSharedWeights(ActorCriticBase):
     """A flexible actor-critic model that supports:
             - Multi-discrete action spaces
