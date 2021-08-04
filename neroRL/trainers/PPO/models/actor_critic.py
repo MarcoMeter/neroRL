@@ -108,6 +108,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         critic_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
 
         packed_recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+        # (hxs, cxs) is expected to be returned. But if we use GRU then pack_recurrent_cell just returns hxs so zip it with None to return (hxs, None)
         recurrent_cell = packed_recurrent_cell if self.recurrence["layer_type"] == "lstm" else (packed_recurrent_cell, None)
 
         return recurrent_cell 
