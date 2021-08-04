@@ -36,7 +36,7 @@ class GRU(nn.Module):
         return h, recurrent_cell
 
 class LSTM(nn.Module):
-    def __init__(self, layer_type, input_shape, hidden_state_size):
+    def __init__(self, input_shape, hidden_state_size):
         super().__init__()
         self.recurrent_layer = nn.LSTM(input_shape, hidden_state_size, batch_first=True)
         # Init recurrent layer

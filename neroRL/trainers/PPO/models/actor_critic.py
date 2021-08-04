@@ -78,12 +78,14 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
-            h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, recurrent_cell, sequence_length)
-            h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, recurrent_cell, sequence_length)
+            (actor_recurrent_cell, critic_recurrent_cell) = self.unpack_recurrent_cell(recurrent_cell)
+
+            h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, actor_recurrent_cell, sequence_length)
+            h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
             
 
         # Feed hidden layer
-        h_actor, h_critic = self.activ_fn(self.lin_hidden(h_actor)), self.activ_fn(self.lin_hidden(h_critic))
+        h_actor, h_critic = self.activ_fn(self.actor_hidden(h_actor)), self.activ_fn(self.critic_hidden(h_critic))
 
         # Decouple policy from value
         # Feed hidden layer (policy)
@@ -97,7 +99,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         for i, branch in enumerate(self.policy_branches):
             pi.append(Categorical(logits=self.policy_branches[i](h_policy)))
 
-        recurrent_cell = (actor_recurrent_cell, critic_recurrent_cell)
+        recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
 
         return pi, value, recurrent_cell
 
@@ -105,8 +107,35 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         actor_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
         critic_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
 
-        recurrent_cell = (actor_recurrent_cell, critic_recurrent_cell)
+        recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+
         return recurrent_cell
+
+    def pack_recurrent_cell(self, actor_recurrent_cell, critic_recurrent_cell, device):
+        actor_hxs, actor_cxs = actor_recurrent_cell
+        critic_hxs, critic_cxs = critic_recurrent_cell
+
+        hxs = torch.zeros((*actor_hxs.shape, 2), dtype=torch.float32, device=device)
+        cxs = torch.zeros((*actor_cxs.shape, 2), dtype=torch.float32, device=device)
+
+        hxs[:, :, :, 0], hxs[:, :, :, 1] = actor_hxs, critic_hxs
+        cxs[:, :, :, 0], cxs[:, :, :, 1] = actor_cxs, critic_cxs
+
+        recurrent_cell = (hxs, cxs)
+        return recurrent_cell
+
+    def unpack_recurrent_cell(self, recurrent_cell):
+        (hxs, cxs) = recurrent_cell
+
+        actor_hxs, critic_hxs = hxs[:, :, :, 0], hxs[:, :, :, 1]
+        actor_cxs, critic_cxs = cxs[:, :, :, 0], cxs[:, :, :, 1]
+
+        actor_recurrent_cell = (actor_hxs, actor_cxs)
+        critic_recurrent_cell = (critic_hxs, critic_cxs)
+
+        return actor_recurrent_cell, critic_recurrent_cell
+
+
 
 class ActorCriticSharedWeights(ActorCriticBase):
     """A flexible actor-critic model that supports:

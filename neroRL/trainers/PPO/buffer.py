@@ -5,7 +5,7 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent policies.
     """
-    def __init__(self, num_workers, worker_steps, num_mini_batches, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device, mini_batch_device):
+    def __init__(self, num_workers, worker_steps, num_mini_batches, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device, mini_batch_device, shared):
         """
         Arguments:
             num_workers {int} -- Number of environments/agents to sample training data
@@ -39,8 +39,14 @@ class Buffer():
             self.vec_obs = np.zeros((num_workers, worker_steps,) + vector_observation_space, dtype=np.float32)
         else:
             self.vec_obs = None
-        self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
-        self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
+        
+        if shared:
+            self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
+            self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
+        else:
+            self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
+            self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
+
         self.log_probs = np.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=np.float32)
         self.values = np.zeros((num_workers, worker_steps), dtype=np.float32)
         self.advantages = np.zeros((num_workers, worker_steps), dtype=np.float32)

@@ -39,7 +39,7 @@ model:
   # Set the to be used activation function (elu, leaky_relu, relu, swish)
   activation: "relu"
   # Wether the actor and critic model should share its parameters
-  share_parameters: True
+  share_parameters: False
   # DAAC: Actor model also estimates the advantages(Note: if True = > parameter are not shared)
   pi_estimate_advantages: False
   # Set the to be used encoder
@@ -49,7 +49,7 @@ model:
 
   recurrence:
     # Supported recurrent layers: gru, lstm
-    layer_type: "gru"
+    layer_type: "lstm"
     # Length of the trained sequences, if set to 0 or smaller the sequence length is dynamically fit to episode lengths
     sequence_length: 32
     # Size of the recurrent layer's hidden state

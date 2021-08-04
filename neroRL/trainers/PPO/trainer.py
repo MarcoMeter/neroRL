@@ -121,7 +121,7 @@ class PPOTrainer():
             self.n_workers, self.worker_steps, self.n_mini_batch,
             visual_observation_space, vector_observation_space,
             self.action_space_shape, self.recurrence,
-            self.device, self.mini_batch_device)
+            self.device, self.mini_batch_device, configs["model"]["share_parameters"])
 
         # Init model
         self.logger.info("Step 3: Creating model")
@@ -224,7 +224,7 @@ class PPOTrainer():
                 sample_episode_info = self._sample_training_data(self.device)
             
             # 3.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
-            if self.recurrence is not None:
+            if self.recurrence is not None and self.configs["model"]["share_parameters"]:
                 self.model.set_mean_recurrent_cell_states(
                         np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0),
                         np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0))
