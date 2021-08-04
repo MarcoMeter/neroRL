@@ -127,7 +127,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # return the packed recurrent_cell based on the recurrent layer_type
         recurrent_cell = (hxs, cxs) if self.recurrence["layer_type"] == "lstm" else hxs
-
+        # return ((actor_hxs, critic_hxs), (actor_cxs, critic_cxs))
         return recurrent_cell
 
     def unpack_recurrent_cell(self, recurrent_cell):
@@ -142,10 +142,9 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         actor_recurrent_cell = (actor_hxs, actor_cxs) if self.recurrence["layer_type"] == "lstm" else actor_hxs
         critic_recurrent_cell = (critic_hxs, critic_cxs) if self.recurrence["layer_type"] == "lstm" else critic_hxs
 
+        # return (actor_hxs, actor_cxs), (critic_hxs, critic_cxs)
         return actor_recurrent_cell, critic_recurrent_cell
-
-
-
+        
 class ActorCriticSharedWeights(ActorCriticBase):
     """A flexible actor-critic model that supports:
             - Multi-discrete action spaces
