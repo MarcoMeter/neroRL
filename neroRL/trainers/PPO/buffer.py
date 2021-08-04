@@ -5,7 +5,7 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent policies.
     """
-    def __init__(self, num_workers, worker_steps, num_mini_batches, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device, mini_batch_device, shared):
+    def __init__(self, num_workers, worker_steps, num_mini_batches, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device, mini_batch_device, share_parameters):
         """
         Arguments:
             num_workers {int} -- Number of environments/agents to sample training data
@@ -40,7 +40,7 @@ class Buffer():
         else:
             self.vec_obs = None
         
-        if shared:
+        if share_parameters:
             self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
             self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
         else:
