@@ -43,7 +43,7 @@ class Buffer():
         if share_parameters:
             self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
             self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
-        else:
+        else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
             self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
             self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 

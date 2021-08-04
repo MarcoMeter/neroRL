@@ -107,31 +107,39 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         actor_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
         critic_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
 
-        recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+        packed_recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+        recurrent_cell = packed_recurrent_cell if self.recurrence["layer_type"] == "lstm" else (packed_recurrent_cell, None)
 
-        return recurrent_cell
+        return recurrent_cell 
 
     def pack_recurrent_cell(self, actor_recurrent_cell, critic_recurrent_cell, device):
-        actor_hxs, actor_cxs = actor_recurrent_cell
-        critic_hxs, critic_cxs = critic_recurrent_cell
+        # Unpack recurrent cell, if GRU is used then unpacking might not be possible, so zip the recurrent cell with None and then unpack it
+        actor_hxs, actor_cxs = actor_recurrent_cell if isinstance(actor_recurrent_cell, tuple) else (actor_recurrent_cell, None)
+        critic_hxs, critic_cxs = critic_recurrent_cell if isinstance(critic_recurrent_cell, tuple) else (critic_recurrent_cell, None)
 
         hxs = torch.zeros((*actor_hxs.shape, 2), dtype=torch.float32, device=device)
-        cxs = torch.zeros((*actor_cxs.shape, 2), dtype=torch.float32, device=device)
+        cxs = torch.zeros((*actor_cxs.shape, 2), dtype=torch.float32, device=device) if actor_cxs is not None else None
 
         hxs[:, :, :, 0], hxs[:, :, :, 1] = actor_hxs, critic_hxs
-        cxs[:, :, :, 0], cxs[:, :, :, 1] = actor_cxs, critic_cxs
+        if cxs is not None: # check if LSTM network is used, if it's used then unpack the cell state
+            cxs[:, :, :, 0], cxs[:, :, :, 1] = actor_cxs, critic_cxs
 
-        recurrent_cell = (hxs, cxs)
+        # return the packed recurrent_cell based on the recurrent layer_type
+        recurrent_cell = (hxs, cxs) if self.recurrence["layer_type"] == "lstm" else hxs
+
         return recurrent_cell
 
     def unpack_recurrent_cell(self, recurrent_cell):
-        (hxs, cxs) = recurrent_cell
+        # Unpack recurrent cell, if GRU is used then unpacking might not be possible, so zip the recurrent cell with None and then unpack it
+        (hxs, cxs) = recurrent_cell if isinstance(recurrent_cell, tuple) else (recurrent_cell, None)
 
         actor_hxs, critic_hxs = hxs[:, :, :, 0], hxs[:, :, :, 1]
-        actor_cxs, critic_cxs = cxs[:, :, :, 0], cxs[:, :, :, 1]
+        if cxs is not None: # check if LSTM network is used, if it's used then unpack the cell state
+            actor_cxs, critic_cxs = cxs[:, :, :, 0], cxs[:, :, :, 1]
 
-        actor_recurrent_cell = (actor_hxs, actor_cxs)
-        critic_recurrent_cell = (critic_hxs, critic_cxs)
+        # return the packed recurrent_cell based on the recurrent layer_type
+        actor_recurrent_cell = (actor_hxs, actor_cxs) if self.recurrence["layer_type"] == "lstm" else actor_hxs
+        critic_recurrent_cell = (critic_hxs, critic_cxs) if self.recurrence["layer_type"] == "lstm" else critic_hxs
 
         return actor_recurrent_cell, critic_recurrent_cell
 
