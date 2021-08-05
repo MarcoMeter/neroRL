@@ -77,14 +77,13 @@ class PPOTrainer():
         self.lr_schedule = configs["trainer"]['learning_rate_schedule']
         self.beta_schedule = configs["trainer"]['beta_schedule']
         self.cr_schedule = configs["trainer"]['clip_range_schedule']
+        self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
         self.batch_size = self.n_workers * self.worker_steps
         self.mini_batch_size = self.batch_size // self.n_mini_batch
         assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
         self.writer = SummaryWriter(out_path + "summaries/" + run_id + timestamp)
         self._write_hyperparameters(configs)
-
-        self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
         # Start logging the training setup
         self.logger.info("Step 1: Provided config:")
@@ -93,8 +92,8 @@ class PPOTrainer():
             for k, v in configs[key].items():
                 self.logger.info("Step 1: " + str(k) + ": " + str(v))
 
-        self.logger.info("Step 2: Creating dummy environment")
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
+        self.logger.info("Step 2: Creating dummy environment")
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
         visual_observation_space = self.dummy_env.visual_observation_space
         vector_observation_space = self.dummy_env.vector_observation_space
@@ -112,7 +111,7 @@ class PPOTrainer():
         # Prepare evaluator if configured
         self.eval = configs["evaluation"]["evaluate"]
         self.eval_interval = configs["evaluation"]["interval"]
-        if self.eval:
+        if self.eval and self.eval_interval > 0:
             self.logger.info("Step 2b: Initializing evaluator")
             self.evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
 
@@ -125,7 +124,7 @@ class PPOTrainer():
 
         # Init model
         self.logger.info("Step 3: Creating model")
-        self.model = self.create_actor_critic_model(configs["model"], visual_observation_space, vector_observation_space,
+        self.model = self._create_actor_critic_model(configs["model"], visual_observation_space, vector_observation_space,
                                 self.action_space_shape, self.recurrence, self.device)
 
         # Instantiate optimizer
@@ -179,10 +178,10 @@ class PPOTrainer():
             if self.vec_obs is not None:
                 self.vec_obs[i] = vec_obs
 
-    def create_actor_critic_model(self, model_config, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
+    def _create_actor_critic_model(self, model_config, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
         if model_config["share_parameters"]:
             if model_config["pi_estimate_advantages"]:
-                raise ValueError('If policy should also estimate advantages, then parameters can not be shared!')
+                raise ValueError('If the policy should also estimate advantages, then parameters can not be shared!')
             return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
                                 action_space_shape, recurrence).to(device)
         else:
@@ -241,7 +240,7 @@ class PPOTrainer():
             # Store recent episode infos
             episode_info.extend(sample_episode_info)
     
-            # Seconds needed for a whole update
+            # Measure seconds needed for a whole update
             time_end = time.time()
             update_duration = int(time_end - time_start)
 

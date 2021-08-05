@@ -129,7 +129,7 @@ class Buffer():
                 # Apply zero-padding to ensure that each episode has the same length
                 # Therfore we can train batches of episodes in parallel instead of one episode at a time
                 for i, sequence in enumerate(sequences):
-                    sequences[i] = self.pad_sequence(sequence, max_sequence_length)
+                    sequences[i] = self._pad_sequence(sequence, max_sequence_length)
 
                 # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
                 samples[key] = np.stack(sequences, axis=0)
@@ -149,7 +149,7 @@ class Buffer():
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
             self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.mini_batch_device)
 
-    def pad_sequence(self, sequence, target_length):
+    def _pad_sequence(self, sequence, target_length):
         """Pads a sequence to the target length using zeros.
 
         Args:
