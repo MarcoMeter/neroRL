@@ -6,7 +6,7 @@ from torch.nn import functional as F
 
 from neroRL.trainers.PPO.models.base import ActorCriticBase
 
-class ActorCriticSeperateWeights(ActorCriticBase):
+class ActorCriticSeparateWeights(ActorCriticBase):
     """A flexible actor-critic model that supports:
             - Multi-discrete action spaces
             - Visual & vector observation spaces

@@ -12,7 +12,7 @@ from sys import exit
 from signal import signal, SIGINT
 
 from neroRL.environments.wrapper import wrap_environment
-from neroRL.trainers.PPO.models.actor_critic import ActorCriticSharedWeights, ActorCriticSeperateWeights
+from neroRL.trainers.PPO.models.actor_critic import ActorCriticSharedWeights, ActorCriticSeparateWeights
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.utils.worker import Worker
@@ -185,7 +185,7 @@ class PPOTrainer():
             return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
                                 action_space_shape, recurrence).to(device)
         else:
-            return ActorCriticSeperateWeights(model_config, visual_observation_space, vector_observation_space,
+            return ActorCriticSeparateWeights(model_config, visual_observation_space, vector_observation_space,
                                 action_space_shape, recurrence).to(device)
 
     def run_training(self):
