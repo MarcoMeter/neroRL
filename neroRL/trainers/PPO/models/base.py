@@ -42,8 +42,10 @@ class ActorCriticBase(nn.Module):
         # Recurrent Layer (GRU or LSTM)
         if self.recurrence is not None:
             recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer)
-            # Hidden layer
-            hidden_layer = self.create_hidden_layer(config, self.recurrence["hidden_state_size"], 512)
+            in_features_next_layer = self.recurrence["hidden_state_size"]
+        
+        # Hidden layer
+        hidden_layer = self.create_hidden_layer(config, in_features_next_layer, 512)
 
         # Init Hidden layer
         nn.init.orthogonal_(hidden_layer.weight, np.sqrt(2))

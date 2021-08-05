@@ -99,7 +99,8 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         for i, branch in enumerate(self.policy_branches):
             pi.append(Categorical(logits=self.policy_branches[i](h_policy)))
 
-        recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+        if self.recurrence is not None:
+            recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
 
         return pi, value, recurrent_cell
 
