@@ -51,7 +51,13 @@ class YamlParser:
             "load_model": False,
             "model_path": "",
             "checkpoint_interval": 50,
-            "activation": "relu"
+            "activation": "relu",
+            "share_parameters": True,
+            "pi_estimate_advantages": False,
+            "encoder": "cnn",
+            "hidden_layer": "default",
+            "num_hidden_layers": 2,
+            "num_hidden_units": 512
         }
 
         eval_dict = {

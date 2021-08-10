@@ -44,10 +44,8 @@ class ActorCriticBase(nn.Module):
             in_features_next_layer = self.recurrence["hidden_state_size"]
         
         # Hidden layer
-        hidden_layer = self.create_hidden_layer(config, in_features_next_layer, 512)
-
-        # Init Hidden layer
-        nn.init.orthogonal_(hidden_layer.weight, np.sqrt(2))
+        out_features = config["num_hidden_units"]
+        hidden_layer = self.create_hidden_layer(config, in_features_next_layer, out_features)
 
         return encoder, recurrent_layer, hidden_layer
 
@@ -99,13 +97,13 @@ class ActorCriticBase(nn.Module):
     def get_activation_function(self, config):
         # Set the activation function for most layers of the neural net
         if config["activation"] == "elu":
-            return F.elu
+            return nn.ELU()
         elif config["activation"] == "leaky_relu":
-            return F.leaky_relu
+            return nn.LeakyReLU()
         elif config["activation"] == "relu":
-            return F.relu
+            return nn.ReLU()
         elif config["activation"] == "swish":
-            return F.silu
+            return nn.SiLU()
 
     def create_encoder(self, config, vis_obs_space):
         if config["encoder"] == "cnn":
@@ -114,7 +112,20 @@ class ActorCriticBase(nn.Module):
     def create_hidden_layer(self, config, in_features, out_features):
         self.out_hidden_layer = out_features
         if config["hidden_layer"] == "default":
-            return nn.Linear(in_features=in_features, out_features=self.out_hidden_layer)
+            hidden_layer_modules = []
+
+            hidden_layer = nn.Linear(in_features=in_features, out_features=self.out_hidden_layer)
+            nn.init.orthogonal_(hidden_layer.weight, np.sqrt(2))
+            hidden_layer_modules.append(hidden_layer)
+
+            for _ in range(config["num_hidden_layers"] - 1):
+                hidden_layer_modules.append(self.activ_fn)
+
+                hidden_layer = nn.Linear(in_features=self.out_hidden_layer, out_features=self.out_hidden_layer)
+                nn.init.orthogonal_(hidden_layer.weight, np.sqrt(2))
+                hidden_layer_modules.append(hidden_layer)
+
+            return nn.Sequential(*hidden_layer_modules)
     
     def create_recurrent_layer(self, recurrence, input_shape):
         if recurrence["layer_type"] == "gru":
