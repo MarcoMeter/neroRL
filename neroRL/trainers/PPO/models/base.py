@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from torch import nn
-from torch.nn import functional as F
 
 from neroRL.trainers.PPO.models.encoder import CNNEncoder
 from neroRL.trainers.PPO.models.recurrent import GRU, LSTM
