@@ -4,7 +4,7 @@ import numpy as np
 class Hidden_Layer(nn.Module):
     def __init__(self, activ_fn, num_hidden_layers, in_features, out_features):
         super().__init__()
-        if num_hidden_layers == 0:
+        if num_hidden_layers <= 0:
             raise ValueError("The number of hidden layers should be greater than 0") 
 
         hidden_layer_modules = []
