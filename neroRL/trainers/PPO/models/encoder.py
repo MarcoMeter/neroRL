@@ -1,9 +1,7 @@
 import numpy as np
 import torch
 from torch import nn
-from torch.distributions import Categorical
 from torch.nn import functional as F
-
 
 class CNNEncoder(nn.Module): # make abstract: in_features_next_layer
     def __init__(self, vis_obs_space, config):

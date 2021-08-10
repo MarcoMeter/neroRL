@@ -1,9 +1,5 @@
 import numpy as np
-import torch
 from torch import nn
-from torch.distributions import Categorical
-from torch.nn import functional as F
-
 
 class GRU(nn.Module):
     def __init__(self, input_shape, hidden_state_size):
