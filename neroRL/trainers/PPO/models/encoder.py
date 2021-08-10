@@ -40,8 +40,8 @@ class CNNEncoder(nn.Module): # make abstract: in_features_next_layer
                             padding=0)
         nn.init.orthogonal_(self.conv3.weight, np.sqrt(2))
 
-        # Compute output size of convolutional layers
-        self.conv_out_size = self.get_conv_output(vis_obs_shape)
+        # Compute output size of the encoder
+        self.conv_enc_size = self.get_conv_output(vis_obs_shape)
 
     def forward(self, vis_obs, device):
         """Forward pass of the model
@@ -61,12 +61,12 @@ class CNNEncoder(nn.Module): # make abstract: in_features_next_layer
         h = self.activ_fn(self.conv2(h))
         h = self.activ_fn(self.conv3(h))
         # Flatten the output of the convolutional layers
-        h = h.reshape((-1, self.conv_out_size))
+        h = h.reshape((-1, self.conv_enc_size))
 
         return h
 
-    def get_conv_output(self, shape):
-        """Computes the output size of the convolutional layers by feeding a dummy tensor.
+    def get_enc_output(self, shape):
+        """Computes the output size of the encoder by feeding a dummy tensor.
         Arguments:
             shape {tuple} -- Input shape of the data feeding the first convolutional layer
         Returns:

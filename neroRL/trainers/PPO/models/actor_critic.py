@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 from neroRL.trainers.PPO.models.base import ActorCriticBase
 
 class ActorCriticSeparateWeights(ActorCriticBase):
-    """A flexible actor-critic model that supports:
+    """A flexible actor-critic model with separate actor and critic weights that supports:
             - Multi-discrete action spaces
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
@@ -148,7 +148,7 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         return actor_recurrent_cell, critic_recurrent_cell
 
 class ActorCriticSharedWeights(ActorCriticBase):
-    """A flexible actor-critic model that supports:
+    """A flexible shared weight actor-critic model that supports:
             - Multi-discrete action spaces
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
