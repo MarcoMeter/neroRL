@@ -5,6 +5,7 @@ from torch.nn import functional as F
 
 from neroRL.trainers.PPO.models.encoder import CNNEncoder
 from neroRL.trainers.PPO.models.recurrent import GRU, LSTM
+from neroRL.trainers.PPO.models.hidden_layer import Hidden_Layer
 
 class ActorCriticBase(nn.Module):
     def __init__(self, recurrence, config):
@@ -112,20 +113,7 @@ class ActorCriticBase(nn.Module):
     def create_hidden_layer(self, config, in_features, out_features):
         self.out_hidden_layer = out_features
         if config["hidden_layer"] == "default":
-            hidden_layer_modules = []
-
-            hidden_layer = nn.Linear(in_features=in_features, out_features=self.out_hidden_layer)
-            nn.init.orthogonal_(hidden_layer.weight, np.sqrt(2))
-            hidden_layer_modules.append(hidden_layer)
-
-            for _ in range(config["num_hidden_layers"] - 1):
-                hidden_layer_modules.append(self.activ_fn)
-
-                hidden_layer = nn.Linear(in_features=self.out_hidden_layer, out_features=self.out_hidden_layer)
-                nn.init.orthogonal_(hidden_layer.weight, np.sqrt(2))
-                hidden_layer_modules.append(hidden_layer)
-
-            return nn.Sequential(*hidden_layer_modules)
+            return Hidden_Layer(self.activ_fn, config["num_hidden_layers"], in_features, out_features)
     
     def create_recurrent_layer(self, recurrence, input_shape):
         if recurrence["layer_type"] == "gru":
