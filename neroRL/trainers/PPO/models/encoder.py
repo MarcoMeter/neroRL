@@ -16,7 +16,6 @@ class CNNEncoder(nn.Module):
         }
         self.activ_fn = available_activ_fns[config["activation"]]
 
-        # Case: visual observation available
         vis_obs_shape = vis_obs_space.shape
         # Visual Encoder made of 3 convolutional layers
         self.conv1 = nn.Conv2d(in_channels=vis_obs_shape[0],
@@ -41,7 +40,7 @@ class CNNEncoder(nn.Module):
         nn.init.orthogonal_(self.conv3.weight, np.sqrt(2))
 
         # Compute the output size of the encoder
-        self.conv_enc_size = self.get_conv_output(vis_obs_shape)
+        self.conv_enc_size = self.get_enc_output(vis_obs_shape)
 
     def forward(self, vis_obs, device):
         """Forward pass of the model

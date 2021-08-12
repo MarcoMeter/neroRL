@@ -56,7 +56,7 @@ class ActorCriticBase(nn.Module):
         - one
         - mean (based on the recurrent cell states of the sampled training data)
         - sample (based on the mean of all recurrent cell states of the sampled training data, the std is set to 0.01)
-        Arugments:
+        Arguments:
             num_sequences {int}: The number of sequences determines the number of the to be generated initial recurrent cell states.
             device {torch.device}: Target device.
         Returns:
@@ -86,8 +86,8 @@ class ActorCriticBase(nn.Module):
         return hxs, cxs
 
     def set_mean_recurrent_cell_states(self, mean_hxs, mean_cxs):
-        """Sets the mean values (hidden state size) for recurrent cell statres.
-        Args:
+        """Sets the mean values (hidden state size) for recurrent cell states.
+        Arguments:
             mean_hxs {np.ndarray}: Mean hidden state
             mean_cxs {np.ndarray}: Mean cell state (in the case of using an LSTM layer)
         """
@@ -95,6 +95,12 @@ class ActorCriticBase(nn.Module):
         self.mean_cxs = mean_cxs
 
     def get_activation_function(self, config):
+        """Returns the chosen activation function based on the model config.
+        Arguments:
+            config {dict}: Model config
+        Returns:
+            {torch.nn.modules.activation}: activation function
+        """
         # Set the activation function for most layers of the neural net
         if config["activation"] == "elu":
             return nn.ELU()
@@ -106,22 +112,44 @@ class ActorCriticBase(nn.Module):
             return nn.SiLU()
 
     def create_encoder(self, config, vis_obs_space):
+        """Creates and returns a new instance of the encoder based on the model config.
+        Arguments:
+            config {dict}: Model config
+            vis_obs_space {gym.spaces.box.Box}: The visual observation space
+        Returns:
+            {torch.nn.Module}: The created encoder
+        """
         if config["encoder"] == "cnn":
             return CNNEncoder(vis_obs_space, config)
 
     def create_hidden_layer(self, config, in_features, out_features):
+        """Creates and returns a new instance of the hidden layer based on the model config.
+        Arguments:
+            config {dict}: Model config
+            in_features {int}: Size of input
+            out_features {int}: Size of output
+        Returns:
+            {torch.nn.Module}: The created hidden layer
+        """
         self.out_hidden_layer = out_features
         if config["hidden_layer"] == "default":
             return Hidden_Layer(self.activ_fn, config["num_hidden_layers"], in_features, out_features)
     
-    def create_recurrent_layer(self, recurrence, input_shape):
+    def create_recurrent_layer(self, recurrence, recurrence):
+        """Creates and returns a new instance of the recurrent layer based on the recurrence config.
+        Arguments:
+            recurrence {dict}: recurrence config
+            recurrence {int}: Size of input
+        Returns:
+            {torch.nn.Module}: The created recurrent layer
+        """
         if recurrence["layer_type"] == "gru":
             return GRU(input_shape, recurrence["hidden_state_size"])
         elif recurrence["layer_type"] == "lstm":
             return LSTM(input_shape, recurrence["hidden_state_size"])
 
     def get_enc_output(self, encoder, shape):
-        """Computes the output size of the convolutional layers by feeding a dummy tensor.
+        """Computes the output size of the encoder by feeding a dummy tensor.
         Arguments:
             shape {tuple} -- Input shape of the data feeding the first convolutional layer
         Returns:
