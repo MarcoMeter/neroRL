@@ -16,12 +16,19 @@ model:
   model_path: "./models/cartpole_recurrent.pt"
   checkpoint_interval: 25
   activation: "relu"
+  share_parameters: True
+  pi_estimate_advantages: False
+  encoder: "cnn"
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
   recurrence:
     layer_type: "gru"
     sequence_length: 16
     hidden_state_size: 128
     hidden_state_init: "zero"
     reset_hidden_state: False
+    
 
 evaluation:
   evaluate: False

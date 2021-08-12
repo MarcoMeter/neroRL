@@ -16,6 +16,12 @@ model:
   model_path: "./checkpoints/hallway/20201016-160738_2/hallway-951.pt"
   checkpoint_interval: 50
   activation: "leaky_relu"
+  share_parameters: True
+  pi_estimate_advantages: False
+  encoder: "cnn"
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
   recurrence:
     layer_type: "lstm"
     sequence_length: 16

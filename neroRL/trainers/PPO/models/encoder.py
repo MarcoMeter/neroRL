@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-class CNNEncoder(nn.Module): # make abstract: in_features_next_layer
+class CNNEncoder(nn.Module):
     def __init__(self, vis_obs_space, config):
         super().__init__()
 
@@ -40,7 +40,7 @@ class CNNEncoder(nn.Module): # make abstract: in_features_next_layer
                             padding=0)
         nn.init.orthogonal_(self.conv3.weight, np.sqrt(2))
 
-        # Compute output size of the encoder
+        # Compute the output size of the encoder
         self.conv_enc_size = self.get_conv_output(vis_obs_shape)
 
     def forward(self, vis_obs, device):
