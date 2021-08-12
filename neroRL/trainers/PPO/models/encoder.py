@@ -67,9 +67,9 @@ class CNNEncoder(nn.Module):
     def get_enc_output(self, shape):
         """Computes the output size of the encoder by feeding a dummy tensor.
         Arguments:
-            shape {tuple} -- Input shape of the data feeding the first convolutional layer
+            shape {tuple} -- Input shape of the data feeding the first encoder
         Returns:
-            {int} -- Number of output features returned by the utilized convolutional layers
+            {int} -- Number of output features returned by the utilized encoder
         """
         o = self.conv1(torch.zeros(1, *shape))
         o = self.conv2(o)

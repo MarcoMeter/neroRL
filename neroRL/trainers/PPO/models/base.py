@@ -151,8 +151,8 @@ class ActorCriticBase(nn.Module):
     def get_enc_output(self, encoder, shape):
         """Computes the output size of the encoder by feeding a dummy tensor.
         Arguments:
-            shape {tuple} -- Input shape of the data feeding the first convolutional layer
-        Returns:
+            encoder{torch.nn.Module} -- The to be used encoder
+            shape {tuple} -- Input shape of the data feeding to the encoder
             {int} -- Number of output features returned by the utilized convolutional layers
         """
         o = encoder(torch.zeros(1, *shape), "cpu")

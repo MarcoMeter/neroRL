@@ -148,7 +148,7 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         return actor_recurrent_cell, critic_recurrent_cell
 
 class ActorCriticSharedWeights(ActorCriticBase):
-    """A flexible shared weight actor-critic model that supports:
+    """A flexible shared weights actor-critic model that supports:
             - Multi-discrete action spaces
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
