@@ -15,7 +15,7 @@ class ActorCriticBase(nn.Module):
         """Model setup
 
         Args:
-            recurrence ([type]): None if no recurrent policy is used, otherwise contains relevant detais:
+            recurrence {dict}: None if no recurrent policy is used, otherwise contains relevant detais:
                 - layer type {string}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
             config {dict}: Model config
         """
@@ -59,7 +59,7 @@ class ActorCriticBase(nn.Module):
             # Case: only vector observation is available
             in_features_next_layer = vec_obs_shape[0]
 
-        # Recurrent Layer (GRU or LSTM)
+        # Recurrent layer (GRU or LSTM)
         if self.recurrence is not None:
             recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer)
             in_features_next_layer = self.recurrence["hidden_state_size"]
@@ -159,7 +159,7 @@ class ActorCriticBase(nn.Module):
         """Creates and returns a new instance of the recurrent layer based on the recurrence config.
         Arguments:
             recurrence {dict}: Recurrence config
-            recurrence {int}: Size of input
+            input_shape {int}: Size of input
         Returns:
             {torch.nn.Module}: The created recurrent layer
         """
