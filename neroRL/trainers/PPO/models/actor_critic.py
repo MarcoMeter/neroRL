@@ -25,6 +25,9 @@ class ActorCriticSeparateWeights(ActorCriticBase):
 
         # Members for using a recurrent policy
         ActorCriticBase.__init__(self, recurrence, config)
+        self.mean_hxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
+        self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
+
         self.actor_encoder, self.actor_recurrent_layer, self.actor_hidden = self.create_base_model(config, vis_obs_space, vec_obs_shape)
         self.critic_encoder, self.critic_recurrent_layer, self.critic_hidden = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 

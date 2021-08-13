@@ -135,7 +135,7 @@ class ActorCriticBase(nn.Module):
         if config["hidden_layer"] == "default":
             return Hidden_Layer(self.activ_fn, config["num_hidden_layers"], in_features, out_features)
     
-    def create_recurrent_layer(self, recurrence, recurrence):
+    def create_recurrent_layer(self, recurrence, input_shape):
         """Creates and returns a new instance of the recurrent layer based on the recurrence config.
         Arguments:
             recurrence {dict}: recurrence config
