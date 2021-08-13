@@ -8,7 +8,7 @@ from neroRL.trainers.PPO.models.hidden_layer import Hidden_Layer
 
 class ActorCriticBase(nn.Module):
     """An actor-critic base model which defines the basic components and functionality of the final model:
-            - Components: Encoder, Recurrent layer, Hidden layer
+            - Components: encoder, recurrent layer, hidden layer
             - Functionality: Initialization of the recurrent cells and basic model
     """
     def __init__(self, recurrence, config):
@@ -158,7 +158,7 @@ class ActorCriticBase(nn.Module):
     def create_recurrent_layer(self, recurrence, input_shape):
         """Creates and returns a new instance of the recurrent layer based on the recurrence config.
         Arguments:
-            recurrence {dict}: recurrence config
+            recurrence {dict}: Recurrence config
             recurrence {int}: Size of input
         Returns:
             {torch.nn.Module}: The created recurrent layer
