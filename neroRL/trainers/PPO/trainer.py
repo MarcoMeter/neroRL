@@ -12,7 +12,7 @@ from sys import exit
 from signal import signal, SIGINT
 
 from neroRL.environments.wrapper import wrap_environment
-from neroRL.trainers.PPO.models.actor_critic import ActorCriticSharedWeights, ActorCriticSeparateWeights
+from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.utils.worker import Worker
@@ -124,7 +124,7 @@ class PPOTrainer():
 
         # Init model
         self.logger.info("Step 3: Creating model")
-        self.model = self._create_actor_critic_model(configs["model"], visual_observation_space, vector_observation_space,
+        self.model = create_actor_critic_model(configs["model"], visual_observation_space, vector_observation_space,
                                 self.action_space_shape, self.recurrence, self.device)
 
         # Instantiate optimizer
@@ -177,16 +177,6 @@ class PPOTrainer():
                 self.vis_obs[i] = vis_obs
             if self.vec_obs is not None:
                 self.vec_obs[i] = vec_obs
-
-    def _create_actor_critic_model(self, model_config, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
-        if model_config["share_parameters"]:
-            if model_config["pi_estimate_advantages"]:
-                raise ValueError('If the policy should also estimate advantages, then parameters can not be shared!')
-            return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
-                                action_space_shape, recurrence).to(device)
-        else:
-            return ActorCriticSeparateWeights(model_config, visual_observation_space, vector_observation_space,
-                                action_space_shape, recurrence).to(device)
 
     def run_training(self):
         """Orchestrates the PPO training:
