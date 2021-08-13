@@ -8,6 +8,13 @@ from neroRL.trainers.PPO.models.hidden_layer import Hidden_Layer
 
 class ActorCriticBase(nn.Module):
     def __init__(self, recurrence, config):
+        """Model setup
+
+        Args:
+            recurrence ([type]): None if no recurrent policy is used, otherwise contains relevant detais:
+                - layer type {string}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
+            config {dict}: Model config
+        """
         super().__init__()
         self.recurrence = recurrence
 
@@ -17,6 +24,17 @@ class ActorCriticBase(nn.Module):
         self.activ_fn = self.get_activation_function(config)
 
     def create_base_model(self, config, vis_obs_space, vec_obs_shape):
+        """
+        Creates and returns the components of a base model, which consists of an encoder, recurrent layer and hidden layer specified by the model config.
+
+        Arguments:
+            config {dict}: Model config
+            vis_obs_space {box}: Dimensions of the visual observation space
+            vec_obs_shape {tuple}: Dimensions of the vector observation space (None if not available)
+
+        Returns:
+            tuple: Encoder, Recurrent layer, Hidden layer
+        """
         encoder, recurrent_layer, hidden_layer = None, None, None
 
         # Observation encoder
@@ -33,7 +51,6 @@ class ActorCriticBase(nn.Module):
             if vec_obs_shape is not None:
                 # Case: vector observation is also available
                 in_features_next_layer = in_features_next_layer + vec_obs_shape[0]
-
         else:
             # Case: only vector observation is available
             in_features_next_layer = vec_obs_shape[0]
@@ -101,7 +118,6 @@ class ActorCriticBase(nn.Module):
         Returns:
             {torch.nn.modules.activation}: activation function
         """
-        # Set the activation function for most layers of the neural net
         if config["activation"] == "elu":
             return nn.ELU()
         elif config["activation"] == "leaky_relu":
@@ -115,7 +131,7 @@ class ActorCriticBase(nn.Module):
         """Creates and returns a new instance of the encoder based on the model config.
         Arguments:
             config {dict}: Model config
-            vis_obs_space {gym.spaces.box.Box}: The visual observation space
+            vis_obs_space {box}: Dimensions of the visual observation space
         Returns:
             {torch.nn.Module}: The created encoder
         """
