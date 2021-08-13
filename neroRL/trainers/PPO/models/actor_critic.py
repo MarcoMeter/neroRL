@@ -107,6 +107,18 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         return pi, value, recurrent_cell
 
     def init_recurrent_cell_states(self, num_sequences, device):
+        """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
+        These states can be initialized in 4 ways:
+        - zero
+        - one
+        - mean (based on the recurrent cell states of the sampled training data)
+        - sample (based on the mean of all recurrent cell states of the sampled training data, the std is set to 0.01)
+        Arguments:
+            num_sequences {int}: The number of sequences determines the number of the to be generated initial recurrent cell states.
+            device {torch.device}: Target device.
+        Returns:
+            {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned using initial values.
+        """
         actor_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
         critic_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
 
@@ -117,6 +129,21 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         return recurrent_cell 
 
     def pack_recurrent_cell(self, actor_recurrent_cell, critic_recurrent_cell, device):
+        """ 
+        This method packs the recurrent cell states in such a way s.t. it's possible to be stored in the to be used buffer.
+        The returned recurrent cell has the form (hxs, cxs) if an lstm is used or hxs if gru is used.
+        In the last dimension the hidden state/cell state of the actor and critic are concatenated to a single tensor in such a way that it yields to the form:
+        hxs = (actor_hxs, critic_hxs)
+        cxs = (actor_cxs, critic_cxs)
+
+        Args:
+            actor_recurrent_cell {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
+            critic_recurrent_cell {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
+            device {torch.device}: Target device.
+
+        Returns:
+            {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned.
+        """
         # Unpack recurrent cell
         # If GRU is used then unpacking might not be possible, so zip the recurrent cell with None and then unpack it
         actor_hxs, actor_cxs = actor_recurrent_cell if isinstance(actor_recurrent_cell, tuple) else (actor_recurrent_cell, None)
@@ -135,6 +162,17 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         return recurrent_cell
 
     def unpack_recurrent_cell(self, recurrent_cell):
+        """ 
+        This method unpacks the recurrent cell states back to its original form, so that a recurrent cell has the form (hxs, cxs).
+        
+        Args:
+            actor_recurrent_cell {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
+            critic_recurrent_cell {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
+            device {torch.device}: Target device.
+
+        Returns:
+            {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned.
+        """
         # Unpack recurrent cell
         # If GRU is used then unpacking might not be possible, so zip the recurrent cell with None and then unpack it
         (hxs, cxs) = recurrent_cell if isinstance(recurrent_cell, tuple) else (recurrent_cell, None)

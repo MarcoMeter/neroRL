@@ -7,6 +7,10 @@ from neroRL.trainers.PPO.models.recurrent import GRU, LSTM
 from neroRL.trainers.PPO.models.hidden_layer import Hidden_Layer
 
 class ActorCriticBase(nn.Module):
+    """An actor-critic base model which defines the basic components and functionality of the final model:
+            - Components: Encoder, Recurrent layer, Hidden layer
+            - Functionality: Initialization of the recurrent cells and basic model
+    """
     def __init__(self, recurrence, config):
         """Model setup
 

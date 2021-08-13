@@ -4,10 +4,10 @@
 ### ENVIRONMENT CONFIG ###
 environment:
   # Environment Type (Unity, ObstacleTower, Minigrid, Procgen, CartPole)
-  type: "Minigrid"
+  type: "CartPole"
   # type: "Unity"
   # Environment Name (Unity environments have to specify the path to the executable)
-  name: "MiniGrid-Empty-Random-6x6-v0"
+  name: "CartPole-v0"
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   # How many frames to repeat the same action
   frame_skip: 1
@@ -27,6 +27,7 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
+    mask-velocity: True
 
 ### MODEL CONFIG ###
 model:
@@ -39,7 +40,7 @@ model:
   # Set the to be used activation function (elu, leaky_relu, relu, swish)
   activation: "relu"
   # Wether the actor and critic model should share its parameters
-  share_parameters: True
+  share_parameters: False
   # DAAC: Actor model also estimates the advantages(Note: if True = > parameter are not shared)
   pi_estimate_advantages: False
   # Set the to be used encoder
