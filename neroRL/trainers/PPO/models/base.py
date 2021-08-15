@@ -13,8 +13,7 @@ class ActorCriticBase(nn.Module):
     """
     def __init__(self, recurrence, config):
         """Model setup
-
-        Args:
+        Arguments:
             recurrence {dict}: None if no recurrent policy is used, otherwise contains relevant detais:
                 - layer type {string}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
             config {dict}: Model config
@@ -30,12 +29,10 @@ class ActorCriticBase(nn.Module):
     def create_base_model(self, config, vis_obs_space, vec_obs_shape):
         """
         Creates and returns the components of a base model, which consists of an encoder, recurrent layer and hidden layer specified by the model config.
-
         Arguments:
             config {dict}: Model config
             vis_obs_space {box}: Dimensions of the visual observation space
             vec_obs_shape {tuple}: Dimensions of the vector observation space (None if not available)
-
         Returns:
             tuple: Encoder, Recurrent layer, Hidden layer
         """

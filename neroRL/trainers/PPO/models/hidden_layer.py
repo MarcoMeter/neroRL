@@ -2,10 +2,23 @@ from torch import nn
 import numpy as np
 
 class Hidden_Layer(nn.Module):
+    """A flexibal hidden layer with a variable number of layers.
+    """
     def __init__(self, activ_fn, num_hidden_layers, in_features, out_features):
+        """ Initializes the hidden layer.
+        
+        Arguments:
+            activ_fn {activation}: Activation function
+            num_hidden_layers {int}: The number of hidden layer
+            in_features {int}: The number of input features
+            out_features {int}: The number of output features
+
+        Raises:
+            ValueError: Raises a value error if the number of hidden layers is below one.
+        """
         super().__init__()
         if num_hidden_layers <= 0:
-            raise ValueError("The number of hidden layers should be greater than 0") 
+            raise ValueError("The number of hidden layers should be greater than zero") 
 
         hidden_layer_modules = []
 
@@ -23,4 +36,10 @@ class Hidden_Layer(nn.Module):
         self.hidden_layer = nn.Sequential(*hidden_layer_modules)
 
     def forward(self, input):
+        """Forward pass of the model
+        Arguments:
+            input {torch.tensor} -- Input feature tensor
+        Returns:
+            {torch.tensor} -- Output feature tensor
+        """
         return self.hidden_layer(input)

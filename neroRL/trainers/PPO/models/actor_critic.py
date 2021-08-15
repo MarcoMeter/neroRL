@@ -281,6 +281,23 @@ class ActorCriticSharedWeights(ActorCriticBase):
         return pi, value, recurrent_cell
 
 def create_actor_critic_model(model_config, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
+    """Creates a shared or non-shared weights actor critic model
+
+    Args:
+        model_config {dict}: Model config
+        vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
+        vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
+        action_space_shape {tuple} -- Dimensions of the action space
+        recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
+                - layer type {string}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
+        device {torch.device} -- Current device
+
+    Raises:
+        ValueError: Raises an error if conflicting model parameters are used.
+
+    Returns:
+        {nn.Module}: The created actor critic model
+    """
         if model_config["share_parameters"]:
             if model_config["pi_estimate_advantages"]:
                 raise ValueError('If the policy should also estimate advantages, then parameters can not be shared!')
