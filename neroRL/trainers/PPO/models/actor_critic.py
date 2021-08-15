@@ -23,11 +23,13 @@ class ActorCriticSeparateWeights(ActorCriticBase):
                 - layer type {string}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
         """
 
-        # Members for using a recurrent policy
         ActorCriticBase.__init__(self, recurrence, config)
+
+        # Members for using a recurrent policy
         self.mean_hxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
+        # Create the base model
         self.actor_encoder, self.actor_recurrent_layer, self.actor_hidden = self.create_base_model(config, vis_obs_space, vec_obs_shape)
         self.critic_encoder, self.critic_recurrent_layer, self.critic_hidden = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
@@ -40,15 +42,15 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         self.lin_value = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
         nn.init.orthogonal_(self.lin_value.weight, np.sqrt(2))
 
-        # Outputs / Model Heads
-        # Policy Branches
+        # Outputs / Model heads
+        # Policy branches
         self.policy_branches = nn.ModuleList()
         for num_actions in action_space_shape:
             policy_branch = nn.Linear(in_features=512, out_features=num_actions)
             nn.init.orthogonal_(policy_branch.weight, np.sqrt(0.01))
             self.policy_branches.append(policy_branch)
 
-        # Value Function
+        # Value function
         self.value = nn.Linear(in_features=512,
                                out_features=1)
         nn.init.orthogonal_(self.value.weight, 1)
@@ -94,9 +96,9 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         h_policy = self.activ_fn(self.lin_policy(h_actor))
         # Feed hidden layer (value function)
         h_value = self.activ_fn(self.lin_value(h_critic))
-        # Output: Value Function
+        # Output: Value function
         value = self.value(h_value).reshape(-1)
-        # Output: Policy Branches
+        # Output: Policy branches
         pi = []
         for i, branch in enumerate(self.policy_branches):
             pi.append(Categorical(logits=self.policy_branches[i](h_policy)))
@@ -123,7 +125,7 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         critic_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
 
         packed_recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
-        # (hxs, cxs) is expected to be returned. But if we use GRU then pack_recurrent_cell just returns hxs so zip it with None to return (hxs, None)
+        # (hxs, cxs) is expected to be returned. But if we use GRU then pack_recurrent_cell just returns hxs so we need to zip the recurrent cell with None to return (hxs, None)
         recurrent_cell = packed_recurrent_cell if self.recurrence["layer_type"] == "lstm" else (packed_recurrent_cell, None)
 
         return recurrent_cell 
@@ -206,10 +208,10 @@ class ActorCriticSharedWeights(ActorCriticBase):
                 - layer type {string}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
         """
 
-        # Members for using a recurrent policy
         ActorCriticBase.__init__(self, recurrence, config)
+
+        # Create the base model
         self.encoder, self.recurrent_layer, self.hidden_layer = self.create_base_model(config, vis_obs_space, vec_obs_shape)
-        
 
         # Decouple policy from value
         # Hidden layer of the policy
@@ -220,15 +222,15 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.lin_value = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
         nn.init.orthogonal_(self.lin_value.weight, np.sqrt(2))
 
-        # Outputs / Model Heads
-        # Policy Branches
+        # Outputs / Model heads
+        # Policy branches
         self.policy_branches = nn.ModuleList()
         for num_actions in action_space_shape:
             policy_branch = nn.Linear(in_features=512, out_features=num_actions)
             nn.init.orthogonal_(policy_branch.weight, np.sqrt(0.01))
             self.policy_branches.append(policy_branch)
 
-        # Value Function
+        # Value function
         self.value = nn.Linear(in_features=512,
                                out_features=1)
         nn.init.orthogonal_(self.value.weight, 1)
@@ -271,9 +273,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
         h_policy = self.activ_fn(self.lin_policy(h))
         # Feed hidden layer (value function)
         h_value = self.activ_fn(self.lin_value(h))
-        # Output: Value Function
+        # Output: Value function
         value = self.value(h_value).reshape(-1)
-        # Output: Policy Branches
+        # Output: Policy branches
         pi = []
         for i, branch in enumerate(self.policy_branches):
             pi.append(Categorical(logits=self.policy_branches[i](h_policy)))
@@ -281,7 +283,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         return pi, value, recurrent_cell
 
 def create_actor_critic_model(model_config, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
-    """Creates a shared or non-shared weights actor critic model
+    """Creates a shared or non-shared weights actor critic model.
 
     Args:
         model_config {dict}: Model config
@@ -298,8 +300,8 @@ def create_actor_critic_model(model_config, visual_observation_space, vector_obs
     Returns:
         {nn.Module}: The created actor critic model
     """
-    if model_config["share_parameters"]:
-        if model_config["pi_estimate_advantages"]:
+    if model_config["share_parameters"]: # check if the actor critic model should share its weights
+        if model_config["pi_estimate_advantages"]: # The DAAC model can't be used with shared weights, so raise an error.
             raise ValueError('If the policy should also estimate advantages, then parameters can not be shared!')
         return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
                             action_space_shape, recurrence).to(device)

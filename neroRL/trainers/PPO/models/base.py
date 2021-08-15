@@ -8,7 +8,7 @@ from neroRL.trainers.PPO.models.hidden_layer import Hidden_Layer
 
 class ActorCriticBase(nn.Module):
     """An actor-critic base model which defines the basic components and functionality of the final model:
-            - Components: encoder, recurrent layer, hidden layer
+            - Components: Encoder, recurrent layer, hidden layer
             - Functionality: Initialization of the recurrent cells and basic model
     """
     def __init__(self, recurrence, config):
@@ -19,11 +19,13 @@ class ActorCriticBase(nn.Module):
             config {dict}: Model config
         """
         super().__init__()
-        self.recurrence = recurrence
 
+        # Members for using a recurrent policy
+        self.recurrence = recurrence
         self.mean_hxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
 
+        # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
     def create_base_model(self, config, vis_obs_space, vec_obs_shape):
@@ -34,7 +36,7 @@ class ActorCriticBase(nn.Module):
             vis_obs_space {box}: Dimensions of the visual observation space
             vec_obs_shape {tuple}: Dimensions of the vector observation space (None if not available)
         Returns:
-            tuple: Encoder, Recurrent layer, Hidden layer
+            tuple: Encoder, recurrent layer, hidden layer
         """
         encoder, recurrent_layer, hidden_layer = None, None, None
 
@@ -44,7 +46,7 @@ class ActorCriticBase(nn.Module):
 
             # Case: visual observation available
             vis_obs_shape = vis_obs_space.shape
-            # Compute output size of convolutional layers
+            # Compute output size of the encoder
             conv_out_size = self.get_enc_output(encoder, vis_obs_shape)
             in_features_next_layer = conv_out_size
 
@@ -117,7 +119,7 @@ class ActorCriticBase(nn.Module):
         Arguments:
             config {dict}: Model config
         Returns:
-            {torch.nn.modules.activation}: activation function
+            {torch.nn.modules.activation}: Activation function
         """
         if config["activation"] == "elu":
             return nn.ELU()
