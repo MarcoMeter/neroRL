@@ -298,11 +298,11 @@ def create_actor_critic_model(model_config, visual_observation_space, vector_obs
     Returns:
         {nn.Module}: The created actor critic model
     """
-        if model_config["share_parameters"]:
-            if model_config["pi_estimate_advantages"]:
-                raise ValueError('If the policy should also estimate advantages, then parameters can not be shared!')
-            return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
-                                action_space_shape, recurrence).to(device)
-        else:
-            return ActorCriticSeparateWeights(model_config, visual_observation_space, vector_observation_space,
-                                action_space_shape, recurrence).to(device)
+    if model_config["share_parameters"]:
+        if model_config["pi_estimate_advantages"]:
+            raise ValueError('If the policy should also estimate advantages, then parameters can not be shared!')
+        return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
+                            action_space_shape, recurrence).to(device)
+    else:
+        return ActorCriticSeparateWeights(model_config, visual_observation_space, vector_observation_space,
+                            action_space_shape, recurrence).to(device)
