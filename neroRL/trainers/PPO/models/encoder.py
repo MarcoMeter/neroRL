@@ -40,7 +40,7 @@ class CNNEncoder(nn.Module):
         """Forward pass of the model
 
         Arguments:
-            vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
+            vis_obs {numpy.ndarray/torch.tensor} -- Visual observation
 
         Returns:
             {torch.tensor} -- Feature tensor
