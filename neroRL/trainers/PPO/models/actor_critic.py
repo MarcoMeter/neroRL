@@ -203,7 +203,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer type {stirng}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
+                - layer type {string}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
         """
 
         # Members for using a recurrent policy

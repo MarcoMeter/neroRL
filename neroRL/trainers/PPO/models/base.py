@@ -25,7 +25,7 @@ class ActorCriticBase(nn.Module):
         self.mean_hxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
 
-        self.activ_fn = self.get_activation_function(config)
+        self.activ_fn = ActorCriticBase.get_activation_function(config)
 
     def create_base_model(self, config, vis_obs_space, vec_obs_shape):
         """
@@ -115,7 +115,8 @@ class ActorCriticBase(nn.Module):
         self.mean_hxs = mean_hxs
         self.mean_cxs = mean_cxs
 
-    def get_activation_function(self, config):
+    @staticmethod
+    def get_activation_function(config):
         """Returns the chosen activation function based on the model config.
         Arguments:
             config {dict}: Model config

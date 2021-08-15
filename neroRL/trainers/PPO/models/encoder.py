@@ -7,14 +7,8 @@ class CNNEncoder(nn.Module):
     def __init__(self, vis_obs_space, config):
         super().__init__()
 
-        # Set the activation function for most layers of the neural net
-        available_activ_fns = {
-            "elu": F.elu,
-            "leaky_relu": F.leaky_relu,
-            "relu": F.relu,
-            "swish": F.silu
-        }
-        self.activ_fn = available_activ_fns[config["activation"]]
+        # Set the activation function
+        self.activ_fn = ActorCriticBase.get_activation_function([config["activation"]])
 
         vis_obs_shape = vis_obs_space.shape
         # Visual Encoder made of 3 convolutional layers
