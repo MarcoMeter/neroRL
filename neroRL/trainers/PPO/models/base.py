@@ -173,6 +173,7 @@ class ActorCriticBase(nn.Module):
         Arguments:
             encoder{torch.nn.Module} -- The to be used encoder
             shape {tuple} -- Input shape of the data feeding to the encoder
+        Returns:
             {int} -- Number of output features returned by the utilized convolutional layers
         """
         o = encoder(torch.zeros(1, *shape), "cpu")

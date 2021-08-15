@@ -4,7 +4,15 @@ from torch import nn
 from torch.nn import functional as F
 
 class CNNEncoder(nn.Module):
+    """ A simple three layer CNN which serves as an encoder.
+    """
     def __init__(self, vis_obs_space, config, activ_fn):
+        """ Initializes a three layer convolutional neural network.
+        Args:
+            config {dict}: Model config
+            vis_obs_space {box}: Dimensions of the visual observation space
+            activ_fn {activation}: activation function
+        """
         super().__init__()
 
         # Set the activation function
