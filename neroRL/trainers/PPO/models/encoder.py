@@ -4,11 +4,11 @@ from torch import nn
 from torch.nn import functional as F
 
 class CNNEncoder(nn.Module):
-    def __init__(self, vis_obs_space, config):
+    def __init__(self, vis_obs_space, config, activ_fn):
         super().__init__()
 
         # Set the activation function
-        self.activ_fn = ActorCriticBase.get_activation_function([config["activation"]])
+        self.activ_fn = activ_fn
 
         vis_obs_shape = vis_obs_space.shape
         # Visual Encoder made of 3 convolutional layers
@@ -40,7 +40,7 @@ class CNNEncoder(nn.Module):
         """Forward pass of the model
 
         Arguments:
-            vis_obs {numpy.ndarray/torch,tensor} -- Visual observation (None if not available)
+            vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
 
         Returns:
             {torch.tensor} -- Feature tensor

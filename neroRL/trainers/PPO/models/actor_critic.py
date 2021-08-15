@@ -56,7 +56,7 @@ class ActorCriticSeparateWeights(ActorCriticBase):
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
         Arguments:
-            vis_obs {numpy.ndarray/torch,tensor} -- Visual observation (None if not available)
+            vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
             vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
             recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer (None if not available)
             device {torch.device} -- Current device

@@ -2,7 +2,15 @@ import numpy as np
 from torch import nn
 
 class GRU(nn.Module):
+    """ A single-layer gated recurrent unit (GRU) module.
+    """
     def __init__(self, input_shape, hidden_state_size):
+        """
+        Initializes the gated recurrent unit.
+        Arguments:
+            input_shape {int}: Size of input
+            hidden_state_size {int}: The number of features in the hidden state
+        """
         super().__init__()
         self.recurrent_layer = nn.GRU(input_shape, hidden_state_size, batch_first=True)
         # Init recurrent layer
@@ -13,6 +21,15 @@ class GRU(nn.Module):
                 nn.init.orthogonal_(param, np.sqrt(2))
 
     def forward(self, h, recurrent_cell, sequence_length):
+        """Forward pass of the model
+        Arguments:
+            h {numpy.ndarray/torch.tensor} -- Feature input tensor
+            recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer
+            sequence_length {int} -- Length of the fed sequences
+        Returns:
+            {numpy.ndarray/torch.tensor} -- Feature output tensor
+            {torch.tensor} -- Memory cell of the recurrent layer
+        """
         if sequence_length == 1:
                 # Case: sampling training data or model optimization using fake recurrence
                 h, recurrent_cell = self.recurrent_layer(h.unsqueeze(1), recurrent_cell)
@@ -32,7 +49,15 @@ class GRU(nn.Module):
         return h, recurrent_cell
 
 class LSTM(nn.Module):
+    """ A single-layer long short-term memory (LSTM) module.
+    """
     def __init__(self, input_shape, hidden_state_size):
+        """
+        Initializes the long short-term memory network.
+        Arguments:
+            input_shape {int}: Size of input
+            hidden_state_size {int}: The number of features in the hidden state
+        """
         super().__init__()
         self.recurrent_layer = nn.LSTM(input_shape, hidden_state_size, batch_first=True)
         # Init recurrent layer
@@ -43,6 +68,15 @@ class LSTM(nn.Module):
                 nn.init.orthogonal_(param, np.sqrt(2))
 
     def forward(self, h, recurrent_cell, sequence_length):
+        """Forward pass of the model
+        Arguments:
+            h {numpy.ndarray/torch.tensor} -- Feature input tensor
+            recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer
+            sequence_length {int} -- Length of the fed sequences
+        Returns:
+            {numpy.ndarray/torch.tensor} -- Feature output tensor
+            {torch.tensor} -- Memory cell of the recurrent layer
+        """
         if sequence_length == 1:
                 # Case: sampling training data or model optimization using fake recurrence
                 h, recurrent_cell = self.recurrent_layer(h.unsqueeze(1), recurrent_cell)
