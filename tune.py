@@ -42,10 +42,7 @@ def main():
 
     # Init GridSearch: it creates config files for each permutation of the hyperparameter search space
     grid_search = GridSearch(config, tune_config)
-
-    # Retrieve permuted configs
-    configs = grid_search.get_permuted_configs()
-
+    
     # Generate configs or run training sessions sequentially
     if generate_only:
         grid_search.write_permuted_configs_to_file(out_path)
