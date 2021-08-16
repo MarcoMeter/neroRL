@@ -4,14 +4,16 @@ from torch import nn
 from torch.nn import functional as F
 
 class CNNEncoder(nn.Module):
-    """ A simple three layer CNN which serves as an encoder.
+    """
+    A simple three layer CNN which serves as a visual encoder.
     """
     def __init__(self, vis_obs_space, config, activ_fn):
-        """ Initializes a three layer convolutional neural network.
-        Args:
-            config {dict}: Model config
-            vis_obs_space {box}: Dimensions of the visual observation space
-            activ_fn {activation}: activation function
+        """Initializes a three layer convolutional neural network.
+
+        Arguments:
+            config {dict} -- Model config
+            vis_obs_space {box} -- Dimensions of the visual observation space
+            activ_fn {activation} -- activation function
         """
         super().__init__()
 
@@ -68,8 +70,10 @@ class CNNEncoder(nn.Module):
 
     def get_enc_output(self, shape):
         """Computes the output size of the encoder by feeding a dummy tensor.
+
         Arguments:
             shape {tuple} -- Input shape of the data feeding the first encoder
+            
         Returns:
             {int} -- Number of output features returned by the utilized encoder
         """

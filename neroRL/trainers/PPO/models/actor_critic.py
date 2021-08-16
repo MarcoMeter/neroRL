@@ -10,19 +10,18 @@ class ActorCriticSeparateWeights(ActorCriticBase):
             - Multi-discrete action spaces
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
-        Originally, this model has been used for the Obstacle Tower Challenge without a recurrent layer.
     """
     def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
         """Model setup
+        
         Arguments:
-            config {dict} -- Model config that is not used yet
+            config {dict} -- Model config
             vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
-            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer type {string}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
+            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
+                - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
         """
-
         ActorCriticBase.__init__(self, recurrence, config)
 
         # Members for using a recurrent policy
@@ -57,12 +56,14 @@ class ActorCriticSeparateWeights(ActorCriticBase):
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
+
         Arguments:
             vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
             vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
             recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer (None if not available)
             device {torch.device} -- Current device
             sequence_length {int} -- Length of the fed sequences
+
         Returns:
             {list} -- Policy: List featuring categorical distributions respectively for each policy branch
             {torch.tensor} -- Value Function: Value
@@ -82,11 +83,10 @@ class ActorCriticSeparateWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
-            (actor_recurrent_cell, critic_recurrent_cell) = self.unpack_recurrent_cell(recurrent_cell)
+            (actor_recurrent_cell, critic_recurrent_cell) = self._unpack_recurrent_cell(recurrent_cell)
 
             h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, actor_recurrent_cell, sequence_length)
             h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
-            
 
         # Feed hidden layer
         h_actor, h_critic = self.activ_fn(self.actor_hidden(h_actor)), self.activ_fn(self.critic_hidden(h_critic))
@@ -104,7 +104,7 @@ class ActorCriticSeparateWeights(ActorCriticBase):
             pi.append(Categorical(logits=self.policy_branches[i](h_policy)))
 
         if self.recurrence is not None:
-            recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+            recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
 
         return pi, value, recurrent_cell
 
@@ -115,22 +115,24 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         - one
         - mean (based on the recurrent cell states of the sampled training data)
         - sample (based on the mean of all recurrent cell states of the sampled training data, the std is set to 0.01)
+
         Arguments:
-            num_sequences {int}: The number of sequences determines the number of the to be generated initial recurrent cell states.
-            device {torch.device}: Target device.
+            num_sequences {int} -- The number of sequences determines the number of the to be generated initial recurrent cell states.
+            device {torch.device} -- Target device.
+
         Returns:
-            {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned using initial values.
+            {tuple} -- Depending on the used recurrent layer type, just hidden states (gru) or both hidden and cell states are returned using initial values.
         """
         actor_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
         critic_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
 
-        packed_recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+        packed_recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
         # (hxs, cxs) is expected to be returned. But if we use GRU then pack_recurrent_cell just returns hxs so we need to zip the recurrent cell with None to return (hxs, None)
         recurrent_cell = packed_recurrent_cell if self.recurrence["layer_type"] == "lstm" else (packed_recurrent_cell, None)
 
         return recurrent_cell 
 
-    def pack_recurrent_cell(self, actor_recurrent_cell, critic_recurrent_cell, device):
+    def _pack_recurrent_cell(self, actor_recurrent_cell, critic_recurrent_cell, device):
         """ 
         This method packs the recurrent cell states in such a way s.t. it's possible to be stored in the to be used buffer.
         The returned recurrent cell has the form (hxs, cxs) if an lstm is used or hxs if gru is used.
@@ -138,13 +140,13 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         hxs = (actor_hxs, critic_hxs)
         cxs = (actor_cxs, critic_cxs)
 
-        Args:
-            actor_recurrent_cell {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
-            critic_recurrent_cell {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
-            device {torch.device}: Target device.
+        Arguments:
+            actor_recurrent_cell {tuple} -- Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
+            critic_recurrent_cell {tuple} -- Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
+            device {torch.device} -- Target device
 
         Returns:
-            {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned.
+            {tuple} -- Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned.
         """
         # Unpack recurrent cell
         # If GRU is used then unpacking might not be possible, so zip the recurrent cell with None and then unpack it
@@ -163,17 +165,17 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         # return ((actor_hxs, critic_hxs), (actor_cxs, critic_cxs))
         return recurrent_cell
 
-    def unpack_recurrent_cell(self, recurrent_cell):
+    def _unpack_recurrent_cell(self, recurrent_cell):
         """ 
         This method unpacks the recurrent cell states back to its original form, so that a recurrent cell has the form (hxs, cxs).
         
-        Args:
-            actor_recurrent_cell {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
-            critic_recurrent_cell {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
-            device {torch.device}: Target device.
+        Arguments:
+            actor_recurrent_cell {tuple} -- Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
+            critic_recurrent_cell {tuple} -- Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states
+            device {torch.device} -- Target device.
 
         Returns:
-            {tuple}: Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned.
+            {tuple} -- Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned.
         """
         # Unpack recurrent cell
         # If GRU is used then unpacking might not be possible, so zip the recurrent cell with None and then unpack it
@@ -195,19 +197,18 @@ class ActorCriticSharedWeights(ActorCriticBase):
             - Multi-discrete action spaces
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
-        Originally, this model has been used for the Obstacle Tower Challenge without a recurrent layer.
     """
     def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
         """Model setup
+
         Arguments:
-            config {dict} -- Model config that is not used yet
+            config {dict} -- Model config
             vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer type {string}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
+                - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
         """
-
         ActorCriticBase.__init__(self, recurrence, config)
 
         # Create the base model
@@ -237,12 +238,14 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
+
         Arguments:
             vis_obs {numpy.ndarray/torch,tensor} -- Visual observation (None if not available)
             vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
             recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer (None if not available)
             device {torch.device} -- Current device
             sequence_length {int} -- Length of the fed sequences
+            
         Returns:
             {list} -- Policy: List featuring categorical distributions respectively for each policy branch
             {torch.tensor} -- Value Function: Value
@@ -264,7 +267,6 @@ class ActorCriticSharedWeights(ActorCriticBase):
         if self.recurrence is not None:
             h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
             
-
         # Feed hidden layer
         h = self.activ_fn(self.hidden_layer(h))
 
@@ -285,20 +287,20 @@ class ActorCriticSharedWeights(ActorCriticBase):
 def create_actor_critic_model(model_config, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
     """Creates a shared or non-shared weights actor critic model.
 
-    Args:
-        model_config {dict}: Model config
+    Arguments:
+        model_config {dict} -- Model config
         vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
         vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
         action_space_shape {tuple} -- Dimensions of the action space
-        recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer type {string}, sequence length {int}, hidden state size {int}, hiddens state initialization {string}, fake recurrence {bool}
+        recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
+                - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
         device {torch.device} -- Current device
 
     Raises:
-        ValueError: Raises an error if conflicting model parameters are used.
+        ValueError -- Raises an error if conflicting model parameters are used.
 
     Returns:
-        {nn.Module}: The created actor critic model
+        {nn.Module} -- The created actor critic model
     """
     if model_config["share_parameters"]: # check if the actor critic model should share its weights
         if model_config["pi_estimate_advantages"]: # The DAAC model can't be used with shared weights, so raise an error.

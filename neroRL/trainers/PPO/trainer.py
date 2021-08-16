@@ -28,7 +28,7 @@ class PPOTrainer():
             configs {dict} -- The whole set of configurations (e.g. training and environment configs)
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
-            low_mem_fix {bool} -- Determines whethere to do the training/sampling on cpu or gpu. This is necessary for too small GPU memory capacities (default: {False})
+            low_mem_fix {bool} -- Determines whethere to do the training/sampling on CPU or GPU. This is necessary for too small GPU memory capacities (default: {False})
         """
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
         signal(SIGINT, self._handler)

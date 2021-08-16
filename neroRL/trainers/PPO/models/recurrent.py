@@ -2,14 +2,16 @@ import numpy as np
 from torch import nn
 
 class GRU(nn.Module):
-    """ A single-layer gated recurrent unit (GRU) module.
+    """
+    A single-layer gated recurrent unit (GRU) module.
     """
     def __init__(self, input_shape, hidden_state_size):
         """
         Initializes the gated recurrent unit.
+
         Arguments:
-            input_shape {int}: Size of input
-            hidden_state_size {int}: The number of features in the hidden state
+            input_shape {int} -- Input size
+            hidden_state_size {int} -- The number of features in the hidden state
         """
         super().__init__()
         self.recurrent_layer = nn.GRU(input_shape, hidden_state_size, batch_first=True)
@@ -22,10 +24,12 @@ class GRU(nn.Module):
 
     def forward(self, h, recurrent_cell, sequence_length):
         """Forward pass of the model
+
         Arguments:
             h {numpy.ndarray/torch.tensor} -- Feature input tensor
             recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer
             sequence_length {int} -- Length of the fed sequences
+
         Returns:
             {numpy.ndarray/torch.tensor} -- Feature output tensor
             {torch.tensor} -- Memory cell of the recurrent layer
@@ -49,14 +53,16 @@ class GRU(nn.Module):
         return h, recurrent_cell
 
 class LSTM(nn.Module):
-    """ A single-layer long short-term memory (LSTM) module.
+    """
+    A single-layer long short-term memory (LSTM) module.
     """
     def __init__(self, input_shape, hidden_state_size):
         """
         Initializes the long short-term memory network.
+
         Arguments:
-            input_shape {int}: Size of input
-            hidden_state_size {int}: The number of features in the hidden state
+            input_shape {int} -- Size of input
+            hidden_state_size {int} -- The number of features in the hidden state
         """
         super().__init__()
         self.recurrent_layer = nn.LSTM(input_shape, hidden_state_size, batch_first=True)
@@ -69,10 +75,12 @@ class LSTM(nn.Module):
 
     def forward(self, h, recurrent_cell, sequence_length):
         """Forward pass of the model
+
         Arguments:
             h {numpy.ndarray/torch.tensor} -- Feature input tensor
             recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer
             sequence_length {int} -- Length of the fed sequences
+            
         Returns:
             {numpy.ndarray/torch.tensor} -- Feature output tensor
             {torch.tensor} -- Memory cell of the recurrent layer
