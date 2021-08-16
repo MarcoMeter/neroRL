@@ -89,7 +89,7 @@ class ActorCriticSeparateWeights(ActorCriticBase):
             h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
 
         # Feed hidden layer
-        h_actor, h_critic = self.activ_fn(self.actor_hidden(h_actor)), self.activ_fn(self.critic_hidden(h_critic))
+        h_actor, h_critic = self.actor_hidden(h_actor), self.critic_hidden(h_critic)
 
         # Decouple policy from value
         # Feed hidden layer (policy)
@@ -245,7 +245,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer (None if not available)
             device {torch.device} -- Current device
             sequence_length {int} -- Length of the fed sequences
-            
+
         Returns:
             {list} -- Policy: List featuring categorical distributions respectively for each policy branch
             {torch.tensor} -- Value Function: Value
@@ -268,7 +268,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
             
         # Feed hidden layer
-        h = self.activ_fn(self.hidden_layer(h))
+        h = self.hidden_layer(h)
 
         # Decouple policy from value
         # Feed hidden layer (policy)

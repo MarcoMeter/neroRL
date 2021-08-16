@@ -21,19 +21,14 @@ class HiddenLayer(nn.Module):
         if num_hidden_layers <= 0: # Raise an error if the number of hidden layers is below one
             raise ValueError("The number of hidden layers should be greater than zero") 
 
-        hidden_layer_modules = []
-
         # Collect the (possible) linear layer(s) of the model in a list
-        single_hidden_layer = nn.Linear(in_features=in_features, out_features=out_features)
-        nn.init.orthogonal_(single_hidden_layer.weight, np.sqrt(2))
-        hidden_layer_modules.append(single_hidden_layer)
-
+        hidden_layer_modules = []
         for _ in range(num_hidden_layers):
-            hidden_layer_modules.append(activ_fn) # add an activation function
-
-            single_hidden_layer = nn.Linear(in_features=out_features, out_features=out_features)
-            nn.init.orthogonal_(single_hidden_layer.weight, np.sqrt(2))
-            hidden_layer_modules.append(single_hidden_layer)
+            linear_layer = nn.Linear(in_features=in_features, out_features=out_features)
+            nn.init.orthogonal_(linear_layer.weight, np.sqrt(2))
+            hidden_layer_modules.append(linear_layer)
+            hidden_layer_modules.append(activ_fn) # add activation function
+            in_features = out_features
 
         # Build the hidden layer
         self.hidden_layer = nn.Sequential(*hidden_layer_modules)
