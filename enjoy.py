@@ -1,7 +1,7 @@
 """
 Instantiates an environment and loads a trained model based on the provided config.
-The agent environment interaction is then shown in realtime for one episode on a specified or random seed.
-TODO: Additionally a video can be rendered.
+The agent environment interaction is then shown in realtime for one episode on a specified seed.
+Additionally a video can be rendered.
 """
 
 import logging
@@ -11,15 +11,8 @@ from docopt import docopt
 from gym import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
-from neroRL.trainers.PPO.otc_model import OTCModel
-from neroRL.environments.unity_wrapper import UnityWrapper
-from neroRL.environments.obstacle_tower_wrapper import ObstacleTowerWrapper
-from neroRL.environments.minigrid_wrapper import MinigridWrapper
-from neroRL.environments.procgen_wrapper import ProcgenWrapper
-from neroRL.environments.cartpole_wrapper import CartPoleWrapper
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.serialization import load_checkpoint
-
 from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 
 # Setup logger

@@ -10,7 +10,7 @@ Some already trained models can be found inside the `models` directory!
         enjoy.py --help
 
     Options:
-        --config=<path>            Path of the Config file [default: ./configs/default.yaml].
+        --config=<path>            Path to the config file [default: ./configs/default.yaml].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --seed=<n>                 The to be played seed of an episode [default: 0].

@@ -2,7 +2,6 @@
 Runs the training program using the provided config and arguments.
 """
 
-import torch
 from docopt import docopt
 
 from neroRL.utils.yaml_parser import YamlParser
@@ -16,10 +15,10 @@ def main():
         train.py --help
 
     Options:
-        --config=<path>            Path of the Config file [default: ./configs/default.yaml].
+        --config=<path>            Path to the config file [default: ./configs/default.yaml].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --run-id=<path>            Specifies the tag of the tensorboard summaries [default: default].
-        --low-mem-fix              Whether to load one mini_batch at a time. This is needed for GPUs with low memory (e.g. 2GB) [default: False].
+        --low-mem-fix              Whether to load one mini_batch at a time to the GPU's memory. [default: False].
         --out=<path>               Specifies the path to output files such as summaries and checkpoints. [default: ./]
     """
     options = docopt(_USAGE)

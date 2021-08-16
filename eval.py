@@ -1,5 +1,6 @@
 """
-Evaluates an agent based on a configurated environment and evaluation.
+Evaluates an agent based on a configured environment and evaluation.
+Additionally each evaluation episode can be rendered as a video. 
 """
 
 import logging
@@ -11,9 +12,7 @@ from gym import spaces
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
-from neroRL.trainers.PPO.otc_model import OTCModel
 from neroRL.utils.serialization import load_checkpoint
-
 from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 
 # Setup logger
@@ -31,7 +30,7 @@ def main():
         evaluate.py --help
 
     Options:
-        --config=<path>            Path of the Config file [default: ./configs/default.yaml].
+        --config=<path>            Path to the config file [default: ./configs/default.yaml].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
     """
