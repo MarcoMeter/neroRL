@@ -13,7 +13,7 @@ class YamlParser:
     def __init__(self, path = "./configs/default.yaml"):
         """Loads and prepares the specified config file.
         
-        Keyword Arguments:
+        Arguments:
             path {str} -- Yaml file path to the to be loaded config (default: {"./configs/default.yaml"})
         """
         # Load the config file
@@ -29,9 +29,9 @@ class YamlParser:
             self._config = dict(data)
 
         # Process config, like adding missing keys with default values
-        self.process_config()
+        self._process_config()
 
-    def process_config(self):
+    def _process_config(self):
         """Ensures that the config is complete. If incomplete, default values will be applied to missing entries.
         """
         # Default parameters
@@ -167,7 +167,7 @@ class GridSearchYamlParser:
     def __init__(self, path = "./configs/tune/example.yaml"):
         """Loads and prepares the specified config file.
         
-        Keyword Arguments:
+        Arguments:
             path {str} -- Yaml file path to the to be loaded config (default: {"./configs/tune/search.yaml"})
         """
         # Load the config file
