@@ -215,8 +215,8 @@ class PPOTrainer():
             # 3.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
             if self.recurrence:
                 self.model.set_mean_recurrent_cell_states(
-                        np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0),
-                        np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0))
+                        np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.buffer.hxs.shape[2:]), axis=0),
+                        np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.buffer.cxs.shape[2:]), axis=0))
 
             # 4.: Prepare the sampled data inside the buffer
             self.buffer.prepare_batch_dict()
