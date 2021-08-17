@@ -186,8 +186,8 @@ class ActorCriticSeparateWeights(ActorCriticBase):
             actor_cxs, critic_cxs = cxs[:, :, :, 0], cxs[:, :, :, 1]
 
         # return the packed recurrent_cell based on the recurrent layer_type
-        actor_recurrent_cell = (actor_hxs, actor_cxs) if self.recurrence["layer_type"] == "lstm" else actor_hxs
-        critic_recurrent_cell = (critic_hxs, critic_cxs) if self.recurrence["layer_type"] == "lstm" else critic_hxs
+        actor_recurrent_cell = (actor_hxs.contiguous(), actor_cxs.contiguous()) if self.recurrence["layer_type"] == "lstm" else actor_hxs.contiguous()
+        critic_recurrent_cell = (critic_hxs.contiguous(), critic_cxs.contiguous()) if self.recurrence["layer_type"] == "lstm" else critic_hxs.contiguous()
 
         # return (actor_hxs, actor_cxs), (critic_hxs, critic_cxs)
         return actor_recurrent_cell, critic_recurrent_cell
