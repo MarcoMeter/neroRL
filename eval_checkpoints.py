@@ -76,7 +76,7 @@ def main():
     print("Step 2: Initialize model")
     model = create_actor_critic_model(configs["model"], visual_observation_space,
                             vector_observation_space, action_space_shape,
-                            configs["model"]["recurrence"], device)
+                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
     model.eval()
 
     # Load checkpoint paths
