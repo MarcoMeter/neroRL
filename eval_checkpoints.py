@@ -102,7 +102,7 @@ def main():
     evaluator.close()
 
     # Save results to file
-    print("Step 6: Save to File: " + name)
+    print("\nStep 6: Save to File: " + name)
     results = np.asarray(results).reshape(len(checkpoints), len(configs["evaluation"]["seeds"]), configs["evaluation"]["n_workers"])
     outfile = open(name, "wb")
     pickle.dump(results, outfile)
