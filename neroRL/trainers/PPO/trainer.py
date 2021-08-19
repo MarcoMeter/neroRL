@@ -484,6 +484,7 @@ class PPOTrainer():
         self.writer.add_scalar("losses/value_loss", training_stats[1], update)
         self.writer.add_scalar("other/entropy", training_stats[3], update)
         self.writer.add_scalar("other/clip_fraction", training_stats[5], update)
+        self.writer.add_scalar("other/kl_divergence", training_stats[4], update)
         self.writer.add_scalar("other/sequence_length", self.buffer.actual_sequence_length, update)
         self.writer.add_scalar("episode/value_mean", np.mean(self.buffer.values), update)
         self.writer.add_scalar("episode/advantage_mean", np.mean(self.buffer.advantages), update)
