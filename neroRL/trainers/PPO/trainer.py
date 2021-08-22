@@ -261,10 +261,10 @@ class PPOTrainer():
             if self.eval:
                 if update % self.eval_interval == 0 or update == (self.updates - 1):
                     eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
-                    episode_result = self._process_episode_info(eval_episode_info)
+                    evaluation_result = self._process_episode_info(eval_episode_info)
                     self.logger.info("eval: sec={:3} reward={:.2f} length={:.1f}".format(
-                        eval_duration, episode_result["reward_mean"], episode_result["length_mean"]))
-                    self._write_eval_summary(update, episode_result)
+                        eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
+                    self._write_eval_summary(update, evaluation_result)
             
             # Write training statistics to tensorboard
             self._write_training_summary(update, training_stats, episode_result, learning_rate, clip_range, beta)
