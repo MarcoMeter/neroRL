@@ -12,6 +12,7 @@ from sys import exit
 from signal import signal, SIGINT
 
 from neroRL.environments.wrapper import wrap_environment
+from neroRL.sampler.trajectory_sampler import TrajectorySampler
 from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
@@ -57,7 +58,6 @@ class PPOTrainer():
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Init members
-        self.worker_id = worker_id
         self.run_id = run_id
         self.low_mem_fix = low_mem_fix
         if self.low_mem_fix:
@@ -95,16 +95,16 @@ class PPOTrainer():
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
         self.logger.info("Step 2: Creating dummy environment")
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
-        visual_observation_space = self.dummy_env.visual_observation_space
-        vector_observation_space = self.dummy_env.vector_observation_space
+        self.visual_observation_space = self.dummy_env.visual_observation_space
+        self.vector_observation_space = self.dummy_env.vector_observation_space
         if isinstance(self.dummy_env.action_space, spaces.Discrete):
             self.action_space_shape = (self.dummy_env.action_space.n,)
         else:
             self.action_space_shape = tuple(self.dummy_env.action_space.nvec)
         self.dummy_env.close()
 
-        self.logger.info("Step 2: Visual Observation Space: " + str(visual_observation_space))
-        self.logger.info("Step 2: Vector Observation Space: " + str(vector_observation_space))
+        self.logger.info("Step 2: Visual Observation Space: " + str(self.visual_observation_space))
+        self.logger.info("Step 2: Vector Observation Space: " + str(self.vector_observation_space))
         self.logger.info("Step 2: Action Space Shape: " + str(self.action_space_shape))
         self.logger.info("Step 2: Action Names: " + str(self.dummy_env.action_names))
 
@@ -113,18 +113,18 @@ class PPOTrainer():
         self.eval_interval = configs["evaluation"]["interval"]
         if self.eval and self.eval_interval > 0:
             self.logger.info("Step 2b: Initializing evaluator")
-            self.evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
+            self.evaluator = Evaluator(configs, worker_id, self.visual_observation_space, self.vector_observation_space)
 
         # Instantiate experience/training data buffer
         self.buffer = Buffer(
             self.n_workers, self.worker_steps, self.n_mini_batch,
-            visual_observation_space, vector_observation_space,
+            self.visual_observation_space, self.vector_observation_space,
             self.action_space_shape, self.recurrence,
             self.device, self.mini_batch_device, configs["model"]["share_parameters"])
 
         # Init model
         self.logger.info("Step 3: Creating model")
-        self.model = create_actor_critic_model(configs["model"], visual_observation_space, vector_observation_space,
+        self.model = create_actor_critic_model(configs["model"], self.visual_observation_space, self.vector_observation_space,
                                 self.action_space_shape, self.recurrence, self.device)
 
         # Instantiate optimizer
@@ -143,40 +143,10 @@ class PPOTrainer():
         # Set model to train mode
         self.model.train()
 
-        # Launch workers
+        # Setup Sampler
         self.logger.info("Step 4: Launching training environments of type " + configs["environment"]["type"])
-        self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
-
-        # Setup initial observations
-        if visual_observation_space is not None:
-            self.vis_obs = np.zeros((self.n_workers,) + visual_observation_space.shape, dtype=np.float32)
-        else:
-            self.vis_obs = None
-        if vector_observation_space is not None:
-            self.vec_obs = np.zeros((self.n_workers,) + vector_observation_space, dtype=np.float32)
-        else:
-            self.vec_obs = None
-
-        # Setup initial recurrent cell
-        if self.recurrence is not None:
-            hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.mini_batch_device)
-            if self.recurrence["layer_type"] == "gru":
-                self.recurrent_cell = hxs
-            elif self.recurrence["layer_type"] == "lstm":
-                self.recurrent_cell = (hxs, cxs)
-        else:
-            self.recurrent_cell = None
-
-        # Reset workers
-        for worker in self.workers:
-            worker.child.send(("reset", None))
-        # Grab initial observations
-        for i, worker in enumerate(self.workers):
-            vis_obs, vec_obs = worker.child.recv()
-            if self.vis_obs is not None:
-                self.vis_obs[i] = vis_obs
-            if self.vec_obs is not None:
-                self.vec_obs[i] = vec_obs
+        self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
+                                        self.model, self.buffer, self.device, self.mini_batch_device)
 
     def run_training(self):
         """Orchestrates the PPO training:
@@ -208,9 +178,9 @@ class PPOTrainer():
             # 2.: Sample data from each worker for worker steps
             if self.low_mem_fix:
                 self.model.cpu() # Sample on CPU
-                sample_episode_info = self._sample_training_data(self.mini_batch_device)
+                sample_episode_info = self.sampler.sample(self.mini_batch_device)
             else:
-                sample_episode_info = self._sample_training_data(self.device)
+                sample_episode_info = self.sampler.sample(self.device)
             
             # 3.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
             if self.recurrence:
@@ -268,89 +238,6 @@ class PPOTrainer():
             # Write training statistics to tensorboard
             self._write_training_summary(update, training_stats, episode_result, learning_rate, clip_range, beta)
 
-    def _sample_training_data(self, device):
-        """Sample data (batch) with current policy from all workers for worker_steps.
-        At the end the advantages are computed.
-        
-        Arguments:
-            device {torch.device} -- The to be used device for sampling training data
-
-        Returns:
-            episode_infos {list} -- Results of completed episodes
-        """
-        episode_infos = []
-
-        # Sample actions from the model and collect experiences for training
-        for t in range(self.worker_steps):
-            # Gradients can be omitted for sampling data
-            with torch.no_grad():
-                # Save the initial observations and hidden states
-                if self.vis_obs is not None:
-                    self.buffer.vis_obs[:, t] = self.vis_obs
-                if self.vec_obs is not None:
-                    self.buffer.vec_obs[:, t] = self.vec_obs
-                # Store recurrent cell states inside the buffer
-                if self.recurrence is not None:
-                    if self.recurrence["layer_type"] == "gru":
-                        self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
-                    elif self.recurrence["layer_type"] == "lstm":
-                        self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu().numpy()
-                        self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
-
-                # Forward the model to retrieve the policy (making decisions), the states' value of the value function and the recurrent hidden states (if available)
-                policy, value, self.recurrent_cell = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
-                self.buffer.values[:, t] = value.cpu().data.numpy()
-
-                # Sample actions from each individual policy branch
-                actions = []
-                log_probs = []
-                for action_branch in policy:
-                    action = action_branch.sample()
-                    actions.append(action.cpu().data.numpy())
-                    log_probs.append(action_branch.log_prob(action).cpu().data.numpy())
-                actions = np.transpose(actions)
-                log_probs = np.transpose(log_probs)
-                self.buffer.actions[:, t] = actions
-                self.buffer.log_probs[:, t] = log_probs
-
-            # Execute actions
-            for w, worker in enumerate(self.workers):
-                worker.child.send(("step", self.buffer.actions[w, t]))
-
-            # Retrieve results
-            for w, worker in enumerate(self.workers):
-                vis_obs, vec_obs, self.buffer.rewards[w, t], self.buffer.dones[w, t], info = worker.child.recv()
-                if self.vis_obs is not None:
-                    self.vis_obs[w] = vis_obs
-                if self.vec_obs is not None:
-                    self.vec_obs[w] = vec_obs
-                if info:
-                    # Store the information of the completed episode (e.g. total reward, episode length)
-                    episode_infos.append(info)
-                    # Reset agent (potential interface for providing reset parameters)
-                    worker.child.send(("reset", None))
-                    # Get data from reset
-                    vis_obs, vec_obs = worker.child.recv()
-                    if self.vis_obs is not None:
-                        self.vis_obs[w] = vis_obs
-                    if self.vec_obs is not None:
-                        self.vec_obs[w] = vec_obs
-                    # Reset recurrent cell states
-                    if self.recurrence is not None:
-                        if self.recurrence["reset_hidden_state"]:
-                            hxs, cxs = self.model.init_recurrent_cell_states(1, self.mini_batch_device)
-                            if self.recurrence["layer_type"] == "gru":
-                                self.recurrent_cell[:, w] = hxs
-                            elif self.recurrence["layer_type"] == "lstm":
-                                self.recurrent_cell[0][:, w] = hxs
-                                self.recurrent_cell[1][:, w] = cxs
-                                
-        # Calculate advantages
-        _, last_value, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
-        self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
-
-        return episode_infos
-
     def _train_epochs(self, learning_rate: float, clip_range: float, beta: float):
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
         
@@ -399,8 +286,8 @@ class PPOTrainer():
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
         
-        policy, value, _ = self.model(samples['vis_obs'] if self.vis_obs is not None else None,
-                                    samples['vec_obs'] if self.vec_obs is not None else None,
+        policy, value, _ = self.model(samples['vis_obs'] if self.visual_observation_space is not None else None,
+                                    samples['vec_obs'] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
                                     self.device,
                                     self.buffer.actual_sequence_length)
@@ -537,10 +424,9 @@ class PPOTrainer():
         except:
             pass
 
-        self.logger.info("Terminate: Shutting down workers . . .")
+        self.logger.info("Terminate: Shutting down sampler . . .")
         try:
-            for worker in self.workers:
-                worker.child.send(("close", None))
+            self.sampler.close()
         except:
             pass
 
