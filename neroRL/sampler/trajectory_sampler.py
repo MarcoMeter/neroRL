@@ -122,12 +122,17 @@ class TrajectorySampler():
                             elif self.recurrence["layer_type"] == "lstm":
                                 self.recurrent_cell[0][:, w] = hxs
                                 self.recurrent_cell[1][:, w] = cxs
-                                
-        # Calculate advantages
-        _, last_value, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
-        self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
 
         return episode_infos
+
+    def last_vis_obs(self) -> np.ndarray:
+        return self.vis_obs
+
+    def last_vec_obs(self) -> np.ndarray:
+        return self.vec_obs
+
+    def last_recurrent_cell(self) -> tuple:
+        return self.recurrent_cell
 
     def close(self) -> None:
         try:

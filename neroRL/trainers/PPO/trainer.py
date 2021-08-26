@@ -182,6 +182,10 @@ class PPOTrainer():
                 sample_episode_info = self.sampler.sample(self.mini_batch_device)
             else:
                 sample_episode_info = self.sampler.sample(self.device)
+
+            # 3.: Calculate advantages
+            _, last_value, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell(), self.device)
+            self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
             
             # 3.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
             if self.recurrence:
