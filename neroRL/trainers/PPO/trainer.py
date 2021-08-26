@@ -18,6 +18,7 @@ from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.utils.worker import Worker
 from neroRL.utils.decay_schedules import polynomial_decay
+from neroRL.utils.utils import masked_mean
 from neroRL.utils.serialization import save_checkpoint, load_checkpoint
 
 class PPOTrainer():
@@ -307,20 +308,20 @@ class PPOTrainer():
         surr1 = ratio * normalized_advantage
         surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * normalized_advantage
         policy_loss = torch.min(surr1, surr2)
-        policy_loss = PPOTrainer._masked_mean(policy_loss, samples["loss_mask"])
+        policy_loss = masked_mean(policy_loss, samples["loss_mask"])
 
         # Value
         sampled_return = samples['values'] + samples['advantages']
         clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range, max=clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
-        vf_loss = PPOTrainer._masked_mean(vf_loss, samples["loss_mask"])
+        vf_loss = masked_mean(vf_loss, samples["loss_mask"])
         vf_loss = .25 * vf_loss
 
         # Entropy Bonus
         entropies = []
         for policy_branch in policy:
             entropies.append(policy_branch.entropy())
-        entropy_bonus = PPOTrainer._masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
+        entropy_bonus = masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
 
         # Complete loss
         loss = -(policy_loss - vf_loss + beta * entropy_bonus)
@@ -334,7 +335,7 @@ class PPOTrainer():
         self.optimizer.step()
 
         # Monitor training statistics
-        approx_kl = PPOTrainer._masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
+        approx_kl = masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
         clip_fraction = (abs((ratio - 1.0)) > clip_range).type(torch.FloatTensor).mean()
 
         return [policy_loss.cpu().data.numpy(),
@@ -343,21 +344,6 @@ class PPOTrainer():
                 entropy_bonus.cpu().data.numpy(),
                 approx_kl.cpu().data.numpy(),
                 clip_fraction.cpu().data.numpy()]
-
-    @staticmethod
-    def _masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
-            """
-            Returns the mean of the tensor but ignores the values specified by the mask.
-            This is used for masking out the padding of the loss functions.
-
-            Args:
-                tensor {Tensor} -- The to be masked tensor
-                mask {Tensor} -- The mask that is used to mask out padded values of a loss function
-
-            Returns:
-                {Tensor} -- Returns the mean of the masked tensor.
-            """
-            return (tensor.T * mask).sum() / torch.clamp((torch.ones_like(tensor.T) * mask).float().sum(), min=1.0)
 
     def _write_training_summary(self, update, training_stats, episode_result, learning_rate, clip_range, beta):
         """Writes to an event file based on the run-id argument."""
