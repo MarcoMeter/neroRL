@@ -17,10 +17,6 @@ class TrajectorySampler():
         self.device = device
         self.mini_batch_device = mini_batch_device
 
-        # TODO
-        self.gamma = configs["trainer"]["gamma"]
-        self.lamda = configs["trainer"]["lamda"]
-
         # Launch workers
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
         
