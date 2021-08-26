@@ -13,7 +13,7 @@ environment:
 
 model:
   load_model: False
-  model_path: "./models/cartpole_recurrent.pt"
+  model_path: "./checkpoints/cartpole/20210722-103713_2/cartpole-199.pt"
   checkpoint_interval: 25
   activation: "relu"
   share_parameters: True

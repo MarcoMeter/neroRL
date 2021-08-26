@@ -260,10 +260,10 @@ class PPOTrainer():
             if self.eval:
                 if update % self.eval_interval == 0 or update == (self.updates - 1):
                     eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
-                    episode_result = self._process_episode_info(eval_episode_info)
+                    evaluation_result = self._process_episode_info(eval_episode_info)
                     self.logger.info("eval: sec={:3} reward={:.2f} length={:.1f}".format(
-                        eval_duration, episode_result["reward_mean"], episode_result["length_mean"]))
-                    self._write_eval_summary(update, episode_result)
+                        eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
+                    self._write_eval_summary(update, evaluation_result)
             
             # Write training statistics to tensorboard
             self._write_training_summary(update, training_stats, episode_result, learning_rate, clip_range, beta)
@@ -483,6 +483,7 @@ class PPOTrainer():
         self.writer.add_scalar("losses/value_loss", training_stats[1], update)
         self.writer.add_scalar("other/entropy", training_stats[3], update)
         self.writer.add_scalar("other/clip_fraction", training_stats[5], update)
+        self.writer.add_scalar("other/kl_divergence", training_stats[4], update)
         self.writer.add_scalar("other/sequence_length", self.buffer.actual_sequence_length, update)
         self.writer.add_scalar("episode/value_mean", np.mean(self.buffer.values), update)
         self.writer.add_scalar("episode/advantage_mean", np.mean(self.buffer.advantages), update)
