@@ -179,24 +179,25 @@ class PPOTrainer():
             # 2.: Sample data from each worker for worker steps
             if self.low_mem_fix:
                 self.model.cpu() # Sample on CPU
-                sample_episode_info = self.sampler.sample(self.mini_batch_device)
+                sample_device = self.mini_batch_device
             else:
-                sample_episode_info = self.sampler.sample(self.device)
+                sample_device = self.device
 
             # 3.: Calculate advantages
-            _, last_value, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell(), self.device)
+            sample_episode_info = self.sampler.sample(self.mini_batch_device)
+            _, last_value, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell(), sample_device)
             self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
             
-            # 3.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
+            # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
             if self.recurrence:
                 self.model.set_mean_recurrent_cell_states(
                         np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.buffer.hxs.shape[2:]), axis=0),
                         np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.buffer.cxs.shape[2:]), axis=0))
 
-            # 4.: Prepare the sampled data inside the buffer
+            # 5.: Prepare the sampled data inside the buffer
             self.buffer.prepare_batch_dict()
 
-            # 5.: Train n epochs over the sampled data using mini batches
+            # 6.: Train n epochs over the sampled data using mini batches
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
             training_stats = self._train_epochs(learning_rate, clip_range, beta)
