@@ -1,7 +1,7 @@
 """
 This eval script evaluates all available models inside one directory.
 
-The shape of the ouput data is as follow:
+The shape of the ouput data is as follows:
 (Checkpoint, Seed, Worker)
 
 Each data point is a dictionary given the episode information:
@@ -23,7 +23,7 @@ from gym import spaces
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
-from neroRL.trainers.PPO.otc_model import OTCModel
+from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 from neroRL.utils.serialization import load_checkpoint
 
 def main():
@@ -34,7 +34,7 @@ def main():
         evaluate.py --help
 
     Options:
-        --config=<path>            Path of the Config file [default: ./configs/default.yaml].
+        --config=<path>            Path to the config file [default: ./configs/default.yaml].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --path=<path>              Specifies the tag of the tensorboard summaries [default: None].
         --name=<path>              Specifies the full path to save the output file [default: results.res].
@@ -74,9 +74,9 @@ def main():
 
     # Init model
     print("Step 2: Initialize model")
-    model = OTCModel(configs["model"], visual_observation_space,
-                                vector_observation_space, action_space_shape,
-                                configs["model"]["recurrence"]).to(device)
+    model = create_actor_critic_model(configs["model"], visual_observation_space,
+                            vector_observation_space, action_space_shape,
+                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
     model.eval()
 
     # Load checkpoint paths
@@ -102,8 +102,7 @@ def main():
     evaluator.close()
 
     # Save results to file
-    print("")
-    print("Step 6: Save to File: " + name)
+    print("\nStep 6: Save to File: " + name)
     results = np.asarray(results).reshape(len(checkpoints), len(configs["evaluation"]["seeds"]), configs["evaluation"]["n_workers"])
     outfile = open(name, "wb")
     pickle.dump(results, outfile)

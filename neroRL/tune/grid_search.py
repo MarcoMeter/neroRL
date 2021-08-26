@@ -14,22 +14,22 @@ class GridSearch:
         """Retrieves the configuration data and creates all permutations of the hyperparameter search space.
 
         Arguments:
-            base_config {dict}: Original configuration
-            tune_config {dict}: Configuration that provides the to be permuted hyperparameter choices
+            base_config {dict} -- Original configuration
+            tune_config {dict} -- Configuration that provides the to be permuted hyperparameter choices
         """
         # Original config that is used to source all other values
         self.base_config = base_config
 
         # Permute all parameters of the tuning config
-        permutations = self.permute(tune_config)
+        permutations = self._permute(tune_config)
 
         # Create a new config for each permutation
         self._final_configs = []
         # Store a tuple of the final config and the used permuted hyperparameters
         for permutation in permutations:
-            self._final_configs.append((self.generate_config(permutation), permutation))
+            self._final_configs.append((self._generate_config(permutation), permutation))
 
-    def permute(self, tune_config):
+    def _permute(self, tune_config):
         """Permutes all parameters as specified by the tuning config.
 
         Arguments:
@@ -50,7 +50,7 @@ class GridSearch:
 
         return permutations
 
-    def generate_config(self, permutation):
+    def _generate_config(self, permutation):
         """Generates a new config by modifying the original config using a single permutation of the hyperparmeter choices.
 
         Arguments:
@@ -118,14 +118,6 @@ class GridSearch:
             # Create/Append info.txt to store the config's ID along with its used permutation
             f = open(root_path + "info.txt", "a")
             f.write(str(i) + ": " + str(permutation) +"\n\n")
-
-    def get_permuted_configs(self):
-        """Returns a list of all configs and its permutations.
-
-        Returns:
-            {list}: Returns a list of tuples. Each tuple contains the final config and the used permutation.
-        """
-        return self._final_configs
 
     def run_trainings_sequentially(self, num_repetitions = 1, run_id="default", worker_id = 2, low_mem_fix = False, out_path = "./"):
         """Conducts one training session per generated config file.

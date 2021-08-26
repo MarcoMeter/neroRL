@@ -1,3 +1,8 @@
+"""
+This program creates all hyperparameters permutations based on a tuning config.
+It either executes all training runs sequentially or just outputs each permutation as a config file.
+"""
+
 from docopt import docopt
 from neroRL.tune.grid_search import GridSearch
 from neroRL.utils.yaml_parser import GridSearchYamlParser, YamlParser
@@ -10,12 +15,12 @@ def main():
         tune.py --help
 
     Options:
-        --config=<path>             Path of the config file [default: ./configs/default.yaml].
+        --config=<path>             Path to the config file [default: ./configs/default.yaml].
         --tune=<path>               Path to the config file that features the hyperparameter search space for tuning [default: ./configs/tune/example.yaml]
         --num-repetitions=<n>       How many times to repeat the training of one config [default: 1]
         --worker-id=<n>             Sets the port for each environment instance [default: 2].
         --run-id=<path>             Specifies the tag of the tensorboard summaries [default: default].
-        --low-mem-fix               Whether to load one mini_batch at a time. This is needed for GPUs with low memory (e.g. 2GB) [default: False].
+        --low-mem-fix               Whether to load one mini_batch at a time to the GPU's memory. [default: False].
         --generate-only             Whether to only generate the config files [default: False]
         --out=<path>                Where to output the generated config files [default: ./grid_search/]
     """
@@ -37,10 +42,7 @@ def main():
 
     # Init GridSearch: it creates config files for each permutation of the hyperparameter search space
     grid_search = GridSearch(config, tune_config)
-
-    # Retrieve permuted configs
-    configs = grid_search.get_permuted_configs()
-
+    
     # Generate configs or run training sessions sequentially
     if generate_only:
         grid_search.write_permuted_configs_to_file(out_path)

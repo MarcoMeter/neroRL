@@ -18,6 +18,12 @@ model:
   model_path: "./models/minigrid_S17-199.pt"
   checkpoint_interval: 100
   activation: "relu"
+  share_parameters: True
+  pi_estimate_advantages: False
+  encoder: "cnn"
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
   recurrence:
     layer_type: "lstm"
     sequence_length: 8

@@ -39,6 +39,12 @@ model:
   model_path: "./models/mortar_mayhem-6450.pt"
   checkpoint_interval: 200
   activation: "relu"
+  share_parameters: True
+  pi_estimate_advantages: False
+  encoder: "cnn"
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
   recurrence:
     layer_type: "gru"
     sequence_length: -1

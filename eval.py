@@ -1,5 +1,6 @@
 """
-Evaluates an agent based on a configurated environment and evaluation.
+Evaluates an agent based on a configured environment and evaluation.
+Additionally each evaluation episode can be rendered as a video. 
 """
 
 import logging
@@ -12,8 +13,8 @@ import sys
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
-from neroRL.trainers.PPO.otc_model import OTCModel
 from neroRL.utils.serialization import load_checkpoint
+from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 
 # Setup logger
 logging.basicConfig(level = logging.INFO, handlers=[])
@@ -30,7 +31,7 @@ def main():
         evaluate.py --help
 
     Options:
-        --config=<path>            Path of the Config file [default: ./configs/default.yaml].
+        --config=<path>            Path to the config file [default: ./configs/default.yaml].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
@@ -68,9 +69,9 @@ def main():
 
     # Build or load model
     logger.info("Step 2: Creating model")
-    model = OTCModel(configs["model"], visual_observation_space,
+    model = create_actor_critic_model(configs["model"], visual_observation_space,
                             vector_observation_space, action_space_shape,
-                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None).to(device)
+                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
         checkpoint = load_checkpoint(configs["model"]["model_path"])

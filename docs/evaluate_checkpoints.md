@@ -9,7 +9,7 @@ To evaluate a series of model checkpoints utilize the `python eval_checkpoints.p
         evaluate.py --help
 
     Options:
-        --config=<path>            Path of the Config file [default: ./configs/default.yaml].
+        --config=<path>            Path to the config file [default: ./configs/default.yaml].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --path=<path>              Specifies the tag of the tensorboard summaries [default: None].
         --name=<path>              Specifies the full path to save the output file [default: results.res].

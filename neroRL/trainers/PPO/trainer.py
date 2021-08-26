@@ -12,7 +12,7 @@ from sys import exit
 from signal import signal, SIGINT
 
 from neroRL.environments.wrapper import wrap_environment
-from neroRL.trainers.PPO.otc_model import OTCModel
+from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.utils.worker import Worker
@@ -28,7 +28,7 @@ class PPOTrainer():
             configs {dict} -- The whole set of configurations (e.g. training and environment configs)
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
-            low_mem_fix {bool} -- Determines whethere to do the training/sampling on cpu or gpu. This is necessary for too small GPU memory capacities (default: {False})
+            low_mem_fix {bool} -- Determines whethere to do the training/sampling on CPU or GPU. This is necessary for too small GPU memory capacities (default: {False})
         """
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
         signal(SIGINT, self._handler)
@@ -77,14 +77,13 @@ class PPOTrainer():
         self.lr_schedule = configs["trainer"]['learning_rate_schedule']
         self.beta_schedule = configs["trainer"]['beta_schedule']
         self.cr_schedule = configs["trainer"]['clip_range_schedule']
+        self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
         self.batch_size = self.n_workers * self.worker_steps
         self.mini_batch_size = self.batch_size // self.n_mini_batch
         assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
         self.writer = SummaryWriter(out_path + "summaries/" + run_id + timestamp)
         self._write_hyperparameters(configs)
-
-        self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
         # Start logging the training setup
         self.logger.info("Step 1: Provided config:")
@@ -93,8 +92,8 @@ class PPOTrainer():
             for k, v in configs[key].items():
                 self.logger.info("Step 1: " + str(k) + ": " + str(v))
 
-        self.logger.info("Step 2: Creating dummy environment")
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
+        self.logger.info("Step 2: Creating dummy environment")
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
         visual_observation_space = self.dummy_env.visual_observation_space
         vector_observation_space = self.dummy_env.vector_observation_space
@@ -112,7 +111,7 @@ class PPOTrainer():
         # Prepare evaluator if configured
         self.eval = configs["evaluation"]["evaluate"]
         self.eval_interval = configs["evaluation"]["interval"]
-        if self.eval:
+        if self.eval and self.eval_interval > 0:
             self.logger.info("Step 2b: Initializing evaluator")
             self.evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
 
@@ -121,12 +120,12 @@ class PPOTrainer():
             self.n_workers, self.worker_steps, self.n_mini_batch,
             visual_observation_space, vector_observation_space,
             self.action_space_shape, self.recurrence,
-            self.device, self.mini_batch_device)
+            self.device, self.mini_batch_device, configs["model"]["share_parameters"])
 
         # Init model
         self.logger.info("Step 3: Creating model")
-        self.model = OTCModel(configs["model"], visual_observation_space, vector_observation_space,
-                                self.action_space_shape, self.recurrence).to(self.device)
+        self.model = create_actor_critic_model(configs["model"], visual_observation_space, vector_observation_space,
+                                self.action_space_shape, self.recurrence, self.device)
 
         # Instantiate optimizer
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
@@ -214,10 +213,10 @@ class PPOTrainer():
                 sample_episode_info = self._sample_training_data(self.device)
             
             # 3.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
-            if self.recurrence is not None:
+            if self.recurrence:
                 self.model.set_mean_recurrent_cell_states(
-                        np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0),
-                        np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, self.recurrence["hidden_state_size"]), axis=0))
+                        np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.buffer.hxs.shape[2:]), axis=0),
+                        np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.buffer.cxs.shape[2:]), axis=0))
 
             # 4.: Prepare the sampled data inside the buffer
             self.buffer.prepare_batch_dict()
@@ -231,7 +230,7 @@ class PPOTrainer():
             # Store recent episode infos
             episode_info.extend(sample_episode_info)
     
-            # Seconds needed for a whole update
+            # Measure seconds needed for a whole update
             time_end = time.time()
             update_duration = int(time_end - time_start)
 

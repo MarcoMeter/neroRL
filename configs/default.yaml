@@ -38,18 +38,32 @@ model:
   checkpoint_interval: 50
   # Set the to be used activation function (elu, leaky_relu, relu, swish)
   activation: "relu"
+  # Wether the actor and critic model should share its parameters
+  share_parameters: True
+  # DAAC: Actor model also estimates the advantages(Note: if True = > parameter are not shared)
+  pi_estimate_advantages: False
+  # Set the to be used encoder
+  encoder: "cnn"
+
   recurrence:
     # Supported recurrent layers: gru, lstm
-    layer_type: "gru"
+    layer_type: "lstm"
     # Length of the trained sequences, if set to 0 or smaller the sequence length is dynamically fit to episode lengths
     sequence_length: 32
     # Size of the recurrent layer's hidden state
     hidden_state_size: 128
-    # How to initialize the hidden state (zero, one, mean, sample)
+    # How to initialize the hidden state (zero, one, mean, sample, learned)
     hidden_state_init: "zero"
     # Whether to reset the hidden state before a new episode.
     # Environments that use short episodes are likely to profit from not resetting the hidden state.
     reset_hidden_state: True
+
+  # Set the to be used hidden layer
+  hidden_layer: "default"
+  # Number of hidden layers
+  num_hidden_layers: 1
+  # Number of hidden units
+  num_hidden_units: 512
   
 ### EVALUATION CONFIG ###
 evaluation:

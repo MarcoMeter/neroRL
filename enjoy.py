@@ -1,7 +1,7 @@
 """
 Instantiates an environment and loads a trained model based on the provided config.
-The agent environment interaction is then shown in realtime for one episode on a specified or random seed.
-TODO: Additionally a video can be rendered.
+The agent environment interaction is then shown in realtime for one episode on a specified seed.
+Additionally a video can be rendered.
 """
 
 import logging
@@ -12,15 +12,10 @@ from gym import spaces
 import sys
 
 from neroRL.utils.yaml_parser import YamlParser
-from neroRL.trainers.PPO.otc_model import OTCModel
-from neroRL.environments.unity_wrapper import UnityWrapper
-from neroRL.environments.obstacle_tower_wrapper import ObstacleTowerWrapper
-from neroRL.environments.minigrid_wrapper import MinigridWrapper
-from neroRL.environments.procgen_wrapper import ProcgenWrapper
-from neroRL.environments.cartpole_wrapper import CartPoleWrapper
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.serialization import load_checkpoint
 from neroRL.utils.video_recorder import VideoRecorder
+from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 
 # Setup logger
 logging.basicConfig(level = logging.INFO, handlers=[])
@@ -79,9 +74,9 @@ def main():
 
     # Build or load model
     logger.info("Step 2: Creating model")
-    model = OTCModel(configs["model"], visual_observation_space,
+    model = create_actor_critic_model(configs["model"], visual_observation_space,
                             vector_observation_space, action_space_shape,
-                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None).to(device)
+                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
         checkpoint = load_checkpoint(configs["model"]["model_path"])

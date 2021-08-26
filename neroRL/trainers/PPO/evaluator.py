@@ -11,8 +11,8 @@ class Evaluator():
         """Initializes the evaluator and its environments
         
         Arguments:
-            eval_config {dict} -- The configuration of the evaluation
-            env_config {dict} -- The configurgation of the environment
+            eval_config {dict} -- The config of the evaluation
+            env_config {dict} -- The config of the environment
             worker_id {int} -- The offset of the port to communicate with the environment
             visual_observation_space {box} -- Visual observation space of the environment
             vector_observation_space {tuple} -- Vector observation space of the environment

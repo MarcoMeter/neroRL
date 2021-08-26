@@ -3,9 +3,11 @@ import numpy as np
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 class Buffer():
-    """The buffer stores and prepares the training data. It supports recurrent policies.
     """
-    def __init__(self, num_workers, worker_steps, num_mini_batches, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device, mini_batch_device):
+    The buffer stores and prepares the training data. It supports recurrent policies.
+    """
+    def __init__(self, num_workers, worker_steps, num_mini_batches, visual_observation_space, vector_observation_space,
+                    action_space_shape, recurrence, device, mini_batch_device, share_parameters):
         """
         Arguments:
             num_workers {int} -- Number of environments/agents to sample training data
@@ -14,8 +16,8 @@ class Buffer():
             visual_observation_space {Box} -- Visual observation if available, else None
             vector_observation_space {tuple} -- Vector observation space if available, else None
             action_space_shape {tuple} -- Shape of the action space
-            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer_type {str}, sequence_length {int}, hidden_state_size {int}, hiddens_state_init {str}, fake recurrence {bool}
+            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
+                - layer_type {str}, sequence_length {int}, hidden_state_size {int}, hiddens_state_init {str}, reset_hidden_state {bool}
             device {torch.device} -- The device that will be used for training/storing single mini batches
             mini_batch_device {torch.device} -- The device that will be used for storing the whole batch of data. This should be CPU if not enough VRAM is available.
         """
@@ -39,8 +41,14 @@ class Buffer():
             self.vec_obs = np.zeros((num_workers, worker_steps,) + vector_observation_space, dtype=np.float32)
         else:
             self.vec_obs = None
-        self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
-        self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
+        
+        if share_parameters:
+            self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
+            self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
+        else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
+            self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
+            self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
+
         self.log_probs = np.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=np.float32)
         self.values = np.zeros((num_workers, worker_steps), dtype=np.float32)
         self.advantages = np.zeros((num_workers, worker_steps), dtype=np.float32)
@@ -66,23 +74,26 @@ class Buffer():
             last_value = self.values[:, t]
 
     def prepare_batch_dict(self):
-        """Flattens the training samples and stores them inside a dictionary. If a recurrent policy is used, the data is split into episodes or sequences beforehand."""
+        """
+        Flattens the training samples and stores them inside a dictionary.
+        If a recurrent policy is used, the data is split into episodes or sequences beforehand.
+        """
         # Supply training samples
         samples = {
-            'actions': self.actions,
-            'values': self.values,
-            'log_probs': self.log_probs,
-            'advantages': self.advantages,
+            "actions": self.actions,
+            "values": self.values,
+            "log_probs": self.log_probs,
+            "advantages": self.advantages,
             # The loss mask is used for masking the padding while computing the loss function.
             # This is only of significance while using recurrence.
-            'loss_mask': np.ones((self.num_workers, self.worker_steps), dtype=np.float32)
+            "loss_mask": np.ones((self.num_workers, self.worker_steps), dtype=np.float32)
         }
 
     	# Add available observations to the dictionary
         if self.vis_obs is not None:
-            samples['vis_obs'] = self.vis_obs
+            samples["vis_obs"] = self.vis_obs
         if self.vec_obs is not None:
-            samples['vec_obs'] = self.vec_obs
+            samples["vec_obs"] = self.vec_obs
 
         max_sequence_length = 1
         if self.recurrence is not None:
@@ -123,7 +134,7 @@ class Buffer():
                 # Apply zero-padding to ensure that each episode has the same length
                 # Therfore we can train batches of episodes in parallel instead of one episode at a time
                 for i, sequence in enumerate(sequences):
-                    sequences[i] = self.pad_sequence(sequence, max_sequence_length)
+                    sequences[i] = self._pad_sequence(sequence, max_sequence_length)
 
                 # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
                 samples[key] = np.stack(sequences, axis=0)
@@ -143,7 +154,7 @@ class Buffer():
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
             self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.mini_batch_device)
 
-    def pad_sequence(self, sequence, target_length):
+    def _pad_sequence(self, sequence, target_length):
         """Pads a sequence to the target length using zeros.
 
         Args:
