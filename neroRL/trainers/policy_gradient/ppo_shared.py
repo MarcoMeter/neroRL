@@ -5,7 +5,7 @@ from neroRL.trainers.policy_gradient.base import BaseTrainer
 from neroRL.utils.utils import masked_mean
 from neroRL.utils.decay_schedules import polynomial_decay
 
-class PPOSharedGradientTrainer(BaseTrainer):
+class PPOTrainer(BaseTrainer):
     def __init__(self, configs, worker_id, run_id, low_mem_fix, out_path):
         super().__init__(configs, worker_id, run_id=run_id, low_mem_fix=low_mem_fix, out_path=out_path)
 
