@@ -4,6 +4,7 @@ from torch import optim
 from neroRL.trainers.policy_gradient.base import BaseTrainer
 from neroRL.utils.utils import masked_mean
 from neroRL.utils.decay_schedules import polynomial_decay
+from neroRL.utils.monitor import Tag
 
 class PPOTrainer(BaseTrainer):
     def __init__(self, configs, worker_id, run_id, low_mem_fix, out_path):
@@ -26,7 +27,7 @@ class PPOTrainer(BaseTrainer):
             
         Returns:
             {numpy.ndarray} -- Mean training statistics of one training epoch"""
-        train_info = []
+        train_info = {}
 
         for _ in range(self.epochs):
             # Retrieve the to be trained mini_batches via a generator
@@ -37,7 +38,16 @@ class PPOTrainer(BaseTrainer):
                 mini_batch_generator = self.buffer.mini_batch_generator()
             for mini_batch in mini_batch_generator:
                 res = self.train_mini_batch(mini_batch)
-                train_info.append(res)
+
+                # Collect all values of the training procedure in a list
+                for key, info in res.items():
+                    (tag, value) = info
+                    # Create a new list, if it doesn't exist yet
+                    if key not in train_info:
+                        train_info[key] = (tag, [])
+
+                    train_info[key][1].append(value)
+
         # Return the mean of the training statistics
         return train_info
 
@@ -107,12 +117,12 @@ class PPOTrainer(BaseTrainer):
         approx_kl = masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
         clip_fraction = (abs((ratio - 1.0)) > self.clip_range).type(torch.FloatTensor).mean()
 
-        return [policy_loss.cpu().data.numpy(),
-                vf_loss.cpu().data.numpy(),
-                loss.cpu().data.numpy(),
-                entropy_bonus.cpu().data.numpy(),
-                approx_kl.cpu().data.numpy(),
-                clip_fraction.cpu().data.numpy()]
+        return {"policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
+                "value_loss": (Tag.LOSS, vf_loss.cpu().data.numpy()),
+                "loss": (Tag.LOSS, loss.cpu().data.numpy()),
+                "entropy": (Tag.OTHER, entropy_bonus.cpu().data.numpy()),
+                "kl_divergence": (Tag.OTHER, approx_kl.cpu().data.numpy()),
+                "clip_fraction": (Tag.OTHER, clip_fraction.cpu().data.numpy())}
 
     def step_decay_schedules(self, update):
         self.learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"],

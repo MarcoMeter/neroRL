@@ -5,7 +5,7 @@ import numpy as np
 import time
 from typing import Dict, List
 from collections import deque
-from torch.utils.tensorboard import SummaryWriter
+
 from gym import spaces
 from sys import exit
 from signal import signal, SIGINT
@@ -15,6 +15,8 @@ from neroRL.sampler.trajectory_sampler import TrajectorySampler
 from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
+from neroRL.utils.monitor import Monitor
+from neroRL.utils.monitor import Tag
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
@@ -41,16 +43,6 @@ class BaseTrainer():
         self.checkpoint_path = out_path + "checkpoints/" + run_id + timestamp
         os.makedirs(self.checkpoint_path)
 
-        # Setup logger
-        logging.basicConfig(level = logging.INFO, handlers=[])
-        self.logger = logging.getLogger("train")
-        console = logging.StreamHandler()
-        console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
-        path = out_path + "logs/" + run_id + timestamp[:-1] + ".log"
-        logfile = logging.FileHandler(path, mode="w")
-        self.logger.addHandler(console)
-        self.logger.addHandler(logfile)
-
         # Determine cuda availability
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -76,8 +68,13 @@ class BaseTrainer():
         self.batch_size = self.n_workers * self.worker_steps
         self.mini_batch_size = self.batch_size // self.n_mini_batch
         assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
-        self.writer = SummaryWriter(out_path + "summaries/" + run_id + timestamp)
-        self._write_hyperparameters(configs)
+        
+
+        # Create monitor
+        self.monitor = Monitor(configs, out_path, run_id, timestamp)
+
+        # Set logger
+        self.logger = self.monitor.logger
 
         # Start logging the training setup
         self.logger.info("Step 1: Provided config:")
@@ -184,7 +181,11 @@ class BaseTrainer():
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
             training_stats = self.train()
-            training_stats = np.mean(training_stats, axis=0)
+
+            # Calculate mean of the training procedure
+            for key, info in training_stats.items():
+                (tag, values) = info
+                training_stats[key] = (tag, np.mean(values))
             
             # Store recent episode infos
             episode_info.extend(sample_episode_info)
@@ -202,11 +203,11 @@ class BaseTrainer():
             if episode_result:
                 self.logger.info("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
                     update, update_duration, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"],
-                    training_stats[2], training_stats[3], np.mean(self.buffer.values), np.std(self.buffer.values),
+                    training_stats["loss"][1], training_stats["entropy"][1], np.mean(self.buffer.values), np.std(self.buffer.values),
                     np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
             else:
                 self.logger.info("{:4} sec={:2} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
-                    update, update_duration, training_stats[2], training_stats[3], np.mean(self.buffer.values),
+                    update, update_duration, training_stats["loss"][1], training_stats["entropy"][1], np.mean(self.buffer.values),
                     np.std(self.buffer.values), np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
 
             # 8.: Evaluate model
@@ -216,10 +217,20 @@ class BaseTrainer():
                     evaluation_result = self._process_episode_info(eval_episode_info)
                     self.logger.info("eval: sec={:3} reward={:.2f} length={:.1f}".format(
                         eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
-                    self._write_eval_summary(update, evaluation_result)
+                    self.monitor.write_eval_summary(update, evaluation_result)
             
+            # Add some more training statistics which should be monitored
+            training_stats = {
+            **training_stats,
+            "advantage_mean": (Tag.EPISODE, np.mean(self.buffer.advantages)),
+            "value_mean": (Tag.EPISODE, np.mean(self.buffer.values)),
+            "sequence_length": (Tag.OTHER, self.buffer.actual_sequence_length),
+            "learning_rate": (Tag.DECAY, learning_rate),
+            "beta": (Tag.DECAY, beta),
+            "clip_range": (Tag.DECAY, clip_range)}
+
             # Write training statistics to tensorboard
-            self._write_training_summary(update, training_stats, episode_result, learning_rate, beta, clip_range)
+            self.monitor.write_training_summary(update, training_stats, episode_result)
 
     def train(self):
         # This function needs to be overriden by trainers that are based on this class.
@@ -250,41 +261,6 @@ class BaseTrainer():
         if self.recurrence is not None:
             self.model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
 
-    def _write_training_summary(self, update, training_stats, episode_result, learning_rate, beta, clip_range):
-        """Writes to an event file based on the run-id argument."""
-        if episode_result:
-            for key in episode_result:
-                if "std" not in key:
-                    self.writer.add_scalar("episode/" + key, episode_result[key], update)
-        self.writer.add_scalar("losses/loss", training_stats[2], update)
-        self.writer.add_scalar("losses/policy_loss", training_stats[0], update)
-        self.writer.add_scalar("losses/value_loss", training_stats[1], update)
-        self.writer.add_scalar("other/entropy", training_stats[3], update)
-        self.writer.add_scalar("other/clip_fraction", training_stats[5], update)
-        self.writer.add_scalar("other/kl_divergence", training_stats[4], update)
-        self.writer.add_scalar("other/sequence_length", self.buffer.actual_sequence_length, update)
-        self.writer.add_scalar("episode/value_mean", np.mean(self.buffer.values), update)
-        self.writer.add_scalar("episode/advantage_mean", np.mean(self.buffer.advantages), update)
-        self.writer.add_scalar("decay/learning_rate", learning_rate, update)
-        self.writer.add_scalar("decay/clip_range", clip_range, update)
-        self.writer.add_scalar("decay/beta", beta, update)
-
-    def _write_eval_summary(self, update, episode_result):
-        """Writes to an event file based on the run-id argument."""
-        if episode_result:
-            for key in episode_result:
-                if "std" not in key:
-                    self.writer.add_scalar("evaluation/" + key, episode_result[key], update)
-
-    def _write_hyperparameters(self, configs):
-        """Writes hyperparameters to tensorboard"""
-        for key, value in configs.items():
-            if isinstance(value, dict):
-                for k, v in value.items():
-                    self.writer.add_text("Hyperparameters", k + " " + str(v))
-            else:
-                self.writer.add_text("Hyperparameters", key + " " + str(value))
-
     @staticmethod
     def _process_episode_info(episode_info):
         """Extracts the mean and std of completed episodes. At minimum the episode length and the collected reward is available."""
@@ -309,9 +285,9 @@ class BaseTrainer():
         except:
             pass
 
-        self.logger.info("Terminate: Closing Summary Writer . . .")
+        self.logger.info("Terminate: Closing Monitor . . .")
         try:
-            self.writer.close()
+            self.monitor.close()
         except:
             pass
 
