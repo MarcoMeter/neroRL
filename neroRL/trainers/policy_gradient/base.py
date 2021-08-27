@@ -183,8 +183,7 @@ class BaseTrainer():
             training_stats = self.train()
 
             # Calculate mean of the training procedure
-            for key, info in training_stats.items():
-                (tag, values) = info
+            for key, (tag, values) in training_stats.items():
                 training_stats[key] = (tag, np.mean(values))
             
             # Store recent episode infos

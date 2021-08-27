@@ -44,8 +44,7 @@ class Monitor():
                 if "std" not in key:
                     self.writer.add_scalar("episode/" + key, episode_result[key], update)
 
-        for key, info in training_stats.items():
-            (tag, value) = info
+        for key, (tag, value) in training_stats.items():
             self.writer.add_scalar(tag.value + "/" + key, value, update)
 
     def _write_hyperparameters(self, configs):

@@ -40,8 +40,7 @@ class PPOTrainer(BaseTrainer):
                 res = self.train_mini_batch(mini_batch)
 
                 # Collect all values of the training procedure in a list
-                for key, info in res.items():
-                    (tag, value) = info
+                for key, (tag, value) in res.items():
                     # Create a new list, if it doesn't exist yet
                     if key not in train_info:
                         train_info[key] = (tag, [])
