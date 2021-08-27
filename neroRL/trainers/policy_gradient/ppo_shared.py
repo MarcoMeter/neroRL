@@ -7,7 +7,7 @@ class PPOSharedGradientTrainer(BaseTrainer):
     def __init__(self, configs, worker_id, run_id, low_mem_fix, out_path):
         super().__init__(configs, worker_id, run_id=run_id, low_mem_fix=low_mem_fix, out_path=out_path)
 
-    def train(self, learning_rate, clip_range, beta):
+    def train(self, clip_range, beta):
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
         
         Arguments:
@@ -27,15 +27,14 @@ class PPOSharedGradientTrainer(BaseTrainer):
             else:
                 mini_batch_generator = self.buffer.mini_batch_generator()
             for mini_batch in mini_batch_generator:
-                res = self._train_mini_batch(learning_rate=learning_rate,
-                                         clip_range=clip_range,
-                                         beta = beta,
-                                         samples=mini_batch)
+                res = self._train_mini_batch(clip_range=clip_range,
+                                            beta = beta,
+                                            samples=mini_batch)
                 train_info.append(res)
         # Return the mean of the training statistics
         return train_info
 
-    def _train_mini_batch(self, samples, learning_rate, clip_range, beta):
+    def _train_mini_batch(self, samples, clip_range, beta):
         """ Optimizes the policy based on the PPO algorithm
 
         Arguments:
@@ -95,8 +94,6 @@ class PPOSharedGradientTrainer(BaseTrainer):
         loss = -(policy_loss - vf_loss + beta * entropy_bonus)
 
         # Compute gradients
-        for pg in self.optimizer.param_groups:
-            pg['lr'] = learning_rate
         self.optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)

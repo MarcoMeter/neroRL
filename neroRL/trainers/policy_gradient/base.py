@@ -174,6 +174,9 @@ class BaseTrainer():
             learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"], self.lr_schedule["max_decay_steps"], self.lr_schedule["power"], update)
             beta = polynomial_decay(self.beta_schedule["initial"], self.beta_schedule["final"], self.beta_schedule["max_decay_steps"], self.beta_schedule["power"], update)
             clip_range = polynomial_decay(self.cr_schedule["initial"], self.cr_schedule["final"], self.cr_schedule["max_decay_steps"], self.cr_schedule["power"], update)
+            # Apply learning rate
+            for pg in self.optimizer.param_groups:
+                pg["lr"] = learning_rate
 
             # 2.: Sample data from each worker for worker steps
             if self.low_mem_fix:
@@ -199,7 +202,7 @@ class BaseTrainer():
             # 6.: Train n epochs over the sampled data using mini batches
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
-            training_stats = self.train(learning_rate, clip_range, beta)
+            training_stats = self.train(clip_range, beta)
             training_stats = np.mean(training_stats, axis=0)
             
             # Store recent episode infos
