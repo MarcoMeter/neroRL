@@ -17,7 +17,6 @@ from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.utils.decay_schedules import polynomial_decay
-from neroRL.utils.serialization import save_checkpoint, load_checkpoint
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
@@ -237,7 +236,7 @@ class BaseTrainer():
 
     def _save_checkpoint(self, update):
         checkpoint_data = self.collect_checkpoint_data(update)
-        save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(update) + ".pt", checkpoint_data)
+        torch.save(checkpoint_data, self.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
 
     def collect_checkpoint_data(self, update):
         checkpoint_data = {}
@@ -249,7 +248,7 @@ class BaseTrainer():
 
     def _load_checkpoint(self):
         self.logger.info("Step 3: Loading model from " + self.configs["model"]["model_path"])
-        checkpoint = load_checkpoint(self.configs["model"]["model_path"])
+        checkpoint = torch.load(self.configs["model"]["model_path"])
         self.apply_checkpoint_data(checkpoint)
 
     def apply_checkpoint_data(self, checkpoint):
