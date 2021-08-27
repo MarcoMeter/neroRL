@@ -5,7 +5,7 @@ Runs the training program using the provided config and arguments.
 from docopt import docopt
 
 from neroRL.utils.yaml_parser import YamlParser
-from neroRL.trainers.PPO.trainer import PPOTrainer
+from neroRL.trainers.policy_gradient.ppo_shared import PPOSharedGradientTrainer
 
 def main():
     # Docopt command line arguments
@@ -33,7 +33,7 @@ def main():
 
     # Initialize trainer
     if configs["trainer"]["algorithm"] == "PPO":
-        trainer = PPOTrainer(configs, worker_id, run_id, low_mem_fix, out_path)
+        trainer = PPOSharedGradientTrainer(configs, worker_id, run_id, low_mem_fix, out_path)
     else:
         assert(False), "Unsupported algorithm specified"
 

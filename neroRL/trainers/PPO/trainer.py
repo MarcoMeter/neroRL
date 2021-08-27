@@ -16,7 +16,6 @@ from neroRL.sampler.trajectory_sampler import TrajectorySampler
 from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
-from neroRL.utils.worker import Worker
 from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.utils import masked_mean
 from neroRL.utils.serialization import save_checkpoint, load_checkpoint
