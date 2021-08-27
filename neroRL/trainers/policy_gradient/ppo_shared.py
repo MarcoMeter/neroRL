@@ -1,4 +1,5 @@
 import torch
+from torch import optim
 
 from neroRL.trainers.policy_gradient.base import BaseTrainer
 from neroRL.utils.utils import masked_mean
@@ -6,6 +7,8 @@ from neroRL.utils.utils import masked_mean
 class PPOSharedGradientTrainer(BaseTrainer):
     def __init__(self, configs, worker_id, run_id, low_mem_fix, out_path):
         super().__init__(configs, worker_id, run_id=run_id, low_mem_fix=low_mem_fix, out_path=out_path)
+        # Instantiate optimizer
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
 
     def train(self, clip_range, beta):
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
@@ -54,8 +57,8 @@ class PPOSharedGradientTrainer(BaseTrainer):
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
         
-        policy, value, _ = self.model(samples['vis_obs'] if self.visual_observation_space is not None else None,
-                                    samples['vec_obs'] if self.vector_observation_space is not None else None,
+        policy, value, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
+                                    samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
                                     self.device,
                                     self.buffer.actual_sequence_length)
@@ -71,7 +74,7 @@ class PPOSharedGradientTrainer(BaseTrainer):
         normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
         # Repeat is necessary for multi-discrete action spaces
         normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
-        ratio = torch.exp(log_probs - samples['log_probs'])
+        ratio = torch.exp(log_probs - samples["log_probs"])
         surr1 = ratio * normalized_advantage
         surr2 = torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * normalized_advantage
         policy_loss = torch.min(surr1, surr2)
@@ -109,3 +112,14 @@ class PPOSharedGradientTrainer(BaseTrainer):
                 entropy_bonus.cpu().data.numpy(),
                 approx_kl.cpu().data.numpy(),
                 clip_fraction.cpu().data.numpy()]
+
+    def collect_checkpoint_data(self, update):
+        checkpoint_data = super().collect_checkpoint_data(update)
+        checkpoint_data["model"] = self.model.state_dict()
+        checkpoint_data["optimizer"] = self.optimizer.state_dict()
+        return checkpoint_data
+
+    def apply_checkpoint_data(self, checkpoint):
+        super().apply_checkpoint_data(checkpoint)
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])

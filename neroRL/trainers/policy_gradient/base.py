@@ -17,19 +17,19 @@ from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
 from neroRL.utils.decay_schedules import polynomial_decay
-from neroRL.utils.utils import masked_mean
 from neroRL.utils.serialization import save_checkpoint, load_checkpoint
 
 class BaseTrainer():
-    """The PPOTrainer is in charge of setting up the whole training loop while utilizing the PPO algorithm based on Schulman et al. 2017."""
+    """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
     def __init__(self, configs, worker_id, run_id  = "default", low_mem_fix = False, out_path = "./"):
-        """Initializes the trainer, the model, the buffer, the evaluator and launches training environments
+        """Initializes the trainer, the model, the buffer, the evaluator and the training data sampler
 
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. training and environment configs)
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             low_mem_fix {bool} -- Determines whethere to do the training/sampling on CPU or GPU. This is necessary for too small GPU memory capacities (default: {False})
+            out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
         """
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
         signal(SIGINT, self._handler)
@@ -127,18 +127,9 @@ class BaseTrainer():
         self.model = create_actor_critic_model(configs["model"], self.visual_observation_space, self.vector_observation_space,
                                 self.action_space_shape, self.recurrence, self.device)
 
-        # Instantiate optimizer
-        self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr_schedule["initial"])
-
         # Load checkpoint and apply data
         if configs["model"]["load_model"]:
-            self.logger.info("Step 3: Loading model from " + configs["model"]["model_path"])
-            checkpoint = load_checkpoint(configs["model"]["model_path"])
-            self.model.load_state_dict(checkpoint["model_state_dict"])
-            if self.recurrence is not None:
-                self.model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
-            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-            # self.resume_at = checkpoint["update"] + 1
+            self._load_checkpoint()
 
         # Set model to train mode
         self.model.train()
@@ -214,13 +205,7 @@ class BaseTrainer():
 
             # Save checkpoint (update, model, optimizer, configs)
             if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
-                save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(update) + ".pt",
-                                update,
-                                self.model.state_dict(),
-                                self.optimizer.state_dict(),
-                                self.model.mean_hxs if self.recurrence is not None else None,
-                                self.model.mean_cxs if self.recurrence is not None else None,
-                                self.configs)
+                self._save_checkpoint(update)
 
             # 5.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
@@ -247,7 +232,29 @@ class BaseTrainer():
             self._write_training_summary(update, training_stats, episode_result, learning_rate, clip_range, beta)
 
     def train(self, learning_rate, clip_range, beta):
+        # This function needs to be overriden by trainers that are based on this class.
         raise NotImplementedError
+
+    def _save_checkpoint(self, update):
+        checkpoint_data = self.collect_checkpoint_data(update)
+        save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(update) + ".pt", checkpoint_data)
+
+    def collect_checkpoint_data(self, update):
+        checkpoint_data = {}
+        checkpoint_data["config"] = self.configs
+        checkpoint_data["update"] = update
+        checkpoint_data["hxs"] = self.model.mean_hxs if self.recurrence is not None else None
+        checkpoint_data["cxs"] = self.model.mean_cxs if self.recurrence is not None else None
+        return checkpoint_data
+
+    def _load_checkpoint(self):
+        self.logger.info("Step 3: Loading model from " + self.configs["model"]["model_path"])
+        checkpoint = load_checkpoint(self.configs["model"]["model_path"])
+        self.apply_checkpoint_data(checkpoint)
+
+    def apply_checkpoint_data(self, checkpoint):
+        if self.recurrence is not None:
+            self.model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
 
     def _write_training_summary(self, update, training_stats, episode_result, learning_rate, clip_range, beta):
         """Writes to an event file based on the run-id argument."""
@@ -331,13 +338,7 @@ class BaseTrainer():
             if self.currentUpdate > 0:
                 self.logger.info("Terminate: Saving model . . .")
                 try:
-                        save_checkpoint(self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt",
-                                        self.currentUpdate,
-                                        self.model.state_dict(),
-                                        self.optimizer.state_dict(),
-                                        self.model.mean_hxs if self.recurrence is not None else None,
-                                        self.model.mean_cxs if self.recurrence is not None else None,
-                                        self.configs)
+                        self._save_checkpoint(self.currentUpdate)
                         self.logger.info("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
                 except:
                     pass
