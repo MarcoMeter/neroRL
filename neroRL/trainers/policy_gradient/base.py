@@ -2,7 +2,6 @@ import logging
 import os
 import torch
 import numpy as np
-from torch import optim
 import time
 from typing import Dict, List
 from collections import deque
@@ -135,14 +134,15 @@ class BaseTrainer():
                                         self.model, self.buffer, self.device, self.mini_batch_device)
 
     def run_training(self):
-        """Orchestrates the PPO training:
+        """Orchestrates the policy gradient based training:
             1. Decays training parameters in relation to training progression
             2. Samples data from current policy
-                2a. Computes advantages
-            3. Organizes the mini batches
-            4. Optimizes policy and value functions
-            5. Processes training statistics and results
-            6. Evaluates model every n-th update if configured
+            3. Computes advantages
+            4. If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
+            5. Organizes the mini batches
+            6. Optimizes policy and value functions
+            7. Processes training statistics and results
+            8. Evaluates model every n-th update if configured
         """
         if(self.resume_at > 0):
             self.logger.info("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
@@ -197,7 +197,7 @@ class BaseTrainer():
             if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
                 self._save_checkpoint(update)
 
-            # 5.: Write training statistics to console
+            # 7.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
             if episode_result:
                 self.logger.info("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
@@ -209,7 +209,7 @@ class BaseTrainer():
                     update, update_duration, training_stats[2], training_stats[3], np.mean(self.buffer.values),
                     np.std(self.buffer.values), np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
 
-            # 6.: Evaluate model
+            # 8.: Evaluate model
             if self.eval:
                 if update % self.eval_interval == 0 or update == (self.updates - 1):
                     eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
