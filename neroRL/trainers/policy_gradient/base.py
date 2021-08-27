@@ -65,18 +65,18 @@ class BaseTrainer():
         else:
             self.mini_batch_device = self.device
         self.configs = configs
-        self.resume_at = configs["trainer"]['resume_at']
-        self.gamma = configs["trainer"]['gamma']
-        self.lamda = configs["trainer"]['lamda']
-        self.updates = configs["trainer"]['updates']
-        self.epochs = configs["trainer"]['epochs']
-        self.n_workers = configs["trainer"]['n_workers']
-        self.worker_steps = configs["trainer"]['worker_steps']
-        self.n_mini_batch = configs["trainer"]['n_mini_batch']
+        self.resume_at = configs["trainer"]["resume_at"]
+        self.gamma = configs["trainer"]["gamma"]
+        self.lamda = configs["trainer"]["lamda"]
+        self.updates = configs["trainer"]["updates"]
+        self.epochs = configs["trainer"]["epochs"]
+        self.n_workers = configs["trainer"]["n_workers"]
+        self.worker_steps = configs["trainer"]["worker_steps"]
+        self.n_mini_batch = configs["trainer"]["n_mini_batch"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
-        self.lr_schedule = configs["trainer"]['learning_rate_schedule']
-        self.beta_schedule = configs["trainer"]['beta_schedule']
-        self.cr_schedule = configs["trainer"]['clip_range_schedule']
+        self.lr_schedule = configs["trainer"]["learning_rate_schedule"]
+        self.beta_schedule = configs["trainer"]["beta_schedule"]
+        self.cr_schedule = configs["trainer"]["clip_range_schedule"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
         self.batch_size = self.n_workers * self.worker_steps

@@ -67,7 +67,7 @@ class PPOSharedGradientTrainer(BaseTrainer):
         # Retreive and process log_probs from each policy branch
         log_probs = []
         for i, policy_branch in enumerate(policy):
-            log_probs.append(policy_branch.log_prob(samples['actions'][:, i]))
+            log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
         log_probs = torch.stack(log_probs, dim=1)
 
         # Compute surrogates
@@ -81,8 +81,8 @@ class PPOSharedGradientTrainer(BaseTrainer):
         policy_loss = masked_mean(policy_loss, samples["loss_mask"])
 
         # Value
-        sampled_return = samples['values'] + samples['advantages']
-        clipped_value = samples['values'] + (value - samples['values']).clamp(min=-clip_range, max=clip_range)
+        sampled_return = samples["values"] + samples["advantages"]
+        clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-clip_range, max=clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
         vf_loss = masked_mean(vf_loss, samples["loss_mask"])
         vf_loss = .25 * vf_loss
