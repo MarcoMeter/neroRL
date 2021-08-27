@@ -1,13 +1,25 @@
 import torch
 
-def save_checkpoint(path, checkpoint_data):
+def save_checkpoint(path, update: int, model_state_dict, optimizer_state_dict, hxs, cxs, config):
     """Saves a checkpoint to file
 
     Arguments:
         path {string} -- Path and filename of the desired destination
-        checkpoint_data {dict} -- Checkpoint data like the model's and optimizer's state dict...
+        update {int} -- Index of the latest update cycle
+        model_state_dict {dict} -- State dicitonary of the model
+        optimizer_state_dict {dict} -- State dictionary of the optimizer
+        hxs {np.ndarray} -- Mean of the collected hidden states, these might be used for initializing hidden states
+        cxs {np.ndrarray} -- Mean of the collected cell states, these might be used for initializing cell states
+        config {dict} -- The utilized config containing all training parameters and properties
     """
-    torch.save(checkpoint_data, path)
+    torch.save({
+        "update": update,
+        "model_state_dict": model_state_dict,
+        "optimizer_state_dict": optimizer_state_dict,
+        "hxs": hxs,
+        "cxs": cxs,
+        "config": config
+    }, path)
 
 def load_checkpoint(path):
     """Loads a checkpoint from file
