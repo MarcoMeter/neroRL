@@ -6,6 +6,7 @@ from docopt import docopt
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
+from neroRL.trainers.policy_gradient.ppo_decoupled import DecouplePPOTrainer
 
 def main():
     # Docopt command line arguments
