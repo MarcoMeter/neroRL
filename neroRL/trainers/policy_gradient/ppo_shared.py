@@ -23,11 +23,6 @@ class PPOSharedGradientTrainer(BaseTrainer):
 
     def train(self):
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
-        
-        Arguments:
-            learning_rate {float} -- The current learning rate
-            clip_range {float} -- The current clip range
-            beta {float} -- The current entropy bonus coefficient
             
         Returns:
             {numpy.ndarray} -- Mean training statistics of one training epoch"""
@@ -51,9 +46,6 @@ class PPOSharedGradientTrainer(BaseTrainer):
 
         Arguments:
             samples {dict} -- The sampled mini-batch to optimize the model
-            learning_rate {float} -- The to be used learning rate
-            clip_range {float} -- The to be used clip range
-            beta {float} -- The to be used entropy coefficient
         
         Returns:
             training_stats {list} -- Losses, entropy, kl-divergence and clip fraction
@@ -73,7 +65,7 @@ class PPOSharedGradientTrainer(BaseTrainer):
                                     self.buffer.actual_sequence_length)
         
         # Policy Loss
-        # Retreive and process log_probs from each policy branch
+        # Retrieve and process log_probs from each policy branch
         log_probs = []
         for i, policy_branch in enumerate(policy):
             log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
