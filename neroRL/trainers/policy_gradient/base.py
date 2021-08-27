@@ -16,7 +16,6 @@ from neroRL.sampler.trajectory_sampler import TrajectorySampler
 from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
 from neroRL.trainers.PPO.buffer import Buffer
 from neroRL.trainers.PPO.evaluator import Evaluator
-from neroRL.utils.decay_schedules import polynomial_decay
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
@@ -161,12 +160,7 @@ class BaseTrainer():
             time_start = time.time()
 
             # 1.: Decay hyperparameters polynomially based on the provided config
-            learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"], self.lr_schedule["max_decay_steps"], self.lr_schedule["power"], update)
-            beta = polynomial_decay(self.beta_schedule["initial"], self.beta_schedule["final"], self.beta_schedule["max_decay_steps"], self.beta_schedule["power"], update)
-            clip_range = polynomial_decay(self.cr_schedule["initial"], self.cr_schedule["final"], self.cr_schedule["max_decay_steps"], self.cr_schedule["power"], update)
-            # Apply learning rate
-            for pg in self.optimizer.param_groups:
-                pg["lr"] = learning_rate
+            learning_rate, beta, clip_range = self.step_decay_schedules(update)          
 
             # 2.: Sample data from each worker for worker steps
             if self.low_mem_fix:
@@ -192,7 +186,7 @@ class BaseTrainer():
             # 6.: Train n epochs over the sampled data using mini batches
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
-            training_stats = self.train(clip_range, beta)
+            training_stats = self.train()
             training_stats = np.mean(training_stats, axis=0)
             
             # Store recent episode infos
@@ -228,9 +222,13 @@ class BaseTrainer():
                     self._write_eval_summary(update, evaluation_result)
             
             # Write training statistics to tensorboard
-            self._write_training_summary(update, training_stats, episode_result, learning_rate, clip_range, beta)
+            self._write_training_summary(update, training_stats, episode_result, learning_rate, beta, clip_range)
 
-    def train(self, learning_rate, clip_range, beta):
+    def train(self):
+        # This function needs to be overriden by trainers that are based on this class.
+        raise NotImplementedError
+
+    def step_decay_schedules(self, update):
         # This function needs to be overriden by trainers that are based on this class.
         raise NotImplementedError
 
@@ -255,7 +253,7 @@ class BaseTrainer():
         if self.recurrence is not None:
             self.model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
 
-    def _write_training_summary(self, update, training_stats, episode_result, learning_rate, clip_range, beta):
+    def _write_training_summary(self, update, training_stats, episode_result, learning_rate, beta, clip_range):
         """Writes to an event file based on the run-id argument."""
         if episode_result:
             for key in episode_result:
