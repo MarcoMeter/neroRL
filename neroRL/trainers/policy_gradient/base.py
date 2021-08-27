@@ -72,9 +72,6 @@ class BaseTrainer():
         self.worker_steps = configs["trainer"]["worker_steps"]
         self.n_mini_batch = configs["trainer"]["n_mini_batch"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
-        self.lr_schedule = configs["trainer"]["learning_rate_schedule"]
-        self.beta_schedule = configs["trainer"]["beta_schedule"]
-        self.cr_schedule = configs["trainer"]["clip_range_schedule"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
         self.batch_size = self.n_workers * self.worker_steps
