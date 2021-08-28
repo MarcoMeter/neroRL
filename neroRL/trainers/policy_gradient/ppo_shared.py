@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from torch import optim
 
 from neroRL.trainers.policy_gradient.base import BaseTrainer
@@ -44,8 +45,12 @@ class PPOTrainer(BaseTrainer):
                     # Create a new list, if it doesn't exist yet
                     if key not in train_info:
                         train_info[key] = (tag, [])
-
+                    # Collect value
                     train_info[key][1].append(value)
+
+        # Calculate mean of the training procedure
+            for key, (tag, values) in train_info.items():
+                train_info[key] = (tag, np.mean(values))
 
         # Return the mean of the training statistics
         return train_info

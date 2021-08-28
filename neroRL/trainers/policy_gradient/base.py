@@ -181,10 +181,6 @@ class BaseTrainer():
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
             training_stats = self.train()
-
-            # Calculate mean of the training procedure
-            for key, (tag, values) in training_stats.items():
-                training_stats[key] = (tag, np.mean(values))
             
             # Store recent episode infos
             episode_info.extend(sample_episode_info)
