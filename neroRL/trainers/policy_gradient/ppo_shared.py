@@ -39,18 +39,13 @@ class PPOTrainer(BaseTrainer):
                 mini_batch_generator = self.buffer.mini_batch_generator()
             for mini_batch in mini_batch_generator:
                 res = self.train_mini_batch(mini_batch)
-
                 # Collect all values of the training procedure in a list
                 for key, (tag, value) in res.items():
-                    # Create a new list, if it doesn't exist yet
-                    if key not in train_info:
-                        train_info[key] = (tag, [])
-                    # Collect value
-                    train_info[key][1].append(value)
+                    train_info.setdefault(key, (tag, []))[1].append(value)
 
-        # Calculate mean of the training procedure
-            for key, (tag, values) in train_info.items():
-                train_info[key] = (tag, np.mean(values))
+        # Calculate mean of the collected values
+        for key, (tag, values) in train_info.items():
+            train_info[key] = (tag, np.mean(values))
 
         # Return the mean of the training statistics
         return train_info
