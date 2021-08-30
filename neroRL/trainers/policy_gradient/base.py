@@ -9,7 +9,6 @@ from signal import signal, SIGINT
 
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
-from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.sampler.buffer import Buffer
 from neroRL.evaluator import Evaluator
 from neroRL.utils.monitor import Monitor
@@ -93,8 +92,7 @@ class BaseTrainer():
 
         # Init model
         self.monitor.log("Step 3: Creating model")
-        self.model = create_actor_critic_model(configs["model"], configs["trainer"]["share_parameters"],
-        self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
+        self.model = self.create_model()
 
         # Load checkpoint and apply data
         if configs["model"]["load_model"]:
@@ -207,6 +205,9 @@ class BaseTrainer():
 
             # Write training statistics to tensorboard
             self.monitor.write_training_summary(update, training_stats, episode_result)
+
+    def create_model(self):
+        raise NotImplementedError
 
     def train(self):
         # This function needs to be overriden by trainers that are based on this class.

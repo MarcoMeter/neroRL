@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from torch import optim
 
+from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
 from neroRL.utils.utils import masked_mean
 from neroRL.utils.decay_schedules import polynomial_decay
@@ -29,6 +30,10 @@ class PPOTrainer(BaseTrainer):
 
         # Instantiate optimizer
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.learning_rate)
+
+    def create_model(self):
+        return create_actor_critic_model(self.configs["model"], self.configs["trainer"]["share_parameters"],
+        self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
 
     def train(self):
         """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
