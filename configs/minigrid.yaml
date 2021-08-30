@@ -18,8 +18,6 @@ model:
   model_path: "./models/minigrid_S17-199.pt"
   checkpoint_interval: 100
   activation: "relu"
-  share_parameters: True
-  pi_estimate_advantages: False
   encoder: "cnn"
   preprocessing_layer: "linear"
   num_preprocessing_units: 1024
@@ -53,6 +51,7 @@ trainer:
   epochs: 4
   n_mini_batch: 8
   value_coefficient: 0.25
+  share_parameters: True
   learning_rate_schedule:
     initial: 2.0e-4
     final: 2.0e-4

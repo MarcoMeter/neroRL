@@ -16,8 +16,6 @@ model:
   model_path: "./checkpoints/cartpole/20210722-103713_2/cartpole-199.pt"
   checkpoint_interval: 25
   activation: "relu"
-  share_parameters: True
-  pi_estimate_advantages: False
   encoder: "cnn"
   preprocessing_layer: "linear"
   num_preprocessing_units: 1024
@@ -51,6 +49,7 @@ trainer:
   epochs: 4
   n_mini_batch: 4
   value_coefficient: 0.25
+  share_parameters: True
   learning_rate_schedule:
     initial: 1.0e-4
     final: 1.0e-4

@@ -16,8 +16,6 @@ model:
   model_path: "./checkpoints/hallway/20201016-160738_2/hallway-951.pt"
   checkpoint_interval: 50
   activation: "leaky_relu"
-  share_parameters: True
-  pi_estimate_advantages: False
   encoder: "cnn"
   preprocessing_layer: "linear"
   num_preprocessing_units: 1024
@@ -51,6 +49,7 @@ trainer:
   epochs: 3
   n_mini_batch: 8
   value_coefficient: 0.25
+  share_parameters: True
   learning_rate_schedule:
     initial: 3.0e-4
     final: 3.0e-6

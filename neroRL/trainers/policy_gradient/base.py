@@ -96,12 +96,12 @@ class BaseTrainer():
             self.n_workers, self.worker_steps, self.n_mini_batch,
             self.visual_observation_space, self.vector_observation_space,
             self.action_space_shape, self.recurrence,
-            self.device, self.mini_batch_device, configs["model"]["share_parameters"])
+            self.device, self.mini_batch_device, configs["trainer"]["share_parameters"])
 
         # Init model
         self.monitor.log("Step 3: Creating model")
-        self.model = create_actor_critic_model(configs["model"], self.visual_observation_space, self.vector_observation_space,
-                                self.action_space_shape, self.recurrence, self.device)
+        self.model = create_actor_critic_model(configs["model"], configs["trainer"]["share_parameters"],
+        self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
 
         # Load checkpoint and apply data
         if configs["model"]["load_model"]:

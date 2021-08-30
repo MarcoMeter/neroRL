@@ -52,8 +52,6 @@ class YamlParser:
             "model_path": "",
             "checkpoint_interval": 50,
             "activation": "relu",
-            "share_parameters": True,
-            "pi_estimate_advantages": False,
             "encoder": "cnn",
             "hidden_layer": "default",
             "num_hidden_layers": 2,
@@ -82,6 +80,7 @@ class YamlParser:
             "epochs": 4,
             "n_mini_batch": 4,
             "value_coefficient": 0.25,
+            "share_parameters": True,
             "learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},
             "clip_range_schedule": {"initial": 0.2}

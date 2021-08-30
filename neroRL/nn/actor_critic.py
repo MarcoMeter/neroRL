@@ -290,7 +290,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         return pi, value, recurrent_cell
 
-def create_actor_critic_model(model_config, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
+def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
     """Creates a shared or non-shared weights actor critic model.
 
     Arguments:
@@ -308,9 +308,7 @@ def create_actor_critic_model(model_config, visual_observation_space, vector_obs
     Returns:
         {nn.Module} -- The created actor critic model
     """
-    if model_config["share_parameters"]: # check if the actor critic model should share its weights
-        if model_config["pi_estimate_advantages"]: # The DAAC model can't be used with shared weights, so raise an error.
-            raise ValueError('If the policy should also estimate advantages, then parameters can not be shared!')
+    if share_parameters: # check if the actor critic model should share its weights
         return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
                             action_space_shape, recurrence).to(device)
     else:
