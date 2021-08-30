@@ -57,7 +57,7 @@ class PPOTrainer(BaseTrainer):
             samples {dict} -- The sampled mini-batch to optimize the model
         
         Returns:
-            training_stats {list} -- Losses, entropy, kl-divergence and clip fraction
+            training_stats {dict} -- Losses, entropy, kl-divergence and clip fraction
         """
         # Retrieve sampled recurrent cell states to feed the model
         recurrent_cell = None

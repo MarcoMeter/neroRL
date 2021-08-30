@@ -32,19 +32,14 @@ class BaseTrainer():
         """
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
         signal(SIGINT, self._handler)
-        # Create directories for storing checkpoints, logs and tensorboard summaries based on the current time and provided run_id
-        if not os.path.exists(out_path + "summaries"):
-            os.makedirs(out_path + "summaries")
-        if not os.path.exists(out_path + "checkpoints"):
-            os.makedirs(out_path + "checkpoints")
-        if not os.path.exists(out_path + "logs") or not os.path.exists(out_path + "logs/" + run_id):
-            os.makedirs(out_path + "logs/" + run_id)
-        timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
-        self.checkpoint_path = out_path + "checkpoints/" + run_id + timestamp
-        os.makedirs(self.checkpoint_path)
 
         # Determine cuda availability
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # Create a monitor that is used for logging and monitoring training statistics (tensorboard)
+        self.monitor = Monitor(out_path, run_id, worker_id)
+        # Add hyperparameters to the tensorboard summary
+        self.monitor.write_hyperparameters(configs)
 
         # Init members
         self.run_id = run_id
@@ -68,23 +63,16 @@ class BaseTrainer():
         self.batch_size = self.n_workers * self.worker_steps
         self.mini_batch_size = self.batch_size // self.n_mini_batch
         assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
-        
-
-        # Create monitor
-        self.monitor = Monitor(configs, out_path, run_id, timestamp)
-
-        # Set logger
-        self.logger = self.monitor.logger
 
         # Start logging the training setup
-        self.logger.info("Step 1: Provided config:")
+        self.monitor.log("Step 1: Provided config:")
         for key in configs:
-            self.logger.info("Step 1: " + str(key) + ":")
+            self.monitor.log("Step 1: " + str(key) + ":")
             for k, v in configs[key].items():
-                self.logger.info("Step 1: " + str(k) + ": " + str(v))
+                self.monitor.log("Step 1: " + str(k) + ": " + str(v))
 
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
-        self.logger.info("Step 2: Creating dummy environment")
+        self.monitor.log("Step 2: Creating dummy environment")
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
         self.visual_observation_space = self.dummy_env.visual_observation_space
         self.vector_observation_space = self.dummy_env.vector_observation_space
@@ -94,16 +82,16 @@ class BaseTrainer():
             self.action_space_shape = tuple(self.dummy_env.action_space.nvec)
         self.dummy_env.close()
 
-        self.logger.info("Step 2: Visual Observation Space: " + str(self.visual_observation_space))
-        self.logger.info("Step 2: Vector Observation Space: " + str(self.vector_observation_space))
-        self.logger.info("Step 2: Action Space Shape: " + str(self.action_space_shape))
-        self.logger.info("Step 2: Action Names: " + str(self.dummy_env.action_names))
+        self.monitor.log("Step 2: Visual Observation Space: " + str(self.visual_observation_space))
+        self.monitor.log("Step 2: Vector Observation Space: " + str(self.vector_observation_space))
+        self.monitor.log("Step 2: Action Space Shape: " + str(self.action_space_shape))
+        self.monitor.log("Step 2: Action Names: " + str(self.dummy_env.action_names))
 
         # Prepare evaluator if configured
         self.eval = configs["evaluation"]["evaluate"]
         self.eval_interval = configs["evaluation"]["interval"]
         if self.eval and self.eval_interval > 0:
-            self.logger.info("Step 2b: Initializing evaluator")
+            self.monitor.log("Step 2b: Initializing evaluator")
             self.evaluator = Evaluator(configs, worker_id, self.visual_observation_space, self.vector_observation_space)
 
         # Instantiate experience/training data buffer
@@ -114,7 +102,7 @@ class BaseTrainer():
             self.device, self.mini_batch_device, configs["model"]["share_parameters"])
 
         # Init model
-        self.logger.info("Step 3: Creating model")
+        self.monitor.log("Step 3: Creating model")
         self.model = create_actor_critic_model(configs["model"], self.visual_observation_space, self.vector_observation_space,
                                 self.action_space_shape, self.recurrence, self.device)
 
@@ -126,7 +114,7 @@ class BaseTrainer():
         self.model.train()
 
         # Setup Sampler
-        self.logger.info("Step 4: Launching training environments of type " + configs["environment"]["type"])
+        self.monitor.log("Step 4: Launching training environments of type " + configs["environment"]["type"])
         self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
                                         self.model, self.buffer, self.device, self.mini_batch_device)
 
@@ -142,9 +130,9 @@ class BaseTrainer():
             8. Evaluates model every n-th update if configured
         """
         if(self.resume_at > 0):
-            self.logger.info("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
+            self.monitor.log("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
         else:
-            self.logger.info("Step 5: Starting training using " + str(self.device) + " . . .")
+            self.monitor.log("Step 5: Starting training using " + str(self.device) + " . . .")
         # List that stores the most recent episodes for training statistics
         episode_info = deque(maxlen=100)
 
@@ -196,12 +184,12 @@ class BaseTrainer():
             # 7.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
             if episode_result:
-                self.logger.info("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
+                self.monitor.log("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
                     update, update_duration, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"],
                     training_stats["loss"][1], training_stats["entropy"][1], np.mean(self.buffer.values), np.std(self.buffer.values),
                     np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
             else:
-                self.logger.info("{:4} sec={:2} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
+                self.monitor.log("{:4} sec={:2} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
                     update, update_duration, training_stats["loss"][1], training_stats["entropy"][1], np.mean(self.buffer.values),
                     np.std(self.buffer.values), np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
 
@@ -210,7 +198,7 @@ class BaseTrainer():
                 if update % self.eval_interval == 0 or update == (self.updates - 1):
                     eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
                     evaluation_result = self._process_episode_info(eval_episode_info)
-                    self.logger.info("eval: sec={:3} reward={:.2f} length={:.1f}".format(
+                    self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
                         eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
                     self.monitor.write_eval_summary(update, evaluation_result)
             
@@ -237,7 +225,7 @@ class BaseTrainer():
 
     def _save_checkpoint(self, update):
         checkpoint_data = self.collect_checkpoint_data(update)
-        torch.save(checkpoint_data, self.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
+        torch.save(checkpoint_data, self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
 
     def collect_checkpoint_data(self, update):
         checkpoint_data = {}
@@ -248,7 +236,7 @@ class BaseTrainer():
         return checkpoint_data
 
     def _load_checkpoint(self):
-        self.logger.info("Step 3: Loading model from " + self.configs["model"]["model_path"])
+        self.monitor.log("Step 3: Loading model from " + self.configs["model"]["model_path"])
         checkpoint = torch.load(self.configs["model"]["model_path"])
         self.apply_checkpoint_data(checkpoint)
 
@@ -274,26 +262,26 @@ class BaseTrainer():
 
     def close(self):
         """Closes the environment and destroys the workers"""
-        self.logger.info("Terminate: Closing dummy ennvironment . . .")
+        self.monitor.log("Terminate: Closing dummy ennvironment . . .")
         try:
             self.dummy_env.close()
         except:
             pass
 
-        self.logger.info("Terminate: Closing Monitor . . .")
+        self.monitor.log("Terminate: Closing Monitor . . .")
         try:
             self.monitor.close()
         except:
             pass
 
-        self.logger.info("Terminate: Shutting down sampler . . .")
+        self.monitor.log("Terminate: Shutting down sampler . . .")
         try:
             self.sampler.close()
         except:
             pass
 
         if self.eval:
-            self.logger.info("Terminate: Closing evaluator")
+            self.monitor.log("Terminate: Closing evaluator")
             try:
                 self.evaluator.close()
             except:
@@ -301,10 +289,10 @@ class BaseTrainer():
         
         try:
             if self.currentUpdate > 0:
-                self.logger.info("Terminate: Saving model . . .")
+                self.monitor.log("Terminate: Saving model . . .")
                 try:
                         self._save_checkpoint(self.currentUpdate)
-                        self.logger.info("Terminate: Saved model to: " + self.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
+                        self.monitor.log("Terminate: Saved model to: " + self.monitor.checkpoint_path + self.run_id + "-" + str(self.currentUpdate) + ".pt")
                 except:
                     pass
         except:
@@ -312,6 +300,6 @@ class BaseTrainer():
 
     def _handler(self, signal_received, frame):
         """Invoked by the Ctrl-C event, the trainer is being closed and the python program is being exited."""
-        self.logger.info("Terminate: Training aborted . . .")
+        self.monitor.log("Terminate: Training aborted . . .")
         self.close()
         exit(0)
