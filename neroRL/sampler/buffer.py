@@ -6,7 +6,7 @@ class Buffer():
     """
     The buffer stores and prepares the training data. It supports recurrent policies.
     """
-    def __init__(self, num_workers, worker_steps, num_mini_batches, visual_observation_space, vector_observation_space,
+    def __init__(self, num_workers, worker_steps, visual_observation_space, vector_observation_space,
                     action_space_shape, recurrence, device, mini_batch_device, share_parameters):
         """
         Arguments:
@@ -26,9 +26,7 @@ class Buffer():
         self.sequence_length = recurrence["sequence_length"] if recurrence is not None else None
         self.num_workers = num_workers
         self.worker_steps = worker_steps
-        self.num_mini_batches = num_mini_batches
         self.batch_size = self.num_workers * self.worker_steps
-        self.mini_batch_size = self.batch_size // self.num_mini_batches
         self.mini_batch_device = mini_batch_device
         self.rewards = np.zeros((num_workers, worker_steps), dtype=np.float32)
         self.actions = np.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=np.int32)
@@ -183,35 +181,42 @@ class Buffer():
         # Concatenate the zeros to the sequence
         return np.concatenate((sequence, padding), axis=0)
 
-    def mini_batch_generator(self):
+    def mini_batch_generator(self, num_mini_batches):
         """A generator that returns a dictionary containing the data of a whole minibatch.
         This mini batch is completely shuffled.
+
+        Arguments:
+            num_mini_batches {int} -- Number of the to be sampled mini batches
 
         Yields:
             {dict} -- Mini batch data for training
         """
         # Prepare indices (shuffle)
         indices = torch.randperm(self.batch_size)
-        for start in range(0, self.batch_size, self.mini_batch_size):
+        mini_batch_size = self.batch_size // num_mini_batches
+        for start in range(0, self.batch_size, mini_batch_size):
             # Compose mini batches
-            end = start + self.mini_batch_size
+            end = start + mini_batch_size
             mini_batch_indices = indices[start: end]
             mini_batch = {}
             for key, value in self.samples_flat.items():
                 mini_batch[key] = value[mini_batch_indices].to(self.device)
             yield mini_batch
 
-    def recurrent_mini_batch_generator(self):
+    def recurrent_mini_batch_generator(self, num_mini_batches):
         """A recurrent generator that returns a dictionary containing the data of a whole minibatch.
         In comparison to the none-recurrent one, this generator maintains the sequences of the workers' experience trajectories.
+        
+        Arguments:
+            num_mini_batches {int} -- Number of the to be sampled mini batches
 
         Yields:
             {dict} -- Mini batch data for training
         """
         # Determine the number of sequences per mini batch
-        num_sequences_per_batch = self.num_sequences // self.num_mini_batches
-        num_sequences_per_batch = [num_sequences_per_batch] * self.num_mini_batches # Arrange a list that determines the sequence count for each mini batch
-        remainder = self.num_sequences % self.num_mini_batches
+        num_sequences_per_batch = self.num_sequences // num_mini_batches
+        num_sequences_per_batch = [num_sequences_per_batch] * num_mini_batches # Arrange a list that determines the sequence count for each mini batch
+        remainder = self.num_sequences % num_mini_batches
         for i in range(remainder):
             num_sequences_per_batch[i] += 1 # Add the remainder if the sequence count and the number of mini batches do not share a common divider
         # Prepare indices, but only shuffle the sequence indices and not the entire batch to ensure that sequences are maintained as a whole.

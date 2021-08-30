@@ -12,7 +12,12 @@ class PPOTrainer(BaseTrainer):
         super().__init__(configs, worker_id, run_id=run_id, low_mem_fix=low_mem_fix, out_path=out_path)
 
         # Hyperparameter setup
+        self.epochs = configs["trainer"]["epochs"]
         self.vf_loss_coef = self.configs["trainer"]["value_coefficient"]
+        self.n_mini_batch = configs["trainer"]["n_mini_batch"]
+        self.batch_size = self.n_workers * self.worker_steps
+        self.mini_batch_size = self.batch_size // self.n_mini_batch
+        assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
 
         self.lr_schedule = configs["trainer"]["learning_rate_schedule"]
         self.beta_schedule = configs["trainer"]["beta_schedule"]
@@ -36,9 +41,9 @@ class PPOTrainer(BaseTrainer):
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
             if self.recurrence is not None:
-                mini_batch_generator = self.buffer.recurrent_mini_batch_generator()
+                mini_batch_generator = self.buffer.recurrent_mini_batch_generator(self.n_mini_batch)
             else:
-                mini_batch_generator = self.buffer.mini_batch_generator()
+                mini_batch_generator = self.buffer.mini_batch_generator(self.n_mini_batch)
             for mini_batch in mini_batch_generator:
                 res = self.train_mini_batch(mini_batch)
                 # Collect all values of the training procedure in a list

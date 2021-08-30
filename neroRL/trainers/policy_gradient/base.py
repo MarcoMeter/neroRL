@@ -50,16 +50,10 @@ class BaseTrainer():
         self.gamma = configs["trainer"]["gamma"]
         self.lamda = configs["trainer"]["lamda"]
         self.updates = configs["trainer"]["updates"]
-        self.epochs = configs["trainer"]["epochs"]
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
-        self.n_mini_batch = configs["trainer"]["n_mini_batch"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
-
-        self.batch_size = self.n_workers * self.worker_steps
-        self.mini_batch_size = self.batch_size // self.n_mini_batch
-        assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
 
         # Start logging the training setup
         self.monitor.log("Step 1: Provided config:")
@@ -93,9 +87,8 @@ class BaseTrainer():
 
         # Instantiate experience/training data buffer
         self.buffer = Buffer(
-            self.n_workers, self.worker_steps, self.n_mini_batch,
-            self.visual_observation_space, self.vector_observation_space,
-            self.action_space_shape, self.recurrence,
+            self.n_workers, self.worker_steps,self.visual_observation_space, 
+            self.vector_observation_space, self.action_space_shape, self.recurrence,
             self.device, self.mini_batch_device, configs["trainer"]["share_parameters"])
 
         # Init model
