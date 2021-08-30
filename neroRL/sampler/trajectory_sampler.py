@@ -4,7 +4,7 @@ import torch
 from neroRL.utils.worker import Worker
 
 class TrajectorySampler():
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, model, buffer, device, mini_batch_device) -> None:
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, model, buffer, device) -> None:
         # Set member variables
         self.configs = configs
         self.visual_observation_space = visual_observation_space
@@ -15,7 +15,6 @@ class TrajectorySampler():
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.device = device
-        self.mini_batch_device = mini_batch_device
 
         # Launch workers
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
@@ -32,7 +31,7 @@ class TrajectorySampler():
 
         # Setup initial recurrent cell
         if self.recurrence is not None:
-            hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.mini_batch_device)
+            hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.device)
             if self.recurrence["layer_type"] == "gru":
                 self.recurrent_cell = hxs
             elif self.recurrence["layer_type"] == "lstm":
@@ -112,7 +111,7 @@ class TrajectorySampler():
                     # Reset recurrent cell states
                     if self.recurrence is not None:
                         if self.recurrence["reset_hidden_state"]:
-                            hxs, cxs = self.model.init_recurrent_cell_states(1, self.mini_batch_device)
+                            hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
                             if self.recurrence["layer_type"] == "gru":
                                 self.recurrent_cell[:, w] = hxs
                             elif self.recurrence["layer_type"] == "lstm":

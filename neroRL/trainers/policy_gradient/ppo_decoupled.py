@@ -6,8 +6,8 @@ from neroRL.utils.utils import masked_mean
 from neroRL.utils.decay_schedules import polynomial_decay
 
 class DecoupledPPOTrainer(BaseTrainer):
-    def __init__(self, configs, worker_id, run_id, low_mem_fix, out_path):
-        super().__init__(configs, worker_id, run_id=run_id, low_mem_fix=low_mem_fix, out_path=out_path)
+    def __init__(self, configs, worker_id, run_id, out_path):
+        super().__init__(configs, worker_id, run_id=run_id, out_path=out_path)
 
     def create_model(self):
         pass

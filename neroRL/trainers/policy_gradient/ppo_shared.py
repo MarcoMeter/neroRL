@@ -9,8 +9,8 @@ from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.monitor import Tag
 
 class PPOTrainer(BaseTrainer):
-    def __init__(self, configs, worker_id, run_id, low_mem_fix, out_path):
-        super().__init__(configs, worker_id, run_id=run_id, low_mem_fix=low_mem_fix, out_path=out_path)
+    def __init__(self, configs, worker_id, run_id, out_path):
+        super().__init__(configs, worker_id, run_id=run_id, out_path=out_path)
 
         # Hyperparameter setup
         self.epochs = configs["trainer"]["epochs"]

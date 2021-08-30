@@ -7,7 +7,7 @@ class Buffer():
     The buffer stores and prepares the training data. It supports recurrent policies.
     """
     def __init__(self, num_workers, worker_steps, visual_observation_space, vector_observation_space,
-                    action_space_shape, recurrence, device, mini_batch_device, share_parameters):
+                    action_space_shape, recurrence, device, share_parameters):
         """
         Arguments:
             num_workers {int} -- Number of environments/agents to sample training data
@@ -19,7 +19,6 @@ class Buffer():
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
                 - layer_type {str}, sequence_length {int}, hidden_state_size {int}, hiddens_state_init {str}, reset_hidden_state {bool}
             device {torch.device} -- The device that will be used for training/storing single mini batches
-            mini_batch_device {torch.device} -- The device that will be used for storing the whole batch of data. This should be CPU if not enough VRAM is available.
         """
         self.device = device
         self.recurrence = recurrence
@@ -27,7 +26,6 @@ class Buffer():
         self.num_workers = num_workers
         self.worker_steps = worker_steps
         self.batch_size = self.num_workers * self.worker_steps
-        self.mini_batch_device = mini_batch_device
         self.rewards = np.zeros((num_workers, worker_steps), dtype=np.float32)
         self.actions = np.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=np.int32)
         self.dones = np.zeros((num_workers, worker_steps), dtype=np.bool)
@@ -150,7 +148,7 @@ class Buffer():
         for key, value in samples.items():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
-            self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.mini_batch_device)
+            self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.device)
 
     def _pad_sequence(self, sequence, target_length):
         """Pads a sequence to the target length using zeros.
@@ -206,7 +204,7 @@ class Buffer():
     def recurrent_mini_batch_generator(self, num_mini_batches):
         """A recurrent generator that returns a dictionary containing the data of a whole minibatch.
         In comparison to the none-recurrent one, this generator maintains the sequences of the workers' experience trajectories.
-        
+
         Arguments:
             num_mini_batches {int} -- Number of the to be sampled mini batches
 

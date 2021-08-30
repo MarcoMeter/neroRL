@@ -20,7 +20,6 @@ def main():
         --num-repetitions=<n>       How many times to repeat the training of one config [default: 1]
         --worker-id=<n>             Sets the port for each environment instance [default: 2].
         --run-id=<path>             Specifies the tag of the tensorboard summaries [default: default].
-        --low-mem-fix               Whether to load one mini_batch at a time to the GPU's memory. [default: False].
         --generate-only             Whether to only generate the config files [default: False]
         --out=<path>                Where to output the generated config files [default: ./grid_search/]
     """
@@ -30,7 +29,6 @@ def main():
     num_repetitions = int(options["--num-repetitions"])
     worker_id = int(options["--worker-id"])
     run_id = options["--run-id"]
-    low_mem_fix = options["--low-mem-fix"]
     generate_only = options["--generate-only"]
     out_path = options["--out"]
 
@@ -47,7 +45,7 @@ def main():
     if generate_only:
         grid_search.write_permuted_configs_to_file(out_path)
     else:
-        grid_search.run_trainings_sequentially(num_repetitions, run_id, worker_id, low_mem_fix, out_path)
+        grid_search.run_trainings_sequentially(num_repetitions, run_id, worker_id, out_path)
 
 if __name__ == "__main__":
     main()

@@ -16,14 +16,13 @@ from neroRL.utils.monitor import Tag
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
-    def __init__(self, configs, worker_id, run_id  = "default", low_mem_fix = False, out_path = "./"):
+    def __init__(self, configs, worker_id, run_id  = "default", out_path = "./"):
         """Initializes the trainer, the model, the buffer, the evaluator and the training data sampler
 
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. training and environment configs)
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
-            low_mem_fix {bool} -- Determines whethere to do the training/sampling on CPU or GPU. This is necessary for too small GPU memory capacities (default: {False})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
         """
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
@@ -39,11 +38,6 @@ class BaseTrainer():
 
         # Init members
         self.run_id = run_id
-        self.low_mem_fix = low_mem_fix
-        if self.low_mem_fix:
-            self.mini_batch_device = torch.device("cpu")
-        else:
-            self.mini_batch_device = self.device
         self.configs = configs
         self.resume_at = configs["trainer"]["resume_at"]
         self.gamma = configs["trainer"]["gamma"]
@@ -88,7 +82,7 @@ class BaseTrainer():
         self.buffer = Buffer(
             self.n_workers, self.worker_steps,self.visual_observation_space, 
             self.vector_observation_space, self.action_space_shape, self.recurrence,
-            self.device, self.mini_batch_device, configs["trainer"]["share_parameters"])
+            self.device, configs["trainer"]["share_parameters"])
 
         # Init model
         self.monitor.log("Step 3: Creating model")
@@ -104,7 +98,7 @@ class BaseTrainer():
         # Setup Sampler
         self.monitor.log("Step 4: Launching training environments of type " + configs["environment"]["type"])
         self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
-                                        self.model, self.buffer, self.device, self.mini_batch_device)
+                                        self.model, self.buffer, self.device)
 
     def run_training(self):
         """Orchestrates the policy gradient based training:
@@ -133,15 +127,10 @@ class BaseTrainer():
             learning_rate, beta, clip_range = self.step_decay_schedules(update)          
 
             # 2.: Sample data from each worker for worker steps
-            if self.low_mem_fix:
-                self.model.cpu() # Sample on CPU
-                sample_device = self.mini_batch_device
-            else:
-                sample_device = self.device
+            sample_episode_info = self.sampler.sample(self.device)
 
             # 3.: Calculate advantages
-            sample_episode_info = self.sampler.sample(self.mini_batch_device)
-            _, last_value, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell(), sample_device)
+            _, last_value, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell(), self.device)
             self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
             
             # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
