@@ -184,14 +184,17 @@ class BaseTrainer():
             # 7.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
             if episode_result:
-                self.monitor.log("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
-                    update, update_duration, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"],
-                    training_stats["loss"][1], training_stats["entropy"][1], np.mean(self.buffer.values), np.std(self.buffer.values),
+                self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} ") +
+                    ("entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}")).format(
+                    update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
+                    episode_result["length_mean"], episode_result["length_std"], training_stats["loss"][1],
+                    training_stats["entropy"][1], np.mean(self.buffer.values), np.std(self.buffer.values),
                     np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
             else:
                 self.monitor.log("{:4} sec={:2} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
-                    update, update_duration, training_stats["loss"][1], training_stats["entropy"][1], np.mean(self.buffer.values),
-                    np.std(self.buffer.values), np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
+                    update, update_duration, training_stats["loss"][1], training_stats["entropy"][1],
+                    np.mean(self.buffer.values), np.std(self.buffer.values), np.mean(self.buffer.advantages),
+                    np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
 
             # 8.: Evaluate model
             if self.eval:
