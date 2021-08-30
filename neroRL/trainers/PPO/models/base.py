@@ -41,7 +41,7 @@ class ActorCriticBase(nn.Module):
         Returns:
             {tuple} -- Encoder, recurrent layer, hidden layer
         """
-        encoder, recurrent_layer, hidden_layer = None, None, None
+        encoder, preprocessing_layer, recurrent_layer, hidden_layer = None, None, None, None
 
         # Observation encoder
         if vis_obs_space is not None:
@@ -61,6 +61,13 @@ class ActorCriticBase(nn.Module):
             # Case: only vector observation is available
             in_features_next_layer = vec_obs_shape[0]
 
+            if self.recurrence is not None:
+                # Preprocessing layer
+                out_features = config["num_preprocessing_units"]
+                preprocessing_layer = self.create_preprocessing_layer(config, in_features_next_layer, out_features)
+
+                in_features_next_layer = out_features
+
         # Recurrent layer (GRU or LSTM)
         if self.recurrence is not None:
             recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer)
@@ -70,7 +77,7 @@ class ActorCriticBase(nn.Module):
         out_features = config["num_hidden_units"]
         hidden_layer = self.create_hidden_layer(config, in_features_next_layer, out_features)
 
-        return encoder, recurrent_layer, hidden_layer
+        return encoder, preprocessing_layer, recurrent_layer, hidden_layer
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
@@ -150,6 +157,20 @@ class ActorCriticBase(nn.Module):
         """
         if config["encoder"] == "cnn":
             return CNNEncoder(vis_obs_space, config, self.activ_fn)
+
+    def create_preprocessing_layer(self, config, in_features, out_features):
+        """Creates and returns a new instance of the preprocessing layer based on the model config.
+
+        Arguments:
+            config {dict} -- Model config
+            in_features {int} -- Size of input
+            out_features {int} -- Size of output
+
+        Returns:
+            {torch.nn.Module} -- The created preprocessing layer
+        """
+        if config["preprocessing_layer"] == "linear":
+            return nn.Sequential(nn.Linear(in_features, out_features), self.activ_fn)
 
     def create_hidden_layer(self, config, in_features, out_features):
         """Creates and returns a new instance of the hidden layer based on the model config.

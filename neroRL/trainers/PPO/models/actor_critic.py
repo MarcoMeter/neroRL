@@ -29,8 +29,8 @@ class ActorCriticSeparateWeights(ActorCriticBase):
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
         # Create the base model
-        self.actor_encoder, self.actor_recurrent_layer, self.actor_hidden = self.create_base_model(config, vis_obs_space, vec_obs_shape)
-        self.critic_encoder, self.critic_recurrent_layer, self.critic_hidden = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.actor_encoder, self.actor_preprocessing_layer, self.actor_recurrent_layer, self.actor_hidden = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.critic_encoder, self.critic_preprocessing_layer, self.critic_recurrent_layer, self.critic_hidden = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Decouple policy from value
         # Hidden layer of the policy
@@ -80,6 +80,9 @@ class ActorCriticSeparateWeights(ActorCriticBase):
                 h_actor, h_critic = torch.cat((h_actor, vec_obs), 1), torch.cat((h_critic, vec_obs), 1)
         else:
             h_actor, h_critic = torch.tensor(vec_obs, dtype=torch.float32, device=device), torch.tensor(vec_obs, dtype=torch.float32, device=device) # Convert vec_obs to tensor
+            
+            if self.recurrence is not None:
+                h_actor, h_critic = self.actor_preprocessing_layer(h_actor), self.critic_preprocessing_layer(h_critic)
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
@@ -212,7 +215,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         ActorCriticBase.__init__(self, recurrence, config)
 
         # Create the base model
-        self.encoder, self.recurrent_layer, self.hidden_layer = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.encoder, self.preprocessing_layer, self.recurrent_layer, self.hidden_layer = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Decouple policy from value
         # Hidden layer of the policy
@@ -262,6 +265,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
                 h = torch.cat((h, vec_obs), 1)
         else:
             h = torch.tensor(vec_obs, dtype=torch.float32, device=device)        # Convert vec_obs to tensor
+            
+            if self.recurrence is not None:
+                h = self.preprocessing_layer(h)
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:

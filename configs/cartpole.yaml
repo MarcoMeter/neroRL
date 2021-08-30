@@ -19,6 +19,8 @@ model:
   share_parameters: True
   pi_estimate_advantages: False
   encoder: "cnn"
+  preprocessing_layer: "linear"
+  num_preprocessing_units: 1024
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
