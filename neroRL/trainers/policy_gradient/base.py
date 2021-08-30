@@ -124,7 +124,7 @@ class BaseTrainer():
             time_start = time.time()
 
             # 1.: Decay hyperparameters polynomially based on the provided config
-            learning_rate, beta, clip_range = self.step_decay_schedules(update)          
+            learning_rate, beta, clip_range = self.step_decay_schedules(update)
 
             # 2.: Sample data from each worker for worker steps
             sample_episode_info = self.sampler.sample(self.device)
