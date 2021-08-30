@@ -96,6 +96,9 @@ trainer:
   # Number of mini batches that are trained throughout one epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
   n_mini_batch: 4
+  # Coefficient of the loss of the value function (i.e. critic)
+  # It is only of use if model parameters are shared among the actor and the critic
+  value_coefficient: 0.25
   # On which step to resume the training. This affects the hyperparameter schedules only.
   resume_at: 0
   # Polynomial Decay Schedules
