@@ -6,7 +6,7 @@ from docopt import docopt
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
-from neroRL.trainers.policy_gradient.ppo_decoupled import DecouplePPOTrainer
+from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
 
 def main():
     # Docopt command line arguments
@@ -35,6 +35,8 @@ def main():
     # Initialize trainer
     if configs["trainer"]["algorithm"] == "PPO":
         trainer = PPOTrainer(configs, worker_id, run_id, low_mem_fix, out_path)
+    elif configs["trainer"]["algorithm"] == "DecoupledPPO":
+        trainer = DecoupledPPOTrainer(configs, worker_id, run_id, low_mem_fix, out_path)
     else:
         assert(False), "Unsupported algorithm specified"
 
