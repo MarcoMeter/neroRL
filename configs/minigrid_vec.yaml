@@ -48,6 +48,7 @@ trainer:
   n_workers: 16
   worker_steps: 256
   n_mini_batch: 8
+  value_coefficient: 0.25
   resume_at: 0
   learning_rate_schedule:
     initial: 2.5e-4

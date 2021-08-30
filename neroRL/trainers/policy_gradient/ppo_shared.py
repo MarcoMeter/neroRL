@@ -12,6 +12,8 @@ class PPOTrainer(BaseTrainer):
         super().__init__(configs, worker_id, run_id=run_id, low_mem_fix=low_mem_fix, out_path=out_path)
 
         # Hyperparameter setup
+        self.vf_loss_coef = self.configs["trainer"]["value_coefficient"]
+
         self.lr_schedule = configs["trainer"]["learning_rate_schedule"]
         self.beta_schedule = configs["trainer"]["beta_schedule"]
         self.cr_schedule = configs["trainer"]["clip_range_schedule"]
@@ -57,7 +59,7 @@ class PPOTrainer(BaseTrainer):
             samples {dict} -- The sampled mini-batch to optimize the model
         
         Returns:
-            training_stats {list} -- Losses, entropy, kl-divergence and clip fraction
+            training_stats {dict} -- Losses, entropy, kl-divergence and clip fraction
         """
         # Retrieve sampled recurrent cell states to feed the model
         recurrent_cell = None
@@ -95,7 +97,6 @@ class PPOTrainer(BaseTrainer):
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.clip_range, max=self.clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
         vf_loss = masked_mean(vf_loss, samples["loss_mask"])
-        vf_loss = .25 * vf_loss
 
         # Entropy Bonus
         entropies = []
@@ -104,7 +105,7 @@ class PPOTrainer(BaseTrainer):
         entropy_bonus = masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
 
         # Complete loss
-        loss = -(policy_loss - vf_loss + self.beta * entropy_bonus)
+        loss = -(policy_loss - self.vf_loss_coef * vf_loss + self.beta * entropy_bonus)
 
         # Compute gradients
         self.optimizer.zero_grad()
