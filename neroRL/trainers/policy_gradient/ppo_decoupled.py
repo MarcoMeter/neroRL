@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import optim
 
+from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
 from neroRL.utils.utils import masked_mean
 from neroRL.utils.decay_schedules import polynomial_decay
@@ -14,6 +15,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         # Hyperparameter setup
         self.num_policy_epochs = configs["trainer"]["policy_epochs"]
         self.num_value_epochs = configs["trainer"]["value_epochs"]
+        self.value_update_interval = ["trainer"]["value_update_interval"]
         self.n_mini_batch = configs["trainer"]["n_mini_batch"]
         self.batch_size = self.n_workers * self.worker_steps
         self.mini_batch_size = self.batch_size // self.n_mini_batch
@@ -29,13 +31,23 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.beta = self.beta_schedule["initial"]
         self.clip_range = self.cr_schedule["initial"]
 
+        # Determine policy and value function parameters
+        self.policy_parameters = []
+        self.value_parameters = []
+        for name, param in self.model.named_parameters():
+            if "actor" in name:
+                self.policy_parameters.append(param)
+            elif "critic" in name:
+                self.value_parameters.append(param)
+
         # Instantiate optimizer
-        self.policy_optimizer = optim.AdamW(self.model.parameters(), lr=self.policy_learning_rate)
-        self.value_optimizer = optim.AdamW(self.model.parameters(), lr=self.value_learning_rate)
+        self.policy_optimizer = optim.AdamW(self.policy_parameters, lr=self.policy_learning_rate)
+        self.value_optimizer = optim.AdamW(self.value_parameters, lr=self.value_learning_rate)
 
 
     def create_model(self):
-        pass
+        return create_actor_critic_model(self.configs["model"], False,
+        self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
 
     def train(self):
         train_info = {}
@@ -53,8 +65,16 @@ class DecoupledPPOTrainer(BaseTrainer):
                     train_info.setdefault(key, (tag, []))[1].append(value)
 
         # Train value function
-        for _ in range(self.num_value_epochs):
-            self.train_value_function()
+        if self.currentUpdate % self.value_update_interval == 0:
+            for _ in range(self.num_value_epochs):
+                if self.recurrence is not None:
+                    batch_generator = self.buffer.recurrent_mini_batch_generator(1)
+                else:
+                    batch_generator = self.buffer.mini_batch_generator(1)
+                for batch in batch_generator:
+                    res = self.train_value_function(batch)
+                    for key, (tag, value) in res.items():
+                        train_info.setdefault(key, (tag, []))[1].append(value)
 
         # Calculate mean of the collected values
         for key, (tag, values) in train_info.items():
@@ -63,10 +83,89 @@ class DecoupledPPOTrainer(BaseTrainer):
         return train_info
 
     def train_policy_mini_batch(self, samples):
-        pass
+        # Retrieve sampled recurrent cell states to feed the model
+        recurrent_cell = None
+        if self.recurrence is not None:
+            if self.recurrence["layer_type"] == "gru":
+                recurrent_cell = samples["hxs"].unsqueeze(0)
+            elif self.recurrence["layer_type"] == "lstm":
+                recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+        
+        policy, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
+                                    samples["vec_obs"] if self.vector_observation_space is not None else None,
+                                    recurrent_cell,
+                                    self.device,
+                                    self.buffer.actual_sequence_length)
 
-    def train_value_function(self):
-        pass
+        # Policy Loss
+        # Retrieve and process log_probs from each policy branch
+        log_probs = []
+        for i, policy_branch in enumerate(policy):
+            log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
+        log_probs = torch.stack(log_probs, dim=1)
+
+        # Compute surrogates
+        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        # Repeat is necessary for multi-discrete action spaces
+        normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
+        ratio = torch.exp(log_probs - samples["log_probs"])
+        surr1 = ratio * normalized_advantage
+        surr2 = torch.clamp(ratio, 1.0 - self.clip_range, 1.0 + self.clip_range) * normalized_advantage
+        policy_loss = torch.min(surr1, surr2)
+        policy_loss = masked_mean(policy_loss, samples["loss_mask"])
+
+        # Entropy Bonus
+        entropies = []
+        for policy_branch in policy:
+            entropies.append(policy_branch.entropy())
+        entropy_bonus = masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
+
+        # Complete loss
+        loss = -(policy_loss + self.beta * entropy_bonus)
+
+        # Compute gradients
+        self.policy_optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.policy_parameters, max_norm=0.5)
+        self.policy_optimizer.step()
+
+        # Monitor additional training statistics
+        approx_kl = masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
+        clip_fraction = (abs((ratio - 1.0)) > self.clip_range).type(torch.FloatTensor).mean()
+
+        return {"policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
+                "loss": (Tag.LOSS, loss.cpu().data.numpy()),
+                "entropy": (Tag.OTHER, entropy_bonus.cpu().data.numpy()),
+                "kl_divergence": (Tag.OTHER, approx_kl.cpu().data.numpy()),
+                "clip_fraction": (Tag.OTHER, clip_fraction.cpu().data.numpy())}
+
+    def train_value_function(self, samples):
+        # Retrieve sampled recurrent cell states to feed the model
+        recurrent_cell = None
+        if self.recurrence is not None:
+            if self.recurrence["layer_type"] == "gru":
+                recurrent_cell = samples["hxs"].unsqueeze(0)
+            elif self.recurrence["layer_type"] == "lstm":
+                recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+        
+        _, value, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
+                                    samples["vec_obs"] if self.vector_observation_space is not None else None,
+                                    recurrent_cell,
+                                    self.device,
+                                    self.buffer.actual_sequence_length)
+
+        sampled_return = samples["values"] + samples["advantages"]
+        clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.clip_range, max=self.clip_range)
+        vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
+        vf_loss = masked_mean(vf_loss, samples["loss_mask"])
+
+        # Compute gradients
+        self.value_optimizer.zero_grad()
+        vf_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
+        self.value_optimizer.step()
+
+        return {"value_loss": (Tag.LOSS, vf_loss.cpu().data.numpy())}
 
     def step_decay_schedules(self, update):
         self.policy_learning_rate = polynomial_decay(self.policy_lr_schedule["initial"], self.policy_lr_schedule["final"],

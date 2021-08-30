@@ -5,7 +5,7 @@ from torch.distributions import Categorical
 
 from neroRL.nn.base import ActorCriticBase
 
-class ActorCriticSeparateWeights(ActorCriticBase):
+class ActorCriticSeperateWeights(ActorCriticBase):
     """A flexible actor-critic model with separate actor and critic weights that supports:
             - Multi-discrete action spaces
             - Visual & vector observation spaces
@@ -34,25 +34,25 @@ class ActorCriticSeparateWeights(ActorCriticBase):
 
         # Decouple policy from value
         # Hidden layer of the policy
-        self.lin_policy = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
-        nn.init.orthogonal_(self.lin_policy.weight, np.sqrt(2))
+        self.actor_linear = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
+        nn.init.orthogonal_(self.actor_linear.weight, np.sqrt(2))
 
         # Hidden layer of the value function
-        self.lin_value = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
-        nn.init.orthogonal_(self.lin_value.weight, np.sqrt(2))
+        self.critic_linear = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
+        nn.init.orthogonal_(self.critic_linear.weight, np.sqrt(2))
 
         # Outputs / Model heads
         # Policy branches
-        self.policy_branches = nn.ModuleList()
+        self.actor_branches = nn.ModuleList()
         for num_actions in action_space_shape:
-            policy_branch = nn.Linear(in_features=512, out_features=num_actions)
-            nn.init.orthogonal_(policy_branch.weight, np.sqrt(0.01))
-            self.policy_branches.append(policy_branch)
+            actor_branch = nn.Linear(in_features=512, out_features=num_actions)
+            nn.init.orthogonal_(actor_branch.weight, np.sqrt(0.01))
+            self.actor_branches.append(actor_branch)
 
-        # Value function
-        self.value = nn.Linear(in_features=512,
+        # Value function (i.e. critic)
+        self.critic = nn.Linear(in_features=512,
                                out_features=1)
-        nn.init.orthogonal_(self.value.weight, 1)
+        nn.init.orthogonal_(self.critic.weight, 1)
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
@@ -96,15 +96,15 @@ class ActorCriticSeparateWeights(ActorCriticBase):
 
         # Decouple policy from value
         # Feed hidden layer (policy)
-        h_policy = self.activ_fn(self.lin_policy(h_actor))
+        h_policy = self.activ_fn(self.actor_linear(h_actor))
         # Feed hidden layer (value function)
-        h_value = self.activ_fn(self.lin_value(h_critic))
+        h_value = self.activ_fn(self.critic_linear(h_critic))
         # Output: Value function
-        value = self.value(h_value).reshape(-1)
+        value = self.critic(h_value).reshape(-1)
         # Output: Policy branches
         pi = []
-        for i, branch in enumerate(self.policy_branches):
-            pi.append(Categorical(logits=self.policy_branches[i](h_policy)))
+        for i, branch in enumerate(self.actor_branches):
+            pi.append(Categorical(logits=self.actor_branches[i](h_policy)))
 
         if self.recurrence is not None:
             recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
@@ -219,20 +219,20 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         # Decouple policy from value
         # Hidden layer of the policy
-        self.lin_policy = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
-        nn.init.orthogonal_(self.lin_policy.weight, np.sqrt(2))
+        self.actor_linear = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
+        nn.init.orthogonal_(self.actor_linear.weight, np.sqrt(2))
 
         # Hidden layer of the value function
-        self.lin_value = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
-        nn.init.orthogonal_(self.lin_value.weight, np.sqrt(2))
+        self.critic_linear = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
+        nn.init.orthogonal_(self.critic_linear.weight, np.sqrt(2))
 
         # Outputs / Model heads
         # Policy branches
-        self.policy_branches = nn.ModuleList()
+        self.actor_branches = nn.ModuleList()
         for num_actions in action_space_shape:
-            policy_branch = nn.Linear(in_features=512, out_features=num_actions)
-            nn.init.orthogonal_(policy_branch.weight, np.sqrt(0.01))
-            self.policy_branches.append(policy_branch)
+            actor_branch = nn.Linear(in_features=512, out_features=num_actions)
+            nn.init.orthogonal_(actor_branch.weight, np.sqrt(0.01))
+            self.actor_branches.append(actor_branch)
 
         # Value function
         self.value = nn.Linear(in_features=512,
@@ -278,15 +278,15 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         # Decouple policy from value
         # Feed hidden layer (policy)
-        h_policy = self.activ_fn(self.lin_policy(h))
+        h_policy = self.activ_fn(self.actor_linear(h))
         # Feed hidden layer (value function)
-        h_value = self.activ_fn(self.lin_value(h))
+        h_value = self.activ_fn(self.critic_linear(h))
         # Output: Value function
         value = self.value(h_value).reshape(-1)
         # Output: Policy branches
         pi = []
-        for i, branch in enumerate(self.policy_branches):
-            pi.append(Categorical(logits=self.policy_branches[i](h_policy)))
+        for i, branch in enumerate(self.actor_branches):
+            pi.append(Categorical(logits=self.actor_branches[i](h_policy)))
 
         return pi, value, recurrent_cell
 
@@ -312,5 +312,5 @@ def create_actor_critic_model(model_config, share_parameters, visual_observation
         return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
                             action_space_shape, recurrence).to(device)
     else:
-        return ActorCriticSeparateWeights(model_config, visual_observation_space, vector_observation_space,
+        return ActorCriticSeperateWeights(model_config, visual_observation_space, vector_observation_space,
                             action_space_shape, recurrence).to(device)

@@ -123,7 +123,7 @@ class PPOTrainer(BaseTrainer):
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
         self.optimizer.step()
 
-        # Monitor training statistics
+        # Monitor additional training statistics
         approx_kl = masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
         clip_fraction = (abs((ratio - 1.0)) > self.clip_range).type(torch.FloatTensor).mean()
 
