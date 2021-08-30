@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch.distributions import Categorical
 
-from neroRL.trainers.PPO.models.base import ActorCriticBase
+from neroRL.nn.base import ActorCriticBase
 
 class ActorCriticSeparateWeights(ActorCriticBase):
     """A flexible actor-critic model with separate actor and critic weights that supports:

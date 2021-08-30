@@ -9,9 +9,9 @@ from signal import signal, SIGINT
 
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
-from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
-from neroRL.trainers.PPO.buffer import Buffer
-from neroRL.trainers.PPO.evaluator import Evaluator
+from neroRL.nn.actor_critic import create_actor_critic_model
+from neroRL.sampler.buffer import Buffer
+from neroRL.evaluator import Evaluator
 from neroRL.utils.monitor import Monitor
 from neroRL.utils.monitor import Tag
 
@@ -280,12 +280,15 @@ class BaseTrainer():
         except:
             pass
 
-        if self.eval:
-            self.monitor.log("Terminate: Closing evaluator")
-            try:
-                self.evaluator.close()
-            except:
-                    pass
+        try:
+            if self.eval:
+                self.monitor.log("Terminate: Closing evaluator")
+                try:
+                    self.evaluator.close()
+                except:
+                        pass
+        except:
+            pass
         
         try:
             if self.currentUpdate > 0:
