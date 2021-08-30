@@ -79,20 +79,29 @@ evaluation:
   # Evaluate the model after every n-th update during training
   interval: 50
 
+### SAMPLER CONFIG
+# The sampler is in charge of collecting training data
+# These hyperparameters determine the amount of data and the sampler's behavior
+sampler:
+  # The TrajectorySampler gathers monte carlo rollouts that may contain truncated episodes
+  type: "TrajectorySampler"
+  # Number of environments that are used for sampling data
+  n_workers: 16
+  # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
+  worker_steps: 256
+
 ### TRAINER CONFIG ###
 trainer:
   # Which algorithm to use. For now, PPO is supported.
   algorithm: "PPO"
+  # On which step to resume the training. This affects the hyperparameter schedules only.
+  resume_at: 0
   # Discount factor
   gamma: 0.99
   # Regularization parameter used when calculating the Generalized Advantage Estimation (GAE)
   lamda: 0.95
   # Number of PPO update cycles that shall be done (one whole cycle comprises n epochs of m mini_batch updates)
   updates: 1000
-  # Number of environments that are used for sampling data
-  n_workers: 16
-  # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
-  worker_steps: 256
   # Number of times that the whole batch of data is used for optimization using PPO
   # Each epoch trains on a random permutation of the sampled training batch
   epochs: 4
@@ -102,8 +111,6 @@ trainer:
   # Coefficient of the loss of the value function (i.e. critic)
   # It is only of use if model parameters are shared among the actor and the critic
   value_coefficient: 0.25
-  # On which step to resume the training. This affects the hyperparameter schedules only.
-  resume_at: 0
   # Polynomial Decay Schedules
   # Learning Rate
   learning_rate_schedule:

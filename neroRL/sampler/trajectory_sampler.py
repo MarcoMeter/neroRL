@@ -11,8 +11,8 @@ class TrajectorySampler():
         self.vector_observation_space = vector_observation_space
         self.model = model
         self.buffer = buffer
-        self.n_workers = configs["trainer"]["n_workers"]
-        self.worker_steps = configs["trainer"]["worker_steps"]
+        self.n_workers = configs["sampler"]["n_workers"]
+        self.worker_steps = configs["sampler"]["worker_steps"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.device = device
         self.mini_batch_device = mini_batch_device

@@ -30,7 +30,6 @@ model:
     hidden_state_size: 128
     hidden_state_init: "zero"
     reset_hidden_state: False
-    
 
 evaluation:
   evaluate: False
@@ -38,17 +37,20 @@ evaluation:
   seeds: [1001, 1002, 1003, 1004, 1005]
   interval: 50
 
+sampler:
+  type: "TrajectorySampler"
+  n_workers: 16
+  worker_steps: 256
+
 trainer:
   algorithm: "PPO"
+  resume_at: 0
   gamma: 0.99
   lamda: 0.95
   updates: 200
   epochs: 4
-  n_workers: 16
-  worker_steps: 256
   n_mini_batch: 4
   value_coefficient: 0.25
-  resume_at: 0
   learning_rate_schedule:
     initial: 1.0e-4
     final: 1.0e-4

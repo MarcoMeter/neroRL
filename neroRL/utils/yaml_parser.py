@@ -67,6 +67,12 @@ class YamlParser:
             "interval": 50
         }
 
+        sampler_dict = {
+            "type": "TrajectorySampler",
+            "n_workers": 16,
+            "worker_steps": 256
+        }
+
         trainer_dict = {
             "algorithm": "PPO",
             "resume_at": 0,
@@ -74,8 +80,6 @@ class YamlParser:
             "lamda": 0.95,
             "updates": 1000,
             "epochs": 4,
-            "n_workers": 16,
-            "worker_steps": 256,
             "n_mini_batch": 4,
             "value_coefficient": 0.25,
             "learning_rate_schedule": {"initial": 3.0e-4},
@@ -90,6 +94,8 @@ class YamlParser:
             self._config["model"] = model_dict
         if not "evaluation" in self._config:
             self._config["evaluation"] = eval_dict
+        if not "sampler" in self._config:
+            self._config["sampler"] = sampler_dict
         if not "trainer" in self._config:
             self._config["trainer"] = trainer_dict
 
@@ -107,6 +113,10 @@ class YamlParser:
                 for k, v in value.items():
                     eval_dict[k] = v
                 self._config[key] = eval_dict
+            elif key == "sampler":
+                for k, v in value.items():
+                    sampler_dict[k] = v
+                self._config[key] = sampler_dict
             elif key == "trainer":
                 for k, v in value.items():
                     trainer_dict[k] = v
