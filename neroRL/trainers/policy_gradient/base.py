@@ -129,7 +129,7 @@ class BaseTrainer():
             time_start = time.time()
 
             # 1.: Decay hyperparameters polynomially based on the provided config
-            learning_rate, beta, clip_range = self.step_decay_schedules(update)
+            decayed_hyperparameters = self.step_decay_schedules(update)
 
             # 2.: Sample data from each worker for worker steps
             sample_episode_info = self.sampler.sample(self.device)
@@ -190,12 +190,11 @@ class BaseTrainer():
             # Add some more training statistics which should be monitored
             training_stats = {
             **training_stats,
+            **decayed_hyperparameters,
             "advantage_mean": (Tag.EPISODE, np.mean(self.buffer.advantages)),
             "value_mean": (Tag.EPISODE, np.mean(self.buffer.values)),
             "sequence_length": (Tag.OTHER, self.buffer.actual_sequence_length),
-            "learning_rate": (Tag.DECAY, learning_rate),
-            "beta": (Tag.DECAY, beta),
-            "clip_range": (Tag.DECAY, clip_range)}
+            }
 
             # Write training statistics to tensorboard
             self.monitor.write_training_summary(update, training_stats, episode_result)
@@ -209,12 +208,15 @@ class BaseTrainer():
         """train() is called for each update cycle. It returns a dictionary of training statistics"""
         raise NotImplementedError
 
-    def step_decay_schedules(self, update:int) -> None:
+    def step_decay_schedules(self, update:int) -> dict:
         """As there might be multiple decaying hyperparameters, each trainer has to take care of them themselves.
         This function is called first during an update cycle.
         
         Arguments:
-            update {int} -- Current update
+            update {int} -- Current update#
+
+        Returns
+            {dict} -- Dictionary containing the current values of all decayed hyperparameters
         """
         raise NotImplementedError
 

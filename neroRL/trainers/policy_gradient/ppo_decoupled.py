@@ -211,9 +211,12 @@ class DecoupledPPOTrainer(BaseTrainer):
         for pg in self.value_optimizer.param_groups:
             pg["lr"] = self.value_learning_rate
 
-        # TODO monitor both learning rates instead of one
-        return self.policy_learning_rate, self.beta, self.clip_range
-        # return self.policy_learning_rate, self.value_learning_rate, self.beta, self.clip_range
+        return {
+            "policy_learning_rate": (Tag.DECAY, self.policy_learning_rate),
+            "value_learning_rate": (Tag.DECAY, self.value_learning_rate),
+            "beta": (Tag.DECAY, self.beta),
+            "clip_range": (Tag.DECAY, self.clip_range)
+        }
 
     def collect_checkpoint_data(self, update) -> dict:
         checkpoint_data = super().collect_checkpoint_data(update)

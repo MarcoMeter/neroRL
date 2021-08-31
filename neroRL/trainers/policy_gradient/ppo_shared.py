@@ -156,7 +156,12 @@ class PPOTrainer(BaseTrainer):
         for pg in self.optimizer.param_groups:
             pg["lr"] = self.learning_rate
 
-        return self.learning_rate, self.beta, self.clip_range
+        return {
+            "learning_rate": (Tag.DECAY, self.policy_learning_rate),
+            "beta": (Tag.DECAY, self.beta),
+            "clip_range": (Tag.DECAY, self.clip_range)
+        }
+
 
     def collect_checkpoint_data(self, update):
         checkpoint_data = super().collect_checkpoint_data(update)
