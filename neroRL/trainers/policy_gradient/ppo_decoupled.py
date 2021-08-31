@@ -9,7 +9,19 @@ from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.monitor import Tag
 
 class DecoupledPPOTrainer(BaseTrainer):
+    """The DecoupledPPOTrainer does not share parameters (i.e. weights) and not gradients among the policy and value function.
+    Therefore, it uses slightly different hyperparameters as the regular PPOTrainer to allow more control over updating the
+    policy and the value function."""
     def __init__(self, configs, worker_id, run_id, out_path):
+        """
+        Initializes distinct member of the DecoupledPPOTrainer
+
+        Arguments:
+            configs {dict} -- The whole set of configurations (e.g. training and environment configs)
+            worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
+            run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
+            out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
+        """
         super().__init__(configs, worker_id, run_id=run_id, out_path=out_path)
 
         # Hyperparameter setup
@@ -20,18 +32,19 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.batch_size = self.n_workers * self.worker_steps
         self.mini_batch_size = self.batch_size // self.n_mini_batch
         assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
-
+        # Decaying hyperparameter schedules
         self.policy_lr_schedule = configs["trainer"]["policy_learning_rate_schedule"]
         self.value_lr_schedule = configs["trainer"]["value_learning_rate_schedule"]
         self.beta_schedule = configs["trainer"]["beta_schedule"]
         self.cr_schedule = configs["trainer"]["clip_range_schedule"]
-
+        # Decaying hyperparameter members
         self.policy_learning_rate = self.policy_lr_schedule["initial"]
         self.value_learning_rate = self.value_lr_schedule["initial"]
         self.beta = self.beta_schedule["initial"]
         self.clip_range = self.cr_schedule["initial"]
 
         # Determine policy and value function parameters
+        # TODO, dont use string to select the correct model parameters for the actor and the critic
         self.policy_parameters = []
         self.value_parameters = []
         for name, param in self.model.named_parameters():
@@ -52,7 +65,7 @@ class DecoupledPPOTrainer(BaseTrainer):
     def train(self):
         train_info = {}
 
-        # Train policy
+        # Train policy using mini batches
         for _ in range(self.num_policy_epochs):
             if self.recurrence is not None:
                 mini_batch_generator = self.buffer.recurrent_mini_batch_generator(self.n_mini_batch)
@@ -64,7 +77,7 @@ class DecoupledPPOTrainer(BaseTrainer):
                 for key, (tag, value) in res.items():
                     train_info.setdefault(key, (tag, []))[1].append(value)
 
-        # Train value function
+        # Train value function using the whole batch of data instead of mini batches
         if self.currentUpdate % self.value_update_interval == 0:
             for _ in range(self.num_value_epochs):
                 if self.recurrence is not None:
@@ -76,13 +89,21 @@ class DecoupledPPOTrainer(BaseTrainer):
                     for key, (tag, value) in res.items():
                         train_info.setdefault(key, (tag, []))[1].append(value)
 
-        # Calculate mean of the collected values
+        # Calculate mean of the collected training statistics
         for key, (tag, values) in train_info.items():
             train_info[key] = (tag, np.mean(values))
 
         return train_info
 
     def train_policy_mini_batch(self, samples):
+        """Optimizes the policy based on the PPO algorithm
+
+        Arguments:
+            samples {dict} -- The sampled mini-batch to optimize the model
+        
+        Returns:
+            training_stats {dict} -- Losses, entropy, kl-divergence and clip fraction
+        """
         # Retrieve sampled recurrent cell states to feed the model
         recurrent_cell = None
         if self.recurrence is not None:
@@ -140,6 +161,14 @@ class DecoupledPPOTrainer(BaseTrainer):
                 "clip_fraction": (Tag.OTHER, clip_fraction.cpu().data.numpy())}
 
     def train_value_function(self, samples):
+        """Optimizes the value function based on the PPO algorithm
+
+        Arguments:
+            samples {dict} -- The sampled mini-batch to optimize the model
+        
+        Returns:
+            training_stats {dict} -- Value loss
+        """
         # Retrieve sampled recurrent cell states to feed the model
         recurrent_cell = None
         if self.recurrence is not None:

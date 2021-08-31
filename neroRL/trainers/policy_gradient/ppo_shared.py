@@ -9,7 +9,20 @@ from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.monitor import Tag
 
 class PPOTrainer(BaseTrainer):
+    """PPO implementation according to Schulman et al. 2017. It supports multi-discrete action spaces as well as visual 
+    and vector obsverations (either alone or simultaenously). Parameters can be shared or not. If gradients shall be decoupled,
+    go for the DecoupledPPOTrainer.
+    """
     def __init__(self, configs, worker_id, run_id, out_path):
+        """
+        Initializes distinct member of the PPOTrainer
+
+        Arguments:
+            configs {dict} -- The whole set of configurations (e.g. training and environment configs)
+            worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
+            run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
+            out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
+        """
         super().__init__(configs, worker_id, run_id=run_id, out_path=out_path)
 
         # Hyperparameter setup
@@ -36,12 +49,9 @@ class PPOTrainer(BaseTrainer):
         self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
 
     def train(self):
-        """Trains several PPO epochs over one batch of data while dividing the batch into mini batches.
-            
-        Returns:
-            {numpy.ndarray} -- Mean training statistics of one training epoch"""
         train_info = {}
 
+        # Train policy and value function for e epochs using mini batches
         for _ in range(self.epochs):
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
@@ -55,7 +65,7 @@ class PPOTrainer(BaseTrainer):
                 for key, (tag, value) in res.items():
                     train_info.setdefault(key, (tag, []))[1].append(value)
 
-        # Calculate mean of the collected values
+        # Calculate mean of the collected training statistics
         for key, (tag, values) in train_info.items():
             train_info[key] = (tag, np.mean(values))
 
@@ -63,7 +73,7 @@ class PPOTrainer(BaseTrainer):
         return train_info
 
     def train_mini_batch(self, samples):
-        """ Optimizes the policy based on the PPO algorithm
+        """Optimizes the policy based on the PPO algorithm
 
         Arguments:
             samples {dict} -- The sampled mini-batch to optimize the model

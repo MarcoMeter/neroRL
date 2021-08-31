@@ -4,7 +4,20 @@ import torch
 from neroRL.utils.worker import Worker
 
 class TrajectorySampler():
+    """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
+    Hence, the collected trajectories may contain multiple episodes or incomplete ones."""
     def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, model, buffer, device) -> None:
+        """Initializes the TrajectorSampler and launches its environment workers.
+
+        Arguments:
+            configs {dict} -- The whole set of configurations (e.g. training and environment configs)
+            worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments.
+            visual_observation_space {box} -- Dimensions of the visual observation space (None if not available)
+            vector_observation_space {} -- {tuple} -- Dimensions of the vector observation space (None if not available)
+            model {nn.Module} -- The model that represents the policy and the value function
+            buffer {Buffer} -- The buffer that is used to store the collected data
+            device {torch.device} -- The device that is used for retrieving the data from the model.
+        """
         # Set member variables
         self.configs = configs
         self.visual_observation_space = visual_observation_space
@@ -51,6 +64,15 @@ class TrajectorySampler():
                 self.vec_obs[i] = vec_obs
 
     def sample(self, device) -> list:
+        """Samples training data (i.e. experience tuples) using n workers for t worker steps.
+
+        Arguments:
+            device {torch.device} -- The device that is used for retrieving the data from the model.
+
+        Returns:
+            {list} -- List of completed episodes. Each episode outputs a dictionary containing at least the
+            achieved reward and the episode length.
+        """
         episode_infos = []
 
         # Sample actions from the model and collect experiences for training
@@ -121,15 +143,28 @@ class TrajectorySampler():
         return episode_infos
 
     def last_vis_obs(self) -> np.ndarray:
+        """
+        Returns:
+            {np.ndarray} -- The last visual observation of the sampling process, which can be used to calculate the advantage.
+        """
         return self.vis_obs
 
     def last_vec_obs(self) -> np.ndarray:
+        """
+        Returns:
+            {np.ndarray} -- The last vector observation of the sampling process, which can be used to calculate the advantage.
+        """
         return self.vec_obs
 
     def last_recurrent_cell(self) -> tuple:
+        """
+        Returns:
+            {tuple} -- The latest recurrent cell of the sampling process, which can be used to calculate the advantage.
+        """
         return self.recurrent_cell
 
     def close(self) -> None:
+        """Closes the sampler and shuts down its environment workers."""
         try:
             for worker in self.workers:
                 worker.child.send(("close", None))

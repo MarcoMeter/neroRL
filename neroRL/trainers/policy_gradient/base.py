@@ -16,7 +16,7 @@ from neroRL.utils.monitor import Tag
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
-    def __init__(self, configs, worker_id, run_id  = "default", out_path = "./"):
+    def __init__(self, configs, worker_id = 1, run_id  = "default", out_path = "./"):
         """Initializes the trainer, the model, the buffer, the evaluator and the training data sampler
 
         Arguments:
@@ -45,6 +45,8 @@ class BaseTrainer():
         self.updates = configs["trainer"]["updates"]
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
+        # The DecoupledPPO trainer does not share parameters
+        # In contrast to PPO and not sharing parameters, the gradients are still shared
         self.share_parameters = False
         if configs["trainer"]["algorithm"] == "PPO":
             self.share_parameters = configs["trainer"]["share_parameters"]
@@ -109,8 +111,8 @@ class BaseTrainer():
             2. Samples data from current policy
             3. Computes advantages
             4. If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
-            5. Organizes the mini batches
-            6. Optimizes policy and value functions
+            5. Prepare sampled data
+            6. Optimize policy and value function
             7. Processes training statistics and results
             8. Evaluates model every n-th update if configured
         """
@@ -145,7 +147,7 @@ class BaseTrainer():
             # 5.: Prepare the sampled data inside the buffer
             self.buffer.prepare_batch_dict()
 
-            # 6.: Train n epochs over the sampled data using mini batches
+            # 6.: Train n epochs over the sampled data
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
             training_stats = self.train()
@@ -197,23 +199,35 @@ class BaseTrainer():
 
             # Write training statistics to tensorboard
             self.monitor.write_training_summary(update, training_stats, episode_result)
-
-    def create_model(self):
+    
+    ### BEGIN:  Methods that need to be overriden ###
+    def create_model(self) -> None:
+        """This method is supposed to initialize self.model. Every trainer should have the possibility to customize its own model."""
         raise NotImplementedError
 
-    def train(self):
-        # This function needs to be overriden by trainers that are based on this class.
+    def train(self) -> dict:
+        """train() is called for each update cycle. It returns a dictionary of training statistics"""
         raise NotImplementedError
 
-    def step_decay_schedules(self, update):
-        # This function needs to be overriden by trainers that are based on this class.
+    def step_decay_schedules(self, update:int) -> None:
+        """As there might be multiple decaying hyperparameters, each trainer has to take care of them themselves.
+        This function is called first during an update cycle.
+        
+        Arguments:
+            update {int} -- Current update
+        """
         raise NotImplementedError
-
-    def _save_checkpoint(self, update):
-        checkpoint_data = self.collect_checkpoint_data(update)
-        torch.save(checkpoint_data, self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
 
     def collect_checkpoint_data(self, update):
+        """Collects all necessary objects for serializing a checkpoint.
+        The base class provide some of these information. The rest is collected from the actual trainer.
+
+        Arguments:
+            update {int} -- Current update
+
+        Returns:
+            {dict} -- Checkpoint data
+        """
         checkpoint_data = {}
         checkpoint_data["config"] = self.configs
         checkpoint_data["update"] = update
@@ -221,18 +235,39 @@ class BaseTrainer():
         checkpoint_data["cxs"] = self.model.mean_cxs if self.recurrence is not None else None
         return checkpoint_data
 
+    def apply_checkpoint_data(self, checkpoint):
+        """Applies the data loaded from a checkpoint. Some are processed by this base class, but are to be processed
+        by the actual trainer.
+
+        Args:
+            checkpoint {dict} -- The to be applied checkpoint data
+        """
+        if self.recurrence is not None:
+            self.model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
+    ### END:    Methods that need to be overriden ###
+
+    def _save_checkpoint(self, update) -> None:
+        """Collects data from the base and the trainer to serialize them using torch.save().
+
+        Arguments:
+            update {int} -- Current update
+        """
+        checkpoint_data = self.collect_checkpoint_data(update)
+        torch.save(checkpoint_data, self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
+
     def _load_checkpoint(self):
+        """Loads a checkpoint from a specified file by the config and triggers the process of applying the loaded data."""
         self.monitor.log("Step 3: Loading model from " + self.configs["model"]["model_path"])
         checkpoint = torch.load(self.configs["model"]["model_path"])
         self.apply_checkpoint_data(checkpoint)
 
-    def apply_checkpoint_data(self, checkpoint):
-        if self.recurrence is not None:
-            self.model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
-
     @staticmethod
     def _process_episode_info(episode_info):
-        """Extracts the mean and std of completed episodes. At minimum the episode length and the collected reward is available."""
+        """Extracts the mean and std of completed episodes. At minimum the episode length and the collected reward is available.
+        
+        Arguments:
+            episode_info {dict} -- Episode information, such as cummulated reward, episode length and more.
+        """
         result = {}
         if len(episode_info) > 0:
             keys = episode_info[0].keys()
@@ -247,7 +282,7 @@ class BaseTrainer():
         return result
 
     def close(self):
-        """Closes the environment and destroys the workers"""
+        """Closes the environment and destroys the environment workers"""
         self.monitor.log("Terminate: Closing dummy ennvironment . . .")
         try:
             self.dummy_env.close()

@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 class Buffer():
     """
@@ -153,12 +152,12 @@ class Buffer():
     def _pad_sequence(self, sequence, target_length):
         """Pads a sequence to the target length using zeros.
 
-        Args:
-            sequence {numpy.ndarray}: The to be padded array (i.e. sequence)
-            target_length {int}: The desired length of the sequence
+        Argumentss:
+            sequence {numpy.ndarray} -- The to be padded array (i.e. sequence)
+            target_length {int} -- The desired length of the sequence
 
         Returns:
-            {numpy.ndarray}: Returns the padded sequence
+            {numpy.ndarray} -- Returns the padded sequence
         """
         # If a tensor is provided, convert it to a numpy array
         if isinstance(sequence, torch.Tensor):
