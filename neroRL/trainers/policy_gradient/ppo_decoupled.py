@@ -57,7 +57,6 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.policy_optimizer = optim.AdamW(self.policy_parameters, lr=self.policy_learning_rate)
         self.value_optimizer = optim.AdamW(self.value_parameters, lr=self.value_learning_rate)
 
-
     def create_model(self):
         return create_actor_critic_model(self.configs["model"], False,
         self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)

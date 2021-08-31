@@ -93,10 +93,6 @@ class BaseTrainer():
         self.monitor.log("Step 3: Creating model")
         self.model = self.create_model()
 
-        # Load checkpoint and apply data
-        if configs["model"]["load_model"]:
-            self._load_checkpoint()
-
         # Set model to train mode
         self.model.train()
 
@@ -116,6 +112,10 @@ class BaseTrainer():
             7. Processes training statistics and results
             8. Evaluates model every n-th update if configured
         """
+        # Load checkpoint and apply data
+        if self.configs["model"]["load_model"]:
+            self._load_checkpoint()
+
         if(self.resume_at > 0):
             self.monitor.log("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
         else:
