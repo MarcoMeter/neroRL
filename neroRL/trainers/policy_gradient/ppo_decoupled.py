@@ -162,7 +162,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         # Compute gradients
         self.value_optimizer.zero_grad()
         vf_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
+        torch.nn.utils.clip_grad_norm_(self.value_parameters, max_norm=0.5)
         self.value_optimizer.step()
 
         return {"value_loss": (Tag.LOSS, vf_loss.cpu().data.numpy())}
