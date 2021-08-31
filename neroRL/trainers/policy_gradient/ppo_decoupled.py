@@ -187,8 +187,15 @@ class DecoupledPPOTrainer(BaseTrainer):
         return self.policy_learning_rate, self.beta, self.clip_range
         # return self.policy_learning_rate, self.value_learning_rate, self.beta, self.clip_range
 
-    def collect_checkpoint_data(self, update):
-        return super().collect_checkpoint_data(update)
+    def collect_checkpoint_data(self, update) -> dict:
+        checkpoint_data = super().collect_checkpoint_data(update)
+        checkpoint_data["model"] = self.model.state_dict()
+        checkpoint_data["policy_optimizer"] = self.policy_optimizer.state_dict()
+        checkpoint_data["value_optimizer"] = self.value_optimizer.state_dict()
+        return checkpoint_data
 
-    def apply_checkpoint_data(self, checkpoint):
+    def apply_checkpoint_data(self, checkpoint) -> None:
         super().apply_checkpoint_data(checkpoint)
+        self.model.load_state_dict(checkpoint["model"])
+        self.policy_optimizer.load_state_dict(checkpoint["policy_optimizer"])
+        self.value_optimizer.load_state_dict(checkpoint["value_optimizer"])
