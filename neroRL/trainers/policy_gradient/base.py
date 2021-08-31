@@ -54,9 +54,9 @@ class BaseTrainer():
         # Start logging the training setup
         self.monitor.log("Step 1: Provided config:")
         for key in configs:
-            self.monitor.log("Step 1: " + str(key) + ":")
+            self.monitor.log("\t" * 1 + str(key) + ":")
             for k, v in configs[key].items():
-                self.monitor.log("Step 1: " + str(k) + ": " + str(v))
+                self.monitor.log("\t" * 2 + str(k) + ": " + str(v))
 
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
         self.monitor.log("Step 2: Creating dummy environment")
