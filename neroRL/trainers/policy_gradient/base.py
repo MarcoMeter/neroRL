@@ -54,7 +54,7 @@ class BaseTrainer():
         # Start logging the training setup
         self.monitor.log("Step 1: Provided config:")
         for key in configs:
-            self.monitor.log("\t" * 1 + str(key) + ":")
+            self.monitor.log("\t" + str(key) + ":")
             for k, v in configs[key].items():
                 self.monitor.log("\t" * 2 + str(k) + ": " + str(v))
 
@@ -69,10 +69,10 @@ class BaseTrainer():
             self.action_space_shape = tuple(self.dummy_env.action_space.nvec)
         self.dummy_env.close()
 
-        self.monitor.log("Step 2: Visual Observation Space: " + str(self.visual_observation_space))
-        self.monitor.log("Step 2: Vector Observation Space: " + str(self.vector_observation_space))
-        self.monitor.log("Step 2: Action Space Shape: " + str(self.action_space_shape))
-        self.monitor.log("Step 2: Action Names: " + str(self.dummy_env.action_names))
+        self.monitor.log("\t" + "Visual Observation Space: " + str(self.visual_observation_space))
+        self.monitor.log("\t" + "Vector Observation Space: " + str(self.vector_observation_space))
+        self.monitor.log("\t" + "Action Space Shape: " + str(self.action_space_shape))
+        self.monitor.log("\t" + "Action Names: " + str(self.dummy_env.action_names))
 
         # Prepare evaluator if configured
         self.eval = configs["evaluation"]["evaluate"]
