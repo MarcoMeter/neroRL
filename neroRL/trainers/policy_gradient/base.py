@@ -45,6 +45,9 @@ class BaseTrainer():
         self.updates = configs["trainer"]["updates"]
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
+        self.share_parameters = False
+        if configs["trainer"]["algorithm"] == "PPO":
+            self.share_parameters = configs["trainer"]["share_parameters"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
@@ -82,7 +85,7 @@ class BaseTrainer():
         self.buffer = Buffer(
             self.n_workers, self.worker_steps,self.visual_observation_space, 
             self.vector_observation_space, self.action_space_shape, self.recurrence,
-            self.device, configs["trainer"]["share_parameters"])
+            self.device, self.share_parameters)
 
         # Init model
         self.monitor.log("Step 3: Creating model")

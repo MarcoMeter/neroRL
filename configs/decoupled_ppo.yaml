@@ -105,7 +105,7 @@ trainer:
   # Number of times that the whole batch of data is used for optimizing the value function
   # In contrast to policy epochs, the value function is updated once using the whole data set instead of mini batches.
   value_epochs: 9
-  # This interval determines when to optimize the value function based on how many times the policy underwent optimization.
+  # This interval determines when to optimize the value function based on how many update cycles have passed.
   value_update_interval: 1
   # Polynomial Decay Schedules
   # Policy Learning Rate

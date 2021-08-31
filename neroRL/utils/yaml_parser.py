@@ -71,7 +71,7 @@ class YamlParser:
             "worker_steps": 256
         }
 
-        trainer_dict = {
+        ppo_dict = {
             "algorithm": "PPO",
             "resume_at": 0,
             "gamma": 0.99,
@@ -85,6 +85,37 @@ class YamlParser:
             "beta_schedule": {"initial": 0.001},
             "clip_range_schedule": {"initial": 0.2}
         }
+
+        decoupled_ppo_dict = {
+            "algorithm": "DecoupledPPO",
+            "resume_at": 0,
+            "gamma": 0.99,
+            "lamda": 0.95,
+            "updates": 1000,
+            "policy_epochs": 4,
+            "n_mini_batch": 4,
+            "value_epochs": 9,
+            "value_update_interval": 1,
+            "policy_learning_rate_schedule": {"initial": 3.0e-4},
+            "value_learning_rate_schedule": {"initial": 3.0e-4},
+            "beta_schedule": {"initial": 0.001},
+            "clip_range_schedule": {"initial": 0.2}
+        }
+
+        # Determine which algorithm is used to process the corresponding default config parameters
+        # PPO is used as default, if the algorithm cannot be determined.
+        if "trainer" in self._config:
+            if "algorithm" in self._config["trainer"]:
+                if self._config["trainer"]["algorithm"] == "PPO":
+                    trainer_dict = ppo_dict
+                elif self._config["trainer"]["algorithm"] == "DecoupledPPO":
+                    trainer_dict = decoupled_ppo_dict
+                else:
+                    assert(False), "Unsupported algorithm specified"
+            else:
+                trainer_dict = ppo_dict
+        else:
+            trainer_dict = ppo_dict
 
         # Check if keys of the parent dictionaries are available, if not apply defaults from above
         if not "environment" in self._config:
@@ -120,27 +151,48 @@ class YamlParser:
                 for k, v in value.items():
                     trainer_dict[k] = v
                 self._config[key] = trainer_dict
-                # Check final hyperparameter
-                if "final" not in value["learning_rate_schedule"]:
-                    trainer_dict["learning_rate_schedule"]["final"] = trainer_dict["learning_rate_schedule"]["initial"]
+
+                #  Check beta
                 if "final" not in value["beta_schedule"]:
                     trainer_dict["beta_schedule"]["final"] = trainer_dict["beta_schedule"]["initial"]
-                if "final" not in value["clip_range_schedule"]:
-                    trainer_dict["clip_range_schedule"]["final"] = trainer_dict["clip_range_schedule"]["initial"]
-                # Check power
-                if "power" not in value["learning_rate_schedule"]:
-                    trainer_dict["learning_rate_schedule"]["power"] = 1.0
                 if "power" not in value["beta_schedule"]:
-                    trainer_dict["beta_schedule"]["power"] = 1.0
-                if "power" not in value["clip_range_schedule"]:
-                    trainer_dict["clip_range_schedule"]["power"] = 1.0
-                # Check max_decay_steps
-                if "max_decay_steps" not in value["learning_rate_schedule"]:
-                    trainer_dict["learning_rate_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+                    trainer_dict["beta_schedule"]["power"] = 1.0        
                 if "max_decay_steps" not in value["beta_schedule"]:
                     trainer_dict["beta_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+
+                # Check clip range
+                if "final" not in value["clip_range_schedule"]:
+                    trainer_dict["clip_range_schedule"]["final"] = trainer_dict["clip_range_schedule"]["initial"]
+                if "power" not in value["clip_range_schedule"]:
+                    trainer_dict["clip_range_schedule"]["power"] = 1.0
                 if "max_decay_steps" not in value["clip_range_schedule"]:
                     trainer_dict["clip_range_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+
+                # Check learning rate
+                if value["algorithm"] == "PPO":
+                    if "final" not in value["learning_rate_schedule"]:
+                        trainer_dict["learning_rate_schedule"]["final"] = trainer_dict["learning_rate_schedule"]["initial"]
+                    if "power" not in value["learning_rate_schedule"]:
+                        trainer_dict["learning_rate_schedule"]["power"] = 1.0
+                    if "max_decay_steps" not in value["learning_rate_schedule"]:
+                        trainer_dict["learning_rate_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+                elif value["algorithm"] == "DecoupledPPO":
+                    # Policy learning rate schedule
+                    if "final" not in value["policy_learning_rate_schedule"]:
+                        trainer_dict["policy_learning_rate_schedule"]["final"] = trainer_dict["policy_learning_rate_schedule"]["initial"]
+                    if "power" not in value["policy_learning_rate_schedule"]:
+                        trainer_dict["policy_learning_rate_schedule"]["power"] = 1.0
+                    if "max_decay_steps" not in value["policy_learning_rate_schedule"]:
+                        trainer_dict["policy_learning_rate_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+                    # Value learning rate schedule
+                    if "final" not in value["value_learning_rate_schedule"]:
+                        trainer_dict["value_learning_rate_schedule"]["final"] = trainer_dict["value_learning_rate_schedule"]["initial"]
+                    if "power" not in value["value_learning_rate_schedule"]:
+                        trainer_dict["value_learning_rate_schedule"]["power"] = 1.0
+                    if "max_decay_steps" not in value["value_learning_rate_schedule"]:
+                        trainer_dict["value_learning_rate_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+
+                # Apply trainer config
                 self._config[key] = trainer_dict
             
             # Check if the model dict contains a recurrence dict

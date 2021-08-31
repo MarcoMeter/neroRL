@@ -15,7 +15,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         # Hyperparameter setup
         self.num_policy_epochs = configs["trainer"]["policy_epochs"]
         self.num_value_epochs = configs["trainer"]["value_epochs"]
-        self.value_update_interval = ["trainer"]["value_update_interval"]
+        self.value_update_interval = configs["trainer"]["value_update_interval"]
         self.n_mini_batch = configs["trainer"]["n_mini_batch"]
         self.batch_size = self.n_workers * self.worker_steps
         self.mini_batch_size = self.batch_size // self.n_mini_batch
