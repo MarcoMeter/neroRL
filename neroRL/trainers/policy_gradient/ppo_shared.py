@@ -29,9 +29,8 @@ class PPOTrainer(BaseTrainer):
         self.epochs = configs["trainer"]["epochs"]
         self.vf_loss_coef = self.configs["trainer"]["value_coefficient"]
         self.n_mini_batch = configs["trainer"]["n_mini_batch"]
-        self.batch_size = self.n_workers * self.worker_steps
-        self.mini_batch_size = self.batch_size // self.n_mini_batch
-        assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
+        batch_size = self.n_workers * self.worker_steps
+        assert (batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
 
         self.lr_schedule = configs["trainer"]["learning_rate_schedule"]
         self.beta_schedule = configs["trainer"]["beta_schedule"]
@@ -157,7 +156,7 @@ class PPOTrainer(BaseTrainer):
             pg["lr"] = self.learning_rate
 
         return {
-            "learning_rate": (Tag.DECAY, self.policy_learning_rate),
+            "learning_rate": (Tag.DECAY, self.learning_rate),
             "beta": (Tag.DECAY, self.beta),
             "clip_range": (Tag.DECAY, self.clip_range)
         }

@@ -29,9 +29,8 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.num_value_epochs = configs["trainer"]["value_epochs"]
         self.value_update_interval = configs["trainer"]["value_update_interval"]
         self.n_mini_batch = configs["trainer"]["n_mini_batch"]
-        self.batch_size = self.n_workers * self.worker_steps
-        self.mini_batch_size = self.batch_size // self.n_mini_batch
-        assert (self.batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
+        batch_size = self.n_workers * self.worker_steps
+        assert (batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
         # Decaying hyperparameter schedules
         self.policy_lr_schedule = configs["trainer"]["policy_learning_rate_schedule"]
         self.value_lr_schedule = configs["trainer"]["value_learning_rate_schedule"]
