@@ -5,7 +5,8 @@ class Tag(Enum):
     DECAY = "decay"
     EPISODE = "episode"
     EVALUATION = "evaluation"
-    GRADIENT = "gradient"
+    GRADIENT_NORM = "gradient_norm"
+    GRADIENT_MEAN = "gradient_mean"
     LOSS = "loss"
     OTHER = "other"
 

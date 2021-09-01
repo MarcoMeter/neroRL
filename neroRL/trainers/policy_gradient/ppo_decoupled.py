@@ -154,7 +154,20 @@ class DecoupledPPOTrainer(BaseTrainer):
         approx_kl = masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
         clip_fraction = (abs((ratio - 1.0)) > self.clip_range).type(torch.FloatTensor).mean()
 
-        return {"policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
+        # Collect gradients
+        grad_output = {}
+        grads = []
+        for name, param in self.model.named_parameters():
+            if "actor" in name:
+                grad = param.grad.data.cpu()
+                grads.append(grad.view(-1))
+                grad_output["n_" + name] = (Tag.GRADIENT_NORM, torch.linalg.norm(grad).item())
+                grad_output["m_" + name] = (Tag.GRADIENT_MEAN, torch.mean(grad).item())
+        grad_output["n_actor_model"] = (Tag.GRADIENT_NORM, torch.linalg.norm(torch.cat(grads)).item())
+        grad_output["m_actor_model"] = (Tag.GRADIENT_MEAN, torch.mean(torch.cat(grads)).item())
+
+        return {**grad_output,
+                "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
                 "loss": (Tag.LOSS, loss.cpu().data.numpy()),
                 "entropy": (Tag.OTHER, entropy_bonus.cpu().data.numpy()),
                 "kl_divergence": (Tag.OTHER, approx_kl.cpu().data.numpy()),
@@ -194,7 +207,20 @@ class DecoupledPPOTrainer(BaseTrainer):
         torch.nn.utils.clip_grad_norm_(self.value_parameters, max_norm=0.5)
         self.value_optimizer.step()
 
-        return {"value_loss": (Tag.LOSS, vf_loss.cpu().data.numpy())}
+        # Collect gradients
+        grad_output = {}
+        grads = []
+        for name, param in self.model.named_parameters():
+            if "critic" in name:
+                grad = param.grad.data.cpu()
+                grads.append(grad.view(-1))
+                grad_output["n_" + name] = (Tag.GRADIENT_NORM, torch.linalg.norm(grad).item())
+                grad_output["m_" + name] = (Tag.GRADIENT_MEAN, torch.mean(grad).item())
+        grad_output["n_critic_model"] = (Tag.GRADIENT_NORM, torch.linalg.norm(torch.cat(grads)).item())
+        grad_output["m_critic_model"] = (Tag.GRADIENT_MEAN, torch.mean(torch.cat(grads)).item())
+
+        return {**grad_output,
+                "value_loss": (Tag.LOSS, vf_loss.cpu().data.numpy())}
 
     def step_decay_schedules(self, update):
         self.policy_learning_rate = polynomial_decay(self.policy_lr_schedule["initial"], self.policy_lr_schedule["final"],
