@@ -9,7 +9,6 @@ from signal import signal, SIGINT
 
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
-from neroRL.sampler.buffer import Buffer
 from neroRL.evaluator import Evaluator
 from neroRL.utils.monitor import Monitor
 from neroRL.utils.monitor import Tag
@@ -45,11 +44,6 @@ class BaseTrainer():
         self.updates = configs["trainer"]["updates"]
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
-        # The DecoupledPPO trainer does not share parameters
-        # In contrast to PPO and not sharing parameters, the gradients are still shared
-        self.share_parameters = False
-        if configs["trainer"]["algorithm"] == "PPO":
-            self.share_parameters = configs["trainer"]["share_parameters"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
@@ -83,12 +77,6 @@ class BaseTrainer():
             self.monitor.log("Step 2b: Initializing evaluator")
             self.evaluator = Evaluator(configs, worker_id, self.visual_observation_space, self.vector_observation_space)
 
-        # Instantiate experience/training data buffer
-        self.buffer = Buffer(
-            self.n_workers, self.worker_steps,self.visual_observation_space, 
-            self.vector_observation_space, self.action_space_shape, self.recurrence,
-            self.device, self.share_parameters)
-
         # Init model
         self.monitor.log("Step 3: Creating model")
         self.model = self.create_model()
@@ -99,7 +87,7 @@ class BaseTrainer():
         # Setup Sampler
         self.monitor.log("Step 4: Launching training environments of type " + configs["environment"]["type"])
         self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
-                                        self.model, self.buffer, self.device)
+                                        self.action_space_shape, self.model, self.device)
 
     def run_training(self):
         """Orchestrates the policy gradient based training:
@@ -136,16 +124,16 @@ class BaseTrainer():
 
             # 3.: Calculate advantages
             _, last_value, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell(), self.device)
-            self.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
+            self.sampler.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
             
             # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
             if self.recurrence:
                 self.model.set_mean_recurrent_cell_states(
-                        np.mean(self.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.buffer.hxs.shape[2:]), axis=0),
-                        np.mean(self.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.buffer.cxs.shape[2:]), axis=0))
+                        np.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0),
+                        np.mean(self.sampler.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.cxs.shape[2:]), axis=0))
 
             # 5.: Prepare the sampled data inside the buffer
-            self.buffer.prepare_batch_dict()
+            self.sampler.buffer.prepare_batch_dict()
 
             # 6.: Train n epochs over the sampled data
             if torch.cuda.is_available():
@@ -170,13 +158,13 @@ class BaseTrainer():
                     ("entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}")).format(
                     update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
                     episode_result["length_mean"], episode_result["length_std"], training_stats["loss"][1],
-                    training_stats["entropy"][1], np.mean(self.buffer.values), np.std(self.buffer.values),
-                    np.mean(self.buffer.advantages), np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
+                    training_stats["entropy"][1], np.mean(self.sampler.buffer.values), np.std(self.sampler.buffer.values),
+                    np.mean(self.sampler.buffer.advantages), np.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length))
             else:
                 self.monitor.log("{:4} sec={:2} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
                     update, update_duration, training_stats["loss"][1], training_stats["entropy"][1],
-                    np.mean(self.buffer.values), np.std(self.buffer.values), np.mean(self.buffer.advantages),
-                    np.std(self.buffer.advantages), self.buffer.actual_sequence_length))
+                    np.mean(self.sampler.buffer.values), np.std(self.sampler.buffer.values), np.mean(self.sampler.buffer.advantages),
+                    np.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length))
 
             # 8.: Evaluate model
             if self.eval:
@@ -191,9 +179,9 @@ class BaseTrainer():
             training_stats = {
             **training_stats,
             **decayed_hyperparameters,
-            "advantage_mean": (Tag.EPISODE, np.mean(self.buffer.advantages)),
-            "value_mean": (Tag.EPISODE, np.mean(self.buffer.values)),
-            "sequence_length": (Tag.OTHER, self.buffer.actual_sequence_length),
+            "advantage_mean": (Tag.EPISODE, np.mean(self.sampler.buffer.advantages)),
+            "value_mean": (Tag.EPISODE, np.mean(self.sampler.buffer.values)),
+            "sequence_length": (Tag.OTHER, self.sampler.buffer.actual_sequence_length),
             }
 
             # Write training statistics to tensorboard

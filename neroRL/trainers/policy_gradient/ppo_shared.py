@@ -55,9 +55,9 @@ class PPOTrainer(BaseTrainer):
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
             if self.recurrence is not None:
-                mini_batch_generator = self.buffer.recurrent_mini_batch_generator(self.n_mini_batches)
+                mini_batch_generator = self.sampler.buffer.recurrent_mini_batch_generator(self.n_mini_batches)
             else:
-                mini_batch_generator = self.buffer.mini_batch_generator(self.n_mini_batches)
+                mini_batch_generator = self.sampler.buffer.mini_batch_generator(self.n_mini_batches)
             for mini_batch in mini_batch_generator:
                 res = self.train_mini_batch(mini_batch)
                 # Collect all values of the training procedure in a list
@@ -92,7 +92,7 @@ class PPOTrainer(BaseTrainer):
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
                                     self.device,
-                                    self.buffer.actual_sequence_length)
+                                    self.sampler.buffer.actual_sequence_length)
         
         # Policy Loss
         # Retrieve and process log_probs from each policy branch

@@ -68,9 +68,9 @@ class DecoupledPPOTrainer(BaseTrainer):
         # Train policy using mini batches
         for _ in range(self.num_policy_epochs):
             if self.recurrence is not None:
-                mini_batch_generator = self.buffer.recurrent_mini_batch_generator(self.n_policy_mini_batches)
+                mini_batch_generator = self.sampler.buffer.recurrent_mini_batch_generator(self.n_policy_mini_batches)
             else:
-                mini_batch_generator = self.buffer.mini_batch_generator(self.n_policy_mini_batches)
+                mini_batch_generator = self.sampler.buffer.mini_batch_generator(self.n_policy_mini_batches)
             for mini_batch in mini_batch_generator:
                 res = self.train_policy_mini_batch(mini_batch)
                 # Collect all values of the training procedure in a list
@@ -81,9 +81,9 @@ class DecoupledPPOTrainer(BaseTrainer):
         if self.currentUpdate % self.value_update_interval == 0:
             for _ in range(self.num_value_epochs):
                 if self.recurrence is not None:
-                    batch_generator = self.buffer.recurrent_mini_batch_generator(self.n_value_mini_batches)
+                    batch_generator = self.sampler.buffer.recurrent_mini_batch_generator(self.n_value_mini_batches)
                 else:
-                    batch_generator = self.buffer.mini_batch_generator(self.n_value_mini_batches)
+                    batch_generator = self.sampler.buffer.mini_batch_generator(self.n_value_mini_batches)
                 for batch in batch_generator:
                     res = self.train_value_mini_batch(batch)
                     for key, (tag, value) in res.items():
@@ -116,7 +116,7 @@ class DecoupledPPOTrainer(BaseTrainer):
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
                                     self.device,
-                                    self.buffer.actual_sequence_length)
+                                    self.sampler.buffer.actual_sequence_length)
 
         # Policy Loss
         # Retrieve and process log_probs from each policy branch
@@ -181,7 +181,7 @@ class DecoupledPPOTrainer(BaseTrainer):
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
                                     self.device,
-                                    self.buffer.actual_sequence_length)
+                                    self.sampler.buffer.actual_sequence_length)
 
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.clip_range, max=self.clip_range)

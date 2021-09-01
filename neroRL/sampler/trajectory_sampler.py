@@ -1,12 +1,13 @@
 import numpy as np
 import torch
 
+from neroRL.sampler.buffer import Buffer
 from neroRL.utils.worker import Worker
 
 class TrajectorySampler():
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, model, buffer, device) -> None:
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, device) -> None:
         """Initializes the TrajectorSampler and launches its environment workers.
 
         Arguments:
@@ -15,7 +16,6 @@ class TrajectorySampler():
             visual_observation_space {box} -- Dimensions of the visual observation space (None if not available)
             vector_observation_space {} -- {tuple} -- Dimensions of the vector observation space (None if not available)
             model {nn.Module} -- The model that represents the policy and the value function
-            buffer {Buffer} -- The buffer that is used to store the collected data
             device {torch.device} -- The device that is used for retrieving the data from the model.
         """
         # Set member variables
@@ -23,11 +23,14 @@ class TrajectorySampler():
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
         self.model = model
-        self.buffer = buffer
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.device = device
+
+        # Create Buffer
+        self.buffer = Buffer(self.n_workers, self.worker_steps, visual_observation_space, vector_observation_space,
+                        action_space_shape, self.recurrence, self.device, self.model.share_parameters)
 
         # Launch workers
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]

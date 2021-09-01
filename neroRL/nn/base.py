@@ -21,6 +21,9 @@ class ActorCriticBase(nn.Module):
         """
         super().__init__()
 
+        # Whether the model uses shared parameters (i.e. weights) or not
+        self.share_parameters = False
+
         # Members for using a recurrent policy
         self.recurrence = recurrence
         self.mean_hxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None

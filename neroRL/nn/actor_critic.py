@@ -214,6 +214,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
         """
         ActorCriticBase.__init__(self, recurrence, config)
 
+        # Whether the model uses shared parameters (i.e. weights) or not
+        self.share_parameters = True
+
         # Create the base model
         self.encoder, self.preprocessing_layer, self.recurrent_layer, self.hidden_layer = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
