@@ -101,10 +101,13 @@ trainer:
   policy_epochs: 4
   # Number of mini batches that are trained throughout one policy epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
-  n_mini_batch: 4
+  n_policy_mini_batches: 4
   # Number of times that the whole batch of data is used for optimizing the value function
   # In contrast to policy epochs, the value function is updated once using the whole data set instead of mini batches.
   value_epochs: 9
+  # Number of mini batches that are trained throughout one value epoch
+  # In case of using a recurrent net, this has to be a multiple of n_workers.
+  n_value_mini_batches: 1
   # This interval determines when to optimize the value function based on how many update cycles have passed.
   value_update_interval: 1
   # Polynomial Decay Schedules

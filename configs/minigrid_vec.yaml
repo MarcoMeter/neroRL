@@ -49,7 +49,7 @@ trainer:
   lamda: 0.95
   updates: 1000
   epochs: 4
-  n_mini_batch: 8
+  n_mini_batches: 8
   value_coefficient: 0.25
   share_parameters: True
   learning_rate_schedule:

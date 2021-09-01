@@ -28,9 +28,11 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.num_policy_epochs = configs["trainer"]["policy_epochs"]
         self.num_value_epochs = configs["trainer"]["value_epochs"]
         self.value_update_interval = configs["trainer"]["value_update_interval"]
-        self.n_mini_batch = configs["trainer"]["n_mini_batch"]
+        self.n_policy_mini_batches = configs["trainer"]["n_policy_mini_batches"]
+        self.n_value_mini_batches = configs["trainer"]["n_value_mini_batches"]
         batch_size = self.n_workers * self.worker_steps
-        assert (batch_size % self.n_mini_batch == 0), "Batch Size divided by number of mini batches has a remainder."
+        assert (batch_size % self.n_policy_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
+        assert (batch_size % self.n_value_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
         # Decaying hyperparameter schedules
         self.policy_lr_schedule = configs["trainer"]["policy_learning_rate_schedule"]
         self.value_lr_schedule = configs["trainer"]["value_learning_rate_schedule"]
@@ -66,9 +68,9 @@ class DecoupledPPOTrainer(BaseTrainer):
         # Train policy using mini batches
         for _ in range(self.num_policy_epochs):
             if self.recurrence is not None:
-                mini_batch_generator = self.buffer.recurrent_mini_batch_generator(self.n_mini_batch)
+                mini_batch_generator = self.buffer.recurrent_mini_batch_generator(self.n_policy_mini_batches)
             else:
-                mini_batch_generator = self.buffer.mini_batch_generator(self.n_mini_batch)
+                mini_batch_generator = self.buffer.mini_batch_generator(self.n_policy_mini_batches)
             for mini_batch in mini_batch_generator:
                 res = self.train_policy_mini_batch(mini_batch)
                 # Collect all values of the training procedure in a list
@@ -79,11 +81,11 @@ class DecoupledPPOTrainer(BaseTrainer):
         if self.currentUpdate % self.value_update_interval == 0:
             for _ in range(self.num_value_epochs):
                 if self.recurrence is not None:
-                    batch_generator = self.buffer.recurrent_mini_batch_generator(1)
+                    batch_generator = self.buffer.recurrent_mini_batch_generator(self.n_value_mini_batches)
                 else:
-                    batch_generator = self.buffer.mini_batch_generator(1)
+                    batch_generator = self.buffer.mini_batch_generator(self.n_value_mini_batches)
                 for batch in batch_generator:
-                    res = self.train_value_function(batch)
+                    res = self.train_value_mini_batch(batch)
                     for key, (tag, value) in res.items():
                         train_info.setdefault(key, (tag, []))[1].append(value)
 
@@ -158,7 +160,7 @@ class DecoupledPPOTrainer(BaseTrainer):
                 "kl_divergence": (Tag.OTHER, approx_kl.cpu().data.numpy()),
                 "clip_fraction": (Tag.OTHER, clip_fraction.cpu().data.numpy())}
 
-    def train_value_function(self, samples):
+    def train_value_mini_batch(self, samples):
         """Optimizes the value function based on the PPO algorithm
 
         Arguments:
