@@ -45,14 +45,8 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.clip_range = self.cr_schedule["initial"]
 
         # Determine policy and value function parameters
-        # TODO, dont use string to select the correct model parameters for the actor and the critic
-        self.policy_parameters = []
-        self.value_parameters = []
-        for name, param in self.model.named_parameters():
-            if "actor" in name:
-                self.policy_parameters.append(param)
-            elif "critic" in name:
-                self.value_parameters.append(param)
+        self.policy_parameters = self.model.get_actor_params()
+        self.value_parameters = self.model.get_critic_params()
 
         # Instantiate optimizer
         self.policy_optimizer = optim.AdamW(self.policy_parameters, lr=self.policy_learning_rate)

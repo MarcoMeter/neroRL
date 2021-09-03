@@ -24,6 +24,10 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         """
         ActorCriticBase.__init__(self, recurrence, config)
 
+        # Lists to group modules to distinguish actor from critic modules
+        self.actor_modules = []
+        self.critic_modules = []
+
         # Members for using a recurrent policy
         self.mean_hxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
@@ -46,6 +50,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.actor_branches = nn.ModuleList()
         for num_actions in action_space_shape:
             actor_branch = nn.Linear(in_features=512, out_features=num_actions)
+            self._add_actor_modules(actor_branch)
             nn.init.orthogonal_(actor_branch.weight, np.sqrt(0.01))
             self.actor_branches.append(actor_branch)
 
@@ -53,6 +58,12 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.critic = nn.Linear(in_features=512,
                                out_features=1)
         nn.init.orthogonal_(self.critic.weight, 1)
+
+        # Append the just created modules to their respective list
+        self._add_actor_modules([self.actor_encoder, self.actor_preprocessing_layer, self.actor_recurrent_layer,
+                                self.actor_hidden, self.actor_linear])
+        self._add_critic_modules([self.critic_encoder, self.critic_preprocessing_layer, self.critic_recurrent_layer,
+                                self.critic_hidden, self.critic_linear, self.critic])
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
@@ -194,6 +205,30 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # return (actor_hxs, actor_cxs), (critic_hxs, critic_cxs)
         return actor_recurrent_cell, critic_recurrent_cell
+
+    def _add_actor_modules(self, modules):
+        if isinstance(modules, nn.Module):
+            self.actor_modules.append(modules)
+        elif isinstance(modules, list):
+            for module in modules:
+                if module is not None:
+                    self.actor_modules.append(module)
+
+    def _add_critic_modules(self, modules):
+        if isinstance(modules, nn.Module):
+            self.critic_modules.append(modules)
+        elif isinstance(modules, list):
+            for module in modules:
+                if module is not None:
+                    self.critic_modules.append(module)
+
+    def get_actor_params(self):
+        params = [list(module.parameters())[0] for module in self.actor_modules]
+        return params
+        
+    def get_critic_params(self):
+        params = [list(module.parameters())[0] for module in self.critic_modules]
+        return params
 
 class ActorCriticSharedWeights(ActorCriticBase):
     """A flexible shared weights actor-critic model that supports:
