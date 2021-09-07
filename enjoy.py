@@ -74,8 +74,8 @@ def main():
     # Build or load model
     logger.info("Step 2: Creating model")
     share_parameters = False
-    if configs["trainer"] == "PPO":
-        share_parameters = configs["trainers"]["share_parameters"]
+    if configs["trainer"]["algorithm"] == "PPO":
+        share_parameters = configs["trainer"]["share_parameters"]
     model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
                             configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
@@ -142,6 +142,7 @@ def main():
             vis_obs, vec_obs, _, done, info = env.step(_actions)
 
     logger.info("Episode Reward: " + str(info["reward"]))
+    logger.info("Episode Length: " + str(info["length"]))
 
     # Complete video data
     if record_video:
