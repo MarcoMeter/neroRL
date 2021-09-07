@@ -52,7 +52,9 @@ class YamlParser:
             "model_path": "",
             "checkpoint_interval": 50,
             "activation": "relu",
-            "encoder": "cnn",
+            "vis_encoder": "cnn",
+            "vec_encoder_layer": "linear",
+            "num_vec_encoder_units": 1024,
             "hidden_layer": "default",
             "num_hidden_layers": 2,
             "num_hidden_units": 512

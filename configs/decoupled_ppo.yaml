@@ -39,7 +39,7 @@ model:
   # Set the to be used activation function (elu, leaky_relu, relu, swish)
   activation: "relu"
   # Set the to be used encoder
-  encoder: "cnn"
+  vis_encoder: "cnn"
   recurrence:
     # Supported recurrent layers: gru, lstm
     layer_type: "lstm"
@@ -54,7 +54,7 @@ model:
     reset_hidden_state: True
   # Set the to be used preprocessing layer
   preprocessing_layer: "linear"
-  num_preprocessing_units: 1024
+  num_vec_encoder_units: 1024
   # Set the to be used hidden layer
   hidden_layer: "default"
   # Number of hidden layers

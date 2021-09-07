@@ -18,9 +18,9 @@ model:
   model_path: "./models/good_minigrid-900.pt"
   checkpoint_interval: 100
   activation: "relu"
-  encoder: "cnn"
-  preprocessing_layer: "linear"
-  num_preprocessing_units: 1024
+  vis_encoder: "cnn"
+  vec_encoder_layer: "linear"
+  num_vec_encoder_units: 1024
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512

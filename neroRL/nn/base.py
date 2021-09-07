@@ -44,16 +44,16 @@ class ActorCriticBase(nn.Module):
         Returns:
             {tuple} -- Encoder, recurrent layer, hidden layer
         """
-        encoder, preprocessing_layer, recurrent_layer, hidden_layer = None, None, None, None
+        vis_encoder, vec_encoder, recurrent_layer, hidden_layer = None, None, None, None
 
         # Observation encoder
         if vis_obs_space is not None:
-            encoder = self.create_encoder(config, vis_obs_space)
+            vis_encoder = self.create_vis_encoder(config, vis_obs_space)
 
             # Case: visual observation available
             vis_obs_shape = vis_obs_space.shape
             # Compute output size of the encoder
-            conv_out_size = self.get_enc_output(encoder, vis_obs_shape)
+            conv_out_size = self.get_vis_enc_output(vis_encoder, vis_obs_shape)
             in_features_next_layer = conv_out_size
 
             # Determine number of features for the next layer's input
@@ -66,8 +66,8 @@ class ActorCriticBase(nn.Module):
 
             if self.recurrence is not None:
                 # Preprocessing layer
-                out_features = config["num_preprocessing_units"]
-                preprocessing_layer = self.create_preprocessing_layer(config, in_features_next_layer, out_features)
+                out_features = config["num_vec_encoder_units"]
+                vec_encoder = self.create_vec_encoder(config, in_features_next_layer, out_features)
 
                 in_features_next_layer = out_features
 
@@ -80,7 +80,7 @@ class ActorCriticBase(nn.Module):
         out_features = config["num_hidden_units"]
         hidden_layer = self.create_hidden_layer(config, in_features_next_layer, out_features)
 
-        return encoder, preprocessing_layer, recurrent_layer, hidden_layer
+        return vis_encoder, vec_encoder, recurrent_layer, hidden_layer
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
@@ -148,8 +148,8 @@ class ActorCriticBase(nn.Module):
         elif config["activation"] == "swish":
             return nn.SiLU()
 
-    def create_encoder(self, config, vis_obs_space):
-        """Creates and returns a new instance of the encoder based on the model config.
+    def create_vis_encoder(self, config, vis_obs_space):
+        """Creates and returns a new instance of the visual encoder based on the model config.
 
         Arguments:
             config {dict} -- Model config
@@ -158,11 +158,11 @@ class ActorCriticBase(nn.Module):
         Returns:
             {torch.nn.Module} -- The created encoder
         """
-        if config["encoder"] == "cnn":
+        if config["vis_encoder"] == "cnn":
             return CNNEncoder(vis_obs_space, config, self.activ_fn)
 
-    def create_preprocessing_layer(self, config, in_features, out_features):
-        """Creates and returns a new instance of the preprocessing layer based on the model config.
+    def create_vec_encoder(self, config, in_features, out_features):
+        """Creates and returns a new instance of the vector encoder based on the model config.
 
         Arguments:
             config {dict} -- Model config
@@ -172,7 +172,7 @@ class ActorCriticBase(nn.Module):
         Returns:
             {torch.nn.Module} -- The created preprocessing layer
         """
-        if config["preprocessing_layer"] == "linear":
+        if config["vec_encoder"] == "linear":
             return nn.Sequential(nn.Linear(in_features, out_features), self.activ_fn)
 
     def create_hidden_layer(self, config, in_features, out_features):
@@ -205,8 +205,8 @@ class ActorCriticBase(nn.Module):
         elif recurrence["layer_type"] == "lstm":
             return LSTM(input_shape, recurrence["hidden_state_size"])
 
-    def get_enc_output(self, encoder, shape):
-        """Computes the output size of the encoder by feeding a dummy tensor.
+    def get_vis_enc_output(self, vis_encoder, shape):
+        """Computes the output size of the visual encoder by feeding a dummy tensor.
 
         Arguments:
             encoder{torch.nn.Module} -- The to be used encoder
@@ -215,5 +215,5 @@ class ActorCriticBase(nn.Module):
         Returns:
             {int} -- Number of output features returned by the utilized convolutional layers
         """
-        o = encoder(torch.zeros(1, *shape), "cpu")
+        o = vis_encoder(torch.zeros(1, *shape), "cpu")
         return int(np.prod(o.size()))
