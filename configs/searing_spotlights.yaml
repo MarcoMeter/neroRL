@@ -1,0 +1,99 @@
+environment:
+  type: "Unity"
+  name: "./UnityBuilds/SearingSpotlights/SearingSpotlights"
+  frame_skip: 1
+  last_action_to_obs: False
+  last_reward_to_obs: False
+  obs_stacks: 1
+  grayscale: False
+  resize_vis_obs: [84, 84]
+  reset_params:
+    start-seed: 0
+    num-seeds: 100
+    # Number of spotlights that are spawned across an episode
+    # The more spotlights are spawned the longer the episode is
+    num-spotlight-spawns: 50
+    # The initial interval of spawning spotlights, which is linearly decayed over spawns
+    # A lower interval means a higher frequency of spawns
+    initial-spawn-interval: 12
+    # The lower bound of the spawn interval, which is added as offset
+    # The interval never falls below this threshold
+    interval-threshold: 4
+    # The range (min, max) of the to be sampled spotlight speed
+    min-spotlight-speed: 20
+    max-spotlight-speed: 45
+    # The range (min, max) of the to be sampled spotlight radius
+    min-spotlight-radius: 10
+    max-spotlight-radius: 15
+    # The amount of damage that the spotlight may cause on the agent
+    spotlight-damage: 1.0
+    # The interval on when to turn the light back on
+    light-on-interval: 600
+    # The duration for the light to be on
+    light-on-duration: 3
+    # The duration of dimming the light until on or off
+    light-dim-duration: 10
+    # The speed of the agent
+    agent-speed: 35
+    # The agent's health, the episode terminates once the health falls to zero
+    agent-health: 100.0
+    # Reward Function
+    # Punish the agent for being inside a spotlight
+    reward-inside-spotlight: -0.01
+    # Don't signal a reward to the agent while being not in range of a spotlight
+    reward-outside-spotlight: 0.0
+
+model:
+  load_model: False
+  model_path: "./models/.pt"
+  checkpoint_interval: 200
+  activation: "relu"
+  encoder: "cnn"
+  preprocessing_layer: "linear"
+  num_preprocessing_units: 1024
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
+  recurrence:
+    layer_type: "gru"
+    sequence_length: 32
+    hidden_state_size: 512
+    hidden_state_init: "zero"
+    reset_hidden_state: True
+
+evaluation:
+  evaluate: True
+  n_workers: 3
+  seeds: [1001, 1002, 1003, 1004, 1005]
+  interval: 200
+
+sampler:
+  type: "TrajectorySampler"
+  n_workers: 16
+  worker_steps: 256
+
+trainer:
+  algorithm: "PPO"
+  resume_at: 0
+  gamma: 0.99
+  lamda: 0.95
+  updates: 5000
+  epochs: 3
+  n_mini_batches: 8
+  value_coefficient: 0.25
+  share_parameters: True
+  learning_rate_schedule:
+    initial: 3.0e-4
+    final: 3.0e-6
+    power: 1.0
+    max_decay_steps: 5000
+  beta_schedule:
+    initial: 0.001
+    final: 0.0001
+    power: 1.0
+    max_decay_steps: 5000
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 5000
