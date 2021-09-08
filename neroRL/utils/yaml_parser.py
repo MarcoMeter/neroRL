@@ -1,4 +1,3 @@
-import sys
 from ruamel.yaml import YAML
 
 class YamlParser:
