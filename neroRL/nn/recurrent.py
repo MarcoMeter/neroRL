@@ -1,7 +1,9 @@
 import numpy as np
 from torch import nn
 
-class GRU(nn.Module):
+from neroRL.nn.module import Module
+
+class GRU(Module):
     """
     A single-layer gated recurrent unit (GRU) module.
     """

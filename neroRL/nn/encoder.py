@@ -3,7 +3,9 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-class CNNEncoder(nn.Module):
+from neroRL.nn.module import Module
+
+class CNNEncoder(Module):
     """
     A simple three layer CNN which serves as a visual encoder.
     """

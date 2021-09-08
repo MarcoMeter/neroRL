@@ -5,8 +5,9 @@ from torch import nn
 from neroRL.nn.encoder import CNNEncoder
 from neroRL.nn.recurrent import GRU, LSTM
 from neroRL.nn.hidden_layer import HiddenLayer
+from neroRL.nn.module import Module
 
-class ActorCriticBase(nn.Module):
+class ActorCriticBase(Module):
     """An actor-critic base model which defines the basic components and functionality of the final model:
             - Components: Encoder, recurrent layer, hidden layer
             - Functionality: Initialization of the recurrent cells and basic model

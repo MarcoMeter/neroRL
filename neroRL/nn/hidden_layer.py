@@ -1,7 +1,9 @@
 from torch import nn
 import numpy as np
 
-class HiddenLayer(nn.Module):
+from neroRL.nn.module import Module
+
+class HiddenLayer(Module):
     """
     A flexibal hidden layer with a variable number of layers.
     """
