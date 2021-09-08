@@ -54,7 +54,7 @@ class YamlParser:
             "activation": "relu",
             "vis_encoder": "cnn",
             "vec_encoder": "linear",
-            "num_vec_encoder_units": 1024,
+            "num_vec_encoder_units": 128,
             "hidden_layer": "default",
             "num_hidden_layers": 2,
             "num_hidden_units": 512

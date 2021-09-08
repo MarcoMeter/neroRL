@@ -54,7 +54,7 @@ model:
     reset_hidden_state: True
   # Set the to be used preprocessing layer
   vec_encoder: "linear"
-  num_vec_encoder_units: 1024
+  num_vec_encoder_units: 128
   # Set the to be used hidden layer
   hidden_layer: "default"
   # Number of hidden layers
