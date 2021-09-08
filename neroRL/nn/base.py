@@ -59,13 +59,13 @@ class ActorCriticBase(nn.Module):
             # Determine number of features for the next layer's input
             if vec_obs_shape is not None:
                 # Case: vector observation is also available
-                out_features = config["num_vec_encoder_units"]
+                out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
                 vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
                 in_features_next_layer = in_features_next_layer + out_features
         else:
             # Case: only vector observation is available
             # Vector observation encoder
-            out_features = config["num_vec_encoder_units"]
+            out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
             vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
             in_features_next_layer = out_features
 
@@ -172,6 +172,8 @@ class ActorCriticBase(nn.Module):
         """
         if config["vec_encoder"] == "linear":
             return nn.Sequential(nn.Linear(in_features, out_features), self.activ_fn)
+        elif config["vec_encoder"] == "none":
+            return nn.Sequential()
 
     def create_hidden_layer(self, config, in_features, out_features):
         """Creates and returns a new instance of the hidden layer based on the model config.

@@ -224,11 +224,21 @@ class ActorCriticSeperateWeights(ActorCriticBase):
                     self.critic_modules.append(module)
 
     def get_actor_params(self):
-        params = [list(module.parameters())[0] for module in self.actor_modules]
+        params = []
+        for module in self.actor_modules:
+            try:
+                params.append(list(module.parameters())[0])
+            except:
+                pass
         return params
         
     def get_critic_params(self):
-        params = [list(module.parameters())[0] for module in self.critic_modules]
+        params = []
+        for module in self.critic_modules:
+            try:
+                params.append(list(module.parameters())[0])
+            except:
+                pass
         return params
 
 class ActorCriticSharedWeights(ActorCriticBase):
