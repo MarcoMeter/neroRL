@@ -59,17 +59,15 @@ class ActorCriticBase(nn.Module):
             # Determine number of features for the next layer's input
             if vec_obs_shape is not None:
                 # Case: vector observation is also available
-                in_features_next_layer = in_features_next_layer + vec_obs_shape[0]
+                out_features = config["num_vec_encoder_units"]
+                vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
+                in_features_next_layer = in_features_next_layer + out_features
         else:
             # Case: only vector observation is available
-            in_features_next_layer = vec_obs_shape[0]
-
-            if self.recurrence is not None:
-                # Preprocessing layer
-                out_features = config["num_vec_encoder_units"]
-                vec_encoder = self.create_vec_encoder(config, in_features_next_layer, out_features)
-
-                in_features_next_layer = out_features
+            # Vector observation encoder
+            out_features = config["num_vec_encoder_units"]
+            vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
+            in_features_next_layer = out_features
 
         # Recurrent layer (GRU or LSTM)
         if self.recurrence is not None:

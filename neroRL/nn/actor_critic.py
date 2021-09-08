@@ -86,14 +86,15 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         if vis_obs is not None:
             h_actor, h_critic = self.actor_vis_encoder(vis_obs, device), self.critic_vis_encoder(vis_obs, device)
             if vec_obs is not None:
-                vec_obs = torch.tensor(vec_obs, dtype=torch.float32, device=device)    # Convert vec_obs to tensor
+                # Convert vec_obs to tensor and forward vector observation encoder
+                vec_obs = torch.tensor(vec_obs, dtype=torch.float32, device=device)
+                h_vec_actor, h_vec_critic = self.actor_vec_encoder(vec_obs), self.critic_vec_encoder(vec_obs)
                 # Add vector observation to the flattened output of the visual encoder if available
-                h_actor, h_critic = torch.cat((h_actor, vec_obs), 1), torch.cat((h_critic, vec_obs), 1)
+                h_actor, h_critic = torch.cat((h_actor, h_vec_actor), 1), torch.cat((h_critic, h_vec_critic), 1)
         else:
-            h_actor, h_critic = torch.tensor(vec_obs, dtype=torch.float32, device=device), torch.tensor(vec_obs, dtype=torch.float32, device=device) # Convert vec_obs to tensor
-            
-            if self.recurrence is not None:
-                h_actor, h_critic = self.actor_vec_encoder(h_actor), self.critic_vec_encoder(h_critic)
+            # Convert vec_obs to tensor and forward vector observation encoder
+            h_actor, h_critic = torch.tensor(vec_obs, dtype=torch.float32, device=device), torch.tensor(vec_obs, dtype=torch.float32, device=device)
+            h_actor, h_critic = self.actor_vec_encoder(h_actor), self.critic_vec_encoder(h_critic)
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
@@ -299,13 +300,12 @@ class ActorCriticSharedWeights(ActorCriticBase):
             h = self.vis_encoder(vis_obs, device)
             if vec_obs is not None:
                 vec_obs = torch.tensor(vec_obs, dtype=torch.float32, device=device)    # Convert vec_obs to tensor
+                h_vec = self.vec_encoder(vec_obs)
                 # Add vector observation to the flattened output of the visual encoder if available
-                h = torch.cat((h, vec_obs), 1)
+                h = torch.cat((h, h_vec), 1)
         else:
             h = torch.tensor(vec_obs, dtype=torch.float32, device=device)        # Convert vec_obs to tensor
-            
-            if self.recurrence is not None:
-                h = self.vec_encoder(h)
+            h = self.vec_encoder(h)
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
