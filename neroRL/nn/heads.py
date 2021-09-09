@@ -7,13 +7,15 @@ from neroRL.nn.module import Module
 
 class MultiDiscreteActionPolicy(Module):
     """Multi-Discrete Action Space based on categorical distributions"""
-    def __init__(self, in_features, action_space_shape):
+    def __init__(self, in_features, action_space_shape, activ_fn):
         """
         Arguments:
             in_features {int} -- Number of to be fed features
             action_space_shape {tuple} -- Shape of the action space
         """
         super().__init__()
+        # Set the activation function
+        self.activ_fn = activ_fn
         # Linear layer before head
         self.linear = nn.Linear(in_features=in_features, out_features=512)
         nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
@@ -24,7 +26,7 @@ class MultiDiscreteActionPolicy(Module):
             nn.init.orthogonal_(actor_branch.weight, np.sqrt(0.01))
             self.policy_branches.append(actor_branch)
 
-    def forward(self, h, activ_fn):
+    def forward(self, h):
         """
         Arguments:
             h {torch.tensor} -- The fed input data
@@ -33,17 +35,19 @@ class MultiDiscreteActionPolicy(Module):
         Returns:
             {list} --  A list containing categorical distributions for each action dimension
         """
-        h = activ_fn(self.linear(h))
+        h = self.activ_fn(self.linear(h))
         return [Categorical(logits=branch(h)) for branch in self.policy_branches]
 
 class ValueEstimator(Module):
     """Estimation of the value function as part of the agnet's critic"""
-    def __init__(self, in_features):
+    def __init__(self, in_features, activ_fn):
         """
         Arguments:
             in_features {int}: Number of to be fed features
         """
         super().__init__()
+        # Set the activation function
+        self.activ_fn = activ_fn
         # Linear layer before head
         self.linear = nn.Linear(in_features=in_features, out_features=512)
         nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
@@ -51,7 +55,7 @@ class ValueEstimator(Module):
         self.value = nn.Linear(in_features=512, out_features=1)
         nn.init.orthogonal_(self.value.weight, 1)
 
-    def forward(self, h, activ_fn):
+    def forward(self, h):
         """
         Arguments:
             h {toch.tensor} -- The fed input data
@@ -60,7 +64,7 @@ class ValueEstimator(Module):
         Returns:
             {torch.tensor}: Estimated value
         """
-        h = activ_fn(self.linear(h))
+        h = self.activ_fn(self.linear(h))
         return self.value(h).reshape(-1)
 
 class AdvantageEstimator(Module):
