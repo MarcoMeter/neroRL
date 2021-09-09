@@ -54,7 +54,7 @@ class GRU(Module):
             h = h.reshape(h_shape[0] * h_shape[1], h_shape[2])
         return h, recurrent_cell
 
-class LSTM(nn.Module):
+class LSTM(Module):
     """
     A single-layer long short-term memory (LSTM) module.
     """
