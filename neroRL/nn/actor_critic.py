@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from neroRL.nn.base import ActorCriticBase
-from neroRL.nn.heads import MultiDiscreteActionPolicy, ValueEstimator
+from neroRL.nn.heads import MultiDiscreteActionPolicy, ValueEstimator, AdvantageEstimator
 
 class ActorCriticSeperateWeights(ActorCriticBase):
     """A flexible actor-critic model with separate actor and critic weights that supports:
@@ -31,11 +31,14 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
         self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
+        # Generalized Advantage Estimate Head
+        self.actor_gae = AdvantageEstimator(in_features = self.out_features_body, action_space_shape = action_space_shape)
+
         # Policy head/output
-        self.actor_policy = MultiDiscreteActionPolicy(in_features = 512, action_space_shape = action_space_shape)
+        self.actor_policy = MultiDiscreteActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape)
 
         # Value function head/output
-        self.critic = ValueEstimator(in_features = 512)
+        self.critic = ValueEstimator(in_features = self.out_features_body)
 
         # Organize all modules inside a dictionary
         # This will be used for collecting gradient statistics inside the trainer
@@ -233,7 +236,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
-        self.actor_policy = MultiDiscreteActionPolicy(512, action_space_shape)
+        self.actor_policy = MultiDiscreteActionPolicy(self.out_features_body, action_space_shape)
 
         # Value function head/output
         self.critic = ValueEstimator(self.out_features_body)
