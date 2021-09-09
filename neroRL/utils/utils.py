@@ -28,15 +28,15 @@ def compute_gradient_stats(modules_dict, prefix = ""):
     results = {}
     all_grads = []
 
-    for key, value in modules_dict.items():
-        if value is not None:
+    for module_name, module in modules_dict.items():
+        if module is not None:
             grads = []
-            for param in value.parameters():
+            for param in module.parameters():
                 grad = param.grad.data.cpu()
                 grads.append(grad.view(-1))
-            results[key + "_norm"] = (Tag.GRADIENT_NORM, torch.linalg.norm(torch.cat(grads)).item())
-            results[key + "_mean"] = (Tag.GRADIENT_MEAN, torch.mean(torch.cat(grads)).item())
+            results[module_name + "_norm"] = (Tag.GRADIENT_NORM, module.grad_norm())
+            results[module_name + "_mean"] = (Tag.GRADIENT_MEAN, module.grad_mean())
             all_grads = all_grads + grads
-    results[prefix + "_model_norm"] = (Tag.GRADIENT_NORM, torch.linalg.norm(torch.cat(grads)).item())
-    results[prefix + "_model_mean"] = (Tag.GRADIENT_MEAN, torch.mean(torch.cat(grads)).item())
+    results[prefix + "_model_norm"] = (Tag.GRADIENT_NORM, torch.linalg.norm(torch.cat(all_grads)).item())
+    results[prefix + "_model_mean"] = (Tag.GRADIENT_MEAN, torch.mean(torch.cat(all_grads)).item())
     return results
