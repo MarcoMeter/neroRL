@@ -47,7 +47,8 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             "actor_vec_encoder": self.actor_vec_encoder,
             "actor_recurrent_layer": self.actor_recurrent_layer,
             "actor_body": self.actor_body,
-            "actor_head": self.actor_policy
+            "actor_head": self.actor_policy,
+            "actor_gae": self.actor_gae
         }
 
         self.critic_modules = {
@@ -110,7 +111,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         if self.recurrence is not None:
             recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
 
-        return pi, value, recurrent_cell #, gae
+        return pi, value, recurrent_cell, gae
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
@@ -296,7 +297,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Output: Policy branches
         pi = self.actor_policy(h)
 
-        return pi, value, recurrent_cell
+        return pi, value, recurrent_cell, None
 
 def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
     """Creates a shared or non-shared weights actor critic model.

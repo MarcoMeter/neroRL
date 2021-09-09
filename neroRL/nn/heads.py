@@ -80,7 +80,7 @@ class AdvantageEstimator(Module):
         if actions is None:
             one_hot_actions = torch.zeros(h.shape[0], self.num_actions).to(device)
         else:
-            one_hot_actions = F.one_hot(actions.squeeze(1), self.num_actions).float()
+            one_hot_actions = F.one_hot(actions.long().squeeze(-1), self.num_actions).float()
 
         h = torch.cat((h, one_hot_actions), dim=1)
         

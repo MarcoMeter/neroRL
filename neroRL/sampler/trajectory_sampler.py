@@ -96,7 +96,7 @@ class TrajectorySampler():
                         self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
 
                 # Forward the model to retrieve the policy (making decisions), the states' value of the value function and the recurrent hidden states (if available)
-                policy, value, self.recurrent_cell = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
+                policy, value, self.recurrent_cell, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
                 self.buffer.values[:, t] = value.cpu().data.numpy()
 
                 # Sample actions from each individual policy branch

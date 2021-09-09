@@ -106,11 +106,12 @@ class DecoupledPPOTrainer(BaseTrainer):
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
         
-        policy, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
+        policy, _, _, gae = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
                                     self.device,
-                                    self.sampler.buffer.actual_sequence_length)
+                                    self.sampler.buffer.actual_sequence_length,
+                                    samples["actions"])
 
         # Policy Loss
         # Retrieve and process log_probs from each policy branch
@@ -129,6 +130,8 @@ class DecoupledPPOTrainer(BaseTrainer):
         policy_loss = torch.min(surr1, surr2)
         policy_loss = masked_mean(policy_loss, samples["loss_mask"])
 
+        adv_loss = 0.25 * masked_mean((normalized_advantage - gae)**2, samples["loss_mask"])
+
         # Entropy Bonus
         entropies = []
         for policy_branch in policy:
@@ -136,7 +139,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         entropy_bonus = masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
 
         # Complete loss
-        loss = -(policy_loss + self.beta * entropy_bonus)
+        loss = -(policy_loss + self.beta * entropy_bonus) + adv_loss
 
         # Compute gradients
         self.policy_optimizer.zero_grad()
@@ -172,7 +175,7 @@ class DecoupledPPOTrainer(BaseTrainer):
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
         
-        _, value, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
+        _, value, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
                                     self.device,
