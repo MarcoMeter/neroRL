@@ -4,6 +4,7 @@ from torch import nn
 from torch.distributions import Categorical
 
 from neroRL.nn.base import ActorCriticBase
+from neroRL.nn.heads import MultiDiscreteActionPolicy, ValueEstimator
 
 class ActorCriticSeperateWeights(ActorCriticBase):
     """A flexible actor-critic model with separate actor and critic weights that supports:
@@ -46,18 +47,11 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         nn.init.orthogonal_(self.critic_linear.weight, np.sqrt(2))
 
         # Outputs / Model heads
-        # Policy branches
-        self.actor_branches = nn.ModuleList()
-        for num_actions in action_space_shape:
-            actor_branch = nn.Linear(in_features=512, out_features=num_actions)
-            self._add_actor_modules(actor_branch)
-            nn.init.orthogonal_(actor_branch.weight, np.sqrt(0.01))
-            self.actor_branches.append(actor_branch)
+        # Policy
+        self.policy = MultiDiscreteActionPolicy(512, action_space_shape)
 
         # Value function (i.e. critic)
-        self.critic = nn.Linear(in_features=512,
-                               out_features=1)
-        nn.init.orthogonal_(self.critic.weight, 1)
+        self.critic = ValueEstimator(512)
 
         # Append the just created modules to their respective list
         self._add_actor_modules([self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer,
@@ -112,11 +106,9 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Feed hidden layer (value function)
         h_value = self.activ_fn(self.critic_linear(h_critic))
         # Output: Value function
-        value = self.critic(h_value).reshape(-1)
-        # Output: Policy branches
-        pi = []
-        for i, branch in enumerate(self.actor_branches):
-            pi.append(Categorical(logits=self.actor_branches[i](h_policy)))
+        value = self.critic(h_value)
+        # Output: Policy
+        pi = self.policy(h_policy)
 
         if self.recurrence is not None:
             recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
@@ -276,17 +268,11 @@ class ActorCriticSharedWeights(ActorCriticBase):
         nn.init.orthogonal_(self.critic_linear.weight, np.sqrt(2))
 
         # Outputs / Model heads
-        # Policy branches
-        self.actor_branches = nn.ModuleList()
-        for num_actions in action_space_shape:
-            actor_branch = nn.Linear(in_features=512, out_features=num_actions)
-            nn.init.orthogonal_(actor_branch.weight, np.sqrt(0.01))
-            self.actor_branches.append(actor_branch)
+        # Policy
+        self.policy = MultiDiscreteActionPolicy(512, action_space_shape)
 
         # Value function
-        self.value = nn.Linear(in_features=512,
-                               out_features=1)
-        nn.init.orthogonal_(self.value.weight, 1)
+        self.value = ValueEstimator(512)
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
@@ -330,11 +316,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Feed hidden layer (value function)
         h_value = self.activ_fn(self.critic_linear(h))
         # Output: Value function
-        value = self.value(h_value).reshape(-1)
+        value = self.value(h_value)
         # Output: Policy branches
-        pi = []
-        for i, branch in enumerate(self.actor_branches):
-            pi.append(Categorical(logits=self.actor_branches[i](h_policy)))
+        pi = self.policy(h_policy)
 
         return pi, value, recurrent_cell
 
