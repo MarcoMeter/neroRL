@@ -5,7 +5,7 @@ from torch import nn
 from neroRL.nn.encoder import CNNEncoder
 from neroRL.nn.recurrent import GRU, LSTM
 from neroRL.nn.hidden_layer import HiddenLayer
-from neroRL.nn.module import Module
+from neroRL.nn.module import Module, Sequential
 
 class ActorCriticBase(Module):
     """An actor-critic base model which defines the basic components and functionality of the final model:
@@ -172,9 +172,9 @@ class ActorCriticBase(Module):
             {torch.nn.Module} -- The created preprocessing layer
         """
         if config["vec_encoder"] == "linear":
-            return nn.Sequential(nn.Linear(in_features, out_features), self.activ_fn)
+            return Sequential(nn.Linear(in_features, out_features), self.activ_fn)
         elif config["vec_encoder"] == "none":
-            return nn.Sequential()
+            return Sequential()
 
     def create_hidden_layer(self, config, in_features, out_features):
         """Creates and returns a new instance of the hidden layer based on the model config.
