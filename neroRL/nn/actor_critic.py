@@ -37,15 +37,6 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
         self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
-        # Decouple policy from value
-        # Hidden layer of the policy
-        self.actor_linear = nn.Linear(in_features=self.out_features_body, out_features=512)
-        nn.init.orthogonal_(self.actor_linear.weight, np.sqrt(2))
-
-        # Hidden layer of the value function
-        self.critic_linear = nn.Linear(in_features=self.out_features_body, out_features=512)
-        nn.init.orthogonal_(self.critic_linear.weight, np.sqrt(2))
-
         # Outputs / Model heads
         # Policy
         self.policy = MultiDiscreteActionPolicy(512, action_space_shape)
@@ -55,9 +46,9 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Append the just created modules to their respective list
         self._add_actor_modules([self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer,
-                                self.actor_body, self.actor_linear])
+                                self.actor_body, self.policy])
         self._add_critic_modules([self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer,
-                                self.critic_body, self.critic_linear, self.critic])
+                                self.critic_body, self.critic])
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
@@ -100,15 +91,11 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Feed network body
         h_actor, h_critic = self.actor_body(h_actor), self.critic_body(h_critic)
 
-        # Decouple policy from value
-        # Feed hidden layer (policy)
-        h_policy = self.activ_fn(self.actor_linear(h_actor))
-        # Feed hidden layer (value function)
-        h_value = self.activ_fn(self.critic_linear(h_critic))
+        # Feed model heads
         # Output: Value function
-        value = self.critic(h_value)
+        value = self.critic(h_critic, self.activ_fn)
         # Output: Policy
-        pi = self.policy(h_policy)
+        pi = self.policy(h_actor, self.activ_fn)
 
         if self.recurrence is not None:
             recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
@@ -258,21 +245,12 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Create the base model
         self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
-        # Decouple policy from value
-        # Hidden layer of the policy
-        self.actor_linear = nn.Linear(in_features=self.out_features_body, out_features=512)
-        nn.init.orthogonal_(self.actor_linear.weight, np.sqrt(2))
-
-        # Hidden layer of the value function
-        self.critic_linear = nn.Linear(in_features=self.out_features_body, out_features=512)
-        nn.init.orthogonal_(self.critic_linear.weight, np.sqrt(2))
-
         # Outputs / Model heads
         # Policy
         self.policy = MultiDiscreteActionPolicy(512, action_space_shape)
 
         # Value function
-        self.value = ValueEstimator(512)
+        self.value = ValueEstimator(self.out_features_body)
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
@@ -310,15 +288,11 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Feed network body
         h = self.body(h)
 
-        # Decouple policy from value
-        # Feed hidden layer (policy)
-        h_policy = self.activ_fn(self.actor_linear(h))
-        # Feed hidden layer (value function)
-        h_value = self.activ_fn(self.critic_linear(h))
+        # Model heads
         # Output: Value function
-        value = self.value(h_value)
+        value = self.value(h, self.activ_fn)
         # Output: Policy branches
-        pi = self.policy(h_policy)
+        pi = self.policy(h, self.activ_fn)
 
         return pi, value, recurrent_cell
 
