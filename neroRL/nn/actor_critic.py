@@ -1,7 +1,5 @@
 import numpy as np
 import torch
-from torch import nn
-from torch.distributions import Categorical
 
 from neroRL.nn.base import ActorCriticBase
 from neroRL.nn.heads import MultiDiscreteActionPolicy, ValueEstimator
@@ -25,30 +23,37 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         """
         ActorCriticBase.__init__(self, recurrence, config)
 
-        # Lists to group modules to distinguish actor from critic modules
-        self.actor_modules = []
-        self.critic_modules = []
-
         # Members for using a recurrent policy
         self.mean_hxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
-        # Create the base model
+        # Create the base models
         self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
         self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
-        # Outputs / Model heads
-        # Policy
-        self.policy = MultiDiscreteActionPolicy(512, action_space_shape)
+        # Policy head/output
+        self.actor_policy = MultiDiscreteActionPolicy(in_features = 512, action_space_shape = action_space_shape)
 
-        # Value function (i.e. critic)
-        self.critic = ValueEstimator(512)
+        # Value function head/output
+        self.critic = ValueEstimator(in_features = 512)
 
-        # Append the just created modules to their respective list
-        self._add_actor_modules([self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer,
-                                self.actor_body, self.policy])
-        self._add_critic_modules([self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer,
-                                self.critic_body, self.critic])
+        # Organize all modules inside a dictionary
+        # This will be used for collecting gradient statistics inside the trainer
+        self.actor_modules = {
+            "actor_vis_encoder": self.actor_vis_encoder,
+            "actor_vec_encoder": self.actor_vec_encoder,
+            "actor_recurrent_layer": self.actor_recurrent_layer,
+            "actor_body": self.actor_body,
+            "actor_head": self.actor_policy
+        }
+
+        self.critic_modules = {
+            "critic_vis_encoder": self.critic_vis_encoder,
+            "critic_vec_encoder": self.critic_vec_encoder,
+            "critic_recurrent_layer": self.critic_recurrent_layer,
+            "critic_body": self.critic_body,
+            "critic_head": self.critic
+        }
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
@@ -95,7 +100,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Output: Value function
         value = self.critic(h_critic, self.activ_fn)
         # Output: Policy
-        pi = self.policy(h_actor, self.activ_fn)
+        pi = self.actor_policy(h_actor, self.activ_fn)
 
         if self.recurrence is not None:
             recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
@@ -186,38 +191,20 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # return (actor_hxs, actor_cxs), (critic_hxs, critic_cxs)
         return actor_recurrent_cell, critic_recurrent_cell
 
-    def _add_actor_modules(self, modules):
-        if isinstance(modules, nn.Module):
-            self.actor_modules.append(modules)
-        elif isinstance(modules, list):
-            for module in modules:
-                if module is not None:
-                    self.actor_modules.append(module)
-
-    def _add_critic_modules(self, modules):
-        if isinstance(modules, nn.Module):
-            self.critic_modules.append(modules)
-        elif isinstance(modules, list):
-            for module in modules:
-                if module is not None:
-                    self.critic_modules.append(module)
-
     def get_actor_params(self):
         params = []
-        for module in self.actor_modules:
-            try:
-                params.append(list(module.parameters())[0])
-            except:
-                pass
+        for key, value in self.actor_modules.items():
+            if value is not None:
+                for param in value.parameters():
+                    params.append(param)       
         return params
         
     def get_critic_params(self):
         params = []
-        for module in self.critic_modules:
-            try:
-                params.append(list(module.parameters())[0])
-            except:
-                pass
+        for key, value in self.critic_modules.items():
+            if value is not None:
+                for param in value.parameters():
+                    params.append(param)       
         return params
 
 class ActorCriticSharedWeights(ActorCriticBase):
@@ -245,12 +232,22 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Create the base model
         self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
-        # Outputs / Model heads
-        # Policy
-        self.policy = MultiDiscreteActionPolicy(512, action_space_shape)
+        # Policy head/output
+        self.actor_policy = MultiDiscreteActionPolicy(512, action_space_shape)
 
-        # Value function
-        self.value = ValueEstimator(self.out_features_body)
+        # Value function head/output
+        self.critic = ValueEstimator(self.out_features_body)
+
+        # Organize all modules inside a dictionary
+        # This will be used for collecting gradient statistics inside the trainer
+        self.actor_critic_modules = {
+            "vis_encoder": self.vis_encoder,
+            "vec_encoder": self.vec_encoder,
+            "recurrent_layer": self.recurrent_layer,
+            "body": self.body,
+            "actor_head": self.actor_policy,
+            "critic_head": self.critic
+        }
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
@@ -290,9 +287,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         # Model heads
         # Output: Value function
-        value = self.value(h, self.activ_fn)
+        value = self.critic(h, self.activ_fn)
         # Output: Policy branches
-        pi = self.policy(h, self.activ_fn)
+        pi = self.actor_policy(h, self.activ_fn)
 
         return pi, value, recurrent_cell
 
