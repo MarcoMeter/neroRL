@@ -4,7 +4,7 @@ from torch import nn
 
 from neroRL.nn.encoder import CNNEncoder
 from neroRL.nn.recurrent import GRU, LSTM
-from neroRL.nn.hidden_layer import HiddenLayer
+from neroRL.nn.body import HiddenLayer
 from neroRL.nn.module import Module, Sequential
 
 class ActorCriticBase(Module):
@@ -45,7 +45,7 @@ class ActorCriticBase(Module):
         Returns:
             {tuple} -- Encoder, recurrent layer, hidden layer
         """
-        vis_encoder, vec_encoder, recurrent_layer, hidden_layer = None, None, None, None
+        vis_encoder, vec_encoder, recurrent_layer, body = None, None, None, None
 
         # Observation encoder
         if vis_obs_space is not None:
@@ -77,9 +77,9 @@ class ActorCriticBase(Module):
         
         # Hidden layer
         out_features = config["num_hidden_units"]
-        hidden_layer = self.create_hidden_layer(config, in_features_next_layer, out_features)
+        body = self.create_body(config, in_features_next_layer, out_features)
 
-        return vis_encoder, vec_encoder, recurrent_layer, hidden_layer
+        return vis_encoder, vec_encoder, recurrent_layer, body
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
@@ -176,8 +176,8 @@ class ActorCriticBase(Module):
         elif config["vec_encoder"] == "none":
             return Sequential()
 
-    def create_hidden_layer(self, config, in_features, out_features):
-        """Creates and returns a new instance of the hidden layer based on the model config.
+    def create_body(self, config, in_features, out_features):
+        """Creates and returns a new instance of the model body based on the model config.
 
         Arguments:
             config {dict} -- Model config
@@ -185,9 +185,9 @@ class ActorCriticBase(Module):
             out_features {int} -- Size of output
 
         Returns:
-            {torch.nn.Module} -- The created hidden layer
+            {torch.nn.Module} -- The created model body
         """
-        self.out_hidden_layer = out_features
+        self.out_features_body = out_features
         if config["hidden_layer"] == "default":
             return HiddenLayer(self.activ_fn, config["num_hidden_layers"], in_features, out_features)
     

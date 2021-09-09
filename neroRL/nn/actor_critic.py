@@ -33,16 +33,16 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
         # Create the base model
-        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_hidden = self.create_base_model(config, vis_obs_space, vec_obs_shape)
-        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_hidden = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Decouple policy from value
         # Hidden layer of the policy
-        self.actor_linear = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
+        self.actor_linear = nn.Linear(in_features=self.out_features_body, out_features=512)
         nn.init.orthogonal_(self.actor_linear.weight, np.sqrt(2))
 
         # Hidden layer of the value function
-        self.critic_linear = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
+        self.critic_linear = nn.Linear(in_features=self.out_features_body, out_features=512)
         nn.init.orthogonal_(self.critic_linear.weight, np.sqrt(2))
 
         # Outputs / Model heads
@@ -61,9 +61,9 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Append the just created modules to their respective list
         self._add_actor_modules([self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer,
-                                self.actor_hidden, self.actor_linear])
+                                self.actor_body, self.actor_linear])
         self._add_critic_modules([self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer,
-                                self.critic_hidden, self.critic_linear, self.critic])
+                                self.critic_body, self.critic_linear, self.critic])
 
     def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
         """Forward pass of the model
@@ -103,8 +103,8 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, actor_recurrent_cell, sequence_length)
             h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
 
-        # Feed hidden layer
-        h_actor, h_critic = self.actor_hidden(h_actor), self.critic_hidden(h_critic)
+        # Feed network body
+        h_actor, h_critic = self.actor_body(h_actor), self.critic_body(h_critic)
 
         # Decouple policy from value
         # Feed hidden layer (policy)
@@ -264,15 +264,15 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.share_parameters = True
 
         # Create the base model
-        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.hidden_layer = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Decouple policy from value
         # Hidden layer of the policy
-        self.actor_linear = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
+        self.actor_linear = nn.Linear(in_features=self.out_features_body, out_features=512)
         nn.init.orthogonal_(self.actor_linear.weight, np.sqrt(2))
 
         # Hidden layer of the value function
-        self.critic_linear = nn.Linear(in_features=self.out_hidden_layer, out_features=512)
+        self.critic_linear = nn.Linear(in_features=self.out_features_body, out_features=512)
         nn.init.orthogonal_(self.critic_linear.weight, np.sqrt(2))
 
         # Outputs / Model heads
@@ -321,8 +321,8 @@ class ActorCriticSharedWeights(ActorCriticBase):
         if self.recurrence is not None:
             h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
             
-        # Feed hidden layer
-        h = self.hidden_layer(h)
+        # Feed network body
+        h = self.body(h)
 
         # Decouple policy from value
         # Feed hidden layer (policy)
