@@ -136,7 +136,12 @@ class PPOTrainer(BaseTrainer):
         approx_kl = masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
         clip_fraction = (abs((ratio - 1.0)) > self.clip_range).type(torch.FloatTensor).mean()
 
-        return {**compute_gradient_stats(self.model.actor_critic_modules),
+        if self.model.share_parameters:
+            modules = self.model.actor_critic_modules
+        else:
+            modules = {**self.model.actor_modules, **self.model.critic_modules}
+
+        return {**compute_gradient_stats(modules),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
                 "value_loss": (Tag.LOSS, vf_loss.cpu().data.numpy()),
                 "loss": (Tag.LOSS, loss.cpu().data.numpy()),
