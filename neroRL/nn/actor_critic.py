@@ -102,12 +102,10 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Feed model heads
         # Output: Value function
         value = self.critic(h_critic)
-
-        # Output: Policy
-        pi = self.actor_policy(h_actor)
-
         # Output: GAE
         gae = self.actor_gae(h_actor, actions, device)
+        # Output: Policy
+        pi = self.actor_policy(h_actor)
         
         if self.recurrence is not None:
             recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
