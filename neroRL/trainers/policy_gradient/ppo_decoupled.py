@@ -148,7 +148,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         approx_kl = masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
         clip_fraction = (abs((ratio - 1.0)) > self.clip_range).type(torch.FloatTensor).mean()
 
-        return {**compute_gradient_stats(self.model.named_parameters(), tag = "actor"),
+        return {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
                 "loss": (Tag.LOSS, loss.cpu().data.numpy()),
                 "entropy": (Tag.OTHER, entropy_bonus.cpu().data.numpy()),
@@ -189,7 +189,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         torch.nn.utils.clip_grad_norm_(self.value_parameters, max_norm=0.5)
         self.value_optimizer.step()
 
-        return {**compute_gradient_stats(self.model.named_parameters(), tag = "critic"),
+        return {**compute_gradient_stats(self.model.critic_modules, prefix = "critic"),
                 "value_loss": (Tag.LOSS, vf_loss.cpu().data.numpy())}
 
     def step_decay_schedules(self, update):

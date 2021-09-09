@@ -15,25 +15,28 @@ def masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
     """
     return (tensor.T * mask).sum() / torch.clamp((torch.ones_like(tensor.T) * mask).float().sum(), min=1.0)
 
-def compute_gradient_stats(model_parameters, tag = ""):
+def compute_gradient_stats(modules_dict, prefix = ""):
     """Computes the gradient norm and the gradient mean for each parameter of the model and the entire model itself.
 
     Arguments:
-        model_parameters {dict} -- Named parameters of the model
-        tag {str} -- The tag is added to the key of the norm and the mean for the entire model.
-                    This can be usefull to seperate actor from critic parameters (default: "")
+        model_parameters {dict} -- Main modules of the models
+        tag {string} -- To distinguish entire models from each other, a tag can be supplied
 
     Returns:
         {dict}: Returns all results as a dictionary
     """
-    grad_output = {}
-    grads = []
-    for name, param in model_parameters:
-        if param.grad is not None:
-            grad = param.grad.data.cpu()
-            grads.append(grad.view(-1))
-            grad_output["n_" + name] = (Tag.GRADIENT_NORM, torch.linalg.norm(grad).item())
-            grad_output["m_" + name] = (Tag.GRADIENT_MEAN, torch.mean(grad).item())
-    grad_output["n_" + tag + "_model"] = (Tag.GRADIENT_NORM, torch.linalg.norm(torch.cat(grads)).item())
-    grad_output["m_" + tag + "_model"] = (Tag.GRADIENT_MEAN, torch.mean(torch.cat(grads)).item())
-    return grad_output
+    results = {}
+    all_grads = []
+
+    for key, value in modules_dict.items():
+        if value is not None:
+            grads = []
+            for param in value.parameters():
+                grad = param.grad.data.cpu()
+                grads.append(grad.view(-1))
+            results[key + "_norm"] = (Tag.GRADIENT_NORM, torch.linalg.norm(torch.cat(grads)).item())
+            results[key + "_mean"] = (Tag.GRADIENT_MEAN, torch.mean(torch.cat(grads)).item())
+            all_grads = all_grads + grads
+    results[prefix + "_model_norm"] = (Tag.GRADIENT_NORM, torch.linalg.norm(torch.cat(grads)).item())
+    results[prefix + "_model_mean"] = (Tag.GRADIENT_MEAN, torch.mean(torch.cat(grads)).item())
+    return results
