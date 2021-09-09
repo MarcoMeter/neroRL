@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.distributions.categorical import Categorical
+import torch.nn.functional as F
 
 from neroRL.nn.module import Module
 
@@ -71,9 +72,16 @@ class AdvantageEstimator(Module):
     """Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330"""
     def __init__(self, in_features, action_space_shape):
         super().__init__()
-        self.advantage = nn.Linear(in_features=in_features + sum(action_space_shape), out_features=1)
+        self.num_actions=sum(action_space_shape)
+        self.advantage = nn.Linear(in_features=in_features + self.num_actions, out_features=1)
         nn.init.orthogonal_(self.advantage.weight, 0.01)
 
-    def forward(self, h, one_hot_actions):
-        h = torch.cat(h, one_hot_actions)
+    def forward(self, h, actions, device):
+        if actions is None:
+            one_hot_actions = torch.zeros(h.shape[0], self.num_actions).to(device)
+        else:
+            one_hot_actions = F.one_hot(actions.squeeze(1), self.num_actions).float()
+
+        h = torch.cat((h, one_hot_actions), dim=1)
+        
         return self.advantage(h).reshape(-1)

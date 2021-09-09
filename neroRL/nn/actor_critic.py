@@ -58,7 +58,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             "critic_head": self.critic
         }
 
-    def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1):
+    def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1, actions = None):
         """Forward pass of the model
 
         Arguments:
@@ -102,15 +102,17 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Feed model heads
         # Output: Value function
         value = self.critic(h_critic)
-        # Output: GAE
-        # gae = self.actor_gae(h_actor)
+
         # Output: Policy
         pi = self.actor_policy(h_actor)
 
+        # Output: GAE
+        gae = self.actor_gae(h_actor, actions, device)
+        
         if self.recurrence is not None:
             recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
 
-        return pi, value, recurrent_cell
+        return pi, value, recurrent_cell #, gae
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
