@@ -34,10 +34,7 @@ class MultiDiscreteActionPolicy(Module):
             {list} --  A list containing categorical distributions for each action dimension
         """
         h = activ_fn(self.linear(h))
-        pi = []
-        for i, branch in enumerate(self.policy_branches):
-            pi.append(Categorical(logits=self.policy_branches[i](h)))
-        return pi
+        return [Categorical(logits=branch(h)) for branch in self.policy_branches]
 
 class ValueEstimator(Module):
     """Estimation of the value function as part of the agnet's critic"""
