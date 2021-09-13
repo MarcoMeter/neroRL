@@ -22,6 +22,9 @@ class DecoupledPPOTrainer(BaseTrainer):
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
         """
+        # Shall the policy estimate the advantage function? (DAAC algorithm by Raileanu & Fergus, 2021)
+        self.use_daac = "DAAC" in configs["trainer"]
+
         super().__init__(configs, worker_id, run_id=run_id, out_path=out_path)
 
         # Hyperparameter setup
@@ -35,8 +38,6 @@ class DecoupledPPOTrainer(BaseTrainer):
         assert (batch_size % self.n_value_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
         self.pi_max_grad_norm = configs["trainer"]["max_policy_grad_norm"]
         self.v_max_grad_norm = configs["trainer"]["max_value_grad_norm"]
-        # Shall the policy estimate the advantage function? (DAAC algorithm by Raileanu & Fergus, 2021)
-        self.use_daac = "DAAC" in configs["trainer"]
         if self.use_daac:
             self.adv_coefficient = configs["trainer"]["DAAC"]["adv_coefficient"]
         # Decaying hyperparameter schedules
@@ -64,7 +65,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         model =  create_actor_critic_model(self.configs["model"], False,
         self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
         if self.use_daac:
-            model.add_gae_estimator_head(self.action_space_shape)
+            model.add_gae_estimator_head(self.action_space_shape, self.device)
         return model
 
     def train(self):
@@ -167,13 +168,15 @@ class DecoupledPPOTrainer(BaseTrainer):
         approx_kl = masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
         clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).type(torch.FloatTensor).mean()
 
-        return {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
-                "advantage_loss": (Tag.LOSS, adv_loss),
+        out = {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
                 "loss": (Tag.LOSS, loss.cpu().data.numpy()),
                 "entropy": (Tag.OTHER, entropy_bonus.cpu().data.numpy()),
                 "kl_divergence": (Tag.OTHER, approx_kl.cpu().data.numpy()),
                 "clip_fraction": (Tag.OTHER, clip_fraction.cpu().data.numpy())}
+        if self.use_daac:
+            out["advantage_loss"] = (Tag.LOSS, adv_loss.cpu().data.numpy())
+        return out
 
     def train_value_mini_batch(self, samples):
         """Optimizes the value function based on the PPO algorithm

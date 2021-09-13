@@ -104,6 +104,8 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Output: GAE
         if hasattr(self, "actor_gae"):
             gae = self.actor_gae(h_actor, actions, device)
+        else:
+            gae = None
         # Output: Policy
         pi = self.actor_policy(h_actor)
         
@@ -196,7 +198,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # return (actor_hxs, actor_cxs), (critic_hxs, critic_cxs)
         return actor_recurrent_cell, critic_recurrent_cell
 
-    def add_gae_estimator_head(self, action_space_shape) -> None:
+    def add_gae_estimator_head(self, action_space_shape, device) -> None:
         """Adds the generalized advantage estimation head to the model
 
         Arguments:
@@ -204,6 +206,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         """
         # Generalized Advantage Estimate head
         self.actor_gae = AdvantageEstimator(in_features = self.out_features_body, action_space_shape = action_space_shape)
+        self.actor_gae.to(device)
         self.actor_modules["actor_gae"] = self.actor_gae
 
     def get_actor_params(self):
