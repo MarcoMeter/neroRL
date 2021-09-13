@@ -72,9 +72,9 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         Returns:
             {list} -- Policy: List featuring categorical distributions respectively for each policy branch
-            {torch.tensor} -- Value Function: Value
+            {torch.tensor} -- Value function: Value
             {tuple} -- Recurrent cell
-            {torch.tensor} -- Advantage Function: Advantage
+            {torch.tensor} -- Advantage function: Advantage
         """
         h: torch.Tensor
 
