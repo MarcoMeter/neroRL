@@ -102,7 +102,7 @@ class Evaluator():
                         if not dones[w]:
                             # While sampling data for training we feed batches containing all workers,
                             # but as we evaluate entire episodes, we feed one worker at a time
-                            policy, value, recurrent_cell[w] = model(np.expand_dims(vis_obs[w], 0) if vis_obs is not None else None,
+                            policy, value, recurrent_cell[w], _ = model(np.expand_dims(vis_obs[w], 0) if vis_obs is not None else None,
                                                 np.expand_dims(vec_obs[w], 0) if vec_obs is not None else None,
                                                 recurrent_cell[w],
                                                 device)

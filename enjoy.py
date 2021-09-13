@@ -117,7 +117,7 @@ def main():
     with torch.no_grad():
         while not done:
             # Forward the neural net
-            policy, value, recurrent_cell = model(np.expand_dims(vis_obs, 0) if vis_obs is not None else None,
+            policy, value, recurrent_cell, _ = model(np.expand_dims(vis_obs, 0) if vis_obs is not None else None,
                                 np.expand_dims(vec_obs, 0) if vec_obs is not None else None,
                                 recurrent_cell,
                                 device)
