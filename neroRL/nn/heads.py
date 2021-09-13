@@ -71,6 +71,11 @@ class ValueEstimator(Module):
 class AdvantageEstimator(Module):
     """Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330"""
     def __init__(self, in_features, action_space_shape):
+        """
+        Arguments:
+            in_features {int} -- Number of to be fed features
+            action_space_shape {tuple} -- Dimensions of the action space
+        """
         super().__init__()
         # Set action space
         self.action_space_shape = action_space_shape
