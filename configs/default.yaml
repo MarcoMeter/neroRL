@@ -7,7 +7,7 @@ environment:
   type: "Minigrid"
   # type: "Unity"
   # Environment Name (Unity environments have to specify the path to the executable)
-  name: "MiniGrid-MemoryS9-v0"
+  name: "MiniGrid-Empty-Random-6x6-v0"
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   # How many frames to repeat the same action
   frame_skip: 1
@@ -38,7 +38,7 @@ model:
   checkpoint_interval: 50
   # Set the to be used activation function (elu, leaky_relu, relu, swish)
   activation: "relu"
-  # Set the to be used encoder
+  # Set the to be used visual encoder
   vis_encoder: "cnn"
   recurrence:
     # Supported recurrent layers: gru, lstm
@@ -52,8 +52,8 @@ model:
     # Whether to reset the hidden state before a new episode.
     # Environments that use short episodes are likely to profit from not resetting the hidden state.
     reset_hidden_state: True
-  # Set the to be used preprocessing layer
-  vec_encoder: "linear"
+  # Set the to be used vector encoder
+  vec_encoder: "linear" # "linear", "none"
   num_vec_encoder_units: 128
   # Set the to be used hidden layer
   hidden_layer: "default"
@@ -80,14 +80,14 @@ sampler:
   # The TrajectorySampler gathers monte carlo rollouts that may contain truncated episodes
   type: "TrajectorySampler"
   # Number of environments that are used for sampling data
-  n_workers: 2
+  n_workers: 16
   # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
   worker_steps: 256
 
 ### TRAINER CONFIG ###
 trainer:
   # Which algorithm to use. For now, PPO is supported.
-  algorithm: "DecoupledPPO"
+  algorithm: "PPO"
   # On which step to resume the training. This affects the hyperparameter schedules only.
   resume_at: 0
   # Discount factor
@@ -96,29 +96,22 @@ trainer:
   lamda: 0.95
   # Number of PPO update cycles that shall be done (one whole cycle comprises n epochs of m mini_batch updates)
   updates: 1000
-  # Number of times that the whole batch of data is used for optimizing the policy using PPO
+  # Number of times that the whole batch of data is used for optimization using PPO
   # Each epoch trains on a random permutation of the sampled training batch
-  policy_epochs: 4
-  # Number of mini batches that are trained throughout one policy epoch
+  epochs: 4
+  # Number of mini batches that are trained throughout one epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
-  n_policy_mini_batches: 4
-  # Number of times that the whole batch of data is used for optimizing the value function
-  # In contrast to policy epochs, the value function is updated once using the whole data set instead of mini batches.
-  value_epochs: 9
-  # Number of mini batches that are trained throughout one value epoch
-  # In case of using a recurrent net, this has to be a multiple of n_workers.
-  n_value_mini_batches: 1
-  # This interval determines when to optimize the value function based on how many update cycles have passed.
-  value_update_interval: 1
+  n_mini_batches: 4
+  # Coefficient of the loss of the value function (i.e. critic)
+  # It is only of use if model parameters are shared among the actor and the critic
+  value_coefficient: 0.25
+  # Strength of clipping the loss gradients
+  max_grad_norm: 0.5
+  # Wether the actor and critic model should share its parameters
+  share_parameters: True
   # Polynomial Decay Schedules
-  # Policy Learning Rate
-  policy_learning_rate_schedule:
-    initial: 3.0e-4
-    final: 3.0e-4
-    power: 1.0
-    max_decay_steps: 1000
-  # Value Learning Rate
-  value_learning_rate_schedule:
+  # Learning Rate
+  learning_rate_schedule:
     initial: 3.0e-4
     final: 3.0e-4
     power: 1.0
