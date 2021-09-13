@@ -42,6 +42,8 @@ sampler:
 
 trainer:
   algorithm: "DecoupledPPO"
+  DAAC:
+    adv_coefficient: 0.25
   resume_at: 0
   gamma: 0.99
   lamda: 0.95

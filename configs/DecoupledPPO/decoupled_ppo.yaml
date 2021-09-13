@@ -88,6 +88,10 @@ sampler:
 trainer:
   # Which algorithm to use. For now, PPO is supported.
   algorithm: "DecoupledPPO"
+  # (Optional) Whether the policy shall estimate the advantage function (DAAC algorithm by Raileanu & Fergus, 2021)
+  DAAC:
+    # Coefficient of the advantage loss
+    adv_coefficient: 0.25
   # On which step to resume the training. This affects the hyperparameter schedules only.
   resume_at: 0
   # Discount factor
