@@ -135,10 +135,10 @@ class DecoupledPPOTrainer(BaseTrainer):
         # Compute surrogates
         normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
         # Repeat is necessary for multi-discrete action spaces
-        normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
+        advs = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
         ratio = torch.exp(log_probs - samples["log_probs"])
-        surr1 = ratio * normalized_advantage
-        surr2 = torch.clamp(ratio, 1.0 - self.policy_clip_range, 1.0 + self.policy_clip_range) * normalized_advantage
+        surr1 = ratio * advs
+        surr2 = torch.clamp(ratio, 1.0 - self.policy_clip_range, 1.0 + self.policy_clip_range) * advs
         policy_loss = torch.min(surr1, surr2)
         policy_loss = masked_mean(policy_loss, samples["loss_mask"])
 
