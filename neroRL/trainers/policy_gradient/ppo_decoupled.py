@@ -35,6 +35,10 @@ class DecoupledPPOTrainer(BaseTrainer):
         assert (batch_size % self.n_value_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
         self.pi_max_grad_norm = configs["trainer"]["max_policy_grad_norm"]
         self.v_max_grad_norm = configs["trainer"]["max_value_grad_norm"]
+        # Shall the policy estimate the advantage function? (DAAC algorithm by Raileanu & Fergus, 2021)
+        self.use_daac = "DAAC" in configs["trainer"]
+        if self.use_daac:
+            self.adv_coefficient = configs["trainer"]["DAAC"]["adv_coefficient"]
         # Decaying hyperparameter schedules
         self.policy_lr_schedule = configs["trainer"]["policy_learning_rate_schedule"]
         self.value_lr_schedule = configs["trainer"]["value_learning_rate_schedule"]
@@ -57,8 +61,11 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.value_optimizer = optim.AdamW(self.value_parameters, lr=self.value_learning_rate)
 
     def create_model(self):
-        return create_actor_critic_model(self.configs["model"], False,
+        model =  create_actor_critic_model(self.configs["model"], False,
         self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
+        if self.use_daac:
+            model.add_gae_estimator_head(self.action_space_shape)
+        return model
 
     def train(self):
         train_info = {}
@@ -134,16 +141,21 @@ class DecoupledPPOTrainer(BaseTrainer):
         policy_loss = torch.min(surr1, surr2)
         policy_loss = masked_mean(policy_loss, samples["loss_mask"])
 
-        adv_loss = 0.25 * masked_mean((normalized_advantage - gae)**2, samples["loss_mask"])
-
         # Entropy Bonus
         entropies = []
         for policy_branch in policy:
             entropies.append(policy_branch.entropy())
         entropy_bonus = masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
 
+        # Advantage estimation as part of the DAAC algorithm (Raileanu & Fergus, 2021)
+        if self.use_daac:
+            adv_loss = masked_mean((normalized_advantage - gae)**2, samples["loss_mask"])
+
         # Complete loss
-        loss = -(policy_loss + self.beta * entropy_bonus) + adv_loss
+        if self.use_daac:
+            loss = -(policy_loss + self.beta * entropy_bonus) + self.adv_coefficient * adv_loss
+        else:
+            loss = -(policy_loss + self.beta * entropy_bonus)
 
         # Compute gradients
         self.policy_optimizer.zero_grad()
@@ -156,6 +168,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).type(torch.FloatTensor).mean()
 
         return {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
+                "advantage_loss": (Tag.LOSS, adv_loss),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
                 "loss": (Tag.LOSS, loss.cpu().data.numpy()),
                 "entropy": (Tag.OTHER, entropy_bonus.cpu().data.numpy()),

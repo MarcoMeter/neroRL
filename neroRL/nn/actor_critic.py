@@ -31,9 +31,6 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
         self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
-        # Generalized Advantage Estimate head
-        self.actor_gae = AdvantageEstimator(in_features = self.out_features_body, action_space_shape = action_space_shape)
-
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape, activ_fn = self.activ_fn)
 
@@ -47,8 +44,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             "actor_vec_encoder": self.actor_vec_encoder,
             "actor_recurrent_layer": self.actor_recurrent_layer,
             "actor_body": self.actor_body,
-            "actor_head": self.actor_policy,
-            "actor_gae": self.actor_gae
+            "actor_head": self.actor_policy
         }
 
         self.critic_modules = {
@@ -106,7 +102,8 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Output: Value function
         value = self.critic(h_critic)
         # Output: GAE
-        gae = self.actor_gae(h_actor, actions, device)
+        if hasattr(self, "actor_gae"):
+            gae = self.actor_gae(h_actor, actions, device)
         # Output: Policy
         pi = self.actor_policy(h_actor)
         
@@ -198,6 +195,16 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # return (actor_hxs, actor_cxs), (critic_hxs, critic_cxs)
         return actor_recurrent_cell, critic_recurrent_cell
+
+    def add_gae_estimator_head(self, action_space_shape) -> None:
+        """Adds the generalized advantage estimation head to the model
+
+        Arguments:
+            action_space_shape {tuple} -- Shape of the action space
+        """
+        # Generalized Advantage Estimate head
+        self.actor_gae = AdvantageEstimator(in_features = self.out_features_body, action_space_shape = action_space_shape)
+        self.actor_modules["actor_gae"] = self.actor_gae
 
     def get_actor_params(self):
         params = []
