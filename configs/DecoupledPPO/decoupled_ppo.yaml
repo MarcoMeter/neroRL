@@ -110,6 +110,10 @@ trainer:
   n_value_mini_batches: 1
   # This interval determines when to optimize the value function based on how many update cycles have passed.
   value_update_interval: 1
+  # Strength of clipping the norm of the policy loss gradients
+  max_policy_grad_norm: 0.5
+  # Strength of clipping the norm of the value loss gradients
+  max_value_grad_norm: 0.5
   # Polynomial Decay Schedules
   # Policy Learning Rate
   policy_learning_rate_schedule:
@@ -129,8 +133,14 @@ trainer:
     final: 0.0005
     power: 1.0
     max_decay_steps: 800
-  # Strength of clipping optimizations done by the PPO algorithm
-  clip_range_schedule:
+  # Strength of clipping the loss of the policy
+  policy_clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 1000
+  # Strength of clipping the loss of the value function
+  value_clip_range_schedule:
     initial: 0.2
     final: 0.2
     power: 1.0

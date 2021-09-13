@@ -105,6 +105,8 @@ trainer:
   # Coefficient of the loss of the value function (i.e. critic)
   # It is only of use if model parameters are shared among the actor and the critic
   value_coefficient: 0.25
+  # Strength of clipping the loss gradients
+  max_grad_norm: 0.5
   # Wether the actor and critic model should share its parameters
   share_parameters: True
   # Polynomial Decay Schedules

@@ -43,28 +43,40 @@ sampler:
   worker_steps: 256
 
 trainer:
-  algorithm: "PPO"
+  algorithm: "DecoupledPPO"
   resume_at: 0
   gamma: 0.99
   lamda: 0.95
   updates: 500
-  epochs: 4
-  n_mini_batches: 8
-  value_coefficient: 0.25
-  max_grad_norm: 0.5
-  share_parameters: True
-  learning_rate_schedule:
+  policy_epochs: 4
+  n_policy_mini_batches: 8
+  value_epochs: 4
+  n_value_mini_batches: 8
+  value_update_interval: 1
+  max_policy_grad_norm: 0.5
+  max_value_grad_norm: 0.5
+  policy_learning_rate_schedule:
     initial: 2.0e-4
     final: 2.0e-4
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 500
+  value_learning_rate_schedule:
+    initial: 2.0e-4
+    final: 2.0e-4
+    power: 1.0
+    max_decay_steps: 500
   beta_schedule:
     initial: 0.001
-    final: 0.001
+    final: 0.0001
     power: 1.0
-    max_decay_steps: 1000
-  clip_range_schedule:
+    max_decay_steps: 500
+  policy_clip_range_schedule:
     initial: 0.2
     final: 0.2
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 500
+  value_clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 500

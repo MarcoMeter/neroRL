@@ -13,10 +13,10 @@ environment:
 
 model:
   load_model: False
-  model_path: "./checkpoints/cartpole/20210722-103713_2/cartpole-199.pt"
+  model_path: "./checkpoints/cartpole_decoupled/20210831-141705_2/cartpole_decoupled-199.pt"
   checkpoint_interval: 25
   activation: "relu"
-  vis_encoder: "cnn"
+  encoder: "cnn"
   vec_encoder: "linear"
   num_vec_encoder_units: 128
   hidden_layer: "default"
@@ -41,28 +41,40 @@ sampler:
   worker_steps: 256
 
 trainer:
-  algorithm: "PPO"
+  algorithm: "DecoupledPPO"
   resume_at: 0
   gamma: 0.99
   lamda: 0.95
   updates: 200
-  epochs: 4
-  n_mini_batches: 4
-  value_coefficient: 0.25
-  max_grad_norm: 0.5
-  share_parameters: True
-  learning_rate_schedule:
+  policy_epochs: 4
+  n_policy_mini_batches: 4
+  value_epochs: 9
+  n_value_mini_batches: 2
+  value_update_interval: 1
+  max_policy_grad_norm: 0.5
+  max_value_grad_norm: 0.5
+  policy_learning_rate_schedule:
+    initial: 1.0e-4
+    final: 3.0e-4
+    power: 1.0
+    max_decay_steps: 200
+  value_learning_rate_schedule:
     initial: 1.0e-4
     final: 1.0e-4
     power: 1.0
-    max_decay_steps: 50
+    max_decay_steps: 200
   beta_schedule:
     initial: 0.00001
     final: 0.000001
     power: 1.0
     max_decay_steps: 50
-  clip_range_schedule:
+  policy_clip_range_schedule:
     initial: 0.2
     final: 0.2
     power: 1.0
-    max_decay_steps: 50
+    max_decay_steps: 200
+  value_clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 200

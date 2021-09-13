@@ -33,16 +33,20 @@ class DecoupledPPOTrainer(BaseTrainer):
         batch_size = self.n_workers * self.worker_steps
         assert (batch_size % self.n_policy_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
         assert (batch_size % self.n_value_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
+        self.pi_max_grad_norm = configs["trainer"]["max_policy_grad_norm"]
+        self.v_max_grad_norm = configs["trainer"]["max_value_grad_norm"]
         # Decaying hyperparameter schedules
         self.policy_lr_schedule = configs["trainer"]["policy_learning_rate_schedule"]
         self.value_lr_schedule = configs["trainer"]["value_learning_rate_schedule"]
         self.beta_schedule = configs["trainer"]["beta_schedule"]
-        self.cr_schedule = configs["trainer"]["clip_range_schedule"]
+        self.pi_cr_schedule = configs["trainer"]["policy_clip_range_schedule"]
+        self.v_cr_schedule = configs["trainer"]["value_clip_range_schedule"]
         # Decaying hyperparameter members
         self.policy_learning_rate = self.policy_lr_schedule["initial"]
         self.value_learning_rate = self.value_lr_schedule["initial"]
         self.beta = self.beta_schedule["initial"]
-        self.clip_range = self.cr_schedule["initial"]
+        self.policy_clip_range = self.pi_cr_schedule["initial"]
+        self.value_clip_range = self.v_cr_schedule["initial"]
 
         # Determine policy and value function parameters
         self.policy_parameters = self.model.get_actor_params()
@@ -126,7 +130,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
         ratio = torch.exp(log_probs - samples["log_probs"])
         surr1 = ratio * normalized_advantage
-        surr2 = torch.clamp(ratio, 1.0 - self.clip_range, 1.0 + self.clip_range) * normalized_advantage
+        surr2 = torch.clamp(ratio, 1.0 - self.policy_clip_range, 1.0 + self.policy_clip_range) * normalized_advantage
         policy_loss = torch.min(surr1, surr2)
         policy_loss = masked_mean(policy_loss, samples["loss_mask"])
 
@@ -144,12 +148,12 @@ class DecoupledPPOTrainer(BaseTrainer):
         # Compute gradients
         self.policy_optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.policy_parameters, max_norm=0.5)
+        torch.nn.utils.clip_grad_norm_(self.policy_parameters, max_norm=self.pi_max_grad_norm)
         self.policy_optimizer.step()
 
         # Monitor additional training statistics
         approx_kl = masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
-        clip_fraction = (abs((ratio - 1.0)) > self.clip_range).type(torch.FloatTensor).mean()
+        clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).type(torch.FloatTensor).mean()
 
         return {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
@@ -182,14 +186,14 @@ class DecoupledPPOTrainer(BaseTrainer):
                                     self.sampler.buffer.actual_sequence_length)
 
         sampled_return = samples["values"] + samples["advantages"]
-        clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.clip_range, max=self.clip_range)
+        clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.value_clip_range, max=self.value_clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
         vf_loss = masked_mean(vf_loss, samples["loss_mask"])
 
         # Compute gradients
         self.value_optimizer.zero_grad()
         vf_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.value_parameters, max_norm=0.5)
+        torch.nn.utils.clip_grad_norm_(self.value_parameters, max_norm=self.v_max_grad_norm)
         self.value_optimizer.step()
 
         return {**compute_gradient_stats(self.model.critic_modules, prefix = "critic"),
@@ -202,8 +206,10 @@ class DecoupledPPOTrainer(BaseTrainer):
                                         self.value_lr_schedule["max_decay_steps"], self.value_lr_schedule["power"], update)
         self.beta = polynomial_decay(self.beta_schedule["initial"], self.beta_schedule["final"],
                                         self.beta_schedule["max_decay_steps"], self.beta_schedule["power"], update)
-        self.clip_range = polynomial_decay(self.cr_schedule["initial"], self.cr_schedule["final"],
-                                        self.cr_schedule["max_decay_steps"], self.cr_schedule["power"], update)
+        self.policy_clip_range = polynomial_decay(self.pi_cr_schedule["initial"], self.pi_cr_schedule["final"],
+                                        self.pi_cr_schedule["max_decay_steps"], self.pi_cr_schedule["power"], update)
+        self.value_clip_range = polynomial_decay(self.v_cr_schedule["initial"], self.v_cr_schedule["final"],
+                                        self.v_cr_schedule["max_decay_steps"], self.v_cr_schedule["power"], update)
 
         # Apply learning rates to optimizers
         for pg in self.policy_optimizer.param_groups:
@@ -215,7 +221,8 @@ class DecoupledPPOTrainer(BaseTrainer):
             "policy_learning_rate": (Tag.DECAY, self.policy_learning_rate),
             "value_learning_rate": (Tag.DECAY, self.value_learning_rate),
             "beta": (Tag.DECAY, self.beta),
-            "clip_range": (Tag.DECAY, self.clip_range)
+            "policy_clip_range": (Tag.DECAY, self.policy_clip_range),
+            "value_clip_range": (Tag.DECAY, self.value_clip_range)
         }
 
     def collect_checkpoint_data(self, update) -> dict:

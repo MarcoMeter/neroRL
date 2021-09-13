@@ -81,6 +81,7 @@ class YamlParser:
             "epochs": 4,
             "n_mini_batches": 4,
             "value_coefficient": 0.25,
+            "max_grad_norm": 0.5,
             "share_parameters": True,
             "learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},
@@ -98,10 +99,13 @@ class YamlParser:
             "value_epochs": 9,
             "n_value_mini_batches": 1,
             "value_update_interval": 1,
+            "max_policy_grad_norm": 0.5,
+            "max_value_grad_norm": 0.5,
             "policy_learning_rate_schedule": {"initial": 3.0e-4},
             "value_learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},
-            "clip_range_schedule": {"initial": 0.2}
+            "policy_clip_range_schedule": {"initial": 0.2},
+            "value_clip_range_schedule": {"initial": 0.2}
         }
 
         # Determine which algorithm is used to process the corresponding default config parameters
@@ -162,22 +166,22 @@ class YamlParser:
                 if "max_decay_steps" not in value["beta_schedule"]:
                     trainer_dict["beta_schedule"]["max_decay_steps"] = self._config[key]["updates"]
 
-                # Check clip range
-                if "final" not in value["clip_range_schedule"]:
-                    trainer_dict["clip_range_schedule"]["final"] = trainer_dict["clip_range_schedule"]["initial"]
-                if "power" not in value["clip_range_schedule"]:
-                    trainer_dict["clip_range_schedule"]["power"] = 1.0
-                if "max_decay_steps" not in value["clip_range_schedule"]:
-                    trainer_dict["clip_range_schedule"]["max_decay_steps"] = self._config[key]["updates"]
-
-                # Check learning rate
+                # Check decaying parameter schedules that have to be differentiated for the available algorithms
                 if value["algorithm"] == "PPO":
+                    # Check learning rate
                     if "final" not in value["learning_rate_schedule"]:
                         trainer_dict["learning_rate_schedule"]["final"] = trainer_dict["learning_rate_schedule"]["initial"]
                     if "power" not in value["learning_rate_schedule"]:
                         trainer_dict["learning_rate_schedule"]["power"] = 1.0
                     if "max_decay_steps" not in value["learning_rate_schedule"]:
                         trainer_dict["learning_rate_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+                    # Check clip range
+                    if "final" not in value["clip_range_schedule"]:
+                        trainer_dict["clip_range_schedule"]["final"] = trainer_dict["clip_range_schedule"]["initial"]
+                    if "power" not in value["clip_range_schedule"]:
+                        trainer_dict["clip_range_schedule"]["power"] = 1.0
+                    if "max_decay_steps" not in value["clip_range_schedule"]:
+                        trainer_dict["clip_range_schedule"]["max_decay_steps"] = self._config[key]["updates"]
                 elif value["algorithm"] == "DecoupledPPO":
                     # Policy learning rate schedule
                     if "final" not in value["policy_learning_rate_schedule"]:
@@ -193,6 +197,20 @@ class YamlParser:
                         trainer_dict["value_learning_rate_schedule"]["power"] = 1.0
                     if "max_decay_steps" not in value["value_learning_rate_schedule"]:
                         trainer_dict["value_learning_rate_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+                    # Policy clip range schedule
+                    if "final" not in value["policy_clip_range_schedule"]:
+                        trainer_dict["policy_clip_range_schedule"]["final"] = trainer_dict["policy_clip_range_schedule"]["initial"]
+                    if "power" not in value["policy_clip_range_schedule"]:
+                        trainer_dict["policy_clip_range_schedule"]["power"] = 1.0
+                    if "max_decay_steps" not in value["policy_clip_range_schedule"]:
+                        trainer_dict["policy_clip_range_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+                    # Value clip range schedule
+                    if "final" not in value["value_clip_range_schedule"]:
+                        trainer_dict["value_clip_range_schedule"]["final"] = trainer_dict["value_clip_range_schedule"]["initial"]
+                    if "power" not in value["value_clip_range_schedule"]:
+                        trainer_dict["value_clip_range_schedule"]["power"] = 1.0
+                    if "max_decay_steps" not in value["value_clip_range_schedule"]:
+                        trainer_dict["value_clip_range_schedule"]["max_decay_steps"] = self._config[key]["updates"]
 
                 # Apply trainer config
                 self._config[key] = trainer_dict

@@ -31,6 +31,7 @@ class PPOTrainer(BaseTrainer):
         self.n_mini_batches = configs["trainer"]["n_mini_batches"]
         batch_size = self.n_workers * self.worker_steps
         assert (batch_size % self.n_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
+        self.max_grad_norm = configs["trainer"]["max_grad_norm"]
 
         self.lr_schedule = configs["trainer"]["learning_rate_schedule"]
         self.beta_schedule = configs["trainer"]["beta_schedule"]
@@ -129,7 +130,7 @@ class PPOTrainer(BaseTrainer):
         # Compute gradients
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.max_grad_norm)
         self.optimizer.step()
 
         # Monitor additional training statistics
