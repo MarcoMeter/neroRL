@@ -72,16 +72,19 @@ class AdvantageEstimator(Module):
     """Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330"""
     def __init__(self, in_features, action_space_shape):
         super().__init__()
-        self.num_actions=sum(action_space_shape)
-        self.advantage = nn.Linear(in_features=in_features + self.num_actions, out_features=1)
+        self.action_space_shape = action_space_shape
+        self.total_num_actions = sum(action_space_shape)
+        self.advantage = nn.Linear(in_features=in_features + self.total_num_actions, out_features=1)
         nn.init.orthogonal_(self.advantage.weight, 0.01)
 
     def forward(self, h, actions, device):
         if actions is None:
-            one_hot_actions = torch.zeros(h.shape[0], self.num_actions).to(device)
+            one_hot_actions = torch.zeros(h.shape[0], self.total_num_actions).to(device)
+            h = torch.cat((h, one_hot_actions), dim=1)
         else:
-            one_hot_actions = F.one_hot(actions.long().squeeze(-1), self.num_actions).float()
-
-        h = torch.cat((h, one_hot_actions), dim=1)
+            for i in range(len(self.action_space_shape)):
+                action, num_actions = actions[:,i], self.action_space_shape[i]
+                one_hot_actions = F.one_hot(action.long().squeeze(-1), num_actions).float()
+                h = torch.cat((h, one_hot_actions), dim=1)
         
         return self.advantage(h).reshape(-1)
