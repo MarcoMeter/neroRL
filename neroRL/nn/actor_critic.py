@@ -68,11 +68,13 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer (None if not available)
             device {torch.device} -- Current device
             sequence_length {int} -- Length of the fed sequences
+            actions {toch.tensor} -- The actions of the agent
 
         Returns:
             {list} -- Policy: List featuring categorical distributions respectively for each policy branch
             {torch.tensor} -- Value Function: Value
             {tuple} -- Recurrent cell
+            {torch.tensor} -- Advantage Function: Advantage
         """
         h: torch.Tensor
 

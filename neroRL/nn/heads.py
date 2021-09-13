@@ -44,7 +44,7 @@ class ValueEstimator(Module):
     def __init__(self, in_features, activ_fn):
         """
         Arguments:
-            in_features {int}: Number of to be fed features
+            in_features {int} -- Number of to be fed features
         """
         super().__init__()
         # Set the activation function
@@ -63,7 +63,7 @@ class ValueEstimator(Module):
             activ_fn {function} -- The to be applied activation function to the linear layer before feeding the head
 
         Returns:
-            {torch.tensor}: Estimated value
+            {torch.tensor} -- Estimated value
         """
         h = self.activ_fn(self.linear(h))
         return self.value(h).reshape(-1)
@@ -78,6 +78,14 @@ class AdvantageEstimator(Module):
         nn.init.orthogonal_(self.advantage.weight, 0.01)
 
     def forward(self, h, actions, device):
+        """
+        Arguments:
+            h {toch.tensor} -- The fed input data
+            actions {toch.tensor} -- The actions of the agent
+
+        Returns:
+            {torch.tensor} -- Estimated advantage function
+        """
         if actions is None:
             one_hot_actions = torch.zeros(h.shape[0], self.total_num_actions).to(device)
             h = torch.cat((h, one_hot_actions), dim=1)
