@@ -5,7 +5,7 @@ from neroRL.nn.module import Module
 
 class HiddenLayer(Module):
     """
-    A flexibal hidden layer with a variable number of layers.
+    A flexibal network body with a variable number of layers.
     """
     def __init__(self, activ_fn, num_hidden_layers, in_features, out_features):
         """Initializes the hidden layer.

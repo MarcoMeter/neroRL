@@ -19,9 +19,9 @@ class GRU(Module):
         self.recurrent_layer = nn.GRU(input_shape, hidden_state_size, batch_first=True)
         # Init recurrent layer
         for name, param in self.recurrent_layer.named_parameters():
-            if 'bias' in name:
+            if "bias" in name:
                 nn.init.constant_(param, 0)
-            elif 'weight' in name:
+            elif "weight" in name:
                 nn.init.orthogonal_(param, np.sqrt(2))
 
     def forward(self, h, recurrent_cell, sequence_length):
@@ -70,9 +70,9 @@ class LSTM(Module):
         self.recurrent_layer = nn.LSTM(input_shape, hidden_state_size, batch_first=True)
         # Init recurrent layer
         for name, param in self.recurrent_layer.named_parameters():
-            if 'bias' in name:
+            if "bias" in name:
                 nn.init.constant_(param, 0)
-            elif 'weight' in name:
+            elif "weight" in name:
                 nn.init.orthogonal_(param, np.sqrt(2))
 
     def forward(self, h, recurrent_cell, sequence_length):
