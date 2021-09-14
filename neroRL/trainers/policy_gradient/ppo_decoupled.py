@@ -176,7 +176,7 @@ class DecoupledPPOTrainer(BaseTrainer):
 
         out = {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
-                "actor_loss": (Tag.LOSS, loss.cpu().data.numpy()),
+                "loss": (Tag.LOSS, loss.cpu().data.numpy()),
                 "entropy": (Tag.OTHER, entropy_bonus.cpu().data.numpy()),
                 "kl_divergence": (Tag.OTHER, approx_kl.cpu().data.numpy()),
                 "clip_fraction": (Tag.OTHER, clip_fraction.cpu().data.numpy())}
