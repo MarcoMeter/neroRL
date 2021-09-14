@@ -28,7 +28,7 @@ Originally, this work started out by achieving the 7th place during the [Obstacl
 " target="_blank"><img src="http://img.youtube.com/vi/P2rBDHBHxcM/0.jpg" 
 alt="Rising to the Obstacle Tower Challenge" width="240" height="180" border="10" /></a></p>
 
-Recently we published a [paper](https://arxiv.org/abs/2004.00567) at CoG 2020 (best paper candidate) that analyzes the taken approach. Additionally the model was trained on 3 level designs and was evaluated on the two left out ones.
+Recently we published a [paper](https://arxiv.org/abs/2004.00567) at CoG 2020 (best paper candidate) that analyzes the taken approach. Additionally the model was trained on 3 level designs and was evaluated on the two left out ones. The results can be reproduced using the [obstacle-tower-challenge](https://github.com/MarcoMeter/neroRL/tree/obstacle-tower-challenge) branch.
 
 # Getting Started
 
