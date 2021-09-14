@@ -9,7 +9,7 @@ from neroRL.nn.module import Module, Sequential
 
 class ActorCriticBase(Module):
     """An actor-critic base model which defines the basic components and functionality of the final model:
-            - Components: Encoder, recurrent layer, hidden layer
+            - Components: Visual encoder, vector encoder, recurrent layer, body, heads (value, policy, gae)
             - Functionality: Initialization of the recurrent cells and basic model
     """
     def __init__(self, recurrence, config):
@@ -35,7 +35,12 @@ class ActorCriticBase(Module):
 
     def create_base_model(self, config, vis_obs_space, vec_obs_shape):
         """
-        Creates and returns the components of a base model, which consists of an encoder, recurrent layer and hidden layer specified by the model config.
+        Creates and returns the components of a base model, which consists of:
+            - a visual encoder,
+            - a vector encoder
+            - a recurrent layer (optional)
+            - and a body
+        specified by the model config.
 
         Arguments:
             config {dict} -- Model config
@@ -43,7 +48,7 @@ class ActorCriticBase(Module):
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
         
         Returns:
-            {tuple} -- Encoder, recurrent layer, hidden layer
+            {tuple} -- visual encoder, vector encoder, recurrent layer, body
         """
         vis_encoder, vec_encoder, recurrent_layer, body = None, None, None, None
 
@@ -75,7 +80,7 @@ class ActorCriticBase(Module):
             recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer)
             in_features_next_layer = self.recurrence["hidden_state_size"]
         
-        # Hidden layer
+        # Network body
         out_features = config["num_hidden_units"]
         body = self.create_body(config, in_features_next_layer, out_features)
 
@@ -155,7 +160,7 @@ class ActorCriticBase(Module):
             vis_obs_space {box} -- Dimensions of the visual observation space
 
         Returns:
-            {torch.nn.Module} -- The created encoder
+            {Module} -- The created encoder
         """
         if config["vis_encoder"] == "cnn":
             return CNNEncoder(vis_obs_space, config, self.activ_fn)
@@ -169,7 +174,7 @@ class ActorCriticBase(Module):
             out_features {int} -- Size of output
 
         Returns:
-            {torch.nn.Module} -- The created preprocessing layer
+            {Module} -- The created preprocessing layer
         """
         if config["vec_encoder"] == "linear":
             return Sequential(nn.Linear(in_features, out_features), self.activ_fn)
@@ -185,7 +190,7 @@ class ActorCriticBase(Module):
             out_features {int} -- Size of output
 
         Returns:
-            {torch.nn.Module} -- The created model body
+            {Module} -- The created model body
         """
         self.out_features_body = out_features
         if config["hidden_layer"] == "default":
@@ -199,7 +204,7 @@ class ActorCriticBase(Module):
             input_shape {int} -- Size of input
 
         Returns:
-            {torch.nn.Module} -- The created recurrent layer
+            {Module} -- The created recurrent layer
         """
         if recurrence["layer_type"] == "gru":
             return GRU(input_shape, recurrence["hidden_state_size"])

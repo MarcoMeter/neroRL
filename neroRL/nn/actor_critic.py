@@ -210,6 +210,11 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.actor_modules["actor_gae"] = self.actor_gae
 
     def get_actor_params(self):
+        """Collects and returns the parameters of the modules that are related to the actor model
+
+        Returns:
+           {list} -- List of actor model parameters
+        """
         params = []
         for key, value in self.actor_modules.items():
             if value is not None:
@@ -218,6 +223,11 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         return params
         
     def get_critic_params(self):
+        """Collects and returns the parameters of the modules that are related to the critic model
+
+        Returns:
+           {list} -- List of critic model parameters
+        """
         params = []
         for key, value in self.critic_modules.items():
             if value is not None:
@@ -316,6 +326,7 @@ def create_actor_critic_model(model_config, share_parameters, visual_observation
 
     Arguments:
         model_config {dict} -- Model config
+        share_parameters {bool} -- Whether a model with shared parameters or none-shared parameters shall be created
         vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
         vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
         action_space_shape {tuple} -- Dimensions of the action space
@@ -323,11 +334,8 @@ def create_actor_critic_model(model_config, share_parameters, visual_observation
                 - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
         device {torch.device} -- Current device
 
-    Raises:
-        ValueError -- Raises an error if conflicting model parameters are used.
-
     Returns:
-        {nn.Module} -- The created actor critic model
+        {ActorCriticBase} -- The created actor critic model
     """
     if share_parameters: # check if the actor critic model should share its weights
         return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
