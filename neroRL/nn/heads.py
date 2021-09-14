@@ -13,6 +13,7 @@ class MultiDiscreteActionPolicy(Module):
         Arguments:
             in_features {int} -- Number of to be fed features
             action_space_shape {tuple} -- Shape of the action space
+            activ_fn {function} -- The to be applied activation function to the linear layer before feeding the head
         """
         super().__init__()
         # Set the activation function
@@ -31,7 +32,6 @@ class MultiDiscreteActionPolicy(Module):
         """
         Arguments:
             h {torch.tensor} -- The fed input data
-            activ_fn {function} -- The to be applied activation function to the linear layer before feeding the head
 
         Returns:
             {list} --  A list containing categorical distributions for each action dimension
@@ -60,7 +60,6 @@ class ValueEstimator(Module):
         """
         Arguments:
             h {toch.tensor} -- The fed input data
-            activ_fn {function} -- The to be applied activation function to the linear layer before feeding the head
 
         Returns:
             {torch.tensor} -- Estimated value
@@ -90,6 +89,7 @@ class AdvantageEstimator(Module):
         Arguments:
             h {toch.tensor} -- The fed input data
             actions {toch.tensor} -- The actions of the agent
+            device {torch.device} -- Current device
 
         Returns:
             {torch.tensor} -- Estimated advantage function
