@@ -107,7 +107,8 @@ class PPOTrainer(BaseTrainer):
         normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
         # Repeat is necessary for multi-discrete action spaces
         normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
-        ratio = torch.exp(log_probs - samples["log_probs"])
+        log_ratio = log_probs - samples["log_probs"]
+        ratio = torch.exp(log_ratio)
         surr1 = ratio * normalized_advantage
         surr2 = torch.clamp(ratio, 1.0 - self.clip_range, 1.0 + self.clip_range) * normalized_advantage
         policy_loss = torch.min(surr1, surr2)
@@ -135,7 +136,7 @@ class PPOTrainer(BaseTrainer):
         self.optimizer.step()
 
         # Monitor additional training statistics
-        approx_kl = masked_mean((torch.exp(ratio) - 1) - ratio, samples["loss_mask"])
+        approx_kl = masked_mean((ratio - 1) - log_ratio, samples["loss_mask"])
         clip_fraction = (abs((ratio - 1.0)) > self.clip_range).type(torch.FloatTensor).mean()
 
         if self.model.share_parameters:
