@@ -14,9 +14,10 @@ class TrajectorySampler():
             configs {dict} -- The whole set of configurations (e.g. training and environment configs)
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments.
             visual_observation_space {box} -- Dimensions of the visual observation space (None if not available)
-            vector_observation_space {} -- {tuple} -- Dimensions of the vector observation space (None if not available)
-            model {nn.Module} -- The model that represents the policy and the value function
-            device {torch.device} -- The device that is used for retrieving the data from the model.
+            vector_observation_space {tuple} -- Dimensions of the vector observation space (None if not available)
+            action_space_shape {tuple} -- Dimensions of the action space
+            model {nn.Module} -- The model to retrieve the policy and value from
+            device {torch.device} -- The device that is used for retrieving the data from the model
         """
         # Set member variables
         self.configs = configs
@@ -70,7 +71,7 @@ class TrajectorySampler():
         """Samples training data (i.e. experience tuples) using n workers for t worker steps.
 
         Arguments:
-            device {torch.device} -- The device that is used for retrieving the data from the model.
+            device {torch.device} -- The device that is used for retrieving the data from the model
 
         Returns:
             {list} -- List of completed episodes. Each episode outputs a dictionary containing at least the

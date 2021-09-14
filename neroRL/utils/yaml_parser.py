@@ -230,7 +230,7 @@ class YamlParser:
                 if "reset_hidden_state" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["reset_hidden_state"] = True
 
-            # DAAC in DecoupledPPO
+            # Check DAAC if DecoupledPPO
             if "DAAC" in self._config["trainer"]:
                 if "adv_coefficient" not in self._config["trainer"]["DAAC"]:
                     self._config["trainer"]["DAAC"] = 0.25
