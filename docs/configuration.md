@@ -240,4 +240,4 @@ trainer:
 
 DecoupledPPO decouples the gradients of the value function and the policy.
 Therfore, more control is gained over the behavior of the training algorithm, although this is more expensive to compute.
-This setup also support the DAAC algorithm (aileanu & Fergus, 2021).
+This setup also supports the DAAC algorithm (Raileanu & Fergus, 2021).

@@ -17,7 +17,6 @@ You can also just generate and serialize the configs using the `--generate-only`
         --num-repetitions=<n>       How many times to repeat the training of one config [default: 1]
         --worker-id=<n>             Sets the port for each environment instance [default: 2].
         --run-id=<path>             Specifies the tag of the tensorboard summaries [default: default].
-        --low-mem-fix               Whether to load one mini_batch at a time. This is needed for GPUs with low memory (e.g. 2GB) [default: False].
         --generate-only             Whether to only generate the config files [default: False]
         --out=<path>                Where to output the generated config files [default: ./grid_search/]
     """
@@ -43,9 +42,6 @@ Setting a `--worker-id=100` is necessary if you run multiple training sessions u
 
 ## --run-id
 The `--run-id=training_0` adds a tag to the training session, which is helpfull for identifying the [tensorboard](tensorboard.md) summaries and model checkpoints.
-
-## --low-mem-fix
-If you are training on a GPU with not enough VRAM you can try the `--low-mem-fix` option. This ensures that only one mini batch at a time is moved to the GPU's memory instead of the entire batch, which exceeds the GPU's memory.
 
 ## --generate-only
 Instead of running training sessions sequentially, you can specify this flag to just generate config files for every possible permutation.
