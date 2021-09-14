@@ -1,5 +1,3 @@
-<p align="center"><img src="img/nero.png" alt="neroRL" width="180" height="180"></p>
-
 # Contents
 
 - [Installation](installation.md)

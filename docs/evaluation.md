@@ -13,7 +13,7 @@ To evaluate a model utilize the `python eval.py` command.
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
-        --framerate=<n>            Specifies the frame rate of a video shall be rendered. [default: 6]
+        --framerate=<n>            Specifies the frame rate if a video shall be rendered. [default: 6]
 """
 ```
 
