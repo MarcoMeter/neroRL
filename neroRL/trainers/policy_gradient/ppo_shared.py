@@ -15,7 +15,7 @@ class PPOTrainer(BaseTrainer):
     """
     def __init__(self, configs, worker_id, run_id, out_path):
         """
-        Initializes distinct member of the PPOTrainer
+        Initializes distinct members of the PPOTrainer
 
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. training and environment configs)
@@ -59,6 +59,7 @@ class PPOTrainer(BaseTrainer):
                 mini_batch_generator = self.sampler.buffer.recurrent_mini_batch_generator(self.n_mini_batches)
             else:
                 mini_batch_generator = self.sampler.buffer.mini_batch_generator(self.n_mini_batches)
+            # Conduct the training
             for mini_batch in mini_batch_generator:
                 res = self.train_mini_batch(mini_batch)
                 # Collect all values of the training procedure in a list

@@ -187,7 +187,7 @@ class BaseTrainer():
             # Write training statistics to tensorboard
             self.monitor.write_training_summary(update, training_stats, episode_result)
     
-    ### BEGIN:  Methods that need to be overriden ###
+    ### BEGIN:  Methods that need to be overriden/extended ###
     def create_model(self) -> None:
         """This method is supposed to initialize self.model. Every trainer should have the possibility to customize its own model."""
         raise NotImplementedError
@@ -226,7 +226,7 @@ class BaseTrainer():
         return checkpoint_data
 
     def apply_checkpoint_data(self, checkpoint):
-        """Applies the data loaded from a checkpoint. Some are processed by this base class, but are to be processed
+        """Applies the data loaded from a checkpoint. Some are processed by this base class and the others
         by the actual trainer.
 
         Args:
@@ -234,7 +234,7 @@ class BaseTrainer():
         """
         if self.recurrence is not None:
             self.model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
-    ### END:    Methods that need to be overriden ###
+    ### END:    Methods that need to be overriden/extended ###
 
     def _save_checkpoint(self, update) -> None:
         """Collects data from the base and the trainer to serialize them using torch.save().

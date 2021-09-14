@@ -11,10 +11,10 @@ from neroRL.utils.monitor import Tag
 class DecoupledPPOTrainer(BaseTrainer):
     """The DecoupledPPOTrainer does not share parameters (i.e. weights) and not gradients among the policy and value function.
     Therefore, it uses slightly different hyperparameters as the regular PPOTrainer to allow more control over updating the
-    policy and the value function."""
+    policy and the value function. Optinally, the actor model can estimate the advantage function as proposed by Raileanu & Fergus, 2021"""
     def __init__(self, configs, worker_id, run_id, out_path):
         """
-        Initializes distinct member of the DecoupledPPOTrainer
+        Initializes distinct members of the DecoupledPPOTrainer
 
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. training and environment configs)
@@ -23,8 +23,10 @@ class DecoupledPPOTrainer(BaseTrainer):
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
         """
         # Shall the policy estimate the advantage function? (DAAC algorithm by Raileanu & Fergus, 2021)
+        # Assign this before initializing the base class, because this information is needed during model creation
         self.use_daac = "DAAC" in configs["trainer"]
 
+        # Init base class
         super().__init__(configs, worker_id, run_id=run_id, out_path=out_path)
 
         # Hyperparameter setup
@@ -53,7 +55,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.policy_clip_range = self.pi_cr_schedule["initial"]
         self.value_clip_range = self.v_cr_schedule["initial"]
 
-        # Determine policy and value function parameters
+        # Determine policy and value function parameters to assign them to their respective optimizers
         self.policy_parameters = self.model.get_actor_params()
         self.value_parameters = self.model.get_critic_params()
 
@@ -64,6 +66,7 @@ class DecoupledPPOTrainer(BaseTrainer):
     def create_model(self):
         model =  create_actor_critic_model(self.configs["model"], False,
         self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
+        # Optionally, add the advantage estimator head to the model
         if self.use_daac:
             model.add_gae_estimator_head(self.action_space_shape, self.device)
         return model
@@ -71,19 +74,22 @@ class DecoupledPPOTrainer(BaseTrainer):
     def train(self):
         train_info = {}
 
-        # Train policy using mini batches
+        # Train the actor model using mini batches
         for _ in range(self.num_policy_epochs):
+            # Retrieve the to be trained mini_batches via a generator
+            # Use the recurrent mini batch generator for training a recurrent policy
             if self.recurrence is not None:
                 mini_batch_generator = self.sampler.buffer.recurrent_mini_batch_generator(self.n_policy_mini_batches)
             else:
                 mini_batch_generator = self.sampler.buffer.mini_batch_generator(self.n_policy_mini_batches)
+            # Conduct the training
             for mini_batch in mini_batch_generator:
                 res = self.train_policy_mini_batch(mini_batch)
                 # Collect all values of the training procedure in a list
                 for key, (tag, value) in res.items():
                     train_info.setdefault(key, (tag, []))[1].append(value)
 
-        # Train value function using the whole batch of data instead of mini batches
+        # Train the value function using the whole batch of data instead of mini batches
         if self.currentUpdate % self.value_update_interval == 0:
             for _ in range(self.num_value_epochs):
                 if self.recurrence is not None:
@@ -170,7 +176,7 @@ class DecoupledPPOTrainer(BaseTrainer):
 
         out = {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
-                "loss": (Tag.LOSS, loss.cpu().data.numpy()),
+                "actor_loss": (Tag.LOSS, loss.cpu().data.numpy()),
                 "entropy": (Tag.OTHER, entropy_bonus.cpu().data.numpy()),
                 "kl_divergence": (Tag.OTHER, approx_kl.cpu().data.numpy()),
                 "clip_fraction": (Tag.OTHER, clip_fraction.cpu().data.numpy())}
