@@ -45,6 +45,7 @@ class ValueEstimator(Module):
         """
         Arguments:
             in_features {int} -- Number of to be fed features
+            activ_fn {function} -- The to be applied activation function to the linear layer
         """
         super().__init__()
         # Set the activation function
