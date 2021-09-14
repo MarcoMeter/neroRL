@@ -160,7 +160,7 @@ class ActorCriticBase(Module):
             vis_obs_space {box} -- Dimensions of the visual observation space
 
         Returns:
-            {Module} -- The created encoder
+            {Module} -- The created visual encoder
         """
         if config["vis_encoder"] == "cnn":
             return CNNEncoder(vis_obs_space, config, self.activ_fn)
@@ -174,7 +174,7 @@ class ActorCriticBase(Module):
             out_features {int} -- Size of output
 
         Returns:
-            {Module} -- The created preprocessing layer
+            {Module} -- The created vector envoder
         """
         if config["vec_encoder"] == "linear":
             return Sequential(nn.Linear(in_features, out_features), self.activ_fn)
