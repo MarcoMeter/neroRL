@@ -136,7 +136,7 @@ class PPOTrainer(BaseTrainer):
         self.optimizer.step()
 
         # Monitor additional training statistics
-        approx_kl = masked_mean((ratio - 1) - log_ratio, samples["loss_mask"])
+        approx_kl = masked_mean((ratio - 1.0) - log_ratio, samples["loss_mask"]) # http://joschu.net/blog/kl-approx.html
         clip_fraction = (abs((ratio - 1.0)) > self.clip_range).type(torch.FloatTensor).mean()
 
         if self.model.share_parameters:
