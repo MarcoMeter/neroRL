@@ -1,5 +1,13 @@
 # Model Architecture
 
+An abstract definition of the model's architecture is shown in the figure below.
+Each component marked as bold can be customized and referenced inside the configuration file.
+The next section gives a more detailed view on the model when trained on Obstacle Tower.
+
+<p align="center"><img src="img/general_model_architecture.png" alt="general_architecture"></p>
+
+## Example: Obstacle Tower
+
 <p align="center"><img src="img/model_architecture.png" alt="architecture"></p>
 
 The actor-critc architecture of the underlying model can be described best by assuming that we are going to train an agent on the Obstacle Tower environment, because it uses both vector and visual observation spaces as well as a Multi-Discrete action space.
@@ -21,6 +29,3 @@ The actor-critc architecture of the underlying model can be described best by as
 8. The value function is one of the model's heads.
 
 9. Concerning the policy head, if a Multi-Discrete action space is used, the policy is branched off for each available action dimension.
-
-The model can be easily modified using [otc_model.py](../neroRL/trainers/PPO/otc_model.py).
-Note that this model does not support continuous action spaces.

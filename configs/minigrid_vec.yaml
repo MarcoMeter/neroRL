@@ -18,9 +18,9 @@ model:
   model_path: "./models/good_minigrid-900.pt"
   checkpoint_interval: 100
   activation: "relu"
-  share_parameters: True
-  pi_estimate_advantages: False
-  encoder: "cnn"
+  vis_encoder: "cnn"
+  vec_encoder: "linear"
+  num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
@@ -37,16 +37,22 @@ evaluation:
   seeds: [1001, 1002, 1003, 1004, 1005]
   interval: 10
 
+sampler:
+  type: "TrajectorySampler"
+  n_workers: 16
+  worker_steps: 256
+
 trainer:
   algorithm: "PPO"
+  resume_at: 0
   gamma: 0.99
   lamda: 0.95
   updates: 1000
   epochs: 4
-  n_workers: 16
-  worker_steps: 256
-  n_mini_batch: 8
-  resume_at: 0
+  n_mini_batches: 8
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
+  share_parameters: True
   learning_rate_schedule:
     initial: 2.5e-4
     final: 3.0e-6

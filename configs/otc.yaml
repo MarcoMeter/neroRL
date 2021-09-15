@@ -51,16 +51,22 @@ evaluation:
   seeds: [1001, 1002, 1003, 1004, 1005]
   interval: 200
 
+sampler:
+  type: "TrajectorySampler"
+  n_workers: 16
+  worker_steps: 512
+
 trainer:
   algorithm: "PPO"
+  resume_at: 0
   gamma: 0.99
   lamda: 0.95
   updates: 50000
   epochs: 4
-  n_workers: 16
-  worker_steps: 512
-  n_mini_batch: 4
-  resume_at: 0
+  n_mini_batches: 4
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
+  share_parameters: True
   learning_rate_schedule:
     initial: 7.5e-5
     final: 1.0e-8

@@ -1,5 +1,3 @@
-<p align="center"><img src="img/nero.png" alt="neroRL" width="180" height="180"></p>
-
 # Contents
 
 - [Installation](installation.md)
@@ -12,4 +10,5 @@
 - [Recurrent Policy Implementation and Usage](recurrent_policy.md)
 - [Hyperparameter Tuning using Grid Search](tune.md)
 - [Steps to add another environment](add_environment.md)
+- [Steps to add another model module](add_model_module.md)
 - [Tensorboard](tensorboard.md)

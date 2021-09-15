@@ -38,13 +38,8 @@ model:
   checkpoint_interval: 50
   # Set the to be used activation function (elu, leaky_relu, relu, swish)
   activation: "relu"
-  # Wether the actor and critic model should share its parameters
-  share_parameters: True
-  # DAAC: Actor model also estimates the advantages(Note: if True = > parameter are not shared)
-  pi_estimate_advantages: False
-  # Set the to be used encoder
-  encoder: "cnn"
-
+  # Set the to be used visual encoder
+  vis_encoder: "cnn"
   recurrence:
     # Supported recurrent layers: gru, lstm
     layer_type: "lstm"
@@ -57,7 +52,9 @@ model:
     # Whether to reset the hidden state before a new episode.
     # Environments that use short episodes are likely to profit from not resetting the hidden state.
     reset_hidden_state: True
-
+  # Set the to be used vector encoder
+  vec_encoder: "linear" # "linear", "none"
+  num_vec_encoder_units: 128
   # Set the to be used hidden layer
   hidden_layer: "default"
   # Number of hidden layers
@@ -76,28 +73,42 @@ evaluation:
   # Evaluate the model after every n-th update during training
   interval: 50
 
+### SAMPLER CONFIG
+# The sampler is in charge of collecting training data
+# These hyperparameters determine the amount of data and the sampler's behavior
+sampler:
+  # The TrajectorySampler gathers monte carlo rollouts that may contain truncated episodes
+  type: "TrajectorySampler"
+  # Number of environments that are used for sampling data
+  n_workers: 16
+  # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
+  worker_steps: 256
+
 ### TRAINER CONFIG ###
 trainer:
   # Which algorithm to use. For now, PPO is supported.
   algorithm: "PPO"
+  # On which step to resume the training. This affects the hyperparameter schedules only.
+  resume_at: 0
   # Discount factor
   gamma: 0.99
   # Regularization parameter used when calculating the Generalized Advantage Estimation (GAE)
   lamda: 0.95
   # Number of PPO update cycles that shall be done (one whole cycle comprises n epochs of m mini_batch updates)
   updates: 1000
-  # Number of environments that are used for sampling data
-  n_workers: 16
-  # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
-  worker_steps: 256
   # Number of times that the whole batch of data is used for optimization using PPO
   # Each epoch trains on a random permutation of the sampled training batch
   epochs: 4
   # Number of mini batches that are trained throughout one epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
-  n_mini_batch: 4
-  # On which step to resume the training. This affects the hyperparameter schedules only.
-  resume_at: 0
+  n_mini_batches: 4
+  # Coefficient of the loss of the value function (i.e. critic)
+  # It is only of use if model parameters are shared among the actor and the critic
+  value_coefficient: 0.25
+  # Strength of clipping the loss gradients
+  max_grad_norm: 0.5
+  # Wether the actor and critic model should share its parameters
+  share_parameters: True
   # Polynomial Decay Schedules
   # Learning Rate
   learning_rate_schedule:

@@ -11,10 +11,9 @@ from gym import spaces
 import sys
 
 from neroRL.utils.yaml_parser import YamlParser
-from neroRL.trainers.PPO.evaluator import Evaluator
+from neroRL.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
-from neroRL.utils.serialization import load_checkpoint
-from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
+from neroRL.nn.actor_critic import create_actor_critic_model
 
 # Setup logger
 logging.basicConfig(level = logging.INFO, handlers=[])
@@ -69,13 +68,16 @@ def main():
 
     # Build or load model
     logger.info("Step 2: Creating model")
-    model = create_actor_critic_model(configs["model"], visual_observation_space,
+    share_parameters = False
+    if configs["trainer"] == "PPO":
+        share_parameters = configs["trainers"]["share_parameters"]
+    model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
                             configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
-        checkpoint = load_checkpoint(configs["model"]["model_path"])
-        model.load_state_dict(checkpoint["model_state_dict"])
+        checkpoint = torch.load(configs["model"]["model_path"])
+        model.load_state_dict(checkpoint["model"])
         if "recurrence" in configs["model"]:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()

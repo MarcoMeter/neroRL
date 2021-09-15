@@ -13,9 +13,8 @@ import sys
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.environments.wrapper import wrap_environment
-from neroRL.utils.serialization import load_checkpoint
 from neroRL.utils.video_recorder import VideoRecorder
-from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
+from neroRL.nn.actor_critic import create_actor_critic_model
 
 # Setup logger
 logging.basicConfig(level = logging.INFO, handlers=[])
@@ -74,13 +73,16 @@ def main():
 
     # Build or load model
     logger.info("Step 2: Creating model")
-    model = create_actor_critic_model(configs["model"], visual_observation_space,
+    share_parameters = False
+    if configs["trainer"]["algorithm"] == "PPO":
+        share_parameters = configs["trainer"]["share_parameters"]
+    model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
                             configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
-        checkpoint = load_checkpoint(configs["model"]["model_path"])
-        model.load_state_dict(checkpoint["model_state_dict"])
+        checkpoint = torch.load(configs["model"]["model_path"])
+        model.load_state_dict(checkpoint["model"])
         if "recurrence" in configs["model"]:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
@@ -115,7 +117,7 @@ def main():
     with torch.no_grad():
         while not done:
             # Forward the neural net
-            policy, value, recurrent_cell = model(np.expand_dims(vis_obs, 0) if vis_obs is not None else None,
+            policy, value, recurrent_cell, _ = model(np.expand_dims(vis_obs, 0) if vis_obs is not None else None,
                                 np.expand_dims(vec_obs, 0) if vec_obs is not None else None,
                                 recurrent_cell,
                                 device)
@@ -140,6 +142,7 @@ def main():
             vis_obs, vec_obs, _, done, info = env.step(_actions)
 
     logger.info("Episode Reward: " + str(info["reward"]))
+    logger.info("Episode Length: " + str(info["length"]))
 
     # Complete video data
     if record_video:

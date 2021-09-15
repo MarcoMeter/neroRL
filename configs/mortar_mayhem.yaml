@@ -37,11 +37,11 @@ environment:
 model:
   load_model: False
   model_path: "./models/mortar_mayhem-6450.pt"
-  checkpoint_interval: 200
+  checkpoint_interval: 250
   activation: "relu"
-  share_parameters: True
-  pi_estimate_advantages: False
-  encoder: "cnn"
+  vis_encoder: "cnn"
+  vec_encoder: "linear"
+  num_vec_encoder_units: 64
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
@@ -56,18 +56,24 @@ evaluation:
   evaluate: True
   n_workers: 3
   seeds: [1001, 1002, 1003, 1004, 1005]
-  interval: 200
+  interval: 250
+
+sampler:
+  type: "TrajectorySampler"
+  n_workers: 24
+  worker_steps: 256
 
 trainer:
   algorithm: "PPO"
+  resume_at: 0
   gamma: 0.99
   lamda: 0.95
   updates: 5000
   epochs: 3
-  n_workers: 16
-  worker_steps: 256
-  n_mini_batch: 8
-  resume_at: 0
+  n_mini_batches: 8
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
+  share_parameters: True
   learning_rate_schedule:
     initial: 3.0e-4
     final: 3.0e-6
@@ -82,4 +88,4 @@ trainer:
     initial: 0.2
     final: 0.2
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 10000
