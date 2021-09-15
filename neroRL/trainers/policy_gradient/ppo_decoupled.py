@@ -105,7 +105,11 @@ class DecoupledPPOTrainer(BaseTrainer):
         for key, (tag, values) in train_info.items():
             train_info[key] = (tag, np.mean(values))
 
-        return train_info
+        # Format specific values for logging inside the base class
+        formatted_string = "a_loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
+            train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
+
+        return train_info, formatted_string
 
     def train_policy_mini_batch(self, samples):
         """Optimizes the policy based on the PPO algorithm

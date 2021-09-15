@@ -70,8 +70,12 @@ class PPOTrainer(BaseTrainer):
         for key, (tag, values) in train_info.items():
             train_info[key] = (tag, np.mean(values))
 
+        # Format specific values for logging inside the base class
+        formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
+            train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
+
         # Return the mean of the training statistics
-        return train_info
+        return train_info, formatted_string
 
     def train_mini_batch(self, samples):
         """Optimizes the policy based on the PPO algorithm

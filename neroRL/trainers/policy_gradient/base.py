@@ -138,7 +138,7 @@ class BaseTrainer():
             # 6.: Train n epochs over the sampled data
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
-            training_stats = self.train()
+            training_stats, formatted_string = self.train()
             
             # Store recent episode infos
             episode_info.extend(sample_episode_info)
@@ -154,17 +154,17 @@ class BaseTrainer():
             # 7.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
             if episode_result:
-                self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} loss={:3f} ") +
-                    ("entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}")).format(
+                self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
+                    (" value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}")).format(
                     update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
-                    episode_result["length_mean"], episode_result["length_std"], training_stats["loss"][1],
-                    training_stats["entropy"][1], np.mean(self.sampler.buffer.values), np.std(self.sampler.buffer.values),
-                    np.mean(self.sampler.buffer.advantages), np.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length))
+                    episode_result["length_mean"], episode_result["length_std"], np.mean(self.sampler.buffer.values), np.std(self.sampler.buffer.values),
+                    np.mean(self.sampler.buffer.advantages), np.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
+                    " " + formatted_string)
             else:
                 self.monitor.log("{:4} sec={:2} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
-                    update, update_duration, training_stats["loss"][1], training_stats["entropy"][1],
-                    np.mean(self.sampler.buffer.values), np.std(self.sampler.buffer.values), np.mean(self.sampler.buffer.advantages),
-                    np.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length))
+                    update, update_duration, np.mean(self.sampler.buffer.values), np.std(self.sampler.buffer.values),
+                    np.mean(self.sampler.buffer.advantages), np.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
+                    " " + formatted_string)
 
             # 8.: Evaluate model
             if self.eval:
@@ -193,7 +193,8 @@ class BaseTrainer():
         raise NotImplementedError
 
     def train(self) -> dict:
-        """train() is called for each update cycle. It returns a dictionary of training statistics"""
+        """train() is called for each update cycle. It returns a dictionary of training statistics and a formatted string featuring
+        distinct training stats such as losses."""
         raise NotImplementedError
 
     def step_decay_schedules(self, update:int) -> dict:
