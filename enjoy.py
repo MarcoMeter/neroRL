@@ -136,7 +136,7 @@ def main():
             actions.append(_actions)
             log_probs.append(probs)
             entropies.append(entropy)
-            values.append(value)
+            values.append(value.cpu().numpy())
 
             # Step environment
             vis_obs, vec_obs, _, done, info = env.step(_actions)

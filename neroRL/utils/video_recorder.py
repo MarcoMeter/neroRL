@@ -1,4 +1,6 @@
 import cv2
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 
 class VideoRecorder:
@@ -18,6 +20,7 @@ class VideoRecorder:
         self.margin = 2
         self.width = 420                                # Video dimensions
         self.height = 420
+        self.info_height = 40
         self.video_path = video_path
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')   # Video codec
         self.frame_rate = int(frame_rate)
@@ -31,51 +34,50 @@ class VideoRecorder:
         """
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
-                                self.fourcc, self.frame_rate, (self.width * 2, self.height))
+                                self.fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
             env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
-            env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
+            env_frame = cv2.resize(env_frame, (self.height, self.width), interpolation=cv2.INTER_AREA)
+
+            # Setup info frame
+            info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
+            # Seed
+            self.draw_text_overlay(info_frame, 8, 20, trajectory_data["seed"], "seed")
+            # Current step
+            self.draw_text_overlay(info_frame, 108, 20, i, "step")
+            # Collected rewards so far
+            self.draw_text_overlay(info_frame, 208, 20, round(sum(trajectory_data["rewards"][0:i]), 3), "total reward")
 
             # Setup debug frame
-            debug_frame = np.zeros((420, 420, 3), dtype=np.uint8)
-            # Current step
-            self.draw_text_overlay(debug_frame, 5, 20, i, "step")
-            # Collected rewards so far
-            self.draw_text_overlay(debug_frame, 215, 20, round(trajectory_data["rewards"][i], 3), "total reward")
+            debug_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
             if not i == len(trajectory_data["vis_obs"]) - 1:
-                # Current value of the state
-                self.draw_text_overlay(debug_frame, 5, 40, round(trajectory_data["values"][i].item(), 5), "value")
-                # Current entropy
-                self.draw_text_overlay(debug_frame, 215, 40, sum(trajectory_data["entropies"][i]), "entropy")
-                # Environment seed
-                self.draw_text_overlay(debug_frame, 215, 60, trajectory_data["seed"], "seed")
-                # Selected action
-                for index, action in enumerate(trajectory_data["actions"][i]):
-                    if trajectory_data["action_names"] is not None:
-                        action_name = trajectory_data["action_names"][index][action]
-                    else:
-                        action_name = ""
-                    self.draw_text_overlay(debug_frame, 5 + (210 * (index % 2)), 60 + (20 * (int(index / 2))),
-                                            str(action) + " " + action_name, "action " + str(index))
                 # Action probabilities
-                next_y = 100
+                next_y = 20
                 for x, probs in enumerate(trajectory_data["log_probs"][i]):
-                    self.draw_text_overlay(debug_frame, 5 , next_y, round(trajectory_data["entropies"][i][x], 5), "entropy dim" + str(x))
+                    self.draw_text_overlay(debug_frame, 5 , next_y, round(trajectory_data["entropies"][i][x], 5), "entropy dimension " + str(x))
                     next_y += 20
                     for y, prob in enumerate(probs.squeeze(dim=0)):
                         if trajectory_data["action_names"] is not None:
                             label = str(trajectory_data["action_names"][x][y])
                         else:
-                            label = ""
+                            label = str(y)
                         self.draw_bar(debug_frame, 0, next_y, round(prob.item(), 10), label, y == trajectory_data["actions"][i][x])
                         next_y += 20
                     next_y += 10
+
+                # Plot value
+                fig = VideoRecorder.line_plot(trajectory_data["values"], "value", marker_pos=i)
+                img = VideoRecorder.fig_to_ndarray(fig)[:,:,0:3] # Drop Alpha
+                img = VideoRecorder.image_resize(img, width=self.width, height=None)
+                debug_frame[next_y : next_y + img.shape[0], 0 : img.shape[1], :] = img
+
             else:
                 self.draw_text_overlay(debug_frame, 5, 60, "True", "episode done")
 
             # Concatenate environment and debug frames
             output_image = np.hstack((env_frame, debug_frame))
+            output_image = np.vstack((info_frame, output_image))
 
             # Write frame
             out.write(output_image)
@@ -123,7 +125,95 @@ class VideoRecorder:
         pos = (x, y)
         text = label + ": " + str(prob)
         txt_size = cv2.getTextSize(text, self.font_face, self.scale, self.thickness)
-        end_x = int(420 * prob)
+        end_x = int(self.width * prob)
         end_y = pos[1] - txt_size[0][1] - self.margin
         cv2.rectangle(frame, pos, (end_x, end_y), bg_color, self.thickness)
         cv2.putText(frame, text, (x + 5, y), self.font_face, self.scale, self.text_color, 1, cv2.LINE_AA)
+
+    @staticmethod
+    def line_plot(data: np.ndarray, label: str, marker_pos = 10) -> np.ndarray:
+        matplotlib.use('Agg')
+        font = {"weight" : "bold", "size" : 22}
+        matplotlib.rc('font', **font)
+        # Setup figure
+        plt.style.use("dark_background")
+        fig = plt.figure(dpi=180)
+        fig.set_size_inches(14, 6)
+        ax = fig.subplots()
+
+        # Plot marker
+        ax.plot([marker_pos], data[marker_pos], fillstyle="full", markersize=12, marker="o", color="r")
+        x = [i for i in range(0, len(data))]
+
+        # Line plot
+        ax.plot(x, data)
+
+        # Annotate marker
+        # ax.annotate(str(data[marker_pos]), (x[marker_pos] + .011 ,data[marker_pos] + .011), color = "r")
+        ax.set_title("Value: " + str(data[marker_pos]))
+
+        # X and Y axis
+        ax.set_xlim([0,len(data)])
+        ax.set_xlabel("Episode Steps")
+        ax.set_ylabel(label)
+
+        # Remove borders
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+        # Text color
+        # ax.tick_params(color='gray', labelcolor='gray')
+        # for spine in ax.spines.values():
+        #     spine.set_edgecolor('gray')
+        return fig
+    
+    @staticmethod
+    def fig_to_ndarray(fig) -> np.ndarray:
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
+        from matplotlib.figure import Figure
+
+        # Attach figure to canvas
+        fig.tight_layout(pad=0)
+        canvas = FigureCanvasAgg(fig)
+
+        # Retrieve a view on the renderer buffer
+        canvas.draw()
+
+        buf = canvas.buffer_rgba()
+
+        plt.close(fig)
+
+        # Convert to a NumPy array
+        return np.asarray(buf)
+
+    @staticmethod
+    def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
+        # initialize the dimensions of the image to be resized and
+        # grab the image size
+        dim = None
+        (h, w) = image.shape[:2]
+
+        # if both the width and height are None, then return the
+        # original image
+        if width is None and height is None:
+            return image
+
+        # check to see if the width is None
+        if width is None:
+            # calculate the ratio of the height and construct the
+            # dimensions
+            r = height / float(h)
+            dim = (int(w * r), int(height))
+
+        # otherwise, the height is None
+        else:
+            # calculate the ratio of the width and construct the
+            # dimensions
+            r = width / float(w)
+            dim = (int(width), int(h * r))
+
+        # resize the image
+        resized = cv2.resize(image, dim, interpolation = inter)
+
+        # return the resized image
+        return resized
