@@ -12,6 +12,7 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
+    view-size: 3
 
 model:
   load_model: False

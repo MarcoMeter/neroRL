@@ -112,12 +112,12 @@ class MinigridWrapper(Env):
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "view-size": 3}
         else:
             self._default_reset_params = reset_params
 
         self._env = gym.make(env_name)
-        self._env = ViewSizeWrapper(self._env, 3)
+        self._env = ViewSizeWrapper(self._env, self._default_reset_params["view-size"])
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
