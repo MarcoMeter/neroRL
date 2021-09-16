@@ -73,34 +73,47 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             {torch.tensor} -- Advantage function: Advantage
         """
         h: torch.Tensor
-
-        # Forward observation encoder
-        if vis_obs is not None:
-            h_actor, h_critic = self.actor_vis_encoder(vis_obs, device), self.critic_vis_encoder(vis_obs, device)
-            if vec_obs is not None:
-                # Convert vec_obs to tensor and forward vector observation encoder
-                vec_obs = torch.tensor(vec_obs, dtype=torch.float32, device=device)
-                h_vec_actor, h_vec_critic = self.actor_vec_encoder(vec_obs), self.critic_vec_encoder(vec_obs)
-                # Add vector observation to the flattened output of the visual encoder if available
-                h_actor, h_critic = torch.cat((h_actor, h_vec_actor), 1), torch.cat((h_critic, h_vec_critic), 1)
-        else:
-            # Convert vec_obs to tensor and forward vector observation encoder
-            h_actor, h_critic = torch.tensor(vec_obs, dtype=torch.float32, device=device), torch.tensor(vec_obs, dtype=torch.float32, device=device)
-            h_actor, h_critic = self.actor_vec_encoder(h_actor), self.critic_vec_encoder(h_critic)
-
-        # Forward reccurent layer (GRU or LSTM) if available
+        
+        # Unpack recurrent cell        
         if self.recurrence is not None:
             (actor_recurrent_cell, critic_recurrent_cell) = self._unpack_recurrent_cell(recurrent_cell)
 
+        # Feed actor model
+        pi, actor_recurrent_cell, gae = self.forward_actor(vis_obs, vec_obs, actor_recurrent_cell, device, sequence_length, actions)
+
+        # Feed critic model
+        value, critic_recurrent_cell = self.forward_critic(vis_obs, vec_obs, critic_recurrent_cell, device, sequence_length, actions)
+
+        # Pack recurrent cell
+        if self.recurrence is not None:
+            recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+
+        return pi, value, recurrent_cell, gae
+
+    def forward_actor(self, vis_obs, vec_obs, actor_recurrent_cell, device, sequence_length = 1, actions = None):
+        h: torch.Tensor
+        # Forward observation encoder
+        if vis_obs is not None:
+            h_actor = self.actor_vis_encoder(vis_obs, device)
+            if vec_obs is not None:
+                # Convert vec_obs to tensor and forward vector observation encoder
+                vec_obs = torch.tensor(vec_obs, dtype=torch.float32, device=device)
+                h_vec_actor = self.actor_vec_encoder(vec_obs)
+                # Add vector observation to the flattened output of the visual encoder if available
+                h_actor = torch.cat((h_actor, h_vec_actor), 1)
+        else:
+            # Convert vec_obs to tensor and forward vector observation encoder
+            h_actor = torch.tensor(vec_obs, dtype=torch.float32, device=device)
+            h_actor = self.actor_vec_encoder(h_actor)
+
+        # Forward reccurent layer (GRU or LSTM) if available
+        if self.recurrence is not None:
             h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, actor_recurrent_cell, sequence_length)
-            h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
 
         # Feed network body
-        h_actor, h_critic = self.actor_body(h_actor), self.critic_body(h_critic)
+        h_actor = self.actor_body(h_actor)
 
         # Feed model heads
-        # Output: Value function
-        value = self.critic(h_critic)
         # Output: GAE
         if hasattr(self, "actor_gae"):
             gae = self.actor_gae(h_actor, actions, device)
@@ -108,11 +121,37 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             gae = None
         # Output: Policy
         pi = self.actor_policy(h_actor)
-        
-        if self.recurrence is not None:
-            recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
 
-        return pi, value, recurrent_cell, gae
+        return pi, actor_recurrent_cell, gae
+
+    def forward_critic(self, vis_obs, vec_obs, critic_recurrent_cell, device, sequence_length = 1, actions = None):
+        h: torch.Tensor
+        # Forward observation encoder
+        if vis_obs is not None:
+            h_critic = self.critic_vis_encoder(vis_obs, device)
+            if vec_obs is not None:
+                # Convert vec_obs to tensor and forward vector observation encoder
+                vec_obs = torch.tensor(vec_obs, dtype=torch.float32, device=device)
+                h_vec_critic = self.critic_vec_encoder(vec_obs)
+                # Add vector observation to the flattened output of the visual encoder if available
+                h_critic = torch.cat((h_critic, h_vec_critic), 1)
+        else:
+            # Convert vec_obs to tensor and forward vector observation encoder
+            h_critic = torch.tensor(vec_obs, dtype=torch.float32, device=device)
+            h_critic = self.critic_vec_encoder(h_critic)
+
+        # Forward reccurent layer (GRU or LSTM) if available
+        if self.recurrence is not None:
+            h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
+
+        # Feed network body
+        h_critic = self.critic_body(h_critic)
+
+        # Feed model heads
+        # Output: Value function
+        value = self.critic(h_critic)
+
+        return value, critic_recurrent_cell
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
