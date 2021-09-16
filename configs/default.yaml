@@ -27,6 +27,7 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
+    view-size: 3
 
 ### MODEL CONFIG ###
 model:

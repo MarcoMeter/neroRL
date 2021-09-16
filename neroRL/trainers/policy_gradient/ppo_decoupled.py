@@ -106,8 +106,12 @@ class DecoupledPPOTrainer(BaseTrainer):
             train_info[key] = (tag, np.mean(values))
 
         # Format specific values for logging inside the base class
-        formatted_string = "a_loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
-            train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
+        if self.use_daac:
+            formatted_string = "loss={:.3f} a_losss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
+                train_info["loss"][1], train_info["advantage_loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
+        else:
+            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
+                train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
 
         return train_info, formatted_string
 
