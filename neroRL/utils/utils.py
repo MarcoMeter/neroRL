@@ -35,8 +35,8 @@ def compute_gradient_stats(modules_dict, prefix = ""):
                 grad = param.grad.data.cpu()
                 grads.append(grad.view(-1))
             results[module_name + "_norm"] = (Tag.GRADIENT_NORM, module.grad_norm())
-            results[module_name + "_mean"] = (Tag.GRADIENT_MEAN, module.grad_mean())
+            # results[module_name + "_mean"] = (Tag.GRADIENT_MEAN, module.grad_mean())
             all_grads = all_grads + grads
     results[prefix + "_model_norm"] = (Tag.GRADIENT_NORM, torch.linalg.norm(torch.cat(all_grads)).item())
-    results[prefix + "_model_mean"] = (Tag.GRADIENT_MEAN, torch.mean(torch.cat(all_grads)).item())
+    # results[prefix + "_model_mean"] = (Tag.GRADIENT_MEAN, torch.mean(torch.cat(all_grads)).item())
     return results

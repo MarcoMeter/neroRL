@@ -159,12 +159,9 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         actor_hxs, actor_cxs = actor_recurrent_cell if isinstance(actor_recurrent_cell, tuple) else (actor_recurrent_cell, None)
         critic_hxs, critic_cxs = critic_recurrent_cell if isinstance(critic_recurrent_cell, tuple) else (critic_recurrent_cell, None)
 
-        hxs = torch.zeros((*actor_hxs.shape, 2), dtype=torch.float32, device=device)
-        cxs = torch.zeros((*actor_cxs.shape, 2), dtype=torch.float32, device=device) if actor_cxs is not None else None
-
-        hxs[:, :, :, 0], hxs[:, :, :, 1] = actor_hxs, critic_hxs
-        if cxs is not None: # check if LSTM network is used, if it's used then unpack the cell state
-            cxs[:, :, :, 0], cxs[:, :, :, 1] = actor_cxs, critic_cxs
+        hxs = torch.stack((actor_hxs, critic_hxs), dim = 3)
+        if actor_cxs is not None: # check if LSTM network is used, if it's used then unpack the cell state
+            cxs = torch.stack((actor_cxs, critic_cxs), dim = 3)
 
         # return the packed recurrent_cell based on the recurrent layer_type
         recurrent_cell = (hxs, cxs) if self.recurrence["layer_type"] == "lstm" else hxs
@@ -187,9 +184,9 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # If GRU is used then unpacking might not be possible, so zip the recurrent cell with None and then unpack it
         (hxs, cxs) = recurrent_cell if isinstance(recurrent_cell, tuple) else (recurrent_cell, None)
 
-        actor_hxs, critic_hxs = hxs[:, :, :, 0], hxs[:, :, :, 1]
+        actor_hxs, critic_hxs = hxs.unbind(dim = 3)
         if cxs is not None: # check if LSTM network is used, if it's used then unpack the cell state
-            actor_cxs, critic_cxs = cxs[:, :, :, 0], cxs[:, :, :, 1]
+            actor_cxs, critic_cxs = cxs.unbind(dim = 3)
 
         # return the packed recurrent_cell based on the recurrent layer_type
         actor_recurrent_cell = (actor_hxs.contiguous(), actor_cxs.contiguous()) if self.recurrence["layer_type"] == "lstm" else actor_hxs.contiguous()
