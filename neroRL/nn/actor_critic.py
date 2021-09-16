@@ -73,10 +73,10 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             {torch.tensor} -- Advantage function: Advantage
         """
         h: torch.Tensor
-        
+
         # Unpack recurrent cell        
         if self.recurrence is not None:
-            (actor_recurrent_cell, critic_recurrent_cell) = self._unpack_recurrent_cell(recurrent_cell)
+            (actor_recurrent_cell, critic_recurrent_cell) = self.unpack_recurrent_cell(recurrent_cell)
 
         # Feed actor model
         pi, actor_recurrent_cell, gae = self.forward_actor(vis_obs, vec_obs, actor_recurrent_cell, device, sequence_length, actions)
@@ -86,7 +86,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Pack recurrent cell
         if self.recurrence is not None:
-            recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+            recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
 
         return pi, value, recurrent_cell, gae
 
@@ -171,13 +171,13 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         actor_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
         critic_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
 
-        packed_recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+        packed_recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
         # (hxs, cxs) is expected to be returned. But if we use GRU then pack_recurrent_cell just returns hxs so we need to zip the recurrent cell with None to return (hxs, None)
         recurrent_cell = packed_recurrent_cell if self.recurrence["layer_type"] == "lstm" else (packed_recurrent_cell, None)
 
         return recurrent_cell 
 
-    def _pack_recurrent_cell(self, actor_recurrent_cell, critic_recurrent_cell, device):
+    def pack_recurrent_cell(self, actor_recurrent_cell, critic_recurrent_cell, device):
         """ 
         This method packs the recurrent cell states in such a way s.t. it's possible to be stored in the to be used buffer.
         The returned recurrent cell has the form (hxs, cxs) if an lstm is used or hxs if gru is used.
@@ -207,7 +207,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # return ((actor_hxs, critic_hxs), (actor_cxs, critic_cxs))
         return recurrent_cell
 
-    def _unpack_recurrent_cell(self, recurrent_cell):
+    def unpack_recurrent_cell(self, recurrent_cell):
         """ 
         This method unpacks the recurrent cell states back to its original form, so that a recurrent cell has the form (hxs, cxs).
         
