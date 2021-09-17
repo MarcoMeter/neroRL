@@ -43,7 +43,7 @@ class YamlParser:
             "obs_stacks": 1,
             "grayscale": False,
             "resize_vis_obs": [84, 84],
-            "reset_params": {"start-seed": 0, "num-seeds": 100, "view-size": 3}
+            "reset_params": {"start-seed": 0, "num-seeds": 100}
         }
 
         model_dict = {
