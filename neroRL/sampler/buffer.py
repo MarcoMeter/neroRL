@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-
 class Buffer():
     """
     The buffer stores and prepares the training data. It supports recurrent policies.
@@ -26,27 +25,27 @@ class Buffer():
         self.worker_steps = worker_steps
         self.batch_size = self.num_workers * self.worker_steps
         self.rewards = np.zeros((num_workers, worker_steps), dtype=np.float32)
-        self.actions = np.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=np.int32)
+        self.actions = torch.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=torch.long)
         self.dones = np.zeros((num_workers, worker_steps), dtype=np.bool)
         if visual_observation_space is not None:
-            self.vis_obs = np.zeros((num_workers, worker_steps) + visual_observation_space.shape, dtype=np.float32)
+            self.vis_obs = torch.zeros((num_workers, worker_steps) + visual_observation_space.shape, dtype=torch.float32)
         else:
             self.vis_obs = None
         if vector_observation_space is not None:
-            self.vec_obs = np.zeros((num_workers, worker_steps,) + vector_observation_space, dtype=np.float32)
+            self.vec_obs = torch.zeros((num_workers, worker_steps,) + vector_observation_space, dtype=torch.float32)
         else:
             self.vec_obs = None
         
         if share_parameters:
-            self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
-            self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
+            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=torch.float32) if recurrence is not None else None
+            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=torch.float32) if recurrence is not None else None
         else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
-            self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
-            self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
+            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=torch.float32) if recurrence is not None else None
+            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=torch.float32) if recurrence is not None else None
 
-        self.log_probs = np.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=np.float32)
-        self.values = np.zeros((num_workers, worker_steps), dtype=np.float32)
-        self.advantages = np.zeros((num_workers, worker_steps), dtype=np.float32)
+        self.log_probs = torch.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=torch.float32)
+        self.values = torch.zeros((num_workers, worker_steps), dtype=torch.float32)
+        self.advantages = torch.zeros((num_workers, worker_steps), dtype=torch.float32)
         self.num_sequences = 0
         self.actual_sequence_length = 0
 
@@ -63,7 +62,7 @@ class Buffer():
             mask = 1.0 - self.dones[:, t] # mask value on a terminal state (i.e. done)
             last_value = last_value * mask
             last_advantage = last_advantage * mask
-            delta = self.rewards[:, t] + gamma * last_value - self.values[:, t]
+            delta = torch.FloatTensor(self.rewards[:, t]) + gamma * last_value - self.values[:, t]
             last_advantage = delta + gamma * lamda * last_advantage
             self.advantages[:, t] = last_advantage
             last_value = self.values[:, t]
@@ -81,7 +80,7 @@ class Buffer():
             "advantages": self.advantages,
             # The loss mask is used for masking the padding while computing the loss function.
             # This is only of significance while using recurrence.
-            "loss_mask": np.ones((self.num_workers, self.worker_steps), dtype=np.float32)
+            "loss_mask": torch.ones((self.num_workers, self.worker_steps), dtype=torch.float32)
         }
 
     	# Add available observations to the dictionary
@@ -132,7 +131,7 @@ class Buffer():
                     sequences[i] = self._pad_sequence(sequence, max_sequence_length)
 
                 # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
-                samples[key] = np.stack(sequences, axis=0)
+                samples[key] = torch.stack(sequences, axis=0)
 
                 if (key == "hxs" or key == "cxs"):
                     # Select the very first recurrent cell state of a sequence and add it to the samples
@@ -147,7 +146,7 @@ class Buffer():
         for key, value in samples.items():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
-            self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.device)
+            self.samples_flat[key] = value
 
     def _pad_sequence(self, sequence, target_length):
         """Pads a sequence to the target length using zeros.
@@ -159,9 +158,6 @@ class Buffer():
         Returns:
             {numpy.ndarray} -- Returns the padded sequence
         """
-        # If a tensor is provided, convert it to a numpy array
-        if isinstance(sequence, torch.Tensor):
-            sequence = sequence.numpy()
         # Determine the number of zeros that have to be added to the sequence
         delta_length = target_length - len(sequence)
         # If the sequence is already as long as the target length, don't pad
@@ -170,13 +166,13 @@ class Buffer():
         # Construct array of zeros
         if len(sequence.shape) > 1:
             # Case: pad multi-dimensional array like visual observation
-            padding = np.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
-            # padding = np.full(((delta_length,) + sequence.shape[1:]), sequence[0], dtype=sequence.dtype) # experimental
+            padding = torch.zeros(((delta_length,) + sequence.shape[1:]), dtype=sequence.dtype)
+            # padding = torch.full(((delta_length,) + sequence.shape[1:]), sequence[0], dtype=sequence.dtype) # experimental
         else:
-            padding = np.zeros(delta_length, dtype=sequence.dtype)
-            # padding = np.full(delta_length, sequence[0], dtype=sequence.dtype) # experimental
+            padding = torch.zeros(delta_length, dtype=sequence.dtype)
+            # padding = torch.full(delta_length, sequence[0], dtype=sequence.dtype) # experimental
         # Concatenate the zeros to the sequence
-        return np.concatenate((sequence, padding), axis=0)
+        return torch.cat((sequence, padding), axis=0)
 
     def mini_batch_generator(self, num_mini_batches):
         """A generator that returns a dictionary containing the data of a whole minibatch.
@@ -217,7 +213,7 @@ class Buffer():
         for i in range(remainder):
             num_sequences_per_batch[i] += 1 # Add the remainder if the sequence count and the number of mini batches do not share a common divider
         # Prepare indices, but only shuffle the sequence indices and not the entire batch to ensure that sequences are maintained as a whole.
-        indices = np.arange(0, self.num_sequences * self.actual_sequence_length).reshape(self.num_sequences, self.actual_sequence_length)
+        indices = torch.arange(0, self.num_sequences * self.actual_sequence_length).reshape(self.num_sequences, self.actual_sequence_length)
         sequence_indices = torch.randperm(self.num_sequences)
         # At this point it is assumed that all of the available training data (values, observations, actions, ...) is padded.
 

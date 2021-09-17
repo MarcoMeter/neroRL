@@ -85,20 +85,20 @@ class TrajectorySampler():
             with torch.no_grad():
                 # Save the initial observations and hidden states
                 if self.vis_obs is not None:
-                    self.buffer.vis_obs[:, t] = self.vis_obs
+                    self.buffer.vis_obs[:, t] = torch.FloatTensor(self.vis_obs)
                 if self.vec_obs is not None:
-                    self.buffer.vec_obs[:, t] = self.vec_obs
+                    self.buffer.vec_obs[:, t] = torch.FloatTensor(self.vec_obs)
                 # Store recurrent cell states inside the buffer
                 if self.recurrence is not None:
                     if self.recurrence["layer_type"] == "gru":
-                        self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
+                        self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0)
                     elif self.recurrence["layer_type"] == "lstm":
-                        self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu().numpy()
-                        self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
+                        self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0)
+                        self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0)
 
                 # Forward the model to retrieve the policy (making decisions), the states' value of the value function and the recurrent hidden states (if available)
                 policy, value, self.recurrent_cell, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
-                self.buffer.values[:, t] = value.cpu().data.numpy()
+                self.buffer.values[:, t] = value.data
 
                 # Sample actions from each individual policy branch
                 actions = []
@@ -109,12 +109,12 @@ class TrajectorySampler():
                     log_probs.append(action_branch.log_prob(action).cpu().data.numpy())
                 actions = np.transpose(actions)
                 log_probs = np.transpose(log_probs)
-                self.buffer.actions[:, t] = actions
-                self.buffer.log_probs[:, t] = log_probs
+                self.buffer.actions[:, t] = torch.LongTensor(actions)
+                self.buffer.log_probs[:, t] = torch.FloatTensor(log_probs)
 
             # Execute actions
             for w, worker in enumerate(self.workers):
-                worker.child.send(("step", self.buffer.actions[w, t]))
+                worker.child.send(("step", self.buffer.actions[w, t].cpu().numpy()))
 
             # Retrieve results
             for w, worker in enumerate(self.workers):
