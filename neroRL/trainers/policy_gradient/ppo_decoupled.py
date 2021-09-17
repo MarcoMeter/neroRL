@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch import optim
+from threading import Thread
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
@@ -72,8 +73,33 @@ class DecoupledPPOTrainer(BaseTrainer):
         return model
 
     def train(self):
-        train_info = {}
+        self.train_info = {}
 
+        threads = [Thread(target = self.train_policy), Thread(target = self.train_value)]
+        
+        for thread in threads:
+            thread.start()
+
+        # Wait for all of them to finish
+        for thread in threads:
+            thread.join()
+        
+
+        # Calculate mean of the collected training statistics
+        for key, (tag, values) in self.train_info.items():
+            self.train_info[key] = (tag, np.mean(values))
+
+        # Format specific values for logging inside the base class
+        if self.use_daac:
+            formatted_string = "loss={:.3f} a_losss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
+                self.train_info["loss"][1], self.train_info["advantage_loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1])
+        else:
+            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
+                self.train_info["loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1])
+
+        return self.train_info, formatted_string
+
+    def train_policy(self):
         # Train the actor model using mini batches
         for _ in range(self.num_policy_epochs):
             # Retrieve the to be trained mini_batches via a generator
@@ -87,8 +113,9 @@ class DecoupledPPOTrainer(BaseTrainer):
                 res = self.train_policy_mini_batch(mini_batch)
                 # Collect all values of the training procedure in a list
                 for key, (tag, value) in res.items():
-                    train_info.setdefault(key, (tag, []))[1].append(value)
+                    self.train_info.setdefault(key, (tag, []))[1].append(value)
 
+    def train_value(self):
         # Train the value function using the whole batch of data instead of mini batches
         if self.currentUpdate % self.value_update_interval == 0:
             for _ in range(self.num_value_epochs):
@@ -99,21 +126,7 @@ class DecoupledPPOTrainer(BaseTrainer):
                 for batch in batch_generator:
                     res = self.train_value_mini_batch(batch)
                     for key, (tag, value) in res.items():
-                        train_info.setdefault(key, (tag, []))[1].append(value)
-
-        # Calculate mean of the collected training statistics
-        for key, (tag, values) in train_info.items():
-            train_info[key] = (tag, np.mean(values))
-
-        # Format specific values for logging inside the base class
-        if self.use_daac:
-            formatted_string = "loss={:.3f} a_losss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
-                train_info["loss"][1], train_info["advantage_loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
-        else:
-            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
-                train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
-
-        return train_info, formatted_string
+                        self.train_info.setdefault(key, (tag, []))[1].append(value)
 
     def train_policy_mini_batch(self, samples):
         """Optimizes the policy based on the PPO algorithm
