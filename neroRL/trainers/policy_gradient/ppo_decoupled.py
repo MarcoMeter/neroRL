@@ -75,12 +75,11 @@ class DecoupledPPOTrainer(BaseTrainer):
     def train(self):
         self.train_info = {}
 
+        # Launch threads for training the actor and critic model simultaenously
         threads = [Thread(target = self.train_policy, daemon = True), Thread(target = self.train_value, daemon = True)]
-        
         for thread in threads:
             thread.start()
-
-        # Wait for all of them to finish
+        # Wait for the threads to be done
         for thread in threads:
             thread.join()
         
@@ -88,7 +87,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         for key, (tag, values) in self.train_info.items():
             self.train_info[key] = (tag, np.mean(values))
 
-        # Format specific values for logging inside the base class
+        # Format specific values for logging that is done inside the base class
         if self.use_daac:
             formatted_string = "loss={:.3f} a_losss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
                 self.train_info["loss"][1], self.train_info["advantage_loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1])
