@@ -101,6 +101,7 @@ class YamlParser:
             "value_update_interval": 1,
             "max_policy_grad_norm": 0.5,
             "max_value_grad_norm": 0.5,
+            "run_threaded": True,
             "policy_learning_rate_schedule": {"initial": 3.0e-4},
             "value_learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},

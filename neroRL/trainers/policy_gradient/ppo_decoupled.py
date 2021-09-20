@@ -41,6 +41,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         assert (batch_size % self.n_value_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
         self.pi_max_grad_norm = configs["trainer"]["max_policy_grad_norm"]
         self.v_max_grad_norm = configs["trainer"]["max_value_grad_norm"]
+        self.run_threaded = configs["trainer"]["run_threaded"]
         if self.use_daac:
             self.adv_coefficient = configs["trainer"]["DAAC"]["adv_coefficient"]
         # Decaying hyperparameter schedules
@@ -75,13 +76,17 @@ class DecoupledPPOTrainer(BaseTrainer):
     def train(self):
         self.train_info = {}
 
-        # Launch threads for training the actor and critic model simultaenously
-        threads = [Thread(target = self.train_policy, daemon = True), Thread(target = self.train_value, daemon = True)]
-        for thread in threads:
-            thread.start()
-        # Wait for the threads to be done
-        for thread in threads:
-            thread.join()
+        if self.run_threaded:
+            # Launch threads for training the actor and critic model simultaenously
+            threads = [Thread(target = self.train_policy, daemon = True), Thread(target = self.train_value, daemon = True)]
+            for thread in threads:
+                thread.start()
+            # Wait for the threads to be done
+            for thread in threads:
+                thread.join()
+        else:
+            self.train_policy()
+            self.train_value()
         
         # Calculate mean of the collected training statistics
         for key, (tag, values) in self.train_info.items():
