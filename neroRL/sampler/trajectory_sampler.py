@@ -108,12 +108,10 @@ class TrajectorySampler():
                 log_probs = []
                 for action_branch in policy:
                     action = action_branch.sample()
-                    actions.append(action.cpu().data.numpy())
-                    log_probs.append(action_branch.log_prob(action).cpu().data.numpy())
-                actions = np.transpose(actions)
-                log_probs = np.transpose(log_probs)
-                self.buffer.actions[:, t] = torch.tensor(actions)
-                self.buffer.log_probs[:, t] = torch.tensor(log_probs)
+                    actions.append(action)
+                    log_probs.append(action_branch.log_prob(action))
+                self.buffer.actions[:, t] = torch.cat(actions).unsqueeze(1)
+                self.buffer.log_probs[:, t] = torch.cat(log_probs).unsqueeze(1)
 
             # Execute actions
             for w, worker in enumerate(self.workers):
