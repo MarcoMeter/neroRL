@@ -110,8 +110,8 @@ class TrajectorySampler():
                     action = action_branch.sample()
                     actions.append(action)
                     log_probs.append(action_branch.log_prob(action))
-                self.buffer.actions[:, t] = torch.cat(actions).unsqueeze(1)
-                self.buffer.log_probs[:, t] = torch.cat(log_probs).unsqueeze(1)
+                self.buffer.actions[:, t] = torch.stack(actions, dim=1)
+                self.buffer.log_probs[:, t] = torch.stack(log_probs, dim=1)
 
             # Execute actions
             for w, worker in enumerate(self.workers):
