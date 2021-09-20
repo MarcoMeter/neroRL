@@ -85,7 +85,7 @@ class AdvantageEstimator(Module):
         self.advantage = nn.Linear(in_features=in_features + self.total_num_actions, out_features=1)
         nn.init.orthogonal_(self.advantage.weight, 0.01)
 
-    def forward(self, h, actions, device):
+    def forward(self, h, actions):
         """
         Arguments:
             h {toch.tensor} -- The fed input data
@@ -96,7 +96,7 @@ class AdvantageEstimator(Module):
             {torch.tensor} -- Estimated advantage function
         """
         if actions is None:
-            one_hot_actions = torch.zeros(h.shape[0], self.total_num_actions).to(device)
+            one_hot_actions = torch.zeros(h.shape[0], self.total_num_actions).to(next(self.parameters()).device)
             h = torch.cat((h, one_hot_actions), dim=1)
         else:
             for i in range(len(self.action_space_shape)):

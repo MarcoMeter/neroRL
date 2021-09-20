@@ -84,7 +84,6 @@ class DecoupledPPOTrainer(BaseTrainer):
         for thread in threads:
             thread.join()
         
-
         # Calculate mean of the collected training statistics
         for key, (tag, values) in self.train_info.items():
             self.train_info[key] = (tag, np.mean(values))
@@ -149,7 +148,6 @@ class DecoupledPPOTrainer(BaseTrainer):
         policy, _, gae = self.model.forward_actor(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     actor_recurrent_cell,
-                                    self.device,
                                     self.sampler.buffer.actual_sequence_length,
                                     samples["actions"])
 
@@ -228,7 +226,6 @@ class DecoupledPPOTrainer(BaseTrainer):
         value, _ = self.model.forward_critic(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     critic_recurrent_cell,
-                                    self.device,
                                     self.sampler.buffer.actual_sequence_length)
 
         sampled_return = samples["values"] + samples["advantages"]

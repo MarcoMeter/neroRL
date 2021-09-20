@@ -96,8 +96,11 @@ class TrajectorySampler():
                         self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0)
                         self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0)
 
-                # Forward the model to retrieve the policy (making decisions), the states' value of the value function and the recurrent hidden states (if available)
-                policy, value, self.recurrent_cell, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
+                # Forward the model to retrieve the policy (making decisions), 
+                # the states' value of the value function and the recurrent hidden states (if available)
+                vis_obs_batch = torch.tensor(self.vis_obs, device=device) if self.vis_obs is not None else None
+                vec_obs_batch = torch.tensor(self.vec_obs, device=device) if self.vec_obs is not None else None
+                policy, value, self.recurrent_cell, _ = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
                 self.buffer.values[:, t] = value.data
 
                 # Sample actions from each individual policy branch
@@ -151,14 +154,14 @@ class TrajectorySampler():
         Returns:
             {np.ndarray} -- The last visual observation of the sampling process, which can be used to calculate the advantage.
         """
-        return self.vis_obs
+        return torch.tensor(self.vis_obs, device=self.device) if self.vis_obs is not None else None
 
     def last_vec_obs(self) -> np.ndarray:
         """
         Returns:
             {np.ndarray} -- The last vector observation of the sampling process, which can be used to calculate the advantage.
         """
-        return self.vec_obs
+        return torch.tensor(self.vec_obs, device=self.device) if self.vec_obs is not None else None
 
     def last_recurrent_cell(self) -> tuple:
         """

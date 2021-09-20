@@ -221,5 +221,5 @@ class ActorCriticBase(Module):
         Returns:
             {int} -- Number of output features returned by the utilized convolutional layers
         """
-        o = vis_encoder(torch.zeros(1, *shape), "cpu")
+        o = vis_encoder(torch.zeros(1, *shape))
         return int(np.prod(o.size()))
