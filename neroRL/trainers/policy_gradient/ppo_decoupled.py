@@ -75,7 +75,7 @@ class DecoupledPPOTrainer(BaseTrainer):
     def train(self):
         self.train_info = {}
 
-        threads = [Thread(target = self.train_policy), Thread(target = self.train_value)]
+        threads = [Thread(target = self.train_policy, daemon = True), Thread(target = self.train_value, daemon = True)]
         
         for thread in threads:
             thread.start()
