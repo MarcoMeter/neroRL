@@ -193,7 +193,7 @@ class DecoupledPPOTrainer(BaseTrainer):
 
         # Monitor additional training statistics
         approx_kl = masked_mean((ratio - 1.0) - log_ratio, samples["loss_mask"]) # http://joschu.net/blog/kl-approx.html
-        clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).type(torch.FloatTensor).mean()
+        clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).float().mean()
 
         out = {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),

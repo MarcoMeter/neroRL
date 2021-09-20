@@ -62,7 +62,7 @@ class Buffer():
             mask = 1.0 - self.dones[:, t] # mask value on a terminal state (i.e. done)
             last_value = last_value * mask
             last_advantage = last_advantage * mask
-            delta = torch.FloatTensor(self.rewards[:, t]) + gamma * last_value - self.values[:, t]
+            delta = torch.tensor(self.rewards[:, t]) + gamma * last_value - self.values[:, t]
             last_advantage = delta + gamma * lamda * last_advantage
             self.advantages[:, t] = last_advantage
             last_value = self.values[:, t]

@@ -85,9 +85,9 @@ class TrajectorySampler():
             with torch.no_grad():
                 # Save the initial observations and hidden states
                 if self.vis_obs is not None:
-                    self.buffer.vis_obs[:, t] = torch.FloatTensor(self.vis_obs)
+                    self.buffer.vis_obs[:, t] = torch.tensor(self.vis_obs)
                 if self.vec_obs is not None:
-                    self.buffer.vec_obs[:, t] = torch.FloatTensor(self.vec_obs)
+                    self.buffer.vec_obs[:, t] = torch.tensor(self.vec_obs)
                 # Store recurrent cell states inside the buffer
                 if self.recurrence is not None:
                     if self.recurrence["layer_type"] == "gru":
@@ -112,8 +112,8 @@ class TrajectorySampler():
                     log_probs.append(action_branch.log_prob(action).cpu().data.numpy())
                 actions = np.transpose(actions)
                 log_probs = np.transpose(log_probs)
-                self.buffer.actions[:, t] = torch.LongTensor(actions)
-                self.buffer.log_probs[:, t] = torch.FloatTensor(log_probs)
+                self.buffer.actions[:, t] = torch.tensor(actions)
+                self.buffer.log_probs[:, t] = torch.tensor(log_probs)
 
             # Execute actions
             for w, worker in enumerate(self.workers):
