@@ -74,6 +74,8 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Unpack recurrent cell        
         if self.recurrence is not None:
             (actor_recurrent_cell, critic_recurrent_cell) = self.unpack_recurrent_cell(recurrent_cell)
+        else:
+            actor_recurrent_cell, critic_recurrent_cell = None, None
 
         # Feed actor model
         pi, actor_recurrent_cell, gae = self.forward_actor(vis_obs, vec_obs, actor_recurrent_cell, sequence_length, actions)

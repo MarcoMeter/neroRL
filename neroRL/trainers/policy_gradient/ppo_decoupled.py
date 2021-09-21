@@ -148,6 +148,8 @@ class DecoupledPPOTrainer(BaseTrainer):
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
             (actor_recurrent_cell, _) = self.model.unpack_recurrent_cell(recurrent_cell)
+        else:
+            actor_recurrent_cell = None
         
         policy, _, gae = self.model.forward_actor(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
@@ -226,6 +228,8 @@ class DecoupledPPOTrainer(BaseTrainer):
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
             (_, critic_recurrent_cell) = self.model.unpack_recurrent_cell(recurrent_cell)
+        else:
+            critic_recurrent_cell = None
         
         value, _ = self.model.forward_critic(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
