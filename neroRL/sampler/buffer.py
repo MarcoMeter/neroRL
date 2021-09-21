@@ -57,15 +57,17 @@ class Buffer():
             gamma {float} -- Discount factor
             lamda {float} -- GAE regularization parameter
         """
-        last_advantage = 0
-        for t in reversed(range(self.worker_steps)):
-            mask = 1.0 - self.dones[:, t] # mask value on a terminal state (i.e. done)
-            last_value = last_value * mask
-            last_advantage = last_advantage * mask
-            delta = torch.tensor(self.rewards[:, t]) + gamma * last_value - self.values[:, t]
-            last_advantage = delta + gamma * lamda * last_advantage
-            self.advantages[:, t] = last_advantage
-            last_value = self.values[:, t]
+        with torch.no_grad():
+            last_advantage = 0
+            mask = torch.tensor(self.dones).logical_not() # mask values on terminal states
+            rewards = torch.tensor(self.rewards)
+            for t in reversed(range(self.worker_steps)):
+                last_value = last_value * mask[:, t]
+                last_advantage = last_advantage * mask[:, t]
+                delta = rewards[:, t] + gamma * last_value - self.values[:, t]
+                last_advantage = delta + gamma * lamda * last_advantage
+                self.advantages[:, t] = last_advantage
+                last_value = self.values[:, t]
 
     def prepare_batch_dict(self):
         """

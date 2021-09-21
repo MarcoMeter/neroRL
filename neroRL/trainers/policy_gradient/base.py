@@ -29,7 +29,11 @@ class BaseTrainer():
 
         # Determine cuda availability
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+        if torch.cuda.is_available():
+            torch.set_default_tensor_type("torch.cuda.FloatTensor")
+        else:
+            torch.set_default_tensor_type("torch.FloatTensor")
+        
         # Create a monitor that is used for logging and monitoring training statistics (tensorboard)
         self.monitor = Monitor(out_path, run_id, worker_id)
         # Add hyperparameters to the tensorboard summary
@@ -124,7 +128,7 @@ class BaseTrainer():
 
             # 3.: Calculate advantages
             _, last_value, _, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
-            self.sampler.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
+            self.sampler.buffer.calc_advantages(last_value, self.gamma, self.lamda)
             
             # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
             if self.recurrence:
