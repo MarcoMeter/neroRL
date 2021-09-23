@@ -97,7 +97,6 @@ class PPOTrainer(BaseTrainer):
         policy, value, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
-                                    self.device,
                                     self.sampler.buffer.actual_sequence_length)
         
         # Policy Loss
@@ -141,7 +140,7 @@ class PPOTrainer(BaseTrainer):
 
         # Monitor additional training statistics
         approx_kl = masked_mean((ratio - 1.0) - log_ratio, samples["loss_mask"]) # http://joschu.net/blog/kl-approx.html
-        clip_fraction = (abs((ratio - 1.0)) > self.clip_range).type(torch.FloatTensor).mean()
+        clip_fraction = (abs((ratio - 1.0)) > self.clip_range).float().mean()
 
         if self.model.share_parameters:
             modules = self.model.actor_critic_modules

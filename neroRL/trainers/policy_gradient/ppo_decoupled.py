@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch import optim
+from threading import Thread
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
@@ -40,6 +41,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         assert (batch_size % self.n_value_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
         self.pi_max_grad_norm = configs["trainer"]["max_policy_grad_norm"]
         self.v_max_grad_norm = configs["trainer"]["max_value_grad_norm"]
+        self.run_threaded = configs["trainer"]["run_threaded"]
         if self.use_daac:
             self.adv_coefficient = configs["trainer"]["DAAC"]["adv_coefficient"]
         # Decaying hyperparameter schedules
@@ -72,8 +74,35 @@ class DecoupledPPOTrainer(BaseTrainer):
         return model
 
     def train(self):
-        train_info = {}
+        self.train_info = {}
 
+        if self.run_threaded:
+            # Launch threads for training the actor and critic model simultaenously
+            threads = [Thread(target = self.train_policy, daemon = True), Thread(target = self.train_value, daemon = True)]
+            for thread in threads:
+                thread.start()
+            # Wait for the threads to be done
+            for thread in threads:
+                thread.join()
+        else:
+            self.train_policy()
+            self.train_value()
+        
+        # Calculate mean of the collected training statistics
+        for key, (tag, values) in self.train_info.items():
+            self.train_info[key] = (tag, np.mean(values))
+
+        # Format specific values for logging that is done inside the base class
+        if self.use_daac:
+            formatted_string = "loss={:.3f} a_losss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
+                self.train_info["loss"][1], self.train_info["advantage_loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1])
+        else:
+            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
+                self.train_info["loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1])
+
+        return self.train_info, formatted_string
+
+    def train_policy(self):
         # Train the actor model using mini batches
         for _ in range(self.num_policy_epochs):
             # Retrieve the to be trained mini_batches via a generator
@@ -87,8 +116,9 @@ class DecoupledPPOTrainer(BaseTrainer):
                 res = self.train_policy_mini_batch(mini_batch)
                 # Collect all values of the training procedure in a list
                 for key, (tag, value) in res.items():
-                    train_info.setdefault(key, (tag, []))[1].append(value)
+                    self.train_info.setdefault(key, (tag, []))[1].append(value)
 
+    def train_value(self):
         # Train the value function using the whole batch of data instead of mini batches
         if self.currentUpdate % self.value_update_interval == 0:
             for _ in range(self.num_value_epochs):
@@ -99,17 +129,7 @@ class DecoupledPPOTrainer(BaseTrainer):
                 for batch in batch_generator:
                     res = self.train_value_mini_batch(batch)
                     for key, (tag, value) in res.items():
-                        train_info.setdefault(key, (tag, []))[1].append(value)
-
-        # Calculate mean of the collected training statistics
-        for key, (tag, values) in train_info.items():
-            train_info[key] = (tag, np.mean(values))
-
-        # Format specific values for logging inside the base class
-        formatted_string = "a_loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
-            train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
-
-        return train_info, formatted_string
+                        self.train_info.setdefault(key, (tag, []))[1].append(value)
 
     def train_policy_mini_batch(self, samples):
         """Optimizes the policy based on the PPO algorithm
@@ -127,11 +147,13 @@ class DecoupledPPOTrainer(BaseTrainer):
                 recurrent_cell = samples["hxs"].unsqueeze(0)
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+            (actor_recurrent_cell, _) = self.model.unpack_recurrent_cell(recurrent_cell)
+        else:
+            actor_recurrent_cell = None
         
-        policy, _, _, gae = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
+        policy, _, gae = self.model.forward_actor(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
-                                    recurrent_cell,
-                                    self.device,
+                                    actor_recurrent_cell,
                                     self.sampler.buffer.actual_sequence_length,
                                     samples["actions"])
 
@@ -177,7 +199,7 @@ class DecoupledPPOTrainer(BaseTrainer):
 
         # Monitor additional training statistics
         approx_kl = masked_mean((ratio - 1.0) - log_ratio, samples["loss_mask"]) # http://joschu.net/blog/kl-approx.html
-        clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).type(torch.FloatTensor).mean()
+        clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).float().mean()
 
         out = {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
@@ -205,11 +227,13 @@ class DecoupledPPOTrainer(BaseTrainer):
                 recurrent_cell = samples["hxs"].unsqueeze(0)
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+            (_, critic_recurrent_cell) = self.model.unpack_recurrent_cell(recurrent_cell)
+        else:
+            critic_recurrent_cell = None
         
-        _, value, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
+        value, _ = self.model.forward_critic(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
-                                    recurrent_cell,
-                                    self.device,
+                                    critic_recurrent_cell,
                                     self.sampler.buffer.actual_sequence_length)
 
         sampled_return = samples["values"] + samples["advantages"]

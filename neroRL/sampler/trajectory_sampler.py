@@ -85,36 +85,38 @@ class TrajectorySampler():
             with torch.no_grad():
                 # Save the initial observations and hidden states
                 if self.vis_obs is not None:
-                    self.buffer.vis_obs[:, t] = self.vis_obs
+                    self.buffer.vis_obs[:, t] = torch.tensor(self.vis_obs)
                 if self.vec_obs is not None:
-                    self.buffer.vec_obs[:, t] = self.vec_obs
+                    self.buffer.vec_obs[:, t] = torch.tensor(self.vec_obs)
                 # Store recurrent cell states inside the buffer
                 if self.recurrence is not None:
                     if self.recurrence["layer_type"] == "gru":
-                        self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0).cpu().numpy()
+                        self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0)
                     elif self.recurrence["layer_type"] == "lstm":
-                        self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0).cpu().numpy()
-                        self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0).cpu().numpy()
+                        self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0)
+                        self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0)
 
-                # Forward the model to retrieve the policy (making decisions), the states' value of the value function and the recurrent hidden states (if available)
-                policy, value, self.recurrent_cell, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)
-                self.buffer.values[:, t] = value.cpu().data.numpy()
+                # Forward the model to retrieve the policy (making decisions), 
+                # the states' value of the value function and the recurrent hidden states (if available)
+                vis_obs_batch = torch.tensor(self.vis_obs) if self.vis_obs is not None else None
+                vec_obs_batch = torch.tensor(self.vec_obs) if self.vec_obs is not None else None
+                policy, value, self.recurrent_cell, _ = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
+                self.buffer.values[:, t] = value.data
 
                 # Sample actions from each individual policy branch
                 actions = []
                 log_probs = []
                 for action_branch in policy:
                     action = action_branch.sample()
-                    actions.append(action.cpu().data.numpy())
-                    log_probs.append(action_branch.log_prob(action).cpu().data.numpy())
-                actions = np.transpose(actions)
-                log_probs = np.transpose(log_probs)
-                self.buffer.actions[:, t] = actions
-                self.buffer.log_probs[:, t] = log_probs
+                    actions.append(action)
+                    log_probs.append(action_branch.log_prob(action))
+                self.buffer.actions[:, t] = torch.stack(actions, dim=1)
+                self.buffer.log_probs[:, t] = torch.stack(log_probs, dim=1)
 
             # Execute actions
+            actions = self.buffer.actions[:, t].cpu().numpy() # send actions as batch to the CPU, to save IO time
             for w, worker in enumerate(self.workers):
-                worker.child.send(("step", self.buffer.actions[w, t]))
+                worker.child.send(("step", actions[w]))
 
             # Retrieve results
             for w, worker in enumerate(self.workers):
@@ -151,14 +153,14 @@ class TrajectorySampler():
         Returns:
             {np.ndarray} -- The last visual observation of the sampling process, which can be used to calculate the advantage.
         """
-        return self.vis_obs
+        return torch.tensor(self.vis_obs) if self.vis_obs is not None else None
 
     def last_vec_obs(self) -> np.ndarray:
         """
         Returns:
             {np.ndarray} -- The last vector observation of the sampling process, which can be used to calculate the advantage.
         """
-        return self.vec_obs
+        return torch.tensor(self.vec_obs) if self.vec_obs is not None else None
 
     def last_recurrent_cell(self) -> tuple:
         """

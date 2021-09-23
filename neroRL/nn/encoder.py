@@ -48,7 +48,7 @@ class CNNEncoder(Module):
         # Compute the output size of the encoder
         self.conv_enc_size = self.get_enc_output(vis_obs_shape)
 
-    def forward(self, vis_obs, device):
+    def forward(self, vis_obs):
         """Forward pass of the model
 
         Arguments:
@@ -58,10 +58,7 @@ class CNNEncoder(Module):
         Returns:
             {torch.tensor} -- Feature tensor
         """
-        h: torch.Tensor
-
         # Forward observation encoder
-        vis_obs = torch.tensor(vis_obs, dtype=torch.float32, device=device)      # Convert vis_obs to tensor
         # Propagate input through the visual encoder
         h = self.activ_fn(self.conv1(vis_obs))
         h = self.activ_fn(self.conv2(h))

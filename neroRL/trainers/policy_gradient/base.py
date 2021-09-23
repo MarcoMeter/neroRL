@@ -29,7 +29,11 @@ class BaseTrainer():
 
         # Determine cuda availability
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+        if torch.cuda.is_available():
+            torch.set_default_tensor_type("torch.cuda.FloatTensor")
+        else:
+            torch.set_default_tensor_type("torch.FloatTensor")
+        
         # Create a monitor that is used for logging and monitoring training statistics (tensorboard)
         self.monitor = Monitor(out_path, run_id, worker_id)
         # Add hyperparameters to the tensorboard summary
@@ -123,14 +127,14 @@ class BaseTrainer():
             sample_episode_info = self.sampler.sample(self.device)
 
             # 3.: Calculate advantages
-            _, last_value, _, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell(), self.device)
-            self.sampler.buffer.calc_advantages(last_value.cpu().data.numpy(), self.gamma, self.lamda)
+            _, last_value, _, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
+            self.sampler.buffer.calc_advantages(last_value, self.gamma, self.lamda)
             
             # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
             if self.recurrence:
                 self.model.set_mean_recurrent_cell_states(
-                        np.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0),
-                        np.mean(self.sampler.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.cxs.shape[2:]), axis=0))
+                        torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0),
+                        torch.mean(self.sampler.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.cxs.shape[2:]), axis=0))
 
             # 5.: Prepare the sampled data inside the buffer
             self.sampler.buffer.prepare_batch_dict()
@@ -157,13 +161,13 @@ class BaseTrainer():
                 self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
                     (" value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}")).format(
                     update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
-                    episode_result["length_mean"], episode_result["length_std"], np.mean(self.sampler.buffer.values), np.std(self.sampler.buffer.values),
-                    np.mean(self.sampler.buffer.advantages), np.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
+                    episode_result["length_mean"], episode_result["length_std"], torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
+                    torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
                     " " + formatted_string)
             else:
                 self.monitor.log("{:4} sec={:2} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
-                    update, update_duration, np.mean(self.sampler.buffer.values), np.std(self.sampler.buffer.values),
-                    np.mean(self.sampler.buffer.advantages), np.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
+                    update, update_duration, torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
+                    torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
                     " " + formatted_string)
 
             # 8.: Evaluate model
@@ -179,8 +183,8 @@ class BaseTrainer():
             training_stats = {
             **training_stats,
             **decayed_hyperparameters,
-            "advantage_mean": (Tag.EPISODE, np.mean(self.sampler.buffer.advantages)),
-            "value_mean": (Tag.EPISODE, np.mean(self.sampler.buffer.values)),
+            "advantage_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.advantages)),
+            "value_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.values)),
             "sequence_length": (Tag.OTHER, self.sampler.buffer.actual_sequence_length),
             }
 

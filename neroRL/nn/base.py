@@ -103,25 +103,25 @@ class ActorCriticBase(Module):
         """
         hxs, cxs = None, None
         if self.recurrence["hidden_state_init"] == "zero":
-            hxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device).unsqueeze(0)
+            hxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"]).unsqueeze(0)
             if self.recurrence["layer_type"] == "lstm":
-                cxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device).unsqueeze(0)
+                cxs = torch.zeros((num_sequences), self.recurrence["hidden_state_size"]).unsqueeze(0)
         elif self.recurrence["hidden_state_init"] == "one":
-            hxs = torch.ones((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device).unsqueeze(0)
+            hxs = torch.ones((num_sequences), self.recurrence["hidden_state_size"]).unsqueeze(0)
             if self.recurrence["layer_type"] == "lstm":
-                cxs = torch.ones((num_sequences), self.recurrence["hidden_state_size"], dtype=torch.float32, device=device).unsqueeze(0)
+                cxs = torch.ones((num_sequences), self.recurrence["hidden_state_size"]).unsqueeze(0)
         elif self.recurrence["hidden_state_init"] == "mean":
             mean = [self.mean_hxs for i in range(num_sequences)]
-            hxs = torch.tensor(mean, device=device).unsqueeze(0)
+            hxs = torch.tensor(mean).unsqueeze(0)
             if self.recurrence["layer_type"] == "lstm":
                 mean = [self.mean_cxs for i in range(num_sequences)]
-                cxs = torch.tensor(mean, device=device).unsqueeze(0)
+                cxs = torch.tensor(mean).unsqueeze(0)
         elif self.recurrence["hidden_state_init"] == "sample":
             mean = [self.mean_hxs for i in range(num_sequences)]
-            hxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["hidden_state_size"])).to(device)
+            hxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["hidden_state_size"]))
             if self.recurrence["layer_type"] == "lstm":
                 mean = [self.mean_cxs for i in range(num_sequences)]
-                cxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["hidden_state_size"])).to(device)
+                cxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["hidden_state_size"]))
         return hxs, cxs
 
     def set_mean_recurrent_cell_states(self, mean_hxs, mean_cxs):
@@ -221,5 +221,5 @@ class ActorCriticBase(Module):
         Returns:
             {int} -- Number of output features returned by the utilized convolutional layers
         """
-        o = vis_encoder(torch.zeros(1, *shape), "cpu")
+        o = vis_encoder(torch.zeros(1, *shape))
         return int(np.prod(o.size()))

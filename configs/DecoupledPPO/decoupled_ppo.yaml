@@ -118,6 +118,9 @@ trainer:
   max_policy_grad_norm: 0.5
   # Strength of clipping the norm of the value loss gradients
   max_value_grad_norm: 0.5
+  # Whether the optimization of the policy and the value should be done simultaneously
+  # This should be set to False if not enough GPU memory is available
+  run_threaded: True
   # Polynomial Decay Schedules
   # Policy Learning Rate
   policy_learning_rate_schedule:
