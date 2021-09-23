@@ -32,8 +32,7 @@ def compute_gradient_stats(modules_dict, prefix = ""):
         if module is not None:
             grads = []
             for param in module.parameters():
-                grad = param.grad.data.cpu()
-                grads.append(grad.view(-1))
+                grads.append(param.grad.view(-1))
             results[module_name + "_norm"] = (Tag.GRADIENT_NORM, module.grad_norm())
             # results[module_name + "_mean"] = (Tag.GRADIENT_MEAN, module.grad_mean())
             all_grads = all_grads + grads
