@@ -63,7 +63,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
             recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer (None if not available)
             sequence_length {int} -- Length of the fed sequences
-            actions {toch.tensor} -- The actions of the agent
+            actions {torch.tensor} -- The actions of the agent
 
         Returns:
             {list} -- Policy: List featuring categorical distributions respectively for each policy branch

@@ -101,7 +101,7 @@ class AdvantageEstimator(Module):
         else:
             for i in range(len(self.action_space_shape)):
                 action, num_actions = actions[:, i], self.action_space_shape[i]
-                one_hot_actions = F.one_hot(action.long().squeeze(-1), num_actions).float()
+                one_hot_actions = F.one_hot(action.squeeze(-1), num_actions).float()
                 h = torch.cat((h, one_hot_actions), dim=1)
         
         return self.advantage(h).reshape(-1)
