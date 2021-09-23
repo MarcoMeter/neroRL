@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+
 class Buffer():
     """
     The buffer stores and prepares the training data. It supports recurrent policies.
@@ -28,24 +29,24 @@ class Buffer():
         self.actions = torch.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=torch.long)
         self.dones = np.zeros((num_workers, worker_steps), dtype=np.bool)
         if visual_observation_space is not None:
-            self.vis_obs = torch.zeros((num_workers, worker_steps) + visual_observation_space.shape, dtype=torch.float32)
+            self.vis_obs = torch.zeros((num_workers, worker_steps) + visual_observation_space.shape)
         else:
             self.vis_obs = None
         if vector_observation_space is not None:
-            self.vec_obs = torch.zeros((num_workers, worker_steps,) + vector_observation_space, dtype=torch.float32)
+            self.vec_obs = torch.zeros((num_workers, worker_steps,) + vector_observation_space)
         else:
             self.vec_obs = None
         
         if share_parameters:
-            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=torch.float32) if recurrence is not None else None
-            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=torch.float32) if recurrence is not None else None
+            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"])) if recurrence is not None else None
+            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"])) if recurrence is not None else None
         else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
-            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=torch.float32) if recurrence is not None else None
-            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2), dtype=torch.float32) if recurrence is not None else None
+            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2)) if recurrence is not None else None
+            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2)) if recurrence is not None else None
 
-        self.log_probs = torch.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=torch.float32)
-        self.values = torch.zeros((num_workers, worker_steps), dtype=torch.float32)
-        self.advantages = torch.zeros((num_workers, worker_steps), dtype=torch.float32)
+        self.log_probs = torch.zeros((num_workers, worker_steps, len(action_space_shape)))
+        self.values = torch.zeros((num_workers, worker_steps))
+        self.advantages = torch.zeros((num_workers, worker_steps))
         self.num_sequences = 0
         self.actual_sequence_length = 0
 
@@ -82,7 +83,7 @@ class Buffer():
             "advantages": self.advantages,
             # The loss mask is used for masking the padding while computing the loss function.
             # This is only of significance while using recurrence.
-            "loss_mask": torch.ones((self.num_workers, self.worker_steps), dtype=torch.float32)
+            "loss_mask": torch.ones((self.num_workers, self.worker_steps))
         }
 
     	# Add available observations to the dictionary

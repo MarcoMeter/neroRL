@@ -98,8 +98,8 @@ class TrajectorySampler():
 
                 # Forward the model to retrieve the policy (making decisions), 
                 # the states' value of the value function and the recurrent hidden states (if available)
-                vis_obs_batch = torch.tensor(self.vis_obs, device=device) if self.vis_obs is not None else None
-                vec_obs_batch = torch.tensor(self.vec_obs, device=device) if self.vec_obs is not None else None
+                vis_obs_batch = torch.tensor(self.vis_obs) if self.vis_obs is not None else None
+                vec_obs_batch = torch.tensor(self.vec_obs) if self.vec_obs is not None else None
                 policy, value, self.recurrent_cell, _ = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
                 self.buffer.values[:, t] = value.data
 
@@ -114,8 +114,9 @@ class TrajectorySampler():
                 self.buffer.log_probs[:, t] = torch.stack(log_probs, dim=1)
 
             # Execute actions
+            actions = self.buffer.actions[:, t].cpu().numpy() # send actions as batch to the CPU, to save IO time
             for w, worker in enumerate(self.workers):
-                worker.child.send(("step", self.buffer.actions[w, t].cpu().numpy()))
+                worker.child.send(("step", actions[w]))
 
             # Retrieve results
             for w, worker in enumerate(self.workers):
@@ -152,14 +153,14 @@ class TrajectorySampler():
         Returns:
             {np.ndarray} -- The last visual observation of the sampling process, which can be used to calculate the advantage.
         """
-        return torch.tensor(self.vis_obs, device=self.device) if self.vis_obs is not None else None
+        return torch.tensor(self.vis_obs) if self.vis_obs is not None else None
 
     def last_vec_obs(self) -> np.ndarray:
         """
         Returns:
             {np.ndarray} -- The last vector observation of the sampling process, which can be used to calculate the advantage.
         """
-        return torch.tensor(self.vec_obs, device=self.device) if self.vec_obs is not None else None
+        return torch.tensor(self.vec_obs) if self.vec_obs is not None else None
 
     def last_recurrent_cell(self) -> tuple:
         """
