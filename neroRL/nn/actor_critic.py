@@ -137,7 +137,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
-            h_critic_residual = h_critic if self.actor_residual else 0
+            h_critic_residual = h_critic if self.critic_residual else 0
             h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
 
             # Add residual connection
