@@ -39,22 +39,34 @@ class ProcgenWrapper(Env):
             record_trajectory {bool} -- Whether to record the trajectory of an entire episode. This can be used for video recording. (default: {False})
         """
         # Set default reset parameters if none were provided
+        self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "paint_vel_info": False,
+                                        "use_generated_assets": False, "center_agent": False, "use_sequential_levels": False,
+                                        "distribution_mode": "hard", "use_backgrounds": True, "restrict_themes": False,
+                                        "use_monochrome_assets": False}
+
+        # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
+            reset_params = self._default_reset_params
         else:
-            self._default_reset_params = reset_params
+            reset_params = reset_params
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
 
         # Initialize environment
         self._env_name = env_name
-        if self._realtime_mode:
-            self._env = gym.make(self._env_name, start_level = self._default_reset_params["start-seed"],
-                            num_levels = self._default_reset_params["num-seeds"], render_mode = "human")
-        else:
-            self._env = gym.make(self._env_name, start_level = self._default_reset_params["start-seed"],
-                            num_levels = self._default_reset_params["num-seeds"])
+        self._env = gym.make(self._env_name,
+                            render_mode = "human" if self._realtime_mode else None,
+                            start_level = reset_params["start-seed"],
+                            num_levels = reset_params["num-seeds"],
+                            paint_vel_info = reset_params["paint_vel_info"],
+                            use_generated_assets = reset_params["use_generated_assets"],
+                            center_agent = reset_params["center_agent"],
+                            use_sequential_levels = reset_params["use_sequential_levels"],
+                            distribution_mode = reset_params["distribution_mode"],
+                            use_backgrounds = reset_params["use_backgrounds"],
+                            restrict_themes = reset_params["restrict_themes"],
+                            use_monochrome_assets = reset_params["use_monochrome_assets"])
 
         # Prepare observation space
         self._visual_observation_space = self._env.observation_space
@@ -108,7 +120,18 @@ class ProcgenWrapper(Env):
         # If new reset parameters were specified, Procgen has to be restarted
         if not self._default_reset_params == reset_params:
             self._env.close()
-            self._env = gym.make(self._env_name, start_level = reset_params["start-seed"], num_levels = reset_params["num-seeds"])
+            self._env = gym.make(self._env_name,
+                            render_mode = "human" if self._realtime_mode else None,
+                            start_level = reset_params["start-seed"],
+                            num_levels = reset_params["num-seeds"],
+                            paint_vel_info = reset_params["paint_vel_info"],
+                            use_generated_assets = reset_params["use_generated_assets"],
+                            center_agent = reset_params["center_agent"],
+                            use_sequential_levels = reset_params["use_sequential_levels"],
+                            distribution_mode = reset_params["distribution_mode"],
+                            use_backgrounds = reset_params["use_backgrounds"],
+                            restrict_themes = reset_params["restrict_themes"],
+                            use_monochrome_assets = reset_params["use_monochrome_assets"])
         # Track rewards of an entire episode
         self._rewards = []
         # Reset the environment and retrieve the initial observation
