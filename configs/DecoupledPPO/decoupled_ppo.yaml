@@ -40,6 +40,9 @@ model:
   activation: "relu"
   # Set the to be used encoder
   vis_encoder: "cnn"
+  # Wether actor, critic residual connections should be used for the recurrent layer. Note: If it's used then the input_size of the recurrent layer will match its output_size.
+  actor_residual: False
+  critic_residual: False
   recurrence:
     # Supported recurrent layers: gru, lstm
     layer_type: "lstm"
@@ -61,6 +64,7 @@ model:
   num_hidden_layers: 1
   # Number of hidden units
   num_hidden_units: 512
+
   
 ### EVALUATION CONFIG ###
 evaluation:

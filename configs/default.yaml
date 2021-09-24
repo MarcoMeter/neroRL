@@ -41,6 +41,9 @@ model:
   activation: "relu"
   # Set the to be used visual encoder
   vis_encoder: "cnn"
+  # residual
+  # Wether residual connections should be used for the recurrent layer. Note: If it's used then the input_size of the recurrent layer will match its output_size.
+  residual: False
   recurrence:
     # Supported recurrent layers: gru, lstm
     layer_type: "lstm"

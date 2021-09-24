@@ -22,6 +22,8 @@ model:
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
+  actor_residual: False
+  critic_residual: False
   recurrence:
     layer_type: "gru"
     sequence_length: 16
