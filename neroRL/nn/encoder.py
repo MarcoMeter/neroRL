@@ -166,7 +166,7 @@ class ResCNN(Module):
         return nn.Sequential(*layers)
 
     def apply_init_(self, modules):
-        """Initializes the weights like in the DAAC paper.
+        """Initializes the weights of a layer like in the DAAC paper.
 
         Arguments:
             modules {nn.Module}: The torch module
