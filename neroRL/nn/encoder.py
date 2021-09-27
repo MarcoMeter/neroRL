@@ -108,8 +108,6 @@ class ResCNN(Module):
         # Compute the output size of the encoder
         self.conv_enc_size = self.get_enc_output(vis_obs_shape)
 
-        self.fc = nn.Linear(self.conv_enc_size, hidden_size)
-
         self.apply_init_(self.modules())
 
     def forward(self, vis_obs):
@@ -126,11 +124,9 @@ class ResCNN(Module):
         # Propagate input through the visual encoder
         h = self.layer1(vis_obs)
         h = self.layer2(h)
-        h = self.layer3(h)
+        h = self.activ_fn(self.layer3(h))
         # Flatten the output of the convolutional layers
         h = h.reshape((-1, self.conv_enc_size))
-
-        h = self.activ_fn(self.fc(h))
 
         return h
 
@@ -183,13 +179,13 @@ class BasicConvBlock(nn.Module):
         self.conv2 = nn.Conv2d(n_channels, n_channels, kernel_size=3, stride=1, padding=(1,1))
         self.stride = stride
 
-    def forward(self, x):
-        identity = x
+    def forward(self, h):
+        h_identity = h
 
-        out = self.activ_fn(x)
-        out = self.conv1(out)
-        out = self.activ_fn(out)
-        out = self.conv2(out)
+        h = self.activ_fn(h)
+        h = self.conv1(h)
+        h = self.activ_fn(h)
+        h = self.conv2(h)
 
-        out += identity
-        return out
+        h = h + h_identity
+        return h
