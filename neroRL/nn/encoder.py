@@ -87,7 +87,7 @@ class ResCNN(Module):
     Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330
     """
     def __init__(self, vis_obs_space, config, activ_fn):
-        """Initializes a three layer convolutional neural network.
+        """Initializes a three layer convolutional based neural network.
 
         Arguments:
             config {dict} -- Model config
@@ -145,7 +145,7 @@ class ResCNN(Module):
 
     
     def _make_layer(self, in_channels, out_channels, stride=1):
-        """Creates a layer like in the DAAC paper.
+        """Creates a convolutinal based layer like in the DAAC paper.
 
         Arguments:
             in_channels {int} -- Number of channels in the input image
@@ -212,7 +212,7 @@ class BasicConvBlock(Module):
             {torch.tensor} -- Feature tensor
         """
         h_identity = h
-        
+
         h = self.activ_fn(h)
         h = self.conv1(h)
         h = self.activ_fn(h)
