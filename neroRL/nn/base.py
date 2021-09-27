@@ -166,7 +166,7 @@ class ActorCriticBase(Module):
         if config["vis_encoder"] == "cnn":
             return CNNEncoder(vis_obs_space, config, self.activ_fn)
         elif config["vis_encoder"] == "rescnn":
-            ResCNN(vis_obs_space, config, self.activ_fn)
+            return ResCNN(vis_obs_space, config, self.activ_fn)
 
     def create_vec_encoder(self, config, in_features, out_features):
         """Creates and returns a new instance of the vector encoder based on the model config.

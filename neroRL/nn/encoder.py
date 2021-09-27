@@ -105,10 +105,10 @@ class ResCNN(Module):
         self.layer2 = self._make_layer(channels[0], channels[1])
         self.layer3 = self._make_layer(channels[1], channels[2])
 
-        self.fc = self.activ_fn(nn.Linear(2048, hidden_size))
-
         # Compute the output size of the encoder
         self.conv_enc_size = self.get_enc_output(vis_obs_shape)
+
+        self.fc = nn.Linear(self.conv_enc_size, hidden_size)
 
         self.apply_init_(self.modules())
 
@@ -130,6 +130,8 @@ class ResCNN(Module):
         # Flatten the output of the convolutional layers
         h = h.reshape((-1, self.conv_enc_size))
 
+        h = self.activ_fn(self.fc(h))
+
         return h
 
     def get_enc_output(self, shape):
@@ -141,9 +143,9 @@ class ResCNN(Module):
         Returns:
             {int} -- Number of output features returned by the utilized encoder
         """
-        o = self.conv1(torch.zeros(1, *shape))
-        o = self.conv2(o)
-        o = self.conv3(o)
+        o = self.layer1(torch.zeros(1, *shape))
+        o = self.layer2(o)
+        o = self.layer3(o)
         return int(np.prod(o.size()))
 
     
@@ -180,10 +182,6 @@ class BasicConvBlock(nn.Module):
         self.activ_fn = activ_fn
         self.conv2 = nn.Conv2d(n_channels, n_channels, kernel_size=3, stride=1, padding=(1,1))
         self.stride = stride
-
-        self.apply_init_(self.modules())
-
-        self.train()
 
     def forward(self, x):
         identity = x
