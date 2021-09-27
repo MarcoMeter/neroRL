@@ -53,7 +53,6 @@ class CNNEncoder(Module):
 
         Arguments:
             vis_obs {numpy.ndarray/torch.tensor} -- Visual observation
-            device {torch.device} -- Current device
             
         Returns:
             {torch.tensor} -- Feature tensor
@@ -115,7 +114,6 @@ class ResCNN(Module):
 
         Arguments:
             vis_obs {numpy.ndarray/torch.tensor} -- Visual observation
-            device {torch.device} -- Current device
             
         Returns:
             {torch.tensor} -- Feature tensor
