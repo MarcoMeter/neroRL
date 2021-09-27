@@ -83,9 +83,10 @@ class CNNEncoder(Module):
 
 class ResCNN(Module):
     """
-    A simple residual three layer CNN which serves as a visual encoder.
+    A residual convolutional network which serves as a visual encoder.
+    Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330
     """
-    def __init__(self, vis_obs_space, config, activ_fn, hidden_size=256, channels=[16,32,32]):
+    def __init__(self, vis_obs_space, config, activ_fn):
         """Initializes a three layer convolutional neural network.
 
         Arguments:
@@ -100,9 +101,9 @@ class ResCNN(Module):
 
         vis_obs_shape = vis_obs_space.shape
 
-        self.layer1 = self._make_layer(vis_obs_shape[0], channels[0])
-        self.layer2 = self._make_layer(channels[0], channels[1])
-        self.layer3 = self._make_layer(channels[1], channels[2])
+        self.layer1 = self._make_layer(in_channels=vis_obs_shape[0], out_channels=16)
+        self.layer2 = self._make_layer(in_channels=16, out_channels=32)
+        self.layer3 = self._make_layer(in_channels=32, out_channels=32)
 
         # Compute the output size of the encoder
         self.conv_enc_size = self.get_enc_output(vis_obs_shape)
@@ -167,7 +168,8 @@ class ResCNN(Module):
 
 class BasicConvBlock(nn.Module):
     """
-    Residual Network Block
+    Residual Network Block:
+    Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330
     """
     def __init__(self, n_channels, stride=1, activ_fn=None):
         super(BasicConvBlock, self).__init__()
