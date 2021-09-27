@@ -177,7 +177,7 @@ class ActorCriticBase(Module):
             out_features {int} -- Size of output
 
         Returns:
-            {Module} -- The created vector envoder
+            {Module} -- The created vector encoder
         """
         if config["vec_encoder"] == "linear":
             return Sequential(nn.Linear(in_features, out_features), self.activ_fn)

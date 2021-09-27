@@ -145,6 +145,16 @@ class ResCNN(Module):
 
     
     def _make_layer(self, in_channels, out_channels, stride=1):
+        """Creates a layer like in the DAAC paper.
+
+        Arguments:
+            in_channels {int} -- Number of channels in the input image
+            out_channels {int} -- Number of channels produced by the convolution
+            stride {int} -- Stride of the convolution. Default: 1
+
+        Returns:
+            {Module} -- The created layer
+        """
         layers = []
 
         layers.append(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1))
@@ -156,6 +166,11 @@ class ResCNN(Module):
         return nn.Sequential(*layers)
 
     def apply_init_(self, modules):
+        """Initializes the weights like in the DAAC paper.
+
+        Arguments:
+            modules {nn.Module}: The torch module
+        """
         for m in modules:
             if isinstance(m, nn.Conv2d):
                 nn.init.xavier_uniform_(m.weight)
@@ -166,20 +181,38 @@ class ResCNN(Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
-class BasicConvBlock(nn.Module):
+class BasicConvBlock(Module):
     """
     Residual Network Block:
     Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330
     """
     def __init__(self, n_channels, stride=1, activ_fn=None):
+        """Initializes a two layer convolutional network like in the DAAC paper.
+
+        Arguments:
+            in_channels {int} -- Number of channels in the input image
+            out_channels {int} -- Number of channels produced by the convolution
+            stride {int} -- Stride of the convolution. Default: 1
+
+        Returns:
+            {Module} -- The created layer
+        """
         super(BasicConvBlock, self).__init__()
         self.activ_fn = activ_fn
         self.conv1 = nn.Conv2d(n_channels, n_channels, kernel_size=3, stride=1, padding=(1,1))
         self.conv2 = nn.Conv2d(n_channels, n_channels, kernel_size=3, stride=1, padding=(1,1))
 
     def forward(self, h):
-        h_identity = h
+        """Forward pass of the model
 
+        Arguments:
+            h {torch.tensor} -- Feature tensor
+            
+        Returns:
+            {torch.tensor} -- Feature tensor
+        """
+        h_identity = h
+        
         h = self.activ_fn(h)
         h = self.conv1(h)
         h = self.activ_fn(h)
