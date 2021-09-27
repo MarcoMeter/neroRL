@@ -18,15 +18,15 @@ environment:
     # The number of commands that the agent has to watch and execute (min: 1, default: 3)
     command-count: 3
     # The number of agent steps that each command is visible (min: 1, default: 12)
-    command-duration: 12
+    command-duration: 8
     # The number of steps between showing each command (min: 0, default: 2)
-    command-delay: 2
+    command-delay: 1
     # Whether to use an alternative command visualization (defalut: False)
     use-command-alternative: False
     # The number of agent steps that the explosion is being visualized (min: 1, default: 8)
-    explosion-duration: 8
+    explosion-duration: 4
     # The number of agent steps between explosions (min: 0, default: 8)
-    explosion-delay: 8
+    explosion-delay: 4
     # The reward that the agent receives upon failing
     reward-command-failure: -0.1
     # The reward that the agent receives for moving to the commanded tile
@@ -54,7 +54,7 @@ model:
     reset_hidden_state: True
 
 evaluation:
-  evaluate: True
+  evaluate: False
   n_workers: 3
   seeds: [1001, 1002, 1003, 1004, 1005]
   interval: 250
