@@ -3,7 +3,7 @@ import torch
 from torch import nn
 
 from neroRL.nn.encoder import CNNEncoder
-from neroRL.nn.recurrent import GRU, LSTM
+from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU
 from neroRL.nn.body import HiddenLayer
 from neroRL.nn.module import Module, Sequential
 
@@ -33,7 +33,7 @@ class ActorCriticBase(Module):
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
-    def create_base_model(self, config, vis_obs_space, vec_obs_shape, residual):
+    def create_base_model(self, config, vis_obs_space, vec_obs_shape):
         """
         Creates and returns the components of a base model, which consists of:
             - a visual encoder,
@@ -77,7 +77,7 @@ class ActorCriticBase(Module):
 
         # Recurrent layer (GRU or LSTM)
         if self.recurrence is not None:
-            out_features = self.recurrence["hidden_state_size"] if not residual else in_features_next_layer
+            out_features = self.recurrence["hidden_state_size"]
             recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer, out_features)
             in_features_next_layer = out_features
         
@@ -209,8 +209,12 @@ class ActorCriticBase(Module):
             {Module} -- The created recurrent layer
         """
         if recurrence["layer_type"] == "gru":
+            if recurrence["residual"]:
+                return ResGRU(input_shape, hidden_state_size)
             return GRU(input_shape, hidden_state_size)
         elif recurrence["layer_type"] == "lstm":
+            if recurrence["residual"]:
+                return ResLSTM(input_shape, hidden_state_size)
             return LSTM(input_shape, hidden_state_size)
 
     def get_vis_enc_output(self, vis_encoder, shape):

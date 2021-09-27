@@ -41,9 +41,6 @@ model:
   activation: "relu"
   # Set the to be used visual encoder
   vis_encoder: "cnn"
-  # residual
-  # Wether residual connections should be used for the recurrent layer. Note: If it's used then the input_size of the recurrent layer will match its output_size.
-  residual: False
   recurrence:
     # Supported recurrent layers: gru, lstm
     layer_type: "lstm"
@@ -56,6 +53,8 @@ model:
     # Whether to reset the hidden state before a new episode.
     # Environments that use short episodes are likely to profit from not resetting the hidden state.
     reset_hidden_state: True
+    # Wether residual connections should be used for the recurrent layer
+    residual: False
   # Set the to be used vector encoder
   vec_encoder: "linear" # "linear", "none"
   num_vec_encoder_units: 128

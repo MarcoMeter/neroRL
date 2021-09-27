@@ -53,9 +53,6 @@ class YamlParser:
             "activation": "relu",
             "vis_encoder": "cnn",
             "vec_encoder": "linear",
-            "residual": False,
-            "actor_residual": False,
-            "critic_residual": False,
             "num_vec_encoder_units": 128,
             "hidden_layer": "default",
             "num_hidden_layers": 2,
@@ -233,6 +230,8 @@ class YamlParser:
                     self._config["model"]["recurrence"]["hidden_state_init"] = "zero"
                 if "reset_hidden_state" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["reset_hidden_state"] = True
+                if "residual" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["residual"] = False           
 
             # Check DAAC if DecoupledPPO
             if "DAAC" in self._config["trainer"]:

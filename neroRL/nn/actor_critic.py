@@ -27,12 +27,9 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.mean_hxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
-        # Set residual connections
-        self.actor_residual, self.critic_residual = config["actor_residual"], config["critic_residual"]
-
         # Create the base models
-        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape, self.actor_residual)
-        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape, self.critic_residual)
+        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape, activ_fn = self.activ_fn)
@@ -105,11 +102,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
-            h_actor_residual = h_actor if self.actor_residual else 0
             h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, actor_recurrent_cell, sequence_length)
-            
-            # Add residual connection
-            h_actor = h_actor + h_actor_residual
 
         # Feed network body
         h_actor = self.actor_body(h_actor)
@@ -137,11 +130,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
-            h_critic_residual = h_critic if self.critic_residual else 0
             h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
-
-            # Add residual connection
-            h_critic = h_critic + h_critic_residual
 
         # Feed network body
         h_critic = self.critic_body(h_critic)
@@ -289,9 +278,6 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Whether the model uses shared parameters (i.e. weights) or not
         self.share_parameters = True
 
-        # Set residual connections
-        self.residual = config["residual"]
-
         # Create the base model
         self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape, self.residual)
 
@@ -338,11 +324,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
-            h_residual = h if self.residual else 0
             h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
-            
-            # Add residual connection
-            h = h + h_residual
 
         # Feed network body
         h = self.body(h)
