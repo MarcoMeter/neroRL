@@ -187,7 +187,7 @@ class BasicConvBlock(Module):
     Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330
     """
     def __init__(self, n_channels, stride=1, activ_fn=None):
-        """Initializes a two layer convolutional neural network like in the DAAC paper.
+        """Initializes a two layer residual convolutional neural network like in the DAAC paper.
 
         Arguments:
             in_channels {int} -- Number of channels in the input image
