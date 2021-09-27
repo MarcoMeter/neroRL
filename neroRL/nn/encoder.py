@@ -190,8 +190,8 @@ class BasicConvBlock(Module):
         """Initializes a two layer residual convolutional neural network like in the DAAC paper.
 
         Arguments:
-            in_channels {int} -- Number of channels in the input image
-            out_channels {int} -- Number of channels produced by the convolution
+            in_channels {int} -- Number of input channels
+            out_channels {int} -- Number of output channels
             stride {int} -- Stride of the convolution. Default: 1
 
         Returns:
