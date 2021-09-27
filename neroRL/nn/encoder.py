@@ -173,11 +173,9 @@ class BasicConvBlock(nn.Module):
     """
     def __init__(self, n_channels, stride=1, activ_fn=None):
         super(BasicConvBlock, self).__init__()
-
-        self.conv1 = nn.Conv2d(n_channels, n_channels, kernel_size=3, stride=1, padding=(1,1))
         self.activ_fn = activ_fn
+        self.conv1 = nn.Conv2d(n_channels, n_channels, kernel_size=3, stride=1, padding=(1,1))
         self.conv2 = nn.Conv2d(n_channels, n_channels, kernel_size=3, stride=1, padding=(1,1))
-        self.stride = stride
 
     def forward(self, h):
         h_identity = h
