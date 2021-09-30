@@ -9,6 +9,7 @@ from neroRL.trainers.policy_gradient.base import BaseTrainer
 from neroRL.utils.utils import masked_mean, compute_gradient_stats
 from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.monitor import Tag
+from scipy.spatial import distance
 
 class DecoupledPPOTrainer(BaseTrainer):
     """The DecoupledPPOTrainer does not share parameters (i.e. weights) and not gradients among the policy and value function.
@@ -99,8 +100,20 @@ class DecoupledPPOTrainer(BaseTrainer):
         hxs_corr = [pearsonr(actor_hx, critic_hx)[0] for (actor_hx, critic_hx) in zip(actor_hxs, critic_hxs)]
         cxs_corr = [pearsonr(actor_cx, critic_cx)[0] for (actor_cx, critic_cx) in zip(actor_cxs, critic_cxs)]
 
+        hxs_dist = [np.linalg.norm(actor_hx - critic_hx) for (actor_hx, critic_hx) in zip(actor_hxs, critic_hxs)]
+        cxs_dist = [np.linalg.norm(actor_cx - critic_cx)  for (actor_cx, critic_cx) in zip(actor_cxs, critic_cxs)]
+
+        hxs_sim = [1 - distance.cosine(actor_hx, critic_hx) for (actor_hx, critic_hx) in zip(actor_hxs, critic_hxs)]
+        cxs_sim = [1 - distance.cosine(actor_cx, critic_cx) for (actor_cx, critic_cx) in zip(actor_cxs, critic_cxs)]
+
         self.train_info["hxs_corr"] = (Tag.OTHER, hxs_corr)
         self.train_info["cxs_corr"] = (Tag.OTHER, cxs_corr)
+
+        self.train_info["hxs_dist"] = (Tag.OTHER, hxs_dist)
+        self.train_info["cxs_dist"] = (Tag.OTHER, cxs_dist)
+
+        self.train_info["hxs_sim"] = (Tag.OTHER, hxs_sim)
+        self.train_info["cxs_sim"] = (Tag.OTHER, cxs_sim)
 
         # Calculate mean of the collected training statistics
         for key, (tag, values) in self.train_info.items():
@@ -108,11 +121,12 @@ class DecoupledPPOTrainer(BaseTrainer):
 
         # Format specific values for logging that is done inside the base class
         if self.use_daac:
-            formatted_string = "loss={:.3f} a_losss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f} hxs_corr={:.3f} cxs_corr={:.3f}".format(
-                self.train_info["loss"][1], self.train_info["advantage_loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1], self.train_info["hxs_corr"][1], self.train_info["cxs_corr"][1])
+            formatted_string = "loss={:.3f} a_losss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f} hxs_corr={:.3f} cxs_corr={:.3f} hxs_dist={:.3f} cxs_dist={:.3f} hxs_sim={:.3f} cxs_sim={:.3f}".format(
+                self.train_info["loss"][1], self.train_info["advantage_loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1],
+                self.train_info["hxs_corr"][1], self.train_info["cxs_corr"][1], self.train_info["hxs_dist"][1], self.train_info["cxs_dist"][1], self.train_info["hxs_sim"][1], self.train_info["cxs_sim"][1])
         else:
-            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f} hxs_corr={:.3f} cxs_corr={:.3f}".format(
-                self.train_info["loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1], self.train_info["hxs_corr"][1], self.train_info["cxs_corr"][1])
+            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f} hxs_corr={:.3f} cxs_corr={:.3f} hxs_dist={:.3f} cxs_dist={:.3f} hxs_sim={:.3f} cxs_sim={:.3f}".format(
+                self.train_info["loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1], self.train_info["hxs_corr"][1], self.train_info["cxs_corr"][1], self.train_info["hxs_dist"][1], self.train_info["cxs_dist"][1], self.train_info["hxs_sim"][1], self.train_info["cxs_sim"][1])
 
         return self.train_info, formatted_string
 
