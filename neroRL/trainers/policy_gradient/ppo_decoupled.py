@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import optim
 from threading import Thread
+from scipy.stats.stats import pearsonr
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
@@ -87,18 +88,31 @@ class DecoupledPPOTrainer(BaseTrainer):
         else:
             self.train_policy()
             self.train_value()
-        
+
+        # Calc correlation of hidden/cell states
+        actor_hxs, critic_hxs = self.sampler.buffer.hxs[:,:,:,0].cpu().numpy(), self.sampler.buffer.hxs[:,:,:,1].cpu().numpy()
+        actor_cxs, critic_cxs = self.sampler.buffer.cxs[:,:,:,0].cpu().numpy(), self.sampler.buffer.cxs[:,:,:,1].cpu().numpy()
+
+        actor_hxs, critic_hxs = actor_hxs.reshape(actor_hxs.shape[0], -1), critic_hxs.reshape(critic_hxs.shape[0], -1)
+        actor_cxs, critic_cxs = actor_cxs.reshape(actor_cxs.shape[0], -1), critic_cxs.reshape(critic_cxs.shape[0], -1)
+
+        hxs_corr = [pearsonr(actor_hx, critic_hx)[0] for (actor_hx, critic_hx) in zip(actor_hxs, critic_hxs)]
+        cxs_corr = [pearsonr(actor_cx, critic_cx)[0] for (actor_cx, critic_cx) in zip(actor_cxs, critic_cxs)]
+
+        self.train_info["hxs_corr"] = (Tag.OTHER, hxs_corr)
+        self.train_info["cxs_corr"] = (Tag.OTHER, cxs_corr)
+
         # Calculate mean of the collected training statistics
         for key, (tag, values) in self.train_info.items():
             self.train_info[key] = (tag, np.mean(values))
 
         # Format specific values for logging that is done inside the base class
         if self.use_daac:
-            formatted_string = "loss={:.3f} a_losss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
-                self.train_info["loss"][1], self.train_info["advantage_loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1])
+            formatted_string = "loss={:.3f} a_losss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f} hxs_corr={:.3f} cxs_corr={:.3f}".format(
+                self.train_info["loss"][1], self.train_info["advantage_loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1], self.train_info["hxs_corr"][1], self.train_info["cxs_corr"][1])
         else:
-            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
-                self.train_info["loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1])
+            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f} hxs_corr={:.3f} cxs_corr={:.3f}".format(
+                self.train_info["loss"][1], self.train_info["policy_loss"][1], self.train_info["value_loss"][1], self.train_info["entropy"][1], self.train_info["hxs_corr"][1], self.train_info["cxs_corr"][1])
 
         return self.train_info, formatted_string
 

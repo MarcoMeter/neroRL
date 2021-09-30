@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import copy
 
 from neroRL.nn.base import ActorCriticBase
 from neroRL.nn.heads import MultiDiscreteActionPolicy, ValueEstimator, AdvantageEstimator
@@ -29,7 +30,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Create the base models
         self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
-        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = copy.deepcopy(self.actor_vis_encoder), copy.deepcopy(self.actor_vec_encoder), copy.deepcopy(self.actor_recurrent_layer), copy.deepcopy(self.actor_body)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape, activ_fn = self.activ_fn)
