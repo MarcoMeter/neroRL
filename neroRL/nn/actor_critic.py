@@ -123,8 +123,8 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Add recurrent cell to the vector observation
         if self.feed_actor_hidden_state:
-            actor_recurrent_cell = actor_recurrent_cell.reshape(vec_obs.shape[0], -1)
-            vec_obs = torch.cat((vec_obs, actor_recurrent_cell), 1) if vec_obs is not None and else actor_recurrent_cell
+            actor_recurrent_cell = actor_recurrent_cell.squeeze()
+            vec_obs = torch.cat((vec_obs, actor_recurrent_cell), 1) if vec_obs is not None else actor_recurrent_cell
 
         # Forward observation encoder
         if vis_obs is not None:
