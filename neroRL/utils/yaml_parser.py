@@ -106,7 +106,9 @@ class YamlParser:
             "value_learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},
             "policy_clip_range_schedule": {"initial": 0.2},
-            "value_clip_range_schedule": {"initial": 0.2}
+            "value_clip_range_schedule": {"initial": 0.2},
+            "actor_recurrence": True,
+            "critic_recurrence": True
         }
 
         # Determine which algorithm is used to process the corresponding default config parameters

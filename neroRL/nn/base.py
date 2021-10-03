@@ -33,7 +33,7 @@ class ActorCriticBase(Module):
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
-    def create_base_model(self, config, vis_obs_space, vec_obs_shape):
+    def create_base_model(self, config, vis_obs_space, vec_obs_shape, use_recurrence = True):
         """
         Creates and returns the components of a base model, which consists of:
             - a visual encoder,
@@ -46,6 +46,7 @@ class ActorCriticBase(Module):
             config {dict} -- Model config
             vis_obs_space {box} -- Dimensions of the visual observation space
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
+            use_recurrence {bool} -- Wether to create a recurrent base model, if its config exists (default = True)
         
         Returns:
             {tuple} -- visual encoder, vector encoder, recurrent layer, body
@@ -76,7 +77,7 @@ class ActorCriticBase(Module):
             in_features_next_layer = out_features
 
         # Recurrent layer (GRU or LSTM)
-        if self.recurrence is not None:
+        if self.recurrence is not None and use_recurrence:
             out_features = self.recurrence["hidden_state_size"]
             recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer, out_features)
             in_features_next_layer = out_features

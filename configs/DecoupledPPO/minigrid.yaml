@@ -25,6 +25,8 @@ model:
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
+  actor_recurrence: True
+  critic_recurrence: True
   recurrence:
     layer_type: "lstm"
     sequence_length: 8

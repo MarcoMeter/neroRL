@@ -40,6 +40,9 @@ model:
   activation: "relu"
   # Set the to be used encoder
   vis_encoder: "cnn"
+  # Wether to use the recurrent layer for the actor/critic
+  actor_recurrence: True
+  critic_recurrence: True
   recurrence:
     # Supported recurrent layers: gru, lstm
     layer_type: "lstm"

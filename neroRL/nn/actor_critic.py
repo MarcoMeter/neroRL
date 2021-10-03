@@ -28,8 +28,8 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
         # Create the base models
-        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
-        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape, config["actor_recurrence"])
+        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape, config["critic_recurrence"])
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape, activ_fn = self.activ_fn)
@@ -101,7 +101,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             h_actor = self.actor_vec_encoder(vec_obs)
 
         # Forward reccurent layer (GRU or LSTM) if available
-        if self.recurrence is not None:
+        if self.actor_recurrent_layer is not None:
             h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, actor_recurrent_cell, sequence_length)
 
         # Feed network body
@@ -129,7 +129,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             h_critic = self.critic_vec_encoder(vec_obs)
 
         # Forward reccurent layer (GRU or LSTM) if available
-        if self.recurrence is not None:
+        if self.critic_recurrent_layer is not None:
             h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
 
         # Feed network body
