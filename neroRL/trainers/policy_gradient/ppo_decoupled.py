@@ -225,16 +225,20 @@ class DecoupledPPOTrainer(BaseTrainer):
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
                 recurrent_cell = samples["hxs"].unsqueeze(0)
+                recurrent_cell_all = samples["hxs_all"].unsqueeze(0)
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+                recurrent_cell_all = (samples["hxs_all"].unsqueeze(0), samples["cxs_all"].unsqueeze(0))
             (_, critic_recurrent_cell) = self.model.unpack_recurrent_cell(recurrent_cell)
+            (actor_recurrent_cell, _) = self.model.unpack_recurrent_cell(recurrent_cell_all)
         else:
             critic_recurrent_cell = None
         
         value, _ = self.model.forward_critic(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     critic_recurrent_cell,
-                                    self.sampler.buffer.actual_sequence_length)
+                                    self.sampler.buffer.actual_sequence_length,
+                                    actor_recurrent_cell=actor_recurrent_cell)
 
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.value_clip_range, max=self.value_clip_range)

@@ -96,8 +96,10 @@ class Buffer():
         if self.recurrence is not None:
             # Add collected recurrent cell states to the dictionary
             samples["hxs"] =  self.hxs
+            samples["hxs_all"] =  self.hxs
             if self.recurrence["layer_type"] == "lstm":
                 samples["cxs"] = self.cxs
+                samples["cxs_all"] =  self.cxs
 
             # Split data into sequences and apply zero-padding
             # Retrieve the indices of dones as these are the last step of a whole episode

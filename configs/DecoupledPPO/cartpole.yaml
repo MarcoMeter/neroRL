@@ -24,6 +24,7 @@ model:
   num_hidden_units: 512
   actor_recurrence: True
   critic_recurrence: True
+  feed_actor_hidden_state: True
   recurrence:
     layer_type: "gru"
     sequence_length: 16

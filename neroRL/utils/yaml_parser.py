@@ -108,7 +108,8 @@ class YamlParser:
             "policy_clip_range_schedule": {"initial": 0.2},
             "value_clip_range_schedule": {"initial": 0.2},
             "actor_recurrence": True,
-            "critic_recurrence": True
+            "critic_recurrence": True,
+            "feed_actor_hidden_state": False
         }
 
         # Determine which algorithm is used to process the corresponding default config parameters

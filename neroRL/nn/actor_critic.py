@@ -27,9 +27,11 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.mean_hxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
+        self.feed_actor_hidden_state = config["feed_actor_hidden_state"]
+
         # Create the base models
         self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape, config["actor_recurrence"])
-        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape, config["critic_recurrence"])
+        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape, config["critic_recurrence"], self.feed_actor_hidden_state)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape, activ_fn = self.activ_fn)
@@ -77,11 +79,11 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         else:
             actor_recurrent_cell, critic_recurrent_cell = None, None
 
+        # Feed critic model
+        value, critic_recurrent_cell = self.forward_critic(vis_obs, vec_obs, critic_recurrent_cell, sequence_length, actions, actor_recurrent_cell)
+
         # Feed actor model
         pi, actor_recurrent_cell, gae = self.forward_actor(vis_obs, vec_obs, actor_recurrent_cell, sequence_length, actions)
-
-        # Feed critic model
-        value, critic_recurrent_cell = self.forward_critic(vis_obs, vec_obs, critic_recurrent_cell, sequence_length, actions)
 
         # Pack recurrent cell
         if self.recurrence is not None:
@@ -117,7 +119,13 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         return pi, actor_recurrent_cell, gae
 
-    def forward_critic(self, vis_obs, vec_obs, critic_recurrent_cell, sequence_length = 1, actions = None):
+    def forward_critic(self, vis_obs, vec_obs, critic_recurrent_cell, sequence_length = 1, actions = None, actor_recurrent_cell = None):
+
+        # Add recurrent cell to the vector observation
+        if self.feed_actor_hidden_state:
+            actor_recurrent_cell = actor_recurrent_cell.reshape(vec_obs.shape[0], -1)
+            vec_obs = torch.cat((vec_obs, actor_recurrent_cell), 1) if vec_obs is not None and else actor_recurrent_cell
+
         # Forward observation encoder
         if vis_obs is not None:
             h_critic = self.critic_vis_encoder(vis_obs)

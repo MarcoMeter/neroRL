@@ -43,6 +43,8 @@ model:
   # Wether to use the recurrent layer for the actor/critic
   actor_recurrence: True
   critic_recurrence: True
+  # Wether to feed the recurrent cell of the actor into the critic
+  feed_actor_hidden_state: True
   recurrence:
     # Supported recurrent layers: gru, lstm
     layer_type: "lstm"

@@ -33,7 +33,7 @@ class ActorCriticBase(Module):
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
-    def create_base_model(self, config, vis_obs_space, vec_obs_shape, use_recurrence = True):
+    def create_base_model(self, config, vis_obs_space, vec_obs_shape, use_recurrence = True, feed_hidden_state = False):
         """
         Creates and returns the components of a base model, which consists of:
             - a visual encoder,
@@ -64,16 +64,19 @@ class ActorCriticBase(Module):
             in_features_next_layer = conv_out_size
 
             # Determine number of features for the next layer's input
-            if vec_obs_shape is not None:
+            if vec_obs_shape is not None or feed_hidden_state:
                 # Case: vector observation is also available
+                in_features_next_layer = vec_obs_shape[0] if vec_obs_shape is not None else 0
+                in_features_next_layer = in_features_next_layer + self.recurrence["hidden_state_size"] if feed_hidden_state else vec_obs_shape[0]
                 out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
                 vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
                 in_features_next_layer = in_features_next_layer + out_features
         else:
             # Case: only vector observation is available
             # Vector observation encoder
+            in_features_next_layer = vec_obs_shape[0] + self.recurrence["hidden_state_size"] if feed_hidden_state else vec_obs_shape[0]
             out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
-            vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
+            vec_encoder = self.create_vec_encoder(config, in_features_next_layer, out_features)
             in_features_next_layer = out_features
 
         # Recurrent layer (GRU or LSTM)
