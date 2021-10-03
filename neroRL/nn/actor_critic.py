@@ -120,9 +120,11 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         return pi, actor_recurrent_cell, gae
 
     def forward_critic(self, vis_obs, vec_obs, critic_recurrent_cell, sequence_length = 1, actions = None, actor_recurrent_cell = None):
-
         # Add recurrent cell to the vector observation
         if self.feed_actor_hidden_state:
+            if self.recurrence["layer_type"] == "lstm":
+                (hxs, cxs) = actor_recurrent_cell
+                actor_recurrent_cell = torch.cat((hxs, cxs), -1)
             actor_recurrent_cell = actor_recurrent_cell.squeeze()
             vec_obs = torch.cat((vec_obs, actor_recurrent_cell), 1) if vec_obs is not None else actor_recurrent_cell
 
