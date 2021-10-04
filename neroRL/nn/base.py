@@ -53,6 +53,19 @@ class ActorCriticBase(Module):
         """
         vis_encoder, vec_encoder, recurrent_layer, body = None, None, None, None
 
+        # Vector observation encoder
+        if vec_obs_shape is not None or feed_hidden_state:
+            in_features_next_layer = vec_obs_shape[0] if vec_obs_shape is not None else 0
+            out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
+
+            # Add hidden state of actor to the vector encoder
+            if self.recurrence is not None and feed_hidden_state:
+                in_hidden_state_size = self.recurrence["hidden_state_size"] if self.recurrence["layer_type"] == "gru" else self.recurrence["hidden_state_size"] * 2
+                in_features_next_layer = in_features_next_layer + in_hidden_state_size
+
+            vec_encoder = self.create_vec_encoder(config, in_features_next_layer, out_features)
+            in_features_next_layer = out_features 
+
         # Observation encoder
         if vis_obs_space is not None:
             vis_encoder = self.create_vis_encoder(config, vis_obs_space)
@@ -61,26 +74,11 @@ class ActorCriticBase(Module):
             vis_obs_shape = vis_obs_space.shape
             # Compute output size of the encoder
             conv_out_size = self.get_vis_enc_output(vis_encoder, vis_obs_shape)
-            in_features_next_layer = conv_out_size
 
-            # Determine number of features for the next layer's input
             if vec_obs_shape is not None or feed_hidden_state:
-                # Case: vector observation is also available
-                in_features_next_layer = vec_obs_shape[0] if vec_obs_shape is not None else 0
-                in_hidden_state_size = self.recurrence["hidden_state_size"] if self.recurrence["layer_type"] == "gru" else self.recurrence["hidden_state_size"] * 2
-                in_features_next_layer = in_features_next_layer + in_hidden_state_size if feed_hidden_state else vec_obs_shape[0]
-                out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
-                vec_encoder = self.create_vec_encoder(config, in_features_next_layer, out_features)
-                in_features_next_layer = conv_out_size + out_features
-        else:
-            # Case: only vector observation is available
-            # Vector observation encoder
-            in_features_next_layer = vec_obs_shape[0] if vec_obs_shape is not None else 0
-            in_hidden_state_size = self.recurrence["hidden_state_size"] if self.recurrence["layer_type"] == "gru" else self.recurrence["hidden_state_size"] * 2
-            in_features_next_layer = in_features_next_layer + in_hidden_state_size if feed_hidden_state else vec_obs_shape[0]
-            out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
-            vec_encoder = self.create_vec_encoder(config, in_features_next_layer, out_features)
-            in_features_next_layer = out_features
+                in_features_next_layer = in_features_next_layer + conv_out_size
+            else:
+                in_features_next_layer = conv_out_size
 
         # Recurrent layer (GRU or LSTM)
         if self.recurrence is not None and use_recurrence:
