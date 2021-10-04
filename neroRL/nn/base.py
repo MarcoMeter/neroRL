@@ -2,8 +2,8 @@ import numpy as np
 import torch
 from torch import nn
 
-from neroRL.nn.encoder import CNNEncoder
-from neroRL.nn.recurrent import GRU, LSTM
+from neroRL.nn.encoder import CNNEncoder, ResCNN
+from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU
 from neroRL.nn.body import HiddenLayer
 from neroRL.nn.module import Module, Sequential
 
@@ -77,8 +77,9 @@ class ActorCriticBase(Module):
 
         # Recurrent layer (GRU or LSTM)
         if self.recurrence is not None:
-            recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer)
-            in_features_next_layer = self.recurrence["hidden_state_size"]
+            out_features = self.recurrence["hidden_state_size"]
+            recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer, out_features)
+            in_features_next_layer = out_features
         
         # Network body
         out_features = config["num_hidden_units"]
@@ -164,6 +165,8 @@ class ActorCriticBase(Module):
         """
         if config["vis_encoder"] == "cnn":
             return CNNEncoder(vis_obs_space, config, self.activ_fn)
+        elif config["vis_encoder"] == "rescnn":
+            return ResCNN(vis_obs_space, config, self.activ_fn)
 
     def create_vec_encoder(self, config, in_features, out_features):
         """Creates and returns a new instance of the vector encoder based on the model config.
@@ -174,7 +177,7 @@ class ActorCriticBase(Module):
             out_features {int} -- Size of output
 
         Returns:
-            {Module} -- The created vector envoder
+            {Module} -- The created vector encoder
         """
         if config["vec_encoder"] == "linear":
             return Sequential(nn.Linear(in_features, out_features), self.activ_fn)
@@ -196,20 +199,25 @@ class ActorCriticBase(Module):
         if config["hidden_layer"] == "default":
             return HiddenLayer(self.activ_fn, config["num_hidden_layers"], in_features, out_features)
     
-    def create_recurrent_layer(self, recurrence, input_shape):
+    def create_recurrent_layer(self, recurrence, input_shape, hidden_state_size):
         """Creates and returns a new instance of the recurrent layer based on the recurrence config.
 
         Arguments:
             recurrence {dict} -- Recurrence config
             input_shape {int} -- Size of input
+            hidden_state_size {int} -- Size of the hidden state
 
         Returns:
             {Module} -- The created recurrent layer
         """
         if recurrence["layer_type"] == "gru":
-            return GRU(input_shape, recurrence["hidden_state_size"])
+            if recurrence["residual"]:
+                return ResGRU(input_shape, hidden_state_size)
+            return GRU(input_shape, hidden_state_size)
         elif recurrence["layer_type"] == "lstm":
-            return LSTM(input_shape, recurrence["hidden_state_size"])
+            if recurrence["residual"]:
+                return ResLSTM(input_shape, hidden_state_size)
+            return LSTM(input_shape, hidden_state_size)
 
     def get_vis_enc_output(self, vis_encoder, shape):
         """Computes the output size of the visual encoder by feeding a dummy tensor.

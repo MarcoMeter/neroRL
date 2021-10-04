@@ -325,7 +325,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
             h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
-            
+
         # Feed network body
         h = self.body(h)
 

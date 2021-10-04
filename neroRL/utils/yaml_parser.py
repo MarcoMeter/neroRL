@@ -230,6 +230,8 @@ class YamlParser:
                     self._config["model"]["recurrence"]["hidden_state_init"] = "zero"
                 if "reset_hidden_state" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["reset_hidden_state"] = True
+                if "residual" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["residual"] = False           
 
             # Check DAAC if DecoupledPPO
             if "DAAC" in self._config["trainer"]:

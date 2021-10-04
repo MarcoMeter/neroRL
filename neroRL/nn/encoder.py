@@ -53,7 +53,6 @@ class CNNEncoder(Module):
 
         Arguments:
             vis_obs {numpy.ndarray/torch.tensor} -- Visual observation
-            device {torch.device} -- Current device
             
         Returns:
             {torch.tensor} -- Feature tensor
@@ -81,3 +80,143 @@ class CNNEncoder(Module):
         o = self.conv2(o)
         o = self.conv3(o)
         return int(np.prod(o.size()))
+
+class ResCNN(Module):
+    """
+    A residual convolutional network which serves as a visual encoder.
+    Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330
+    """
+    def __init__(self, vis_obs_space, config, activ_fn):
+        """Initializes a three layer convolutional based neural network.
+
+        Arguments:
+            config {dict} -- Model config
+            vis_obs_space {box} -- Dimensions of the visual observation space
+            activ_fn {activation} -- activation function
+        """
+        super().__init__()
+
+        # Set the activation function
+        self.activ_fn = activ_fn
+
+        vis_obs_shape = vis_obs_space.shape
+
+        self.layer1 = self._make_layer(in_channels=vis_obs_shape[0], out_channels=16)
+        self.layer2 = self._make_layer(in_channels=16, out_channels=32)
+        self.layer3 = self._make_layer(in_channels=32, out_channels=32)
+
+        # Compute the output size of the encoder
+        self.conv_enc_size = self.get_enc_output(vis_obs_shape)
+
+        self.apply_init_(self.modules())
+
+    def forward(self, vis_obs):
+        """Forward pass of the model
+
+        Arguments:
+            vis_obs {numpy.ndarray/torch.tensor} -- Visual observation
+            
+        Returns:
+            {torch.tensor} -- Feature tensor
+        """
+        # Forward observation encoder
+        # Propagate input through the visual encoder
+        h = self.layer1(vis_obs)
+        h = self.layer2(h)
+        h = self.activ_fn(self.layer3(h))
+        # Flatten the output of the convolutional layers
+        h = h.reshape((-1, self.conv_enc_size))
+
+        return h
+
+    def get_enc_output(self, shape):
+        """Computes the output size of the encoder by feeding a dummy tensor.
+
+        Arguments:
+            shape {tuple} -- Input shape of the data feeding the first encoder
+            
+        Returns:
+            {int} -- Number of output features returned by the utilized encoder
+        """
+        o = self.layer1(torch.zeros(1, *shape))
+        o = self.layer2(o)
+        o = self.layer3(o)
+        return int(np.prod(o.size()))
+
+    
+    def _make_layer(self, in_channels, out_channels, stride=1):
+        """Creates a neural convolutional based layer like in the DAAC paper.
+
+        Arguments:
+            in_channels {int} -- Number of input channels
+            out_channels {int} -- Number of output channels
+            stride {int} -- Stride of the convolution. Default: 1
+
+        Returns:
+            {Module} -- The created layer
+        """
+        layers = []
+
+        layers.append(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1))
+        layers.append(nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+
+        layers.append(BasicConvBlock(out_channels, activ_fn=self.activ_fn))
+        layers.append(BasicConvBlock(out_channels, activ_fn=self.activ_fn))
+
+        return nn.Sequential(*layers)
+
+    def apply_init_(self, modules):
+        """Initializes the weights of a layer like in the DAAC paper.
+
+        Arguments:
+            modules {nn.Module}: The torch module
+        """
+        for m in modules:
+            if isinstance(m, nn.Conv2d):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+
+class BasicConvBlock(Module):
+    """
+    Residual Network Block:
+    Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330
+    """
+    def __init__(self, n_channels, stride=1, activ_fn=None):
+        """Initializes a two layer residual convolutional neural network like in the DAAC paper.
+
+        Arguments:
+            in_channels {int} -- Number of input channels
+            out_channels {int} -- Number of output channels
+            stride {int} -- Stride of the convolution. Default: 1
+
+        Returns:
+            {Module} -- The created layer
+        """
+        super(BasicConvBlock, self).__init__()
+        self.activ_fn = activ_fn
+        self.conv1 = nn.Conv2d(n_channels, n_channels, kernel_size=3, stride=1, padding=(1,1))
+        self.conv2 = nn.Conv2d(n_channels, n_channels, kernel_size=3, stride=1, padding=(1,1))
+
+    def forward(self, h):
+        """Forward pass of the model
+
+        Arguments:
+            h {torch.tensor} -- Feature tensor
+            
+        Returns:
+            {torch.tensor} -- Feature tensor
+        """
+        h_identity = h
+
+        h = self.activ_fn(h)
+        h = self.conv1(h)
+        h = self.activ_fn(h)
+        h = self.conv2(h)
+
+        h = h + h_identity
+        return h
