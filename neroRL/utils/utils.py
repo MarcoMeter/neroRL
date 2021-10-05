@@ -10,6 +10,7 @@ def set_library_seeds(seed:int) -> None:
         int {seed} -- The to be applied seed
     """
     random.seed(seed)
+    random.SystemRandom().seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)

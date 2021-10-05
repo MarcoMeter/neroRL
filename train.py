@@ -33,7 +33,7 @@ def main():
 
     # Sampled seed if a value smaller than 0 was submitted
     if seed < 0:
-        seed = random.randint(0, 4294967295)
+        seed = random.randint(0, 2 ** 31 - 1)
 
     # Load environment, model, evaluation and training parameters
     configs = YamlParser(config_path).get_config()

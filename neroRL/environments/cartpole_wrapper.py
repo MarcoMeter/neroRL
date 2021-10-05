@@ -3,7 +3,6 @@ import gym
 import time
 import random
 from gym import error, spaces
-from random import randint
 from neroRL.environments.env import Env
 
 class CartPoleWrapper(Env):
@@ -88,7 +87,7 @@ class CartPoleWrapper(Env):
             reset_params = self._default_reset_params
 
         # Set seed
-        self._env.seed(randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1))
+        self._env.seed(random.randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1))
 
         # Create mask to hide the velocity of the cart and the pole if requested by the reset params
         self._obs_mask = np.ones(4, dtype=np.float32) if not self._default_reset_params["mask-velocity"] else np.asarray([1,0,1,0], dtype=np.float32)
