@@ -227,7 +227,7 @@ class LinVecEncoder(Module):
     A simple one linear layer vector encoder.
     """
     def __init__(self, in_features, out_features, activ_fn):
-        """Initializes a three layer convolutional neural network.
+        """Initializes a  one layer linear neural network.
 
         Arguments:
             in_features {int} -- Size of input
