@@ -12,10 +12,11 @@ from neroRL.sampler.trajectory_sampler import TrajectorySampler
 from neroRL.evaluator import Evaluator
 from neroRL.utils.monitor import Monitor
 from neroRL.utils.monitor import Tag
+from neroRL.utils.utils import set_library_seeds
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
-    def __init__(self, configs, worker_id = 1, run_id  = "default", out_path = "./"):
+    def __init__(self, configs, worker_id = 1, run_id  = "default", out_path = "./", seed = 0):
         """Initializes the trainer, the model, the buffer, the evaluator and the training data sampler
 
         Arguments:
@@ -23,6 +24,7 @@ class BaseTrainer():
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
+            seed {int} -- Specifies the seed to use during training. (default: {0})
         """
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
         signal(SIGINT, self._handler)
@@ -50,6 +52,11 @@ class BaseTrainer():
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
+
+        # Set the seed for conducting the training
+        self.seed = seed
+        set_library_seeds(self.seed)
+        self.monitor.log("Step 0: Training Seed: " + str(self.seed))
 
         # Start logging the training setup
         self.monitor.log("Step 1: Provided config:")
@@ -248,12 +255,15 @@ class BaseTrainer():
             update {int} -- Current update
         """
         checkpoint_data = self.collect_checkpoint_data(update)
+        checkpoint_data["seed"] = self.seed
         torch.save(checkpoint_data, self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
 
     def _load_checkpoint(self):
         """Loads a checkpoint from a specified file by the config and triggers the process of applying the loaded data."""
         self.monitor.log("Step 3: Loading model from " + self.configs["model"]["model_path"])
         checkpoint = torch.load(self.configs["model"]["model_path"])
+        self.seed = checkpoint["seed"]
+        set_library_seeds(self.seed)
         self.apply_checkpoint_data(checkpoint)
 
     @staticmethod
