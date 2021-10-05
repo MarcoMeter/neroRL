@@ -8,6 +8,9 @@ from neroRL.utils.utils import masked_mean, compute_gradient_stats
 from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.monitor import Tag
 
+from scipy.stats.stats import pearsonr
+from scipy.spatial import distance
+
 class PPOTrainer(BaseTrainer):
     """PPO implementation according to Schulman et al. 2017. It supports multi-discrete action spaces as well as visual 
     and vector obsverations (either alone or simultaenously). Parameters can be shared or not. If gradients shall be decoupled,
@@ -66,13 +69,39 @@ class PPOTrainer(BaseTrainer):
                 for key, (tag, value) in res.items():
                     train_info.setdefault(key, (tag, []))[1].append(value)
 
+
+        # Calc correlation of hidden/cell states
+        actor_hxs, critic_hxs = self.sampler.buffer.hxs[:,:,:,0].cpu().numpy(), self.sampler.buffer.hxs[:,:,:,1].cpu().numpy()
+        actor_cxs, critic_cxs = self.sampler.buffer.cxs[:,:,:,0].cpu().numpy(), self.sampler.buffer.cxs[:,:,:,1].cpu().numpy()
+
+        actor_hxs, critic_hxs = actor_hxs.reshape(actor_hxs.shape[0], -1), critic_hxs.reshape(critic_hxs.shape[0], -1)
+        actor_cxs, critic_cxs = actor_cxs.reshape(actor_cxs.shape[0], -1), critic_cxs.reshape(critic_cxs.shape[0], -1)
+
+        hxs_corr = [pearsonr(actor_hx, critic_hx)[0] for (actor_hx, critic_hx) in zip(actor_hxs, critic_hxs)]
+        cxs_corr = [pearsonr(actor_cx, critic_cx)[0] for (actor_cx, critic_cx) in zip(actor_cxs, critic_cxs)]
+
+        hxs_dist = [np.linalg.norm(actor_hx - critic_hx) for (actor_hx, critic_hx) in zip(actor_hxs, critic_hxs)]
+        cxs_dist = [np.linalg.norm(actor_cx - critic_cx)  for (actor_cx, critic_cx) in zip(actor_cxs, critic_cxs)]
+
+        hxs_sim = [1 - distance.cosine(actor_hx, critic_hx) for (actor_hx, critic_hx) in zip(actor_hxs, critic_hxs)]
+        cxs_sim = [1 - distance.cosine(actor_cx, critic_cx) for (actor_cx, critic_cx) in zip(actor_cxs, critic_cxs)]
+
+        train_info["hxs_corr"] = (Tag.OTHER, hxs_corr)
+        train_info["cxs_corr"] = (Tag.OTHER, cxs_corr)
+
+        train_info["hxs_dist"] = (Tag.OTHER, hxs_dist)
+        train_info["cxs_dist"] = (Tag.OTHER, cxs_dist)
+
+        train_info["hxs_sim"] = (Tag.OTHER, hxs_sim)
+        train_info["cxs_sim"] = (Tag.OTHER, cxs_sim)
+
         # Calculate mean of the collected training statistics
         for key, (tag, values) in train_info.items():
             train_info[key] = (tag, np.mean(values))
 
         # Format specific values for logging inside the base class
-        formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
-            train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
+        formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}  hxs_corr={:.3f} cxs_corr={:.3f} hxs_dist={:.3f} cxs_dist={:.3f} hxs_sim={:.3f} cxs_sim={:.3f}".format(
+            train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1], train_info["hxs_corr"][1], train_info["cxs_corr"][1], train_info["hxs_dist"][1], train_info["cxs_dist"][1], train_info["hxs_sim"][1], train_info["cxs_sim"][1])
 
         # Return the mean of the training statistics
         return train_info, formatted_string
