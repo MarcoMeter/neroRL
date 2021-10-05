@@ -3,7 +3,6 @@ Runs the training program using the provided config and arguments.
 """
 
 import random
-import sys
 
 from docopt import docopt
 
@@ -34,7 +33,7 @@ def main():
 
     # Sampled seed if a value smaller than 0 was submitted
     if seed < 0:
-        seed = random.randint(0, sys.maxsize)
+        seed = random.randint(0, 4294967295)
 
     # Load environment, model, evaluation and training parameters
     configs = YamlParser(config_path).get_config()

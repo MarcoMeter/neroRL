@@ -12,6 +12,7 @@ def set_library_seeds(seed:int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
 
 def masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
     """
