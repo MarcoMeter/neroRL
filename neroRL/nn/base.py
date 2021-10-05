@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from neroRL.nn.encoder import CNNEncoder, ResCNN
+from neroRL.nn.encoder import CNNEncoder, ResCNN, LinVecEncoder
 from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU
 from neroRL.nn.body import HiddenLayer
 from neroRL.nn.module import Module, Sequential
@@ -180,7 +180,7 @@ class ActorCriticBase(Module):
             {Module} -- The created vector encoder
         """
         if config["vec_encoder"] == "linear":
-            return Sequential(nn.Linear(in_features, out_features), self.activ_fn)
+            return LinVecEncoder(in_features, out_features, self.activ_fn)
         elif config["vec_encoder"] == "none":
             return Sequential()
 
