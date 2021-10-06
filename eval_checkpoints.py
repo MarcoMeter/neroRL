@@ -14,17 +14,15 @@ For example, Obstacle Tower has a floor key inside that dictionary.
 """
 import torch
 import os
-import time
 import pickle
 import numpy as np
 from docopt import docopt
 from gym import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
-from neroRL.trainers.PPO.evaluator import Evaluator
+from neroRL.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
-from neroRL.trainers.PPO.models.actor_critic import create_actor_critic_model
-from neroRL.utils.serialization import load_checkpoint
+from neroRL.nn.actor_critic import create_actor_critic_model
 
 def main():
     # Docopt command line arguments
@@ -36,7 +34,7 @@ def main():
     Options:
         --config=<path>            Path to the config file [default: ./configs/default.yaml].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
-        --path=<path>              Specifies the tag of the tensorboard summaries [default: None].
+        --path=<path>              Path to the directory containing checkpoints [default: "./"].
         --name=<path>              Specifies the full path to save the output file [default: results.res].
     """
     options = docopt(_USAGE)
@@ -74,9 +72,14 @@ def main():
 
     # Init model
     print("Step 2: Initialize model")
-    model = create_actor_critic_model(configs["model"], visual_observation_space,
+    share_parameters = False
+    if configs["trainer"]["algorithm"] == "PPO":
+        share_parameters = configs["trainer"]["share_parameters"]
+    model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
                             configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
+    if "DAAC" in configs["trainer"]:
+        model.add_gae_estimator_head(action_space_shape, device)
     model.eval()
 
     # Load checkpoint paths
@@ -90,8 +93,8 @@ def main():
     results = []
     current_checkpoint = 0
     for checkpoint in checkpoints:
-        loaded_checkpoint = load_checkpoint(checkpoint)
-        model.load_state_dict(loaded_checkpoint["model_state_dict"])
+        loaded_checkpoint = torch.load(checkpoint)
+        model.load_state_dict(loaded_checkpoint["model"])
         if "recurrence" in configs["model"]:
             model.set_mean_recurrent_cell_states(loaded_checkpoint["hxs"], loaded_checkpoint["cxs"])
         _, res = evaluator.evaluate(model, device)

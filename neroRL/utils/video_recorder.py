@@ -67,6 +67,8 @@ class VideoRecorder:
                     next_y += 10
 
                 # Plot value
+                # hard-coded next_y because if too many actions are available, this plot does not fit
+                next_y = 230
                 fig = VideoRecorder.line_plot(trajectory_data["values"], "value", marker_pos=i)
                 img = VideoRecorder.fig_to_ndarray(fig)[:,:,0:3] # Drop Alpha
                 img = VideoRecorder.image_resize(img, width=self.width, height=None)

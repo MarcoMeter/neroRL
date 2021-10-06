@@ -74,6 +74,8 @@ def main():
     model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
                             configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
+    if "DAAC" in configs["trainer"]:
+        model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
         checkpoint = torch.load(configs["model"]["model_path"])

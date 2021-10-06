@@ -8,6 +8,8 @@ environment:
   last_reward_to_obs: False
   obs_stacks: 1
   reset_params:
+    start-seed: 0
+    num-seeds: 100
     # Whether to mask the velocity of the cart and the tip of the pole
     mask-velocity: True
 
@@ -22,13 +24,13 @@ model:
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
-  residual: False
   recurrence:
     layer_type: "gru"
     sequence_length: 16
     hidden_state_size: 128
     hidden_state_init: "zero"
     reset_hidden_state: False
+    residual: False
 
 evaluation:
   evaluate: False

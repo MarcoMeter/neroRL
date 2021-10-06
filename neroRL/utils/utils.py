@@ -1,5 +1,19 @@
+import numpy as np
 import torch
+import random
 from neroRL.utils.monitor import Tag
+
+def set_library_seeds(seed:int) -> None:
+    """Applies the submitted seed to PyTorch, Numpy and Python
+
+    Arguments:
+        int {seed} -- The to be applied seed
+    """
+    random.seed(seed)
+    random.SystemRandom().seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
 
 def masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
     """

@@ -68,6 +68,7 @@ class ResGRU(Module):
         """
         super().__init__()
         self.preprocessing_layer = nn.Linear(input_shape, hidden_state_size)
+        nn.init.orthogonal_(self.preprocessing_layer.weight, np.sqrt(2))
         self.recurrent_layer = nn.GRU(hidden_state_size, hidden_state_size, batch_first=True)
         # Init recurrent layer
         for name, param in self.recurrent_layer.named_parameters():
@@ -175,6 +176,7 @@ class ResLSTM(Module):
         """
         super().__init__()
         self.preprocessing_layer = nn.Linear(input_shape, hidden_state_size)
+        nn.init.orthogonal_(self.preprocessing_layer.weight, np.sqrt(2))
         self.recurrent_layer = nn.LSTM(hidden_state_size, hidden_state_size, batch_first=True)
         # Init recurrent layer
         for name, param in self.recurrent_layer.named_parameters():
