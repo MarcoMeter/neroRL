@@ -8,6 +8,8 @@ environment:
   last_reward_to_obs: False
   obs_stacks: 1
   reset_params:
+    start-seed: 0
+    num-seeds: 100
     # Whether to mask the velocity of the cart and the tip of the pole
     mask-velocity: True
 

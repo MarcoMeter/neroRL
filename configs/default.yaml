@@ -39,8 +39,13 @@ model:
   checkpoint_interval: 50
   # Set the to be used activation function (elu, leaky_relu, relu, swish)
   activation: "relu"
-  # Set the to be used visual encoder
+  # Set the to be used encoder
   vis_encoder: "cnn"
+  # Wether to use the recurrent layer for the actor/critic
+  actor_recurrence: True
+  critic_recurrence: True
+  # Wether to feed the recurrent cell of the actor into the critic
+  feed_actor_hidden_state: True
   recurrence:
     # Supported recurrent layers: gru, lstm
     layer_type: "lstm"
@@ -55,8 +60,9 @@ model:
     reset_hidden_state: True
     # Wether residual connections should be used for the recurrent layer
     residual: False
-  # Set the to be used vector encoder
-  vec_encoder: "linear" # "linear", "none"
+
+  # Set the to be used preprocessing layer
+  vec_encoder: "linear"
   num_vec_encoder_units: 128
   # Set the to be used hidden layer
   hidden_layer: "default"
@@ -90,7 +96,11 @@ sampler:
 ### TRAINER CONFIG ###
 trainer:
   # Which algorithm to use. For now, PPO is supported.
-  algorithm: "PPO"
+  algorithm: "DecoupledPPO"
+  # (Optional) Whether the policy shall estimate the advantage function (DAAC algorithm by Raileanu & Fergus, 2021)
+  DAAC:
+    # Coefficient of the advantage loss
+    adv_coefficient: 0.25
   # On which step to resume the training. This affects the hyperparameter schedules only.
   resume_at: 0
   # Discount factor
@@ -99,22 +109,36 @@ trainer:
   lamda: 0.95
   # Number of PPO update cycles that shall be done (one whole cycle comprises n epochs of m mini_batch updates)
   updates: 1000
-  # Number of times that the whole batch of data is used for optimization using PPO
+  # Number of times that the whole batch of data is used for optimizing the policy using PPO
   # Each epoch trains on a random permutation of the sampled training batch
-  epochs: 4
-  # Number of mini batches that are trained throughout one epoch
+  policy_epochs: 4
+  # Number of mini batches that are trained throughout one policy epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
-  n_mini_batches: 4
-  # Coefficient of the loss of the value function (i.e. critic)
-  # It is only of use if model parameters are shared among the actor and the critic
-  value_coefficient: 0.25
-  # Strength of clipping the loss gradients
-  max_grad_norm: 0.5
-  # Wether the actor and critic model should share its parameters
-  share_parameters: True
+  n_policy_mini_batches: 4
+  # Number of times that the whole batch of data is used for optimizing the value function
+  # In contrast to policy epochs, the value function is updated once using the whole data set instead of mini batches.
+  value_epochs: 9
+  # Number of mini batches that are trained throughout one value epoch
+  # In case of using a recurrent net, this has to be a multiple of n_workers.
+  n_value_mini_batches: 1
+  # This interval determines when to optimize the value function based on how many update cycles have passed.
+  value_update_interval: 1
+  # Strength of clipping the norm of the policy loss gradients
+  max_policy_grad_norm: 0.5
+  # Strength of clipping the norm of the value loss gradients
+  max_value_grad_norm: 0.5
+  # Whether the optimization of the policy and the value should be done simultaneously
+  # This should be set to False if not enough GPU memory is available
+  run_threaded: True
   # Polynomial Decay Schedules
-  # Learning Rate
-  learning_rate_schedule:
+  # Policy Learning Rate
+  policy_learning_rate_schedule:
+    initial: 3.0e-4
+    final: 3.0e-4
+    power: 1.0
+    max_decay_steps: 1000
+  # Value Learning Rate
+  value_learning_rate_schedule:
     initial: 3.0e-4
     final: 3.0e-4
     power: 1.0
@@ -125,8 +149,14 @@ trainer:
     final: 0.0005
     power: 1.0
     max_decay_steps: 800
-  # Strength of clipping optimizations done by the PPO algorithm
-  clip_range_schedule:
+  # Strength of clipping the loss of the policy
+  policy_clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 1000
+  # Strength of clipping the loss of the value function
+  value_clip_range_schedule:
     initial: 0.2
     final: 0.2
     power: 1.0
