@@ -141,7 +141,8 @@ class ProcgenWrapper(Env):
 
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [self._env.render(mode = "rgb_array")], "vec_obs": [None],
+            "vis_obs": [self._env.render(mode = "rgb_array")] if self._realtime_mode else [(vis_obs * 255).astype(np.uint8)],
+            "vec_obs": [None],
             "rewards": [0.0], "actions": []
         }
 
@@ -168,7 +169,7 @@ class ProcgenWrapper(Env):
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(self._env.render(mode = "rgb_array"))
+            self._trajectory["vis_obs"].append(self._env.render(mode = "rgb_array") if self._realtime_mode else (vis_obs * 255).astype(np.uint8))
             self._trajectory["vec_obs"].append(None)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)

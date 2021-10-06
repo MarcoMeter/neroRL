@@ -193,6 +193,7 @@ class BasicConvBlock(Module):
             in_channels {int} -- Number of input channels
             out_channels {int} -- Number of output channels
             stride {int} -- Stride of the convolution. Default: 1
+            activ_fn {activation} -- activation function
 
         Returns:
             {Module} -- The created layer
@@ -220,3 +221,32 @@ class BasicConvBlock(Module):
 
         h = h + h_identity
         return h
+
+class LinVecEncoder(Module):
+    """
+    A simple one linear layer vector encoder.
+    """
+    def __init__(self, in_features, out_features, activ_fn):
+        """Initializes a  one layer linear neural network.
+
+        Arguments:
+            in_features {int} -- Size of input
+            out_features {int} -- Size of output
+            activ_fn {activation} -- activation function
+        """
+        super().__init__()
+
+        self.lin_layer = nn.Linear(in_features, out_features)
+        nn.init.orthogonal_(self.lin_layer.weight, np.sqrt(2))
+        self.activ_fn = activ_fn
+
+    def forward(self, h):
+        """Forward pass of the model
+
+        Arguments:
+            h {torch.tensor} -- Feature tensor
+            
+        Returns:
+            {torch.tensor} -- Feature tensor
+        """
+        return self.activ_fn(self.lin_layer(h))

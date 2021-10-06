@@ -13,6 +13,8 @@ class Tag(Enum):
 import logging
 import os
 import time
+import sys
+import random
 from torch.utils.tensorboard import SummaryWriter
 
 class Monitor():
@@ -28,28 +30,37 @@ class Monitor():
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
         """
         self.timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
-        self._create_directories(out_path, run_id)
+        duplicate_suffix = ""
+        log_path = out_path + "logs/" + run_id + self.timestamp[:-1] + "_" + duplicate_suffix + ".log"
+        # Check whether this path setup already exists
+        if os.path.isfile(log_path):
+            # If so, add a random suffix to distinguish duplicate runs
+            duplicate_suffix = "_" + str(random.randint(0, 1000))
+
+        # Create directories
+        self._create_directories(out_path, run_id, duplicate_suffix)
 
         # Setup SummaryWriter
-        self.writer = SummaryWriter(out_path + "summaries/" + run_id + self.timestamp)
+        summary_path = out_path + "summaries/" + run_id + self.timestamp + duplicate_suffix
+        self.writer = SummaryWriter(summary_path)
 
         # Setup logger
         logging.basicConfig(level = logging.INFO, handlers=[])
         self.logger = logging.getLogger("train")
-
         console = logging.StreamHandler()
         console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
-        path = out_path + "logs/" + run_id + self.timestamp[:-1] + ".log"
-        logfile = logging.FileHandler(path, mode="w")
+        
+        logfile = logging.FileHandler(log_path, mode="w")
         self.logger.addHandler(console)
         self.logger.addHandler(logfile)
 
-    def _create_directories(self, out_path, run_id) -> None:
+    def _create_directories(self, out_path, run_id, duplicate_suffix) -> None:
         """Sets up directories for saving logs, tensorboard summaries and checkpoints.
 
         Arguments:
             out_path {str}: Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
             run_id {str}: The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
+            duplicate_suffix {str}: This suffix is added to the end of the path to distinguish duplicate runs.
         """
         # Create directories for storing checkpoints, logs and tensorboard summaries based on the current time and provided run_id
         if not os.path.exists(out_path + "summaries"):
@@ -59,7 +70,7 @@ class Monitor():
         if not os.path.exists(out_path + "logs") or not os.path.exists(out_path + "logs/" + run_id):
             os.makedirs(out_path + "logs/" + run_id)
 
-        self.checkpoint_path = out_path + "checkpoints/" + run_id + self.timestamp
+        self.checkpoint_path = out_path + "checkpoints/" + run_id + self.timestamp + duplicate_suffix
         os.makedirs(self.checkpoint_path)
 
     def log(self, message:str) -> None:

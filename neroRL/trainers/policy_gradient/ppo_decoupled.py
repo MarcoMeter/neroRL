@@ -13,7 +13,7 @@ class DecoupledPPOTrainer(BaseTrainer):
     """The DecoupledPPOTrainer does not share parameters (i.e. weights) and not gradients among the policy and value function.
     Therefore, it uses slightly different hyperparameters as the regular PPOTrainer to allow more control over updating the
     policy and the value function. Optinally, the actor model can estimate the advantage function as proposed by Raileanu & Fergus, 2021"""
-    def __init__(self, configs, worker_id, run_id, out_path):
+    def __init__(self, configs, worker_id, run_id, out_path, seed = 0):
         """
         Initializes distinct members of the DecoupledPPOTrainer
 
@@ -28,7 +28,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.use_daac = "DAAC" in configs["trainer"]
 
         # Init base class
-        super().__init__(configs, worker_id, run_id=run_id, out_path=out_path)
+        super().__init__(configs, worker_id, run_id=run_id, out_path=out_path, seed=seed)
 
         # Hyperparameter setup
         self.num_policy_epochs = configs["trainer"]["policy_epochs"]

@@ -54,13 +54,13 @@ model:
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
-  residual: False
   recurrence:
     layer_type: "gru"
     sequence_length: 32
     hidden_state_size: 512
     hidden_state_init: "zero"
     reset_hidden_state: True
+    residual: False
 
 evaluation:
   evaluate: True

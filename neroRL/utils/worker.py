@@ -1,16 +1,25 @@
 import multiprocessing
 import multiprocessing.connection
 
+
+from random import randint, random
+
 from neroRL.environments.wrapper import wrap_environment
 
-def worker_process(remote: multiprocessing.connection.Connection, env_config, worker_id: int, record_video = False):
+def worker_process(remote: multiprocessing.connection.Connection, env_seed, env_config, worker_id: int, record_video = False):
     """Initializes the environment and executes its interface.
 
     Arguments:
         remote {multiprocessing.connection.Connection} -- Parent thread
+        env_seed {int} -- Sampled seed for the environment worker to use
         env_config {dict} -- The configuration data of the desired environment
         worker_id {int} -- Id for the environment's process. This is necessary for Unity ML-Agents environments, because these operate on different ports.
     """
+    import numpy as np
+    np.random.seed(env_seed)
+    import random
+    random.seed(env_seed)
+    random.SystemRandom().seed(env_seed)
 
     # Initialize and wrap the environment
     try:
@@ -48,6 +57,7 @@ class Worker:
             env_config {dict -- The configuration data of the desired environment
             worker_id {int} -- worker_id {int} -- Id for the environment's process. This is necessary for Unity ML-Agents environments, because these operate on different ports.
         """
+        env_seed = randint(0, 2 ** 32 - 1)
         self.child, parent = multiprocessing.Pipe()
-        self.process = multiprocessing.Process(target=worker_process, args=(parent, env_config, worker_id, record_video))
+        self.process = multiprocessing.Process(target=worker_process, args=(parent, env_seed, env_config, worker_id, record_video))
         self.process.start()

@@ -1,6 +1,7 @@
 import numpy as np
 import gym
 import time
+import random
 from gym import error, spaces
 from neroRL.environments.env import Env
 
@@ -23,7 +24,7 @@ class CartPoleWrapper(Env):
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"mask-velocity": False}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "mask-velocity": False}
         else:
             self._default_reset_params = reset_params
 
@@ -84,6 +85,10 @@ class CartPoleWrapper(Env):
         # Set default reset parameters if none were provided
         if reset_params is None:
             reset_params = self._default_reset_params
+
+        # Set seed
+        self._env.seed(random.randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1))
+
         # Create mask to hide the velocity of the cart and the pole if requested by the reset params
         self._obs_mask = np.ones(4, dtype=np.float32) if not self._default_reset_params["mask-velocity"] else np.asarray([1,0,1,0], dtype=np.float32)
 

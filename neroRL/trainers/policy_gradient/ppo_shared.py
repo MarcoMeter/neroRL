@@ -16,7 +16,7 @@ class PPOTrainer(BaseTrainer):
     and vector obsverations (either alone or simultaenously). Parameters can be shared or not. If gradients shall be decoupled,
     go for the DecoupledPPOTrainer.
     """
-    def __init__(self, configs, worker_id, run_id, out_path):
+    def __init__(self, configs, worker_id, run_id, out_path, seed = 0):
         """
         Initializes distinct members of the PPOTrainer
 
@@ -26,7 +26,7 @@ class PPOTrainer(BaseTrainer):
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
         """
-        super().__init__(configs, worker_id, run_id=run_id, out_path=out_path)
+        super().__init__(configs, worker_id, run_id=run_id, out_path=out_path, seed=seed)
 
         # Hyperparameter setup
         self.epochs = configs["trainer"]["epochs"]
