@@ -149,7 +149,7 @@ class Buffer():
         for key, value in samples.items():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
-            self.samples_flat[key] = value
+            self.samples_flat[key] = value        
 
     def _pad_sequence(self, sequence, target_length):
         """Pads a sequence to the target length using zeros.
@@ -234,3 +234,130 @@ class Buffer():
                     mini_batch[key] = value[sequence_indices[start:end]].to(self.device)
             start = end
             yield mini_batch
+
+    def refresh(self, model):
+        # Supply training samples
+        samples = {
+            "actions": self.actions,
+            "values": self.values,
+            "log_probs": self.log_probs,
+            "advantages": self.advantages,
+            # The loss mask is used for masking the padding while computing the loss function.
+            # This is only of significance while using recurrence.
+            "loss_mask": torch.ones((self.num_workers, self.worker_steps))
+        }
+
+    	# Add available observations to the dictionary
+        if self.vis_obs is not None:
+            samples["vis_obs"] = self.vis_obs
+        if self.vec_obs is not None:
+            samples["vec_obs"] = self.vec_obs
+
+        max_sequence_length = 1
+        if self.recurrence is not None:
+            # Add collected recurrent cell states to the dictionary
+            samples["hxs"] =  self.hxs
+            if self.recurrence["layer_type"] == "lstm":
+                samples["cxs"] = self.cxs
+
+        # Split data into sequences and apply zero-padding
+        # Retrieve the indices of dones as these are the last step of a whole episode
+        episode_done_indices = []
+        for w in range(self.num_workers):
+            episode_done_indices.append(list(self.dones[w].nonzero()[0]))
+            # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
+            if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
+                episode_done_indices[w].append(self.worker_steps - 1)
+            
+        # Split vis_obs, vec_obs, values, advantages, recurrent cell states, actions and log_probs into episodes and then into sequences
+        for key, value in samples.items():
+            sequences = []
+            for w in range(self.num_workers):
+                start_index = 0
+                for done_index in episode_done_indices[w]:
+                    # Split trajectory into episodes
+                    episode = value[w, start_index:done_index + 1]
+                    start_index = done_index + 1
+                    # If the sequence length is not set to a proper value, sequences will be based on episodes
+                    sequences.append(episode)
+                    max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
+            
+            # Apply zero-padding to ensure that each episode has the same length
+            # Therfore we can train batches of episodes in parallel instead of one episode at a time
+            for i, sequence in enumerate(sequences):
+                sequences[i] = self._pad_sequence(sequence, max_sequence_length)
+
+            # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
+            samples[key] = torch.stack(sequences, axis=0)
+            if (key == "hxs" or key == "cxs"):
+                # Select the very first recurrent cell state of a sequence and add it to the samples
+                samples[key] = samples[key][:, 0]
+
+        recurrent_cell = None
+        if self.recurrence is not None:
+            if self.recurrence["layer_type"] == "gru":
+                recurrent_cell = samples["hxs"].unsqueeze(0)
+                hxs = torch.zeros((samples["hxs"].shape[0], max_sequence_length, *samples["hxs"].shape[1:]))
+            elif self.recurrence["layer_type"] == "lstm":
+                recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+                hxs, cxs = torch.zeros(*samples["hxs"].shape), torch.zeros(*samples["cxs"].shape)
+
+        for t in range(max_sequence_length):
+            # Gradients can be omitted for sampling data
+            with torch.no_grad():
+                if self.recurrence is not None:
+                    if self.recurrence["layer_type"] == "gru":
+                        hxs[:, t] = recurrent_cell.squeeze(0)
+                    elif self.recurrence["layer_type"] == "lstm":
+                        hxs[:, t] = recurrent_cell[0].squeeze(0)
+                        cxs[:, t] = recurrent_cell[1].squeeze(0)
+
+                    # Forward the model to retrieve the policy (making decisions), 
+                    # the states' value of the value function and the recurrent hidden states (if available)
+                    vis_obs_batch = samples["vis_obs"][:, t] if self.vis_obs is not None else None
+                    vec_obs_batch = samples["vec_obs"][:, t] if self.vec_obs is not None else None
+                    policy, value, recurrent_cell, _ = model(vis_obs_batch, vec_obs_batch, recurrent_cell)
+
+                    # Sample actions from each individual policy branch
+                    actions = []
+                    log_probs = []
+                    for (i, action_branch) in enumerate(policy):
+                        action = torch.tensor([a[i] for a in samples["actions"][:, t]])
+                        actions.append(action)
+                        log_probs.append(action_branch.log_prob(action))
+                    samples["log_probs"][:, t]  = torch.stack(log_probs, dim=1)
+
+        if self.recurrence is not None:
+            # Add collected recurrent cell states to the dictionary
+            samples["hxs"] =  hxs
+            if self.recurrence["layer_type"] == "lstm":
+                samples["cxs"] = cxs
+
+        # Flatten all samples
+        samples_flat = {}
+        for key, value in samples.items():
+            value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
+            samples_flat[key] = value  
+
+        samples_flat["loss_mask"] = samples_flat["loss_mask"].bool()
+        samples_flat["values"] = samples_flat["values"][samples_flat["loss_mask"]]
+        samples_flat["log_probs"] = samples_flat["log_probs"][samples_flat["loss_mask"]]
+
+        if self.recurrence is not None:
+            samples_flat["hxs"] = samples_flat["hxs"][samples_flat["loss_mask"]]
+            self.hxs = samples_flat["hxs"].reshape(*self.hxs.size())
+            if self.recurrence["layer_type"] == "lstm":
+                samples_flat["cxs"] = samples_flat["cxs"][samples_flat["loss_mask"]]
+                self.cxs = samples_flat["cxs"].reshape(*self.cxs.size())
+
+        self.values = samples_flat["values"].reshape(*self.values.size())
+        self.log_probs = samples_flat["log_probs"].reshape(*self.log_probs.size())              
+
+        # Calc advantages
+        # TODO
+
+        self.prepare_batch_dict() 
+
+            
+            
+
