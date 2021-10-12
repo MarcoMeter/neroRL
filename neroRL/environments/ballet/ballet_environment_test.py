@@ -18,8 +18,8 @@ from absl.testing import parameterized
 
 import numpy as np
 
-from neroRL.environments import ballet_environment
-from neroRL.environments import ballet_environment_core
+from neroRL.environments.ballet import ballet_environment
+from neroRL.environments.ballet import ballet_environment_core
 
 
 class BalletEnvironmentTest(parameterized.TestCase):

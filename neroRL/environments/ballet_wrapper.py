@@ -3,8 +3,8 @@ import numpy as np
 from gym import spaces
 
 from neroRL.environments.env import Env
-from neroRL.environments.ballet_environment import BalletEnvironment
-from neroRL.environments.ballet_environment_core import DANCE_SEQUENCES
+from neroRL.environments.ballet.ballet_environment import BalletEnvironment
+from neroRL.environments.ballet.ballet_environment_core import DANCE_SEQUENCES
 
 class BalletWrapper(Env):
     """
