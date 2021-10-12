@@ -24,7 +24,7 @@ class BalletWrapper(Env):
 
         # Initialize environment
         self._env = BalletEnvironment(2, 1, 320, rng=None)
-        self._dance_types = DANCE_SEQUENCES
+        self._dance_types = list(DANCE_SEQUENCES.keys())
 
         # Setup observation spaces
         self._visual_observation_space = spaces.Box(
@@ -32,7 +32,7 @@ class BalletWrapper(Env):
                 high = 1.0,
                 shape = (99, 99, 3),
                 dtype = np.float32)
-        self._vector_observatoin_space = (len(self._dance_types.keys()), )
+        self._vector_observatoin_space = (len(self._dance_types), )
 
     @property
     def unwrapped(self):
@@ -76,7 +76,7 @@ class BalletWrapper(Env):
 
     def step(self, action):
         """Executes one step of the agent."""
-        timestep = self._env.reset()
+        timestep = self._env.step(action[0])
         vis_obs, command = timestep.observation
         reward = timestep.reward
         vec_obs = self._command_to_one_hot(command)
@@ -105,6 +105,7 @@ class BalletWrapper(Env):
 
     def _command_to_one_hot(self, command):
         encoding = np.zeros(self._vector_observatoin_space, dtype=np.float32)
+        index = 0
         if command == "watch":
             return encoding
         index = self._dance_types.index(command)
