@@ -12,7 +12,6 @@ environment:
     num-seeds: 100
     num-dancers: 8
     dance-delay: 1
-    max-steps: 320
 
 model:
   load_model: False

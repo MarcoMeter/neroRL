@@ -15,9 +15,9 @@ class BalletWrapper(Env):
     def __init__(self, reset_params = None, realtime_mode = False, record_trajectory = False) -> None:
         # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "num-dancers": 2, "dance-delay": 1}
         else:
-            self._default_reset_params = reset_params 
+            self._default_reset_params = reset_params
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
@@ -72,6 +72,14 @@ class BalletWrapper(Env):
         vec_obs = self._command_to_one_hot(command)
         # Track rewards of an entire episode
         self._rewards = []
+
+        # Prepare trajectory recording
+        if self._record:
+            self._trajectory = {
+                "vis_obs": [(vis_obs * 255).astype(np.uint8)], "vec_obs": [vec_obs],
+                "rewards": [0.0], "actions": [], "frame_rate": 20
+            }
+
         return vis_obs, vec_obs
 
     def step(self, action):
@@ -85,7 +93,7 @@ class BalletWrapper(Env):
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(vis_obs)
+            self._trajectory["vis_obs"].append((vis_obs * 255).astype(np.uint8))
             self._trajectory["vec_obs"].append(vec_obs)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
