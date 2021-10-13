@@ -123,6 +123,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Add recurrent cell to the vector observation
         if self.feed_actor_hidden_state:
             if self.recurrence["layer_type"] == "lstm":
+                actor_recurrent_cell = (actor_recurrent_cell[0], torch.clamp(actor_recurrent_cell[1], min = -1, max = 1))
                 actor_recurrent_cell = torch.cat(actor_recurrent_cell, -1)
             actor_recurrent_cell = actor_recurrent_cell.squeeze()
             vec_obs = torch.cat((vec_obs, actor_recurrent_cell), 1) if vec_obs is not None else actor_recurrent_cell
