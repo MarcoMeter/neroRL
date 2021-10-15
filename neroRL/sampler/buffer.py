@@ -270,6 +270,7 @@ class Buffer():
                     vis_obs = self.vis_obs[:, t] if self.vis_obs is not None else None
                     vec_obs = self.vec_obs[:, t] if self.vec_obs is not None else None
                     policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
+                    # Refresh values
                     self.values[:, t] = value
 
                     # Refresh log probs
