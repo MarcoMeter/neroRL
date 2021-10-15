@@ -237,7 +237,6 @@ class Buffer():
             start = end
             yield mini_batch
 
-
     def refresh(self, model, gamma, lamda):
         """Refreshes the buffer with the current model.
 
