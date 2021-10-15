@@ -9,4 +9,4 @@ tensorboard==2.0.2
 gym-minigrid==1.0.2
 procgen
 dm-env==1.5
-pycolab=1.2
+pycolab==1.2

@@ -88,6 +88,8 @@ class BalletWrapper(Env):
             {numpy.ndarray} -- Visual observation
             {numpy.ndarray} -- Vector observation
         """
+        if reset_params is None:
+            reset_params = self._default_reset_params
         seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
         timestep = self._env.reset(seed)
         vis_obs, command = timestep.observation
