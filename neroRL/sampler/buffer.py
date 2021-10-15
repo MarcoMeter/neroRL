@@ -257,8 +257,8 @@ class Buffer():
         for t in range(self.worker_steps):
             # Gradients can be omitted for refreshing buffer
             with torch.no_grad():
+                # Refresh hidden states
                 if self.recurrence is not None:
-                    # Refresh hidden states
                     if self.recurrence["layer_type"] == "gru":
                         self.hxs[:, t] = recurrent_cell.squeeze(0)
                     elif self.recurrence["layer_type"] == "lstm":
