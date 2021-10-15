@@ -1,3 +1,8 @@
+# Lampinen et al. 2021
+# Towards mental time travel: a hierarchical memory for reinforcement learning agents
+# https://arxiv.org/abs/2105.14039
+# https://github.com/deepmind/deepmind-research/tree/master/hierarchical_transformer_memory/pycolab_ballet
+
 import numpy as np
 
 from gym import spaces
@@ -9,11 +14,18 @@ from neroRL.environments.ballet.ballet_environment_core import DANCE_SEQUENCES
 
 class BalletWrapper(Env):
     """
-    Based on
+    Based on Lampinen et al. 2021
     https://github.com/deepmind/deepmind-research/tree/master/hierarchical_transformer_memory/pycolab_ballet
     """
 
     def __init__(self, reset_params = None, realtime_mode = False, record_trajectory = False) -> None:
+        """Initializes the Ballet environment
+
+        Keyword Arguments:
+            reset_params {[type]} -- [description] (default: {None})
+            realtime_mode {bool} -- [description] (default: {False})
+            record_trajectory {bool} -- [description] (default: {False})
+        """
         # Set default reset parameters if none were provided
         if reset_params is None:
             self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "num-dancers": 2, "dance-delay": 1}
@@ -24,7 +36,7 @@ class BalletWrapper(Env):
         self._record = record_trajectory
 
         # Initialize environment
-        self._env = BalletEnvironment(2, 1, 320)
+        self._env = BalletEnvironment(self._default_reset_params["num-dancers"], self._default_reset_params["dance-delay"], 320)
         self._dance_types = list(DANCE_SEQUENCES.keys())
 
         # Setup observation spaces
