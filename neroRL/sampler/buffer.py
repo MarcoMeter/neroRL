@@ -258,6 +258,7 @@ class Buffer():
             # Gradients can be omitted for refreshing buffer
             with torch.no_grad():
                 if self.recurrence is not None:
+                    # Refresh hidden states
                     if self.recurrence["layer_type"] == "gru":
                         self.hxs[:, t] = recurrent_cell.squeeze(0)
                     elif self.recurrence["layer_type"] == "lstm":
@@ -271,7 +272,7 @@ class Buffer():
                     policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
                     self.values[:, t] = value
 
-                    # Recalculate log probs
+                    # Refresh log probs
                     log_probs = []
                     for (i, action_branch) in enumerate(policy):
                         action = torch.tensor([a[i] for a in self.actions[:, t]])
@@ -289,7 +290,7 @@ class Buffer():
                                 recurrent_cell[0][:, w] = hxs
                                 recurrent_cell[1][:, w] = cxs
 
-        # Calc advantages
+        # Refresh advantages
         _, last_value, _, _ = model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
         self.calc_advantages(last_value, gamma, lamda)
         
