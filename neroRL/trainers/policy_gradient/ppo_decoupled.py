@@ -104,7 +104,10 @@ class DecoupledPPOTrainer(BaseTrainer):
 
     def train_policy(self):
         # Train the actor model using mini batches
-        for _ in range(self.num_policy_epochs):
+        for epoch in range(self.num_policy_epochs):
+            # Refreshes buffer with current model every refresh_buffer_epoch
+            if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
+                self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
             if self.recurrence is not None:
@@ -113,7 +116,6 @@ class DecoupledPPOTrainer(BaseTrainer):
                 mini_batch_generator = self.sampler.buffer.mini_batch_generator(self.n_policy_mini_batches)
             # Conduct the training
             for mini_batch in mini_batch_generator:
-                self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
                 res = self.train_policy_mini_batch(mini_batch)
                 # Collect all values of the training procedure in a list
                 for key, (tag, value) in res.items():
@@ -123,6 +125,9 @@ class DecoupledPPOTrainer(BaseTrainer):
         # Train the value function using the whole batch of data instead of mini batches
         if self.currentUpdate % self.value_update_interval == 0:
             for _ in range(self.num_value_epochs):
+                # Refreshes buffer with current model every refresh_buffer_epoch
+                if epoch > 0 and epoch % self.refresh_buffer_epoch == 0:
+                    self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
                 if self.recurrence is not None:
                     batch_generator = self.sampler.buffer.recurrent_mini_batch_generator(self.n_value_mini_batches)
                 else:

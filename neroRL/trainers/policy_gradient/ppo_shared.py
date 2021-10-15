@@ -52,7 +52,10 @@ class PPOTrainer(BaseTrainer):
         train_info = {}
 
         # Train policy and value function for e epochs using mini batches
-        for _ in range(self.epochs):
+        for epoch in range(self.epochs):
+            # Refreshes buffer with current model every refresh_buffer_epoch
+            if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
+                self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
             if self.recurrence is not None:

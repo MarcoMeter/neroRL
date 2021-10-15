@@ -45,6 +45,7 @@ class BaseTrainer():
         self.run_id = run_id
         self.configs = configs
         self.resume_at = configs["trainer"]["resume_at"]
+        self.refresh_buffer_epoch = configs["trainer"]["refresh_buffer_epoch"]
         self.gamma = configs["trainer"]["gamma"]
         self.lamda = configs["trainer"]["lamda"]
         self.updates = configs["trainer"]["updates"]

@@ -18,6 +18,7 @@ class Buffer():
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
                 - layer_type {str}, sequence_length {int}, hidden_state_size {int}, hiddens_state_init {str}, reset_hidden_state {bool}
             device {torch.device} -- The device that will be used for training/storing single mini batches
+            sampler {TrajectorySampler} -- The current sampler
         """
         self.device = device
         self.sampler = sampler
@@ -238,7 +239,13 @@ class Buffer():
 
 
     def refresh(self, model, gamma, lamda):
+        """Refreshes the buffer with the current model.
 
+        Arguments:
+            model {nn.Module} -- The model to retrieve the policy and value from
+            gamma {float} -- Gamma parameter for calculating the GAE
+            lamda {float} -- Lambda parameter for calculating the GAE
+        """
         # Init recurrent cells
         recurrent_cell = None
         if self.recurrence is not None:
