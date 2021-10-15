@@ -284,10 +284,10 @@ class Buffer():
                         if self.recurrence["reset_hidden_state"]:
                             hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
                             if self.recurrence["layer_type"] == "gru":
-                                self.recurrent_cell[:, w] = hxs
+                                recurrent_cell[:, w] = hxs
                             elif self.recurrence["layer_type"] == "lstm":
-                                self.recurrent_cell[0][:, w] = hxs
-                                self.recurrent_cell[1][:, w] = cxs
+                                recurrent_cell[0][:, w] = hxs
+                                recurrent_cell[1][:, w] = cxs
 
         # Calc advantages
         _, last_value, _, _ = model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
