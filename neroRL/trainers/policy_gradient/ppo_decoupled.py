@@ -113,7 +113,7 @@ class DecoupledPPOTrainer(BaseTrainer):
                 mini_batch_generator = self.sampler.buffer.mini_batch_generator(self.n_policy_mini_batches)
             # Conduct the training
             for mini_batch in mini_batch_generator:
-                self.sampler.buffer.refresh(self.model)
+                self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
                 res = self.train_policy_mini_batch(mini_batch)
                 # Collect all values of the training procedure in a list
                 for key, (tag, value) in res.items():

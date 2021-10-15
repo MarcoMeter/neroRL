@@ -6,7 +6,7 @@ class Buffer():
     The buffer stores and prepares the training data. It supports recurrent policies.
     """
     def __init__(self, num_workers, worker_steps, visual_observation_space, vector_observation_space,
-                    action_space_shape, recurrence, device, share_parameters):
+                    action_space_shape, recurrence, device, share_parameters, sampler):
         """
         Arguments:
             num_workers {int} -- Number of environments/agents to sample training data
@@ -20,6 +20,7 @@ class Buffer():
             device {torch.device} -- The device that will be used for training/storing single mini batches
         """
         self.device = device
+        self.sampler = sampler
         self.recurrence = recurrence
         self.sequence_length = recurrence["sequence_length"] if recurrence is not None else None
         self.num_workers = num_workers
@@ -236,7 +237,9 @@ class Buffer():
             yield mini_batch
 
 
-    def refresh(self, model):
+    def refresh(self, model, gamma, lamda):
+
+        # Init recurrent cells
         recurrent_cell = None
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
@@ -244,6 +247,7 @@ class Buffer():
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (self.hxs[:, 0].unsqueeze(0), self.cxs[:, 0].unsqueeze(0))
 
+        # Refresh values, log_probs and hidden_states with current model
         for t in range(self.worker_steps):
             # Gradients can be omitted for refreshing buffer
             with torch.no_grad():
@@ -256,19 +260,19 @@ class Buffer():
 
                     # Forward the model to retrieve the policy (making decisions), 
                     # the states' value of the value function and the recurrent hidden states (if available)
-                    vis_obs_batch = self.vis_obs[:, t] if self.vis_obs is not None else None
-                    vec_obs_batch = self.vec_obs[:, t] if self.vec_obs is not None else None
-                    policy, value, recurrent_cell, _ = model(vis_obs_batch, vec_obs_batch, recurrent_cell)
+                    vis_obs = self.vis_obs[:, t] if self.vis_obs is not None else None
+                    vec_obs = self.vec_obs[:, t] if self.vec_obs is not None else None
+                    policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
                     self.values[:, t] = value
 
-                    # Sample actions from each individual policy branch
+                    # Recalculate log probs
                     log_probs = []
                     for (i, action_branch) in enumerate(policy):
                         action = torch.tensor([a[i] for a in self.actions[:, t]])
                         log_probs.append(action_branch.log_prob(action))
                     self.log_probs[:, t]  = torch.stack(log_probs, dim=1)
 
-                        # Retrieve results
+                # Reset hidden states if necessary
                 for w in range(self.num_workers):
                     if self.recurrence is not None and self.dones[w, t]:
                         if self.recurrence["reset_hidden_state"]:
@@ -280,6 +284,7 @@ class Buffer():
                                 self.recurrent_cell[1][:, w] = cxs
 
         # Calc advantages
-        # TODO
+        _, last_value, _, _ = model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
+        self.calc_advantages(last_value, gamma, lamda)
 
         self.prepare_batch_dict() 
