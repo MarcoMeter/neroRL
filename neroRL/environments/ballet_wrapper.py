@@ -1,6 +1,7 @@
 import numpy as np
 
 from gym import spaces
+from random import randint
 
 from neroRL.environments.env import Env
 from neroRL.environments.ballet.ballet_environment import BalletEnvironment
@@ -23,7 +24,7 @@ class BalletWrapper(Env):
         self._record = record_trajectory
 
         # Initialize environment
-        self._env = BalletEnvironment(2, 1, 320, rng=None)
+        self._env = BalletEnvironment(2, 1, 320)
         self._dance_types = list(DANCE_SEQUENCES.keys())
 
         # Setup observation spaces
@@ -67,7 +68,8 @@ class BalletWrapper(Env):
 
     def reset(self, reset_params = None):
         """Reset the environment. The provided config is a dictionary featuring reset parameters for the environment (e.g. seed)."""
-        timestep = self._env.reset()
+        seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+        timestep = self._env.reset(seed)
         vis_obs, command = timestep.observation
         vec_obs = self._command_to_one_hot(command)
         # Track rewards of an entire episode

@@ -177,7 +177,7 @@ def get_scrolling_cropper(rows=9, cols=9, crop_pad_char=" "):
 class BalletEnvironment(dm_env.Environment):
   """A Python environment API for pycolab ballet tasks."""
 
-  def __init__(self, num_dancers, dance_delay, max_steps, rng=None):
+  def __init__(self, num_dancers, dance_delay, max_steps, seed=None):
     """Construct a BalletEnvironment that wraps pycolab games for agent use.
 
     This class inherits from dm_env and has all the expected methods and specs.
@@ -195,8 +195,10 @@ class BalletEnvironment(dm_env.Environment):
     self._max_steps = max_steps
 
     # internal state
-    if rng is None:
+    if seed is None:
       rng = np.random.default_rng()
+    else:
+      rng = np.random.default_rng(seed=seed)
     self._rng = rng
     self._current_game = None       # Current pycolab game instance.
     self._state = None              # Current game step state.
@@ -258,8 +260,15 @@ class BalletEnvironment(dm_env.Environment):
     full_observation = (image, language)
     return full_observation
 
-  def reset(self):
+  def reset(self, seed=None):
     """Start a new episode."""
+    # Set the seed for the new episode
+    if seed is None:
+      rng = np.random.default_rng()
+    else:
+      rng = np.random.default_rng(seed=seed)
+    self._rng = rng
+
     # Build a new game and retrieve its first set of state/reward/discount.
     self._current_game = self._game_factory()
     # set up rendering, cropping, and state for current game
