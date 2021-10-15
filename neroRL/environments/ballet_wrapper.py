@@ -22,9 +22,9 @@ class BalletWrapper(Env):
         """Initializes the Ballet environment
 
         Keyword Arguments:
-            reset_params {[type]} -- [description] (default: {None})
-            realtime_mode {bool} -- [description] (default: {False})
-            record_trajectory {bool} -- [description] (default: {False})
+            reset_params {dict} -- Provides parameters, like the number of dancers. (default: {None})
+            realtime_mode {bool} -- Whether to render the environment in realtime. (default: {False})
+            record_trajectory {bool} -- Whether to record the trajectory of an entire episode. This can be used for video recording. (default: {False})
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
@@ -79,7 +79,15 @@ class BalletWrapper(Env):
         return self._trajectory if self._trajectory else None
 
     def reset(self, reset_params = None):
-        """Reset the environment. The provided config is a dictionary featuring reset parameters for the environment (e.g. seed)."""
+        """Resets the environment.
+        
+        Keyword Arguments:
+            reset_params {dict} -- Provides parameters, like if the observed velocity should be masked. (default: {None})
+        
+        Returns:
+            {numpy.ndarray} -- Visual observation
+            {numpy.ndarray} -- Vector observation
+        """
         seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
         timestep = self._env.reset(seed)
         vis_obs, command = timestep.observation
@@ -97,7 +105,18 @@ class BalletWrapper(Env):
         return vis_obs, vec_obs
 
     def step(self, action):
-        """Executes one step of the agent."""
+        """Runs one timestep of the environment's dynamics.
+        
+        Arguments:
+            action {int} -- The to be executed action
+        
+        Returns:
+            {numpy.ndarray} -- Visual observation
+            {numpy.ndarray} -- Vector observation
+            {float} -- (Total) Scalar reward signaled by the environment
+            {bool} -- Whether the episode of the environment terminated
+            {dict} -- Further information (e.g. episode length) retrieved from the environment once an episode completed
+        """
         timestep = self._env.step(action[0])
         vis_obs, command = timestep.observation
         reward = timestep.reward
@@ -126,6 +145,14 @@ class BalletWrapper(Env):
         self._env.close()
 
     def _command_to_one_hot(self, command):
+        """Encodes the supplied command one hot
+
+        Arguments:
+            command {str} -- The to be encoded command
+
+        Returns:
+            {np.ndarray} -- One-hot command encoding
+        """
         encoding = np.zeros(self._vector_observatoin_space, dtype=np.float32)
         index = 0
         if command == "watch":
