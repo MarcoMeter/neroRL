@@ -82,6 +82,13 @@ def main():
         model.add_gae_estimator_head(action_space_shape, device)
     model.eval()
 
+    if torch.cuda.is_available():
+        torch.set_default_tensor_type("torch.cuda.FloatTensor")
+        model.cuda()
+    else:
+        torch.set_default_tensor_type("torch.FloatTensor")
+        model.cpu()
+
     # Load checkpoint paths
     print("Step 4: Load Checkpoint Paths")
     checkpoints = get_sorted_checkpoints(path)
