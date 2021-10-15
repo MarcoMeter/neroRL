@@ -242,8 +242,8 @@ class Buffer():
 
         Arguments:
             model {nn.Module} -- The model to retrieve the policy and value from
-            gamma {float} -- Gamma parameter for calculating the GAE
-            lamda {float} -- Lambda parameter for calculating the GAE
+            gamma {float} -- Discount factor
+            lamda {float} -- GAE regularization parameter
         """
         # Init recurrent cells
         recurrent_cell = None
