@@ -125,7 +125,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         # Train the value function using the whole batch of data instead of mini batches
         if self.currentUpdate % self.value_update_interval == 0:
             for epoch in range(self.num_value_epochs):
-                # Refreshes buffer with current model every refresh_buffer_epoch
+                # Refreshes buffer with current model for every refresh_buffer_epoch
                 if epoch > 0 and epoch % self.refresh_buffer_epoch == 0:
                     self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
                 if self.recurrence is not None:

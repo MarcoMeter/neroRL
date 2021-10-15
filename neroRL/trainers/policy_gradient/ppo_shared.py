@@ -53,7 +53,7 @@ class PPOTrainer(BaseTrainer):
 
         # Train policy and value function for e epochs using mini batches
         for epoch in range(self.epochs):
-            # Refreshes buffer with current model every refresh_buffer_epoch
+            # Refreshes buffer with current model for every refresh_buffer_epoch
             if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
                 self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
             # Retrieve the to be trained mini_batches via a generator
