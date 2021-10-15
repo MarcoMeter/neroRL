@@ -293,7 +293,7 @@ class Buffer():
 
         # Refresh advantages
         _, last_value, _, _ = model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
-        self.calc_advantages(last_value.data, gamma, lamda)
+        self.calc_advantages(last_value, gamma, lamda)
         
         # Refresh batches
         self.prepare_batch_dict() 
