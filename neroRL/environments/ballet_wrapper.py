@@ -26,6 +26,13 @@ class BalletWrapper(Env):
             realtime_mode {bool} -- Whether to render the environment in realtime. (default: {False})
             record_trajectory {bool} -- Whether to record the trajectory of an entire episode. This can be used for video recording. (default: {False})
         """
+        # Disable ballet logger
+        import logging
+        logging.getLogger("absl").propagate = False
+        # Ignore numpy warnings that originate from pycolab
+        import warnings
+        warnings.filterwarnings("ignore", message=r"arrays to stack", category=FutureWarning)
+
         # Set default reset parameters if none were provided
         if reset_params is None:
             self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "num-dancers": 2, "dance-delay": 1}

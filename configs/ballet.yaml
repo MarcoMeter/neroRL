@@ -18,7 +18,7 @@ environment:
     # Number of dances in the environment
     num-dancers: 2
     # Delay between dances
-    dance-delay: 0
+    dance-delay: 1
 
 model:
   load_model: False
