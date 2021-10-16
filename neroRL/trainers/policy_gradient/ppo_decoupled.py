@@ -126,7 +126,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         if self.currentUpdate % self.value_update_interval == 0:
             for epoch in range(self.num_value_epochs):
                 # Refreshes buffer with current model for every refresh_buffer_epoch
-                if epoch > 0 and epoch % self.refresh_buffer_epoch == 0:
+                if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
                     self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
                 if self.recurrence is not None:
                     batch_generator = self.sampler.buffer.recurrent_mini_batch_generator(self.n_value_mini_batches)
