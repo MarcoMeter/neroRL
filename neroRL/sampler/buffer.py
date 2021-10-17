@@ -251,7 +251,7 @@ class Buffer():
             if self.recurrence["layer_type"] == "gru":
                 recurrent_cell = self.hxs[:, 0].unsqueeze(0)
             elif self.recurrence["layer_type"] == "lstm":
-                recurrent_cell = (self.hxs[:, 0].unsqueeze(0), self.cxs[:, 0].unsqueeze(0))
+                recurrent_cell = (self.hxs[:, 0].unsqueeze(0).contiguous(), self.cxs[:, 0].unsqueeze(0).contiguous())
 
         # Refresh values, log_probs and hidden_states with current model
         for t in range(self.worker_steps):
@@ -286,10 +286,10 @@ class Buffer():
                         if self.recurrence["reset_hidden_state"]:
                             hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
                             if self.recurrence["layer_type"] == "gru":
-                                recurrent_cell[:, w] = hxs
+                                recurrent_cell[:, w] = hxs.contiguous()
                             elif self.recurrence["layer_type"] == "lstm":
-                                recurrent_cell[0][:, w] = hxs
-                                recurrent_cell[1][:, w] = cxs
+                                recurrent_cell[0][:, w] = hxs.contiguous()
+                                recurrent_cell[1][:, w] = cxs.contiguous()
 
         # Refresh advantages
         _, last_value, _, _ = model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
