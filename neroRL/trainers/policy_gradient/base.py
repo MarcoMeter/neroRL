@@ -172,7 +172,7 @@ class BaseTrainer():
                     torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
                     " " + formatted_string)
             else:
-                self.monitor.log("{:4} sec={:2} loss={:3f} entropy={:.3f} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
+                self.monitor.log("{:4} sec={:2} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
                     update, update_duration, torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
                     torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
                     " " + formatted_string)
