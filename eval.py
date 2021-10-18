@@ -54,6 +54,10 @@ def main():
 
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        torch.set_default_tensor_type("torch.cuda.FloatTensor")
+    else:
+        torch.set_default_tensor_type("torch.FloatTensor")
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
@@ -69,8 +73,8 @@ def main():
     # Build or load model
     logger.info("Step 2: Creating model")
     share_parameters = False
-    if configs["trainer"] == "PPO":
-        share_parameters = configs["trainers"]["share_parameters"]
+    if configs["trainer"]["algorithm"] == "PPO":
+        share_parameters = configs["trainer"]["algorithm"]
     model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
                             configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
