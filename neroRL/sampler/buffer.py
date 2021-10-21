@@ -253,7 +253,7 @@ class Buffer():
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (self.hxs[:, 0].unsqueeze(0).contiguous(), self.cxs[:, 0].unsqueeze(0).contiguous())
 
-        # Refresh values, log_probs and hidden_states with current model
+        # Refresh values and hidden_states with current model
         for t in range(self.worker_steps):
             # Gradients can be omitted for refreshing buffer
             with torch.no_grad():
@@ -272,14 +272,7 @@ class Buffer():
                     policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
                     # Refresh values
                     self.values[:, t] = value
-
-                    # Refresh log probs
-                    log_probs = []
-                    for (i, action_branch) in enumerate(policy):
-                        action = torch.tensor([a[i] for a in self.actions[:, t]])
-                        log_probs.append(action_branch.log_prob(action))
-                    self.log_probs[:, t]  = torch.stack(log_probs, dim=1)
-
+                    
                 # Reset hidden states if necessary
                 for w in range(self.num_workers):
                     if self.recurrence is not None and self.dones[w, t]:
