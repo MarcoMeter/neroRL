@@ -35,7 +35,7 @@ class BalletWrapper(Env):
 
         # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "num-dancers": 2, "dance-delay": 1}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 200, "num-dancers": [2, 4, 8], "dance-delay": [16, 48]}
         else:
             self._default_reset_params = reset_params
 
@@ -43,7 +43,7 @@ class BalletWrapper(Env):
         self._record = record_trajectory
 
         # Initialize environment
-        self._env = BalletEnvironment(self._default_reset_params["num-dancers"], self._default_reset_params["dance-delay"], 320)
+        self._env = BalletEnvironment()
         self._dance_types = list(DANCE_SEQUENCES.keys())
 
         # Setup observation spaces
@@ -98,7 +98,7 @@ class BalletWrapper(Env):
         if reset_params is None:
             reset_params = self._default_reset_params
         seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
-        timestep = self._env.reset(seed)
+        timestep = self._env.reset(reset_params, seed)
         vis_obs, command = timestep.observation
         vec_obs = self._command_to_one_hot(command)
         # Track rewards of an entire episode

@@ -177,7 +177,7 @@ def get_scrolling_cropper(rows=9, cols=9, crop_pad_char=" "):
 class BalletEnvironment(dm_env.Environment):
   """A Python environment API for pycolab ballet tasks."""
 
-  def __init__(self, num_dancers, dance_delay, max_steps, seed=None):
+  def __init__(self):
     """Construct a BalletEnvironment that wraps pycolab games for agent use.
 
     This class inherits from dm_env and has all the expected methods and specs.
@@ -190,16 +190,6 @@ class BalletEnvironment(dm_env.Environment):
       rng: An optional numpy Random Generator, to set a fixed seed use e.g.
           `rng=np.random.default_rng(seed=...)`
     """
-    self._num_dancers = num_dancers
-    self._dance_delay = dance_delay
-    self._max_steps = max_steps
-
-    # internal state
-    if seed is None:
-      rng = np.random.default_rng()
-    else:
-      rng = np.random.default_rng(seed=seed)
-    self._rng = rng
     self._current_game = None       # Current pycolab game instance.
     self._state = None              # Current game step state.
     self._game_over = None          # Whether the game has ended.
@@ -260,7 +250,7 @@ class BalletEnvironment(dm_env.Environment):
     full_observation = (image, language)
     return full_observation
 
-  def reset(self, seed=None):
+  def reset(self, reset_params, seed=None):
     """Start a new episode."""
     # Set the seed for the new episode
     if seed is None:
@@ -268,6 +258,13 @@ class BalletEnvironment(dm_env.Environment):
     else:
       rng = np.random.default_rng(seed=seed)
     self._rng = rng
+
+    # Randomize num dancers and dance delays based on the provided choices
+    self._num_dancers = reset_params["num-dancers"][self._rng.integers(len(reset_params["num-dancers"]))]
+    self._dance_delay = reset_params["dance-delay"][self._rng.integers(len(reset_params["dance-delay"]))]
+
+    # Determine maximmum number of steps
+    self._max_steps = 320 if self._dance_delay == 16 else 1024
 
     # Build a new game and retrieve its first set of state/reward/discount.
     self._current_game = self._game_factory()

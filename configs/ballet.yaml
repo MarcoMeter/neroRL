@@ -15,10 +15,10 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 200
-    # Number of dances in the environment
-    num-dancers: 2
-    # Delay between dances
-    dance-delay: 1
+    # Number of dances in the environment (the items inside the list will be used to sample from)
+    num-dancers: [2, 4, 8]
+    # Delay between dances (the items inside the list will be used to sample from)
+    dance-delay: [16, 48]
 
 model:
   load_model: False
