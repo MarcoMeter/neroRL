@@ -249,7 +249,7 @@ class Buffer():
         recurrent_cell = None
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
-                recurrent_cell = self.hxs[:, 0].unsqueeze(0)
+                recurrent_cell = self.hxs[:, 0].unsqueeze(0).contiguous()
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (self.hxs[:, 0].unsqueeze(0).contiguous(), self.cxs[:, 0].unsqueeze(0).contiguous())
 
@@ -277,7 +277,7 @@ class Buffer():
                 for w in range(self.num_workers):
                     if self.recurrence is not None and self.dones[w, t]:
                         if self.recurrence["reset_hidden_state"]:
-                            hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
+                            hxs, cxs = model.init_recurrent_cell_states(1, self.device)
                             if self.recurrence["layer_type"] == "gru":
                                 recurrent_cell[:, w] = hxs.contiguous()
                             elif self.recurrence["layer_type"] == "lstm":
