@@ -48,6 +48,10 @@ def main():
 
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        torch.set_default_tensor_type("torch.cuda.FloatTensor")
+    else:
+        torch.set_default_tensor_type("torch.FloatTensor")
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     print("Step 1: Creating dummy environment of type " + configs["environment"]["type"])

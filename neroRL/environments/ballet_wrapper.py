@@ -97,6 +97,11 @@ class BalletWrapper(Env):
         """
         if reset_params is None:
             reset_params = self._default_reset_params
+        else:
+            for k, v in self._default_reset_params.items():
+                if k not in reset_params:
+                    reset_params[k] = v
+
         seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
         timestep = self._env.reset(reset_params, seed)
         vis_obs, command = timestep.observation
