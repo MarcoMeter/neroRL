@@ -1,0 +1,78 @@
+# Lampinen et al. 2021
+# Towards mental time travel: a hierarchical memory for reinforcement learning agents
+# https://arxiv.org/abs/2105.14039
+# https://github.com/deepmind/deepmind-research/tree/master/hierarchical_transformer_memory/pycolab_ballet
+
+environment:
+  type: "Ballet"
+  name: ""
+  frame_skip: 1
+  last_action_to_obs: False
+  last_reward_to_obs: False
+  obs_stacks: 1
+  grayscale: False
+  resize_vis_obs: [99, 99]
+  reset_params:
+    start-seed: 0
+    num-seeds: 500
+    # Number of dances in the environment (the items inside the list will be used to sample from)
+    num-dancers: [2, 4, 8]
+    # Delay between dances (the items inside the list will be used to sample from)
+    dance-delay: [16]
+
+model:
+  load_model: False
+  model_path: "path/to/model.pt"
+  checkpoint_interval: 150
+  activation: "relu"
+  vis_encoder: "cnn"
+  recurrence:
+    layer_type: "lstm"
+    sequence_length: 64
+    hidden_state_size: 512
+    hidden_state_init: "zero"
+    reset_hidden_state: True
+    residual: False
+  vec_encoder: "linear" # "linear", "none"
+  num_vec_encoder_units: 128
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
+  
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds: [1001, 1002, 1003, 1004, 1005]
+  interval: 150
+
+sampler:
+  type: "TrajectorySampler"
+  n_workers: 32
+  worker_steps: 512
+
+trainer:
+  algorithm: "PPO"
+  resume_at: 0
+  gamma: 0.99
+  lamda: 0.95
+  updates: 1650
+  epochs: 3
+  n_mini_batches: 8
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
+  share_parameters: True
+  learning_rate_schedule:
+    initial: 3.0e-4
+    final: 3.0e-4
+    power: 1.0
+    max_decay_steps: 1650
+  beta_schedule:
+    initial: 0.001
+    final: 0.0005
+    power: 1.0
+    max_decay_steps: 1650
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 1650

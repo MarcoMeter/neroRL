@@ -12,6 +12,7 @@ Each data point is a dictionary given the episode information:
 Depending on the environment, more information might be available.
 For example, Obstacle Tower has a floor key inside that dictionary.
 """
+from numpy.core.fromnumeric import mean
 import torch
 import os
 import pickle
@@ -48,6 +49,10 @@ def main():
 
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        torch.set_default_tensor_type("torch.cuda.FloatTensor")
+    else:
+        torch.set_default_tensor_type("torch.FloatTensor")
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     print("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
@@ -82,13 +87,20 @@ def main():
         model.add_gae_estimator_head(action_space_shape, device)
     model.eval()
 
+    if torch.cuda.is_available():
+        torch.set_default_tensor_type("torch.cuda.FloatTensor")
+        model.cuda()
+    else:
+        torch.set_default_tensor_type("torch.FloatTensor")
+        model.cpu()
+
     # Load checkpoint paths
-    print("Step 4: Load Checkpoint Paths")
+    print("Step 3: Load Checkpoint Paths")
     checkpoints = get_sorted_checkpoints(path)
     print("Step 3: Number of Loaded Checkpoint Paths: " + str(len(checkpoints)))
 
     # Evaluate checkpoints
-    print("Step 5: Start Evaluation . . .")
+    print("Step 4: Start Evaluation . . .")
     print("Progress:")
     results = []
     current_checkpoint = 0
@@ -101,12 +113,20 @@ def main():
         results.append(res)
         current_checkpoint = current_checkpoint + 1
         prog = current_checkpoint / len(checkpoints)
-        print(f"\r{prog:.2f}", end='', flush=True)
+        mean_reward = 0.0
+        mean_length = 0.0
+        for info in res:
+            mean_reward += info["reward"]
+            mean_length += info["length"]
+        mean_reward = mean_reward / len(res)
+        mean_length = mean_length / len(res)
+        print(f"\r{prog:.2f} mean reward: {mean_reward:.2f} mean episode length: {mean_length:.1f}", end='', flush=True)
     evaluator.close()
 
     # Save results to file
-    print("\nStep 6: Save to File: " + name)
+    print("\nStep 5: Save to File: " + name)
     results = np.asarray(results).reshape(len(checkpoints), len(configs["evaluation"]["seeds"]), configs["evaluation"]["n_workers"])
+    os.makedirs(os.path.dirname(name), exist_ok=True)
     outfile = open(name, "wb")
     pickle.dump(results, outfile)
     outfile.close()

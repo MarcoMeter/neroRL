@@ -31,17 +31,18 @@ class Monitor():
         """
         self.timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
         duplicate_suffix = ""
-        log_path = out_path + "logs/" + run_id + self.timestamp[:-1] + "_" + duplicate_suffix + ".log"
+        log_path = out_path + "logs/" + run_id + self.timestamp[:-1] + ".log"
         # Check whether this path setup already exists
         if os.path.isfile(log_path):
             # If so, add a random suffix to distinguish duplicate runs
             duplicate_suffix = "_" + str(random.randint(0, 1000))
+            log_path = out_path + "logs/" + run_id + self.timestamp[:-1] + duplicate_suffix + ".log"
 
         # Create directories
         self._create_directories(out_path, run_id, duplicate_suffix)
 
         # Setup SummaryWriter
-        summary_path = out_path + "summaries/" + run_id + self.timestamp + duplicate_suffix
+        summary_path = out_path + "summaries/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
         self.writer = SummaryWriter(summary_path)
 
         # Setup logger
@@ -70,7 +71,7 @@ class Monitor():
         if not os.path.exists(out_path + "logs") or not os.path.exists(out_path + "logs/" + run_id):
             os.makedirs(out_path + "logs/" + run_id)
 
-        self.checkpoint_path = out_path + "checkpoints/" + run_id + self.timestamp + duplicate_suffix
+        self.checkpoint_path = out_path + "checkpoints/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
         os.makedirs(self.checkpoint_path)
 
     def log(self, message:str) -> None:

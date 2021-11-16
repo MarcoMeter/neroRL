@@ -1,8 +1,7 @@
 import multiprocessing
 import multiprocessing.connection
 
-
-from random import randint, random
+from random import randint
 
 from neroRL.environments.wrapper import wrap_environment
 

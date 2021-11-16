@@ -50,7 +50,7 @@ class UnityWrapper(Env):
         self._record = record_trajectory
 
         # Launch the environment's executable
-        self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+        self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
         # If the Unity Editor chould be used instead of a build
         # self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
 
@@ -76,7 +76,7 @@ class UnityWrapper(Env):
         self._num_vis_obs, self._num_vec_obs = 0, 0
         self._vec_obs_indices = []
         for index, obs in enumerate(self._behavior_spec.observation_specs):
-            if len(obs) > 1:
+            if len(obs[0]) > 1:
                 self._num_vis_obs = self._num_vis_obs + 1
                 self._vis_obs_index = index
             else:
@@ -98,7 +98,7 @@ class UnityWrapper(Env):
         # Set vector observation space property
         if self._num_vec_obs > 0:
             # Determine the length of vec obs by summing the length of each distinct one
-            vec_obs_length = sum([self._behavior_spec.observation_specs[i][0] for i in self._vec_obs_indices])
+            vec_obs_length = sum([self._behavior_spec.observation_specs[i][0][0] for i in self._vec_obs_indices])
             self._vector_observatoin_space = (vec_obs_length, )
         else:
             self._vector_observatoin_space = None
