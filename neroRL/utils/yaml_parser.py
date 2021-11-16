@@ -79,7 +79,7 @@ class YamlParser:
             "lamda": 0.95,
             "updates": 1000,
             "epochs": 4,
-            "refresh_buffer_epoch": 2,
+            "refresh_buffer_epoch": -1,
             "n_mini_batches": 4,
             "value_coefficient": 0.25,
             "max_grad_norm": 0.5,
