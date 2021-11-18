@@ -1,12 +1,47 @@
-<!DOCTYPE HTML>
+<!--https://stackoverflow.com/questions/31196113/draw-video-frame-by-frame-on-html5-canvas-and-control-with-slider-->
+<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
-    <title>Video</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script charset="utf-8"></script>
+<meta charset="utf-8" />
+<title>Video</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        html, body {
+  height: 100%;
+  margin: 0 auto;
+}
+canvas {
+  height: 150px;
+  width: 400px;
+  border: 1px solid black;
+}
+    </style>
 </head>
 <body>
-    <h1>Title</h1>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<canvas id="canvas"></canvas>
+<br>
+<input id="my-input" type="range" min="1" max="72" value="1" />
+
+<script type="text/javascript">
+var canvas = document.getElementById("canvas");
+canvas.height = 150;
+canvas.width = 400;
+
+var totalImages = 72;
+var videoFrames = [];
+for (var i = 1; i <= totalImages; i++) {
+  var videoFrame = new Image;
+  var videoFrameUrl = 'http://rphv.net/walkthrough/tmp-' + i + '.gif';
+  videoFrame.src = videoFrameUrl;
+  videoFrames.push(videoFrame);
+}
+
+$("#my-input").on("input", function(event) {
+  var currentImage = videoFrames[event.target.value - 1];
+  var context = canvas.getContext("2d");
+  context.drawImage(currentImage, 0, 0);
+});
+</script>
 </body>
 </html>
