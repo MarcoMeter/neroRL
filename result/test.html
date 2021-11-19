@@ -1,0 +1,32 @@
+<!--https://stackoverflow.com/questions/31196113/draw-video-frame-by-frame-on-html5-canvas-and-control-with-slider-->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Video</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+</head>
+<body>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+
+<input id='time_selector' type='range'>
+
+<video id="video_player">
+    <source src="test1.webm" type="video/webm"> 
+</video>
+
+
+
+<script type="text/javascript">
+
+var videoPlayer = document.getElementById('video_player')
+var videoLength = 0
+
+window.addEventListener('load', ()=>{
+    videoLength = videoPlayer.duration
+	console.log(videoLength);
+} ,false)
+
+</body>
+</html>

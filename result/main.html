@@ -1,0 +1,94 @@
+<!--https://stackoverflow.com/questions/31196114/draw-video-frame-by-frame-on-html5-canvas-and-control-with-slider-->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Video</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;500&display=swap" rel="stylesheet">
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-flow: center;
+            background: #000;
+            color: white;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        video {
+            width: 600px;
+            height: 400px;
+        }
+
+        #header_videos {
+            text-align: center;
+            font-weight: 500;
+        }
+        #selector_header{
+            font-weight: 200;
+        }
+        .divider{
+            width: 1000px;
+            height: 1px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.548);
+        }
+    </style>
+</head>
+
+<body>
+    <br>
+    <div id='video_section'>
+        <h1 id='header_videos'>Videos</h1>
+        <div class='divider'></div>
+        <div id='videos'>
+            <video id="video_player">
+                <source src="test1.webm" type="video/webm">
+            </video>
+
+            <video id="video_player2">
+                <source src="test2.webm" type="video/webm">
+            </video>
+
+        </div>
+    </div>
+    <br>
+    <h3 id="selector_header">Zeit</h3>
+    <input id='time_selector' type='range'>
+
+    <script type="text/javascript">
+
+        const videoPlayer = document.getElementById('video_player')
+        var videoLength = 0
+
+        var videoPlayer2 = document.getElementById('video_player2')
+        var videoLenght2 = 0
+
+        const timeSelector = document.getElementById('time_selector')
+
+        window.addEventListener('load', () => {
+            videoLength = videoPlayer.duration
+            videoLenght2 = videoPlayer2.duration
+        }, false)
+
+        timeSelector.addEventListener('input', () => {
+            time = videoLength / 100 * timeSelector.value
+            videoPlayer.currentTime = time
+
+            time2 = videoLenght2 / 100 * timeSelector.value
+            videoPlayer2.currentTime = time2
+
+        })
+
+    </script>
+</body>
+
+</html>
