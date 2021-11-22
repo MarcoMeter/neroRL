@@ -110,6 +110,9 @@
 
         videoPlayer.addEventListener('timeupdate', timeListener);
         videoPlayer2.addEventListener('timeupdate', timeListener);
+        videoPlayer.addEventListener('dblclick', function(e) {openFullscreen(videoPlayer);});
+        videoPlayer2.addEventListener('dblclick', function(e) {openFullscreen(videoPlayer2);});
+
 
         function pause() {
             videoPlayer.pause()
@@ -135,6 +138,17 @@
             videoPlayer.currentTime = videoPlayer.currentTime + tS_step_size
             videoPlayer2.currentTime = videoPlayer2.currentTime + tS_step_size
         }
+
+        function openFullscreen(elem) {
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { /* IE11 */
+                elem.msRequestFullscreen();
+            }
+            elem.pause();
+    }
     </script>
 </body>
 
