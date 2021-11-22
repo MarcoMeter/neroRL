@@ -91,7 +91,7 @@
             videoLength = videoPlayer.duration
             videoLenght2 = videoPlayer2.duration
             tS_max_value = videoLength
-            tS_step_size = 1.00001
+            tS_step_size = 1.
             timeSelector.value = 0
             timeSelector.setAttribute('max', tS_max_value)
             timeSelector.setAttribute('step', tS_step_size)
@@ -128,10 +128,12 @@
 
         function back() {
             videoPlayer.currentTime = videoPlayer.currentTime - tS_step_size
+            videoPlayer2.currentTime = videoPlayer2.currentTime - tS_step_size
         }
 
         function next() {
             videoPlayer.currentTime = videoPlayer.currentTime + tS_step_size
+            videoPlayer2.currentTime = videoPlayer2.currentTime + tS_step_size
         }
     </script>
 </body>
