@@ -84,15 +84,17 @@
         var videoLenght2 = 0
 
         const timeSelector = document.getElementById('time_selector')
-        var max_value = 0
+        var tS_max_value = 0
+        var tS_step_size = 0
 
         window.addEventListener('load', () => {
             videoLength = videoPlayer.duration
             videoLenght2 = videoPlayer2.duration
-            timeSelector.setAttribute('max', videoLength)
-            timeSelector.setAttribute('step', videoLength / 30 + 0.1)
+            tS_max_value = videoLength
+            tS_step_size = 1.00001
             timeSelector.value = 0
-            tS_max_value = timeSelector.getAttribute("max");
+            timeSelector.setAttribute('max', tS_max_value)
+            timeSelector.setAttribute('step', tS_step_size)
         }, false)
 
         timeSelector.addEventListener('input', () => {
@@ -125,11 +127,11 @@
         }
 
         function back() {
-            videoPlayer.currentTime = videoPlayer.currentTime - tS_max_value / videoLength
+            videoPlayer.currentTime = videoPlayer.currentTime - tS_step_size
         }
 
         function next() {
-            videoPlayer.currentTime = videoPlayer.currentTime + tS_max_value / videoLength
+            videoPlayer.currentTime = videoPlayer.currentTime + tS_step_size
         }
     </script>
 </body>
