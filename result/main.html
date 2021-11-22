@@ -70,7 +70,7 @@
     <button id="pause_button" onclick="pause()">Pause</button>
     <button id="reset_button" onclick="reset()">Reset</button></buttonrow>
     <h3 id="selector_header">Timeline</h3>
-    <input id='time_selector' type='range'>
+    <input id='time_selector' type='range' min = 1 max = 100 step = 1>
 
     <script type="text/javascript">
 
@@ -81,22 +81,26 @@
         var videoLenght2 = 0
 
         const timeSelector = document.getElementById('time_selector')
+        var max_value = 0
 
         window.addEventListener('load', () => {
             videoLength = videoPlayer.duration
             videoLenght2 = videoPlayer2.duration
+            timeSelector.setAttribute('max', videoLength)
+            timeSelector.setAttribute('step', videoLength / 30 + 0.1)
+            tS_max_value = timeSelector.getAttribute("max");
         }, false)
 
         timeSelector.addEventListener('input', () => {
-            time = videoLength / 100 * timeSelector.value
+            time = videoLength / tS_max_value * timeSelector.value
             videoPlayer.currentTime = time
 
-            time2 = videoLenght2 / 100 * timeSelector.value
+            time2 = videoLenght2 / tS_max_value * timeSelector.value
             videoPlayer2.currentTime = time2
 
         })
         function timeListener() {
-            timeSelector.value = videoPlayer.currentTime * 100 / videoLength
+            timeSelector.value = videoPlayer.currentTime * tS_max_value / videoLength
         }
 
         videoPlayer.addEventListener('timeupdate', timeListener);
