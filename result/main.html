@@ -41,6 +41,10 @@
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.548);
         }
+        buttonrow
+        {
+            display:inline;
+        }
     </style>
 </head>
 
@@ -61,10 +65,10 @@
         </div>
     </div>
     <br>
+    <buttonrow>
     <button id="play_button" onclick="play()">Play</button>
     <button id="pause_button" onclick="pause()">Pause</button>
-    <button id="reset_button" onclick="reset()">Reset</button>
-
+    <button id="reset_button" onclick="reset()">Reset</button></buttonrow>
     <h3 id="selector_header">Timeline</h3>
     <input id='time_selector' type='range'>
 
