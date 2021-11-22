@@ -141,16 +141,16 @@
             videoPlayer2.currentTime = videoPlayer2.currentTime + tS_step_size
         }
 
-        function openFullscreen(elem) {
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen();
-            } else if (elem.webkitRequestFullscreen) { /* Safari */
-                elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) { /* IE11 */
-                elem.msRequestFullscreen();
+        function openFullscreen(vid_elem) {
+            if (vid_elem.requestFullscreen) {
+                vid_elem.requestFullscreen();
+            } else if (vid_elem.webkitRequestFullscreen) { /* Safari */
+                vid_elem.webkitRequestFullscreen();
+            } else if (vid_elem.msRequestFullscreen) { /* IE11 */
+                vid_elem.msRequestFullscreen();
             }
-            elem.pause();
-    }
+            vid_elem.pause();
+        }
     </script>
 </body>
 
