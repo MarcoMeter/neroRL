@@ -93,6 +93,8 @@
             tS_max_value = videoLength
             tS_step_size = 1.
             timeSelector.value = 0
+            videoPlayer.currentTime = 0.00001
+            videoPlayer2.currentTime = 0.00001
             timeSelector.setAttribute('max', tS_max_value)
             timeSelector.setAttribute('step', tS_step_size)
         }, false)
@@ -125,8 +127,8 @@
         }
 
         function reset() {
-            videoPlayer.currentTime = 0
-            videoPlayer2.currentTime = 0
+            videoPlayer.currentTime = 0.00001
+            videoPlayer2.currentTime = 0.00001
         }
 
         function back() {
