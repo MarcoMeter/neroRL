@@ -61,6 +61,10 @@
         </div>
     </div>
     <br>
+    <button id="play_button" onclick="play()">Play</button>
+    <button id="pause_button" onclick="pause()">Pause</button>
+    <button id="reset_button" onclick="reset()">Reset</button>
+
     <h3 id="selector_header">Timeline</h3>
     <input id='time_selector' type='range'>
 
@@ -87,6 +91,27 @@
             videoPlayer2.currentTime = time2
 
         })
+        function timeListener() {
+            timeSelector.value = videoPlayer.currentTime * 100 / videoLength
+        }
+
+        videoPlayer.addEventListener('timeupdate', timeListener);
+        videoPlayer2.addEventListener('timeupdate', timeListener);
+
+        function pause() {
+            videoPlayer.pause()
+            videoPlayer2.pause()
+        }
+
+        function play() {
+            videoPlayer.play()
+            videoPlayer2.play()
+        }
+
+        function reset() {
+            videoPlayer.currentTime = 0
+            videoPlayer2.currentTime = 0
+        }
 
     </script>
 </body>
