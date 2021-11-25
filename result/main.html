@@ -1,157 +1,110 @@
-<!--https://stackoverflow.com/questions/31196114/draw-video-frame-by-frame-on-html5-canvas-and-control-with-slider-->
 <!DOCTYPE html>
 <html>
-
 <head>
-    <meta charset="utf-8" />
-    <title>Video</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;500&display=swap" rel="stylesheet">
-    <style>
-        html,
-        body {
-            height: 100%;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex-flow: center;
-            background: #000;
-            color: white;
-            font-family: 'Montserrat', sans-serif;
-        }
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body {font-family: Arial;}
 
-        video {
-            width: 600px;
-            height: 400px;
-        }
+/* Style the tab */
+.tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+}
 
-        #header_videos {
-            text-align: center;
-            font-weight: 500;
-        }
-        #selector_header{
-            font-weight: 200;
-        }
-        .divider{
-            width: 1000px;
-            height: 1px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.548);
-        }
-        buttonrow
-        {
-            display:inline;
-        }
-    </style>
+/* Style the buttons inside the tab */
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 17px;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+  background-color: #ddd;
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+  background-color: #f1f1f1;
+}
+
+/* Style the tab content */
+.tabcontent {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-top: none;
+  background-color: #f1f1f1;
+}
+
+/* Style the close button */
+.topright {
+  float: right;
+  cursor: pointer;
+  font-size: 28px;
+}
+
+.topright:hover {color: red;}
+</style>
 </head>
-
 <body>
-    <br>
-    <div id='video_section'>
-        <h1 id='header_videos'>Videos</h1>
-        <div class='divider'></div>
-        <div id='videos'>
-            <video id="video_player">
-                <source src="test1.webm" type="video/webm">
-            </video>
 
-            <video id="video_player2">
-                <source src="test2.webm" type="video/webm">
-            </video>
+<div class="tab">
+  <button class="tablinks" onclick="openTab(event, 'Environment')" id="defaultOpen">Environment</button>
+  <button class="tablinks" onclick="openTab(event, 'Hyperparameters')">Hyperparameters</button>
+  <button class="tablinks" onclick="openTab(event, 'Misc')">Misc</button>
+  <button class="tablinks" onmouseover="color_red(this)" onmouseleave="color_white(this)" onclick="openMediaSite()" style="background:#404040; float:right; color:white;">Media</button>
+</div>
 
-        </div>
-    </div>
-    <br>
-    <buttonrow>
-    <button id="play_button" onclick="play()">Play</button>
-    <button id="pause_button" onclick="pause()">Pause</button>
-    <button id="reset_button" onclick="reset()">Reset</button>
-    <button id="back_button" onclick="back()">Back</button>
-    <button id="next_button" onclick="next()">Next</button>
-    </buttonrow>
-    <h3 id="selector_header">Timeline</h3>
-    <input id='time_selector' type='range' min = 0 max = 100 step = 1>
+<div id="Environment" class="tabcontent">
+  <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
+  <h3>Env. Information</h3>
+</div>
 
-    <script type="text/javascript">
+<div id="Hyperparameters" class="tabcontent">
+  <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
+  <h3>Hyper. Information</h3>
+</div>
 
-        const videoPlayer = document.getElementById('video_player')
-        var videoLength = 0
+<div id="Misc" class="tabcontent">
+  <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
+  <h3>Misc Information</h3>
+</div>
 
-        var videoPlayer2 = document.getElementById('video_player2')
-        var videoLenght2 = 0
+<script>
+function openTab(evt, id) {
+  var i, tabcontent, tablinks;
+  tabcontent = document.getElementsByClassName("tabcontent");
+  for (i = 0; i < tabcontent.length; i++) {
+    tabcontent[i].style.display = "none";
+  }
+  tablinks = document.getElementsByClassName("tablinks");
+  for (i = 0; i < tablinks.length; i++) {
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+  document.getElementById(id).style.display = "block";
+  evt.currentTarget.className += " active";
+}
 
-        const timeSelector = document.getElementById('time_selector')
-        var tS_max_value = 0
-        var tS_step_size = 0
+function openMediaSite() {
+    window.open("video.html");
+}
 
-        window.addEventListener('load', () => {
-            videoLength = videoPlayer.duration
-            videoLenght2 = videoPlayer2.duration
-            tS_max_value = videoLength
-            tS_step_size = 1.
-            timeSelector.value = 0
-            videoPlayer.currentTime = 0.0001
-            videoPlayer2.currentTime = 0.0001
-            timeSelector.setAttribute('max', tS_max_value)
-            timeSelector.setAttribute('step', tS_step_size)
-        }, false)
+function color_red(x) {
+    x.style.color = "red";
+}
 
-        timeSelector.addEventListener('input', () => {
-            time = videoLength / tS_max_value * timeSelector.value
-            videoPlayer.currentTime = time
-
-            time2 = videoLenght2 / tS_max_value * timeSelector.value
-            videoPlayer2.currentTime = time2
-        })
-        function timeListener() {
-            timeSelector.value = videoPlayer.currentTime * tS_max_value / videoLength
-        }
-
-        videoPlayer.addEventListener('timeupdate', timeListener);
-        videoPlayer2.addEventListener('timeupdate', timeListener);
-        videoPlayer.addEventListener('dblclick', function(e) {openFullscreen(videoPlayer);});
-        videoPlayer2.addEventListener('dblclick', function(e) {openFullscreen(videoPlayer2);});
-
-
-        function pause() {
-            videoPlayer.pause()
-            videoPlayer2.pause()
-        }
-
-        function play() {
-            videoPlayer.play()
-            videoPlayer2.play()
-        }
-
-        function reset() {
-            videoPlayer.currentTime = 0.0001
-            videoPlayer2.currentTime = 0.0001
-        }
-
-        function back() {
-            videoPlayer.currentTime = videoPlayer.currentTime - tS_step_size
-            videoPlayer2.currentTime = videoPlayer2.currentTime - tS_step_size
-        }
-
-        function next() {
-            videoPlayer.currentTime = videoPlayer.currentTime + tS_step_size
-            videoPlayer2.currentTime = videoPlayer2.currentTime + tS_step_size
-        }
-
-        function openFullscreen(vid_elem) {
-            if (vid_elem.requestFullscreen) {
-                vid_elem.requestFullscreen();
-            } else if (vid_elem.webkitRequestFullscreen) { /* Safari */
-                vid_elem.webkitRequestFullscreen();
-            } else if (vid_elem.msRequestFullscreen) { /* IE11 */
-                vid_elem.msRequestFullscreen();
-            }
-            vid_elem.pause();
-        }
-    </script>
+function color_white(x) {
+    x.style.color = "white";
+}
+// Get the element with id="defaultOpen" and click on it
+document.getElementById("defaultOpen").click();
+</script>
+   
 </body>
-
-</html>
+</html> 

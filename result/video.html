@@ -1,0 +1,172 @@
+<!--https://stackoverflow.com/questions/31196114/draw-video-frame-by-frame-on-html5-canvas-and-control-with-slider-->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Video</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;500&display=swap" rel="stylesheet">
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-flow: center;
+            background: #000;
+            color: white;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        video {
+            width: 600px;
+            height: 400px;
+        }
+
+        #header_videos {
+            text-align: center;
+            font-weight: 500;
+        }
+        #selector_header{
+            font-weight: 200;
+        }
+        .divider{
+            width: 1000px;
+            height: 1px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.548);
+        }
+        buttonrow
+        {
+            display:inline;
+        }
+    </style>
+</head>
+
+<body>
+    <br>
+    <div id='video_section'>
+        <!-- h1 id='header_videos'>Videos</h1-->
+        <!-- div class='divider'></div-->
+        <div id='videos'>
+            <video id="video_player">
+                <source src="test1.webm" type="video/webm">
+            </video>
+
+            <video id="video_player2">
+                <source src="test2.webm" type="video/webm">
+            </video>
+
+        </div>
+    </div>
+    <br>
+    <buttonrow>
+    <button id="play_button" onclick="play()">Play</button>
+    <button id="pause_button" onclick="pause()">Pause</button>
+    <button id="reset_button" onclick="reset()">Reset</button>
+    <button id="back_button" onclick="back()">Back</button>
+    <button id="next_button" onclick="next()">Next</button>
+    </buttonrow>
+    <h3 id="selector_header">Timeline</h3>
+    <input id='time_selector' type='range' min = 0 max = 100 step = 1>
+    <div id='video_section'>
+        <!-- h1 id='header_videos'>Videos</h1-->
+        <!-- div class='divider'></div-->
+        <div id='videos'>
+            <video id="video_player3">
+                <source src="test1.webm" type="video/webm">
+            </video>
+
+            <video id="video_player4">
+                <source src="test2.webm" type="video/webm">
+            </video>
+
+        </div>
+    </div>
+
+
+    <script type="text/javascript">
+
+        const videoPlayer = document.getElementById('video_player')
+        var videoLength = 0
+
+        var videoPlayer2 = document.getElementById('video_player2')
+        var videoLenght2 = 0
+
+        const timeSelector = document.getElementById('time_selector')
+        var tS_max_value = 0
+        var tS_step_size = 0
+
+        window.addEventListener('load', () => {
+            videoLength = videoPlayer.duration
+            videoLenght2 = videoPlayer2.duration
+            tS_max_value = videoLength
+            tS_step_size = 1.
+            timeSelector.value = 0
+            videoPlayer.currentTime = 0.0001
+            videoPlayer2.currentTime = 0.0001
+            timeSelector.setAttribute('max', tS_max_value)
+            timeSelector.setAttribute('step', tS_step_size)
+        }, false)
+
+        timeSelector.addEventListener('input', () => {
+            time = videoLength / tS_max_value * timeSelector.value
+            videoPlayer.currentTime = time
+
+            time2 = videoLenght2 / tS_max_value * timeSelector.value
+            videoPlayer2.currentTime = time2
+        })
+        function timeListener() {
+            timeSelector.value = videoPlayer.currentTime * tS_max_value / videoLength
+        }
+
+        videoPlayer.addEventListener('timeupdate', timeListener);
+        videoPlayer2.addEventListener('timeupdate', timeListener);
+        videoPlayer.addEventListener('dblclick', function(e) {openFullscreen(videoPlayer);});
+        videoPlayer2.addEventListener('dblclick', function(e) {openFullscreen(videoPlayer2);});
+
+
+        function pause() {
+            videoPlayer.pause()
+            videoPlayer2.pause()
+        }
+
+        function play() {
+            videoPlayer.play()
+            videoPlayer2.play()
+        }
+
+        function reset() {
+            videoPlayer.currentTime = 0.0001
+            videoPlayer2.currentTime = 0.0001
+        }
+
+        function back() {
+            videoPlayer.currentTime = videoPlayer.currentTime - tS_step_size
+            videoPlayer2.currentTime = videoPlayer2.currentTime - tS_step_size
+        }
+
+        function next() {
+            videoPlayer.currentTime = videoPlayer.currentTime + tS_step_size
+            videoPlayer2.currentTime = videoPlayer2.currentTime + tS_step_size
+        }
+
+        function openFullscreen(vid_elem) {
+            if (vid_elem.requestFullscreen) {
+                vid_elem.requestFullscreen();
+            } else if (vid_elem.webkitRequestFullscreen) { /* Safari */
+                vid_elem.webkitRequestFullscreen();
+            } else if (vid_elem.msRequestFullscreen) { /* IE11 */
+                vid_elem.msRequestFullscreen();
+            }
+            vid_elem.pause();
+        }
+    </script>
+</body>
+
+</html>
