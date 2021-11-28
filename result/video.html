@@ -64,7 +64,7 @@
 
         </div>
     </div>
-    
+
     <br>
     <buttonrow>
     <button id="play_button" onclick="play()">Play</button>
@@ -109,7 +109,6 @@
         window.addEventListener('load', () => {
             for (let i = 0; i < num_videos; i++) {
                 video_length[i] = video_players[i].duration;
-                tS_max_value += video_length[i];
                 video_players[i].currentTime = 0.0001;
             }
 
