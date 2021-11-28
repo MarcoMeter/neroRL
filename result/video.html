@@ -91,72 +91,74 @@
 
 
     <script type="text/javascript">
+        const video_players = document.getElementsByTagName("video");
+        const num_videos = video_players.length;
+        const video_length = new Array(num_videos).fill(0);
 
-        const videoPlayer = document.getElementById('video_player')
-        var videoLength = 0
+        for (let i = 0; i < num_videos; i++) {
+            video_players[i].addEventListener('timeupdate', timeListener);
+            video_players[i].addEventListener('dblclick', function(e) {open_fullscreen(video_players[i]);});
+        }
 
-        var videoPlayer2 = document.getElementById('video_player2')
-        var videoLenght2 = 0
-
-        const timeSelector = document.getElementById('time_selector')
-        var tS_max_value = 0
-        var tS_step_size = 0
+        const timeSelector = document.getElementById('time_selector');
+        var tS_max_value = 0;
+        var tS_step_size = 0;
 
         window.addEventListener('load', () => {
-            videoLength = videoPlayer.duration
-            videoLenght2 = videoPlayer2.duration
-            tS_max_value = videoLength
-            tS_step_size = 1.
-            timeSelector.value = 0
-            videoPlayer.currentTime = 0.0001
-            videoPlayer2.currentTime = 0.0001
-            timeSelector.setAttribute('max', tS_max_value)
-            timeSelector.setAttribute('step', tS_step_size)
+            for (let i = 0; i < num_videos; i++) {
+                video_length[i] = video_players[i].duration;
+                tS_max_value += video_length[i];
+                video_players[i].currentTime = 0.0001;
+            }
+
+            tS_max_value = video_length[0];
+            tS_step_size = 1.;
+            timeSelector.value = 0;
+            timeSelector.setAttribute('max', tS_max_value);
+            timeSelector.setAttribute('step', tS_step_size);
         }, false)
 
         timeSelector.addEventListener('input', () => {
-            time = videoLength / tS_max_value * timeSelector.value
-            videoPlayer.currentTime = time
-
-            time2 = videoLenght2 / tS_max_value * timeSelector.value
-            videoPlayer2.currentTime = time2
+            time = video_length[0] / tS_max_value * timeSelector.value
+            for (let i = 0; i < num_videos; i++) {
+                video_players[i].currentTime = time
+            }
         })
         function timeListener() {
-            timeSelector.value = videoPlayer.currentTime * tS_max_value / videoLength
+            timeSelector.value = video_players[0].currentTime
         }
 
-        videoPlayer.addEventListener('timeupdate', timeListener);
-        videoPlayer2.addEventListener('timeupdate', timeListener);
-        videoPlayer.addEventListener('dblclick', function(e) {openFullscreen(videoPlayer);});
-        videoPlayer2.addEventListener('dblclick', function(e) {openFullscreen(videoPlayer2);});
-
-
         function pause() {
-            videoPlayer.pause()
-            videoPlayer2.pause()
+            for (let i = 0; i < num_videos; i++) {
+                video_players[i].pause();
+            }
         }
 
         function play() {
-            videoPlayer.play()
-            videoPlayer2.play()
+            for (let i = 0; i < num_videos; i++) {
+                video_players[i].play();
+            }
         }
 
         function reset() {
-            videoPlayer.currentTime = 0.0001
-            videoPlayer2.currentTime = 0.0001
+            for (let i = 0; i < num_videos; i++) {
+                video_players[i].currentTime = 0.0001;
+            }
         }
 
         function back() {
-            videoPlayer.currentTime = videoPlayer.currentTime - tS_step_size
-            videoPlayer2.currentTime = videoPlayer2.currentTime - tS_step_size
+            for (let i = 0; i < num_videos; i++) {
+                video_players[i].currentTime = video_players[i].currentTime - tS_step_size;
+            }
         }
 
         function next() {
-            videoPlayer.currentTime = videoPlayer.currentTime + tS_step_size
-            videoPlayer2.currentTime = videoPlayer2.currentTime + tS_step_size
+            for (let i = 0; i < num_videos; i++) {
+                video_players[i].currentTime = video_players[i].currentTime + tS_step_size;
+            }
         }
 
-        function openFullscreen(vid_elem) {
+        function open_fullscreen(vid_elem) {
             if (vid_elem.requestFullscreen) {
                 vid_elem.requestFullscreen();
             } else if (vid_elem.webkitRequestFullscreen) { /* Safari */
