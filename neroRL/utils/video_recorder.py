@@ -33,8 +33,6 @@ class VideoRecorder:
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
         """
-        self.generate_website(trajectory_data)
-        return None
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
                                 self.fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
