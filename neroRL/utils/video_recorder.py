@@ -22,6 +22,7 @@ class VideoRecorder:
         self.height = 420
         self.info_height = 40
         self.video_path = video_path
+        self.website_path = video_path
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')   # Video codec
         self.frame_rate = int(frame_rate)
 
@@ -38,7 +39,7 @@ class VideoRecorder:
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
             env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
-            env_frame = cv2.resize(env_frame, (self.height, self.width), interpolation=cv2.INTER_AREA)
+            env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
 
             # Setup info frame
             info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
@@ -85,6 +86,40 @@ class VideoRecorder:
             out.write(output_image)
         # Finish up the video
         out.release()
+
+    def generate_website(self, trajectory_data):
+        """Generates a website that can be used to view the recorded video.
+        
+        Arguments:
+            trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
+        """
+        # Init VideoWriter, the frame rate is defined by each environment individually
+        out = cv2.VideoWriter(self.website_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
+                                self.fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
+        
+        for i in range(len(trajectory_data["vis_obs"])):
+            # Setup environment frame
+            env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
+            env_frame = cv2.resize(env_frame, (self.width * 2, self.height), interpolation=cv2.INTER_AREA)
+
+            # Setup info frame
+            info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
+            # Seed
+            self.draw_text_overlay(info_frame, 8, 20, trajectory_data["seed"], "seed")
+            # Current step
+            self.draw_text_overlay(info_frame, 108, 20, i, "step")
+            # Collected rewards so far
+            self.draw_text_overlay(info_frame, 208, 20, round(sum(trajectory_data["rewards"][0:i]), 3), "total reward")
+
+            # Concatenate environment and debug frames
+            output_image = np.vstack((info_frame, env_frame))
+
+            # Write frame
+            out.write(output_image)
+        # Finish up the video
+        out.release()
+            
+
 
     def draw_text_overlay(self, frame, x, y, value, label):
         """Draws text on a frame at some position to display a value and its associated label.
