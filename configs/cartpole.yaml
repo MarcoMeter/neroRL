@@ -36,7 +36,7 @@ evaluation:
   evaluate: False
   n_workers: 3
   seeds: [1001, 1002, 1003, 1004, 1005]
-  interval: 5
+  interval: 50
 
 sampler:
   type: "TrajectorySampler"
