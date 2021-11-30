@@ -2,6 +2,7 @@ import cv2
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import ruamel
 
 class VideoRecorder:
     """The VideoRecorder can be used to capture videos of the agent's behavior using enjoy.py or eval.py.
@@ -87,18 +88,24 @@ class VideoRecorder:
         # Finish up the video
         out.release()
 
-    def _config_to_html(self, key):
+    def _config_to_html(self, config, key, prfx = ""):
         """Returns a html string that contains the configuration of the key
         
         Arguments:
+            config {dict} -- The configuration dictionary
             key {string} -- The key of the configuration to be processed.
         
         Returns:
             {string}  -- The html string that contains the configuration of the key.
         """
         html = ""
-        for c_key in self.configs[key]:
-            html += "<b>" + str(c_key) + "</b>: " + str(self.configs[key][c_key]) + "<br>"
+        tab = "&nbsp;&nbsp;&nbsp;&nbsp;" * 2
+        for c_key in config[key]:
+            print(type(config[key][c_key]))
+            if type(config[key][c_key]) is ruamel.yaml.comments.CommentedMap:
+                html += prfx + "<b>" + str(c_key) + "</b>: " + "<br>" + self._config_to_html(config[key], c_key, prfx + tab)
+            else:
+                html += prfx + "<b>" + str(c_key) + "</b>: " + str(config[key][c_key]) + "<br>"
         return html
 
     def generate_website(self, trajectory_data):
