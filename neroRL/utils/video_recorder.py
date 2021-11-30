@@ -92,6 +92,9 @@ class VideoRecorder:
         
         Arguments:
             key {string} -- The key of the configuration to be processed.
+        
+        Returns:
+            {string}  -- The html string that contains the configuration of the key.
         """
         html = ""
         for c_key in self.configs[key]:
