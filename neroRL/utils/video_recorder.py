@@ -87,12 +87,33 @@ class VideoRecorder:
         # Finish up the video
         out.release()
 
+    def _config_to_html(self, key):
+        """Returns a html string that contains the configuration of the key
+        
+        Arguments:
+            key {string} -- The key of the configuration to be processed.
+        """
+        html = ""
+        for c_key in self.configs[key]:
+            html += "<b>" + str(c_key) + "</b>: " + str(self.configs[key][c_key]) + "<br>"
+        return html
+
     def generate_website(self, trajectory_data):
-        """Generates a website that can be used to view the recorded video.
+        """Generates a website that can be used to view the trajectory data.
+        
+        Arguments:
+            trajectory_data {dift} -- This dictionary provides all the necessary information to render a website.
+        """
+        pass
+        
+
+    def _render_environment_episode(self, trajectory_data):
+        """Renders an episode of an agent behaving in its environment.
         
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
         """
+        # Set fourcc s.t. the video is saved as webm
         webm_fourcc = cv2.VideoWriter_fourcc(*'VP09')
         
         # Init VideoWriter, the frame rate is defined by each environment individually
