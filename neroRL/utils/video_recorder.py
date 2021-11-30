@@ -98,10 +98,9 @@ class VideoRecorder:
         Returns:
             {string}  -- The html string that contains the configuration of the key.
         """
-        html = ""
         tab = "&nbsp;&nbsp;&nbsp;&nbsp;" * 2
+        html = ""
         for c_key in config[key]:
-            print(type(config[key][c_key]))
             if type(config[key][c_key]) is ruamel.yaml.comments.CommentedMap:
                 html += prfx + "<b>" + str(c_key) + "</b>: " + "<br>" + self._config_to_html(config[key], c_key, prfx + tab)
             else:
