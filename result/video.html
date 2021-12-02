@@ -109,12 +109,12 @@
         
         
         var y_values = [10,20,30,40,50];
-        var N = 3;
-        var y_values_entropy = [40,50,30,40,50];
+        var N = 0;
+        var y_entropy = [40,50,30,40,50];
 
-        set_scatter_line_plot('value_func', "Value Function", y_values, N);
-        set_scatter_line_plot('entropy_func', "Entropy Function", y_values_entropy, N);
         set_bar_action_plot([10, 20, 30, 50]);
+        set_scatter_line_plot('value_func', "Value Function", y_values, N);
+        set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
 
         function set_bar_action_plot(y_values) {
             var bar_plot_layout_action = {
@@ -211,16 +211,16 @@
 
             var line_scatter_plot_data_value = [
                 {
-                    x: x_values_marker,
-                    y: y_values_marker,
+                    x: [0].concat(x_values_marker),
+                    y: [0].concat(y_values_marker),
                     mode: 'line',
                     line: {
                         color: '#FAEBD7'
                     },
                 },
                 {
-                    x: x_values,
-                    y: y_values,
+                    x: [0].concat(x_values),
+                    y: [0].concat(y_values),
                     mode: 'markers',
                     marker: {
                         color: '#FAEBD7'
@@ -248,7 +248,12 @@
             time = video_length[0] / tS_max_value * timeSelector.value
             for (let i = 0; i < num_videos; i++) {
                 video_players[i].currentTime = time
+                if(video_players[i].currentTime == Math.round(video_players[i].currentTime))
+                    video_players[i].currentTime += 0.0001
             }
+            N = Math.round(video_players[0].currentTime);
+            set_scatter_line_plot('value_func', "Value Function", y_values, N);
+            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
         })
         function timeListener() {
             timeSelector.value = video_players[0].currentTime
@@ -274,14 +279,23 @@
 
         function back() {
             for (let i = 0; i < num_videos; i++) {
-                video_players[i].currentTime = video_players[i].currentTime - tS_step_size;
+                video_players[i].currentTime = video_players[i].currentTime - tS_step_size
+                if(video_players[i].currentTime == Math.round(video_players[i].currentTime))
+                    video_players[i].currentTime += 0.0001
             }
+            N = Math.round(video_players[0].currentTime);
+            set_scatter_line_plot('value_func', "Value Function", y_values, N);
+            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
         }
 
         function next() {
             for (let i = 0; i < num_videos; i++) {
                 video_players[i].currentTime = video_players[i].currentTime + tS_step_size;
+                console.log(video_players[i].currentTime);
             }
+            N = Math.round(video_players[0].currentTime);
+            set_scatter_line_plot('value_func', "Value Function", y_values, N);
+            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
         }
 
         function open_fullscreen(vid_elem) {
