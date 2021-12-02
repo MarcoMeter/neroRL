@@ -257,6 +257,9 @@
         })
         function timeListener() {
             timeSelector.value = video_players[0].currentTime
+            N = Math.round(video_players[0].currentTime);
+            set_scatter_line_plot('value_func', "Value Function", y_values, N);
+            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
         }
 
         function pause() {
@@ -275,6 +278,9 @@
             for (let i = 0; i < num_videos; i++) {
                 video_players[i].currentTime = 0.0001;
             }
+            N = Math.round(video_players[0].currentTime);
+            set_scatter_line_plot('value_func', "Value Function", y_values, N);
+            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
         }
 
         function back() {
