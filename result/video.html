@@ -104,7 +104,20 @@
         var tS_max_value = 0;
         var tS_step_size = 0;
 
-        var bar_plot_layout_action = {
+
+
+        
+        
+        var y_values = [10,20,30,40,50];
+        var N = 3;
+        var y_values_entropy = [40,50,30,40,50];
+
+        set_scatter_line_plot('value_func', "Value Function", y_values, N);
+        set_scatter_line_plot('entropy_func', "Entropy Function", y_values_entropy, N);
+        set_bar_action_plot([10, 20, 30, 50]);
+
+        function set_bar_action_plot(y_values) {
+            var bar_plot_layout_action = {
                 autosize: true,
                 width: 600,
                 height: 360,
@@ -132,35 +145,33 @@
                 }
           };
 
-        var bar_plot_data_action = [
-            {
-                x: ['action1', 'action2', 'action3'],
-                y: [20, 14, 23],
-                type: 'bar',
-                marker: {
-                    color: '#FAEBD7'
-                },
-                textposition: 'auto',
-                text: ['20', '14', '23'],
-                textfont: {
-                    family: 'Montserrat',
-                    size: 12,
-                },
-                textangle: 0,
-                textposition: 'bottom center',
-            }
-        ];
+            x_values =[];
+            for(let i = 0; i < y_values.length; i++)
+                x_values.push("action_" + String(i + 1));
+            
 
-        Plotly.newPlot('action_distr', bar_plot_data_action, bar_plot_layout_action);
+            var bar_plot_data_action = [
+                {
+                    x: x_values,
+                    y: y_values,
+                    type: 'bar',
+                    marker: {
+                        color: '#FAEBD7'
+                    },
+                    textposition: 'auto',
+                    text: y_values.map(String),
+                    textfont: {
+                        family: 'Montserrat',
+                        size: 12,
+                    },
+                    textangle: 0,
+                    textposition: 'bottom center',
+                }
+            ];
 
-        
-        
-        var y_values = [10,20,30,40,50];
-        var N = 3;
-        var y_values_entropy = [40,50,30,40,50];
+            Plotly.newPlot('action_distr', bar_plot_data_action, bar_plot_layout_action);
+        }
 
-        set_scatter_line_plot('value_func', "Value Function", y_values, N);
-        set_scatter_line_plot('entropy_func', "Entropy Function", y_values_entropy, N);
 
         function set_scatter_line_plot(id, title, y_values, N) {
             var line__scatter_plot_layout_value = {
