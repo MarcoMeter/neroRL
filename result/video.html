@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;500&display=swap" rel="stylesheet">
+    <script src='https://cdn.plot.ly/plotly-2.6.3.min.js'></script>
     <style>
         html,
         body {
@@ -45,6 +46,13 @@
         {
             display:inline;
         }
+        #videos{
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            flex-flow: row wrap;
+        }
     </style>
 </head>
 
@@ -57,13 +65,9 @@
             <video>
                 <source src="test1.webm" type="video/webm">
             </video>
-
-            <video>
-                <source src="test2.webm" type="video/webm">
-            </video>
-
+            <div id='action_distr'></div>
         </div>
-    </div>
+</div>
 
     <br>
     <buttonrow>
@@ -105,6 +109,55 @@
         const timeSelector = document.getElementById('time_selector');
         var tS_max_value = 0;
         var tS_step_size = 0;
+
+        var layout = {
+                autosize: false,
+                width: 600,
+                height: 360,
+                margin: {
+                    l: 20,
+                    r: 0,
+                    b: 30,
+                    t: 20,
+                    pad: 4
+                  },
+                plot_bgcolor: '#000',
+                paper_bgcolor: '#000',
+                font: {
+                    family: 'Montserrat',
+                    size: 12,
+                    color: '#fff'
+                },
+                title: {
+                    text: 'Action Distribution',
+                    font: {
+                        family: 'Montserrat',
+                        size: 15,
+                        color: '#fff'
+                    }
+                }
+          };
+
+        var data = [
+            {
+                x: ['action1', 'action2', 'action3'],
+                y: [20, 14, 23],
+                type: 'bar',
+                marker: {
+                    color: '#FAEBD7'
+                },
+                textposition: 'auto',
+                text: ['20', '14', '23'],
+                textfont: {
+                    family: 'Montserrat',
+                    size: 12,
+                },
+                textangle: 0,
+                textposition: 'bottom center',
+            }
+        ];
+
+        Plotly.newPlot('action_distr', data, layout);
 
         window.addEventListener('load', () => {
             for (let i = 0; i < num_videos; i++) {
