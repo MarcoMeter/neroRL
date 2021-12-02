@@ -84,14 +84,8 @@
         <!-- h1 id='header_videos'>Videos</h1-->
         <!-- div class='divider'></div-->
         <div id='videos'>
-            <video>
-                <source src="test1.webm" type="video/webm">
-            </video>
-
-            <video>
-                <source src="test2.webm" type="video/webm">
-            </video>
-
+            <div id='value_func'></div>
+            <div id='entropy_func'></div>
         </div>
     </div>
 
@@ -110,8 +104,8 @@
         var tS_max_value = 0;
         var tS_step_size = 0;
 
-        var layout = {
-                autosize: false,
+        var bar_plot_layout_action = {
+                autosize: true,
                 width: 600,
                 height: 360,
                 margin: {
@@ -138,7 +132,7 @@
                 }
           };
 
-        var data = [
+        var bar_plot_data_action = [
             {
                 x: ['action1', 'action2', 'action3'],
                 y: [20, 14, 23],
@@ -157,7 +151,74 @@
             }
         ];
 
-        Plotly.newPlot('action_distr', data, layout);
+        Plotly.newPlot('action_distr', bar_plot_data_action, bar_plot_layout_action);
+
+        
+        
+        var y_values = [10,20,30,40,50];
+        var N = 3;
+        var y_values_entropy = [40,50,30,40,50];
+
+        set_scatter_line_plot('value_func', "Value Function", y_values, N);
+        set_scatter_line_plot('entropy_func', "Entropy Function", y_values_entropy, N);
+
+        function set_scatter_line_plot(id, title, y_values, N) {
+            var line__scatter_plot_layout_value = {
+                autosize: true,
+                width: 600,
+                height: 360,
+                margin: {
+                    l: 20,
+                    r: 0,
+                    b: 30,
+                    t: 20,
+                    pad: 4
+                    },
+                plot_bgcolor: '#000',
+                paper_bgcolor: '#000',
+                font: {
+                    family: 'Montserrat',
+                    size: 12,
+                    color: '#fff'
+                },
+                title: {
+                    text: title,
+                    font: {
+                        family: 'Montserrat',
+                        size: 15,
+                        color: '#fff'
+                    }
+                },
+                showlegend: false,
+            };
+
+            var x_values = [...Array(y_values.length).keys()].slice(1, y_values.length + 1);
+            x_values.push(y_values.length);
+
+            var x_values_marker = x_values.slice(0, N);
+            var y_values_marker = y_values.slice(0, N);
+
+            var line_scatter_plot_data_value = [
+                {
+                    x: x_values_marker,
+                    y: y_values_marker,
+                    mode: 'line',
+                    line: {
+                        color: '#FAEBD7'
+                    },
+                },
+                {
+                    x: x_values,
+                    y: y_values,
+                    mode: 'markers',
+                    marker: {
+                        color: '#FAEBD7'
+                    },
+                }
+            ];
+
+            Plotly.newPlot(id, line_scatter_plot_data_value, line__scatter_plot_layout_value);
+        }
 
         window.addEventListener('load', () => {
             for (let i = 0; i < num_videos; i++) {
