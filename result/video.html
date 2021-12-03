@@ -276,24 +276,23 @@
                 showlegend: false,
             };
 
-            var x_values = [...Array(y_values.length).keys()].slice(1, y_values.length + 1);
-            x_values.push(y_values.length);
+            var x_values = [...Array(y_values.length).keys()];
 
-            var x_values_marker = x_values.slice(0, N);
-            var y_values_marker = y_values.slice(0, N);
+            var x_values_marker = x_values.slice(0, N + 1);
+            var y_values_marker = y_values.slice(0, N + 1);
 
             var line_scatter_plot_data_value = [
                 {
-                    x: [0].concat(x_values_marker),
-                    y: [0].concat(y_values_marker),
+                    x: x_values_marker,
+                    y: y_values_marker,
                     mode: 'line',
                     line: {
                         color: '#FAEBD7'
                     },
                 },
                 {
-                    x: [0].concat(x_values),
-                    y: [0].concat(y_values),
+                    x: x_values,
+                    y: y_values,
                     mode: 'markers',
                     marker: {
                         color: '#7CFC00'
