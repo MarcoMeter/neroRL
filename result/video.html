@@ -46,7 +46,7 @@
         {
             display:inline;
         }
-        #videos{
+        #figures{
             display: flex;
             flex-direction: row;
             justify-content: center;
@@ -59,38 +59,33 @@
 <body>
     <br>
     <div id='video_section'>
-        <!-- h1 id='header_videos'>Videos</h1-->
-        <!-- div class='divider'></div-->
-        <div id='videos'>
+        <div id='figures'>
             <video>
                 <source src="test1.webm" type="video/webm">
             </video>
             <div id='action_distr'></div>
         </div>
-</div>
+    </div>
 
     <br>
     <buttonrow>
-    <button id="play_button" onclick="play()">Play</button>
-    <button id="pause_button" onclick="pause()">Pause</button>
-    <button id="reset_button" onclick="reset()">Reset</button>
-    <button id="back_button" onclick="back()">Back</button>
-    <button id="next_button" onclick="next()">Next</button>
+        <button id="play_button" onclick="play()">Play</button>
+        <button id="pause_button" onclick="pause()">Pause</button>
+        <button id="reset_button" onclick="reset()">Reset</button>
+        <button id="back_button" onclick="back()">Back</button>
+        <button id="next_button" onclick="next()">Next</button>
     </buttonrow>
 
     <h3 id="selector_header">Timeline</h3>
-    <input id='time_selector' type='range' min = 0 max = 100 step = 1>
-    <div id='video_section'>
-        <!-- h1 id='header_videos'>Videos</h1-->
-        <!-- div class='divider'></div-->
-        <div id='videos'>
-            <div id='value_func'></div>
-            <div id='entropy_func'></div>
+        <input id='time_selector' type='range' min = 0 max = 100 step = 1>
+        <div id='video_section'>
+            <div id='figures'>
+                <div id='value_func'></div>
+                <div id='entropy_func'></div>
         </div>
     </div>
 
-
-    <script type="text/javascript">
+    <script type="text/javascript"> 
         const video_players = document.getElementsByTagName("video");
         const num_videos = video_players.length;
         const video_length = new Array(num_videos).fill(0);
@@ -107,129 +102,7 @@
         var y_values = [10,20,30,40,50];
         var y_entropy = [40,50,30,40,50];
         var y_action = [[10, 20, 30, 50], [30, 20, 10, 40], [50, 40, 30, 20], [40, 30, 20, 10], [20, 10, 30, 50], [10, 20, 30, 40]];
-        var action = [0, 1, 0, 2, 3, 0]
-        var N = 0;
-
-        set_bar_action_plot(y_action[0], action[0]);
-        set_scatter_line_plot('value_func', "Value Function", y_values, N);
-        set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
-
-        function set_bar_action_plot(y_values, action) {
-            var bar_plot_layout_action = {
-                autosize: true,
-                width: 600,
-                height: 360,
-                margin: {
-                    l: 20,
-                    r: 0,
-                    b: 30,
-                    t: 20,
-                    pad: 4
-                  },
-                plot_bgcolor: '#000',
-                paper_bgcolor: '#000',
-                font: {
-                    family: 'Montserrat',
-                    size: 12,
-                    color: '#fff'
-                },
-                title: {
-                    text: 'Action Distribution',
-                    font: {
-                        family: 'Montserrat',
-                        size: 15,
-                        color: '#fff'
-                    }
-                }
-          };
-
-            x_values =[];
-            for(let i = 0; i < y_values.length; i++)
-                x_values.push("action_" + String(i + 1));
-            
-            var color_value = new Array(y_values.length).fill('#FAEBD7');
-            color_value[action] = '#FF0000';
-
-            var bar_plot_data_action = [
-                {
-                    x: x_values,
-                    y: y_values,
-                    type: 'bar',
-                    marker: {
-                        color: color_value
-                    },
-                    textposition: 'auto',
-                    text: y_values.map(String),
-                    textfont: {
-                        family: 'Montserrat',
-                        size: 12,
-                    },
-                    textangle: 0,
-                    textposition: 'bottom center',
-                }
-            ];
-
-            Plotly.newPlot('action_distr', bar_plot_data_action, bar_plot_layout_action);
-        }
-
-
-        function set_scatter_line_plot(id, title, y_values, N) {
-            var line__scatter_plot_layout_value = {
-                autosize: true,
-                width: 600,
-                height: 360,
-                margin: {
-                    l: 20,
-                    r: 0,
-                    b: 30,
-                    t: 20,
-                    pad: 4
-                    },
-                plot_bgcolor: '#000',
-                paper_bgcolor: '#000',
-                font: {
-                    family: 'Montserrat',
-                    size: 12,
-                    color: '#fff'
-                },
-                title: {
-                    text: title,
-                    font: {
-                        family: 'Montserrat',
-                        size: 15,
-                        color: '#fff'
-                    }
-                },
-                showlegend: false,
-            };
-
-            var x_values = [...Array(y_values.length).keys()].slice(1, y_values.length + 1);
-            x_values.push(y_values.length);
-
-            var x_values_marker = x_values.slice(0, N);
-            var y_values_marker = y_values.slice(0, N);
-
-            var line_scatter_plot_data_value = [
-                {
-                    x: [0].concat(x_values_marker),
-                    y: [0].concat(y_values_marker),
-                    mode: 'line',
-                    line: {
-                        color: '#FAEBD7'
-                    },
-                },
-                {
-                    x: [0].concat(x_values),
-                    y: [0].concat(y_values),
-                    mode: 'markers',
-                    marker: {
-                        color: '#FAEBD7'
-                    },
-                }
-            ];
-
-            Plotly.newPlot(id, line_scatter_plot_data_value, line__scatter_plot_layout_value);
-        }
+        var action = [0, 1, 0, 2, 3, 0];
 
         window.addEventListener('load', () => {
             for (let i = 0; i < num_videos; i++) {
@@ -242,6 +115,7 @@
             timeSelector.value = 0;
             timeSelector.setAttribute('max', tS_max_value);
             timeSelector.setAttribute('step', tS_step_size);
+            update_plots(N);
         }, false)
 
         timeSelector.addEventListener('input', () => {
@@ -314,6 +188,122 @@
                 vid_elem.msRequestFullscreen();
             }
             vid_elem.pause();
+        }
+
+        function set_bar_action_plot(y_values, action) {
+            var bar_plot_layout_action = {
+                autosize: true,
+                width: 600,
+                height: 360,
+                margin: {
+                    l: 20,
+                    r: 0,
+                    b: 30,
+                    t: 20,
+                    pad: 4
+                  },
+                plot_bgcolor: '#000',
+                paper_bgcolor: '#000',
+                font: {
+                    family: 'Montserrat',
+                    size: 12,
+                    color: '#fff'
+                },
+                title: {
+                    text: 'Action Distribution',
+                    font: {
+                        family: 'Montserrat',
+                        size: 15,
+                        color: '#fff'
+                    }
+                }
+          };
+
+            x_values =[];
+            for(let i = 0; i < y_values.length; i++)
+                x_values.push("action_" + String(i + 1));
+            
+            var color_value = new Array(y_values.length).fill('#FAEBD7');
+            color_value[action] = '#FF0000';
+
+            var bar_plot_data_action = [
+                {
+                    x: x_values,
+                    y: y_values,
+                    type: 'bar',
+                    marker: {
+                        color: color_value
+                    },
+                    textposition: 'auto',
+                    text: y_values.map(String),
+                    textfont: {
+                        family: 'Montserrat',
+                        size: 12,
+                    },
+                    textangle: 0,
+                    textposition: 'bottom center',
+                }
+            ];
+
+            Plotly.newPlot('action_distr', bar_plot_data_action, bar_plot_layout_action);
+        }
+
+        function set_scatter_line_plot(id, title, y_values, N) {
+            var line__scatter_plot_layout_value = {
+                autosize: true,
+                width: 600,
+                height: 360,
+                margin: {
+                    l: 20,
+                    r: 0,
+                    b: 30,
+                    t: 20,
+                    pad: 4
+                    },
+                plot_bgcolor: '#000',
+                paper_bgcolor: '#000',
+                font: {
+                    family: 'Montserrat',
+                    size: 12,
+                    color: '#fff'
+                },
+                title: {
+                    text: title,
+                    font: {
+                        family: 'Montserrat',
+                        size: 15,
+                        color: '#fff'
+                    }
+                },
+                showlegend: false,
+            };
+
+            var x_values = [...Array(y_values.length).keys()].slice(1, y_values.length + 1);
+            x_values.push(y_values.length);
+
+            var x_values_marker = x_values.slice(0, N);
+            var y_values_marker = y_values.slice(0, N);
+
+            var line_scatter_plot_data_value = [
+                {
+                    x: [0].concat(x_values_marker),
+                    y: [0].concat(y_values_marker),
+                    mode: 'line',
+                    line: {
+                        color: '#FAEBD7'
+                    },
+                },
+                {
+                    x: [0].concat(x_values),
+                    y: [0].concat(y_values),
+                    mode: 'markers',
+                    marker: {
+                        color: '#FAEBD7'
+                    },
+                }
+            ];
+            
+            Plotly.newPlot(id, line_scatter_plot_data_value, line__scatter_plot_layout_value);
         }
     </script>
 </body>
