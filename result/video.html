@@ -99,10 +99,12 @@
         var tS_max_value = 0;
         var tS_step_size = 0;
 
-        var y_values = [10,20,30,40,50];
-        var y_entropy = [40,50,30,40,50];
-        var y_action = [[10, 20, 30, 50], [30, 20, 10, 40], [50, 40, 30, 20], [40, 30, 20, 10], [20, 10, 30, 50], [10, 20, 30, 40]];
-        var action = [0, 1, 0, 2, 3, 0];
+        var y_values = [0.049078263342380524, 0.07062143087387085, 0.07990602403879166, 0.08553663641214371, 0.0896991714835167, 0.09440282732248306, 0.09827446937561035, 0.10120527446269989, 0.10343748331069946, 0.10515505075454712, 0.10662338137626648, 0.10780256986618042];
+        var y_entropy = [0.6917833089828491, 0.6913810968399048, 0.6911962032318115, 0.691085696220398, 0.6910176277160645, 0.6909818649291992, 0.6909663677215576, 0.6909626126289368, 0.6909653544425964, 0.6909722089767456, 0.6909825205802917, 0.690995454788208];
+        var y_action = [[0.5261072516441345, 0.4738927185535431], [0.5297073125839233, 0.47029271721839905], [0.531222939491272, 0.468777060508728], [0.5320941805839539, 0.4679058790206909],
+        [0.5326194167137146, 0.4673805832862854], [0.5328922271728516, 0.46710777282714844], [0.5330098271369934, 0.466990202665329], [0.5330376625061035, 0.46696236729621887], [0.5330167412757874, 0.46698325872421265], [0.5329653024673462, 0.4670347273349762], [0.5328871607780457, 0.46711283922195435], [0.5327882766723633, 0.46721166372299194]];
+        var action = [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+        var action_names = ['move right', 'move left'];
 
         window.addEventListener('load', () => {
             for (let i = 0; i < num_videos; i++) {
@@ -127,12 +129,6 @@
             }
             N = Math.round(video_players[0].currentTime);
         })
-
-        function update_plots(N)  {
-            set_scatter_line_plot('value_func', "Value Function", y_values, N);
-            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
-            set_bar_action_plot(y_action[N], action[N]);
-        }
 
         function timeListener() {
             timeSelector.value = video_players[0].currentTime
@@ -190,7 +186,13 @@
             vid_elem.pause();
         }
 
-        function set_bar_action_plot(y_values, action) {
+        function update_plots(N)  {
+            set_scatter_line_plot('value_func', "Value Function", y_values, N);
+            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
+            set_bar_action_plot(y_action[N], action[N], action_names);
+        }
+
+        function set_bar_action_plot(y_values, action, action_names) {
             var bar_plot_layout_action = {
                 autosize: true,
                 width: 600,
@@ -218,17 +220,13 @@
                     }
                 }
           };
-
-            x_values =[];
-            for(let i = 0; i < y_values.length; i++)
-                x_values.push("action_" + String(i + 1));
             
             var color_value = new Array(y_values.length).fill('#FAEBD7');
             color_value[action] = '#FF0000';
 
             var bar_plot_data_action = [
                 {
-                    x: x_values,
+                    x: action_names,
                     y: y_values,
                     type: 'bar',
                     marker: {
@@ -302,7 +300,7 @@
                     },
                 }
             ];
-            
+
             Plotly.newPlot(id, line_scatter_plot_data_value, line__scatter_plot_layout_value);
         }
     </script>

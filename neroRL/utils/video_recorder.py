@@ -34,6 +34,8 @@ class VideoRecorder:
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
         """
+        self.generate_website(trajectory_data)
+        return
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
                                 self.fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
@@ -113,7 +115,19 @@ class VideoRecorder:
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render a website.
         """
-        pass
+        self._render_environment_episode(trajectory_data)
+        print("Video rendered!")
+        
+        actions_probs_flat = [t[0].tolist()[0] for t in trajectory_data["log_probs"]]
+        actions_flat = sum(trajectory_data["actions"], [])
+        values_flat = sum(np.array(trajectory_data["values"]).tolist(), [])
+        entropies_flat = sum(trajectory_data["entropies"], [])
+        
+        action_names_html = "[" + ", ".join(map(lambda x: "\'" + x + "\'", trajectory_data["action_names"])) + "]"
+        action_probs = str(actions_probs_flat)
+        actions_html = str(actions_flat)
+        values_html = str(values_flat)
+        entropies_html = str(entropies_flat)
         
 
     def _render_environment_episode(self, trajectory_data):
