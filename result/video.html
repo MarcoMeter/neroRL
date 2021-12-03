@@ -104,19 +104,17 @@
         var tS_max_value = 0;
         var tS_step_size = 0;
 
-
-
-        
-        
         var y_values = [10,20,30,40,50];
-        var N = 0;
         var y_entropy = [40,50,30,40,50];
+        var y_action = [[10, 20, 30, 50], [30, 20, 10, 40], [50, 40, 30, 20], [40, 30, 20, 10], [20, 10, 30, 50], [10, 20, 30, 40]];
+        var action = [0, 1, 0, 2, 3, 0]
+        var N = 0;
 
-        set_bar_action_plot([10, 20, 30, 50]);
+        set_bar_action_plot(y_action[0], action[0]);
         set_scatter_line_plot('value_func', "Value Function", y_values, N);
         set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
 
-        function set_bar_action_plot(y_values) {
+        function set_bar_action_plot(y_values, action) {
             var bar_plot_layout_action = {
                 autosize: true,
                 width: 600,
@@ -149,6 +147,8 @@
             for(let i = 0; i < y_values.length; i++)
                 x_values.push("action_" + String(i + 1));
             
+            var color_value = new Array(y_values.length).fill('#FAEBD7');
+            color_value[action] = '#FF0000';
 
             var bar_plot_data_action = [
                 {
@@ -156,7 +156,7 @@
                     y: y_values,
                     type: 'bar',
                     marker: {
-                        color: '#FAEBD7'
+                        color: color_value
                     },
                     textposition: 'auto',
                     text: y_values.map(String),
@@ -252,14 +252,18 @@
                     video_players[i].currentTime += 0.0001
             }
             N = Math.round(video_players[0].currentTime);
+        })
+
+        function update_plots(N)  {
             set_scatter_line_plot('value_func', "Value Function", y_values, N);
             set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
-        })
+            set_bar_action_plot(y_action[N], action[N]);
+        }
+
         function timeListener() {
             timeSelector.value = video_players[0].currentTime
             N = Math.round(video_players[0].currentTime);
-            set_scatter_line_plot('value_func', "Value Function", y_values, N);
-            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
+            update_plots(N);
         }
 
         function pause() {
@@ -279,8 +283,7 @@
                 video_players[i].currentTime = 0.0001;
             }
             N = Math.round(video_players[0].currentTime);
-            set_scatter_line_plot('value_func', "Value Function", y_values, N);
-            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
+            update_plots(N);
         }
 
         function back() {
@@ -290,8 +293,7 @@
                     video_players[i].currentTime += 0.0001
             }
             N = Math.round(video_players[0].currentTime);
-            set_scatter_line_plot('value_func', "Value Function", y_values, N);
-            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
+            update_plots(N);
         }
 
         function next() {
@@ -300,8 +302,7 @@
                 console.log(video_players[i].currentTime);
             }
             N = Math.round(video_players[0].currentTime);
-            set_scatter_line_plot('value_func', "Value Function", y_values, N);
-            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
+            update_plots(N);
         }
 
         function open_fullscreen(vid_elem) {
