@@ -157,6 +157,11 @@ class VideoRecorder:
             # Collected rewards so far
             self.draw_text_overlay(info_frame, 208, 20, round(sum(trajectory_data["rewards"][0:i]), 3), "total reward")
 
+            if i == len(trajectory_data["vis_obs"]) - 1:
+                self.draw_text_overlay(info_frame, 368, 20, "True", "episode done")
+            else:
+                self.draw_text_overlay(info_frame, 368, 20, "False", "episode done")
+            
             # Concatenate environment and debug frames
             output_image = np.vstack((info_frame, env_frame))
 
