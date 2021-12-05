@@ -131,7 +131,7 @@
         })
 
         function timeListener() {
-            video_players[0].currentTime = Math.min(video_players[0].currentTime, video_length[0]);
+            video_players[0].currentTime = Math.min(video_players[0].currentTime, video_length[0]) + 0.0001;
             timeSelector.value = video_players[0].currentTime
             N = Math.round(video_players[0].currentTime);
             update_plots(N);
