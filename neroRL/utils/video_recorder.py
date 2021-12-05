@@ -1,8 +1,10 @@
 import cv2
+import os
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import ruamel
+from jinja2 import Environment, FileSystemLoader
 
 class VideoRecorder:
     """The VideoRecorder can be used to capture videos of the agent's behavior using enjoy.py or eval.py.
@@ -23,7 +25,7 @@ class VideoRecorder:
         self.height = 420
         self.info_height = 40
         self.video_path = video_path
-        self.website_path = video_path
+        self.website_path = "./result/"
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')   # Video codec
         self.frame_rate = int(frame_rate)
 
@@ -34,8 +36,6 @@ class VideoRecorder:
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
         """
-        self.generate_website(trajectory_data)
-        return
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
                                 self.fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
@@ -109,18 +109,26 @@ class VideoRecorder:
                 html += prfx + "<b>" + str(c_key) + "</b>: " + str(config[key][c_key]) + "<br>"
         return html
 
-    def generate_website(self, trajectory_data):
+    def generate_website(self, trajectory_data, configs):
         """Generates a website that can be used to view the trajectory data.
         
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render a website.
         """
-        self._render_environment_episode(trajectory_data)
+        
+        folder_name, i = "website_", 0
+        while os.path.exists(self.website_path + folder_name + str(i)):
+            i += 1
+        
+        dictionary = folder_name + str(i)
+        os.mkdir(self.website_path + dictionary)
+        
+        self._render_environment_episode(trajectory_data, dictionary)
         print("Video rendered!")
         
         actions_probs_flat = [t[0].tolist()[0] for t in trajectory_data["log_probs"]]
         actions_flat = sum(trajectory_data["actions"], [])
-        values_flat = sum(np.array(trajectory_data["values"]).tolist(), [])
+        values_flat = sum(np.array(trajectory_data["values"]).round(decimals = 3).tolist(), [])
         entropies_flat = sum(trajectory_data["entropies"], [])
         
         action_names_html = "[" + ", ".join(map(lambda x: "\'" + x + "\'", trajectory_data["action_names"])) + "]"
@@ -128,9 +136,34 @@ class VideoRecorder:
         actions_html = str(actions_flat)
         values_html = str(values_flat)
         entropies_html = str(entropies_flat)
+
+        template_env = Environment(loader=FileSystemLoader(searchpath="./"))
+        template = template_env.get_template("./result/template/video.html")
+
+        with open(self.website_path + dictionary + '/video.html', 'w') as output_file:
+            output_file.write(template.render(videoName = "video_seed_" + str(trajectory_data["seed"]) + ".webm",
+                                            yValues=values_html,
+                                            yEntropy = entropies_html,
+                                            yAction=action_probs,
+                                            action=actions_html,
+                                            actionNames=action_names_html))
+        
+        env_info = self._config_to_html(configs, "environment")
+        model_info = self._config_to_html(configs, "model")
+        hyper_info = self._config_to_html(configs, "trainer")
+        misc_info = "None"
+        
+        template_env = Environment(loader=FileSystemLoader(searchpath="./"))
+        template = template_env.get_template("./result/template/main.html")
+        
+        with open(self.website_path + dictionary + '/main.html' , 'w') as output_file:
+            output_file.write(template.render(envInfo=env_info,
+                                            hyperInfo=hyper_info,
+                                            modelInfo=model_info,
+                                            miscInfo=misc_info))
         
 
-    def _render_environment_episode(self, trajectory_data):
+    def _render_environment_episode(self, trajectory_data, dictionary):
         """Renders an episode of an agent behaving in its environment.
         
         Arguments:
@@ -140,7 +173,7 @@ class VideoRecorder:
         webm_fourcc = cv2.VideoWriter_fourcc(*'VP09')
         
         # Init VideoWriter, the frame rate is defined by each environment individually
-        out = cv2.VideoWriter(self.website_path + "_seed_" + str(trajectory_data["seed"]) + ".webm",
+        out = cv2.VideoWriter(self.website_path + dictionary + "/video_seed_" + str(trajectory_data["seed"]) + ".webm",
                                 webm_fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
         
         for i in range(len(trajectory_data["vis_obs"])):

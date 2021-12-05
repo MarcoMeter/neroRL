@@ -149,7 +149,8 @@ class Evaluator():
                                     # Init VideoRecorder
                                     video_recorder = VideoRecorder(self.video_path + "_" + str(w), self.frame_rate)
                                     # Render and serialize video
-                                    video_recorder.render_video(trajectory_data)
+                                    #video_recorder.render_video(trajectory_data)
+                                    video_recorder.generate_website(trajectory_data, self.configs)
         
             # Seconds needed for a whole update
             time_end = time.time()
