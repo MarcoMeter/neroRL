@@ -60,7 +60,7 @@
     <br>
     <div id='video_section'>
         <div id='figures'>
-            <video>
+            <video id='video_player'>
                 <source src="{{ videoName}}"type="video/webm">
             </video>
             <div id='action_distr'></div>
@@ -86,14 +86,8 @@
     </div>
 
     <script type="text/javascript"> 
-        const video_players = document.getElementsByTagName("video");
-        const num_videos = video_players.length;
-        const video_length = new Array(num_videos).fill(0);
-
-        for (let i = 0; i < num_videos; i++) {
-            video_players[i].addEventListener('timeupdate', timeListener);
-            video_players[i].addEventListener('dblclick', function(e) {open_fullscreen(video_players[i]);});
-        }
+        const video_player = document.getElementById("video_player");
+        var video_length = 0;
 
         const timeSelector = document.getElementById('time_selector');
         var tS_max_value = 0;
@@ -106,74 +100,57 @@
         var action_names = {{ actionNames }};
 
         window.addEventListener('load', () => {
-            for (let i = 0; i < num_videos; i++) {
-                video_length[i] = video_players[i].duration - 0.9999;
-                video_players[i].currentTime = 0.0001;
-            }
-
-            tS_max_value = video_length[0];
+            video_length = video_player.duration - 0.9999;
+            tS_max_value = video_length;
             tS_step_size = 1.;
             timeSelector.value = 0;
             timeSelector.setAttribute('max', tS_max_value);
             timeSelector.setAttribute('step', tS_step_size);
-            update_plots(0);
+
+            video_player.addEventListener('timeupdate', timeListener);
+            video_player.addEventListener('dblclick', function(e) {open_fullscreen(video_player);});
+            reset();
         }, false)
 
         timeSelector.addEventListener('input', () => {
-            time = video_length[0] / tS_max_value * timeSelector.value
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].currentTime = time
-                if(video_players[i].currentTime == Math.round(video_players[i].currentTime))
-                    video_players[i].currentTime += 0.0001
-            }
-            video_players[0].currentTime = Math.min(video_players[0].currentTime, video_length[0]);
-            N = Math.round(video_players[0].currentTime);
+            time = video_length / tS_max_value * timeSelector.value
+            video_player.currentTime = time
+            if(video_player.currentTime == Math.round(video_player.currentTime))
+                video_player.currentTime += 0.0001
+            video_player.currentTime = Math.min(video_player.currentTime, video_length);
+            update_plots();
         })
 
         function timeListener() {
-            video_players[0].currentTime = Math.min(video_players[0].currentTime, video_length[0]) + 0.0001;
-            timeSelector.value = video_players[0].currentTime
-            N = Math.round(video_players[0].currentTime);
-            update_plots(N);
+            video_player.currentTime = Math.min(video_player.currentTime, video_length) + 0.0001;
+            timeSelector.value = video_player.currentTime
+            update_plots();
         }
 
         function pause() {
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].pause();
-            }
+            video_player.pause();
         }
 
         function play() {
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].play();
-            }
+            video_player.play();
         }
 
         function reset() {
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].currentTime = 0.0001;
-            }
-            N = Math.round(video_players[0].currentTime);
-            update_plots(N);
+            video_player.currentTime = 0.0001;
+            update_plots();
         }
 
         function back() {
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].currentTime = video_players[i].currentTime - tS_step_size
-                if(video_players[i].currentTime == Math.round(video_players[i].currentTime))
-                    video_players[i].currentTime += 0.0001
-            }
-            N = Math.round(video_players[0].currentTime);
-            update_plots(N);
+            video_player.currentTime = video_player.currentTime - tS_step_size
+            if(video_player.currentTime == Math.round(video_player.currentTime))
+                video_player.currentTime += 0.0001
+            update_plots();
         }
 
         function next() {
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].currentTime = video_players[i].currentTime + tS_step_size;
-            }
-            video_players[0].currentTime = Math.min(video_players[0].currentTime, video_length[0]);
-            N = Math.round(video_players[0].currentTime);
-            update_plots(N);
+            video_player.currentTime = video_player.currentTime + tS_step_size;
+            video_player.currentTime = Math.min(video_player.currentTime, video_length);
+            update_plots();
         }
 
         function open_fullscreen(vid_elem) {
@@ -187,10 +164,11 @@
             vid_elem.pause();
         }
 
-        function update_plots(N)  {
-            set_scatter_line_plot('value_func', "Value Function", y_values, N);
-            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
-            set_bar_action_plot(y_action[N], action[N], action_names);
+        function update_plots()  {
+            step = Math.round(video_player.currentTime);
+            set_scatter_line_plot('value_func', "Value Function", y_values, step);
+            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, step);
+            set_bar_action_plot(y_action[step], action[step], action_names);
         }
 
         function set_bar_action_plot(y_values, action, action_names) {

@@ -60,7 +60,7 @@
     <br>
     <div id='video_section'>
         <div id='figures'>
-            <video>
+            <video id='video_player'>
                 <source src="video_seed_1001.webm"type="video/webm">
             </video>
             <div id='action_distr'></div>
@@ -86,94 +86,71 @@
     </div>
 
     <script type="text/javascript"> 
-        const video_players = document.getElementsByTagName("video");
-        const num_videos = video_players.length;
-        const video_length = new Array(num_videos).fill(0);
-
-        for (let i = 0; i < num_videos; i++) {
-            video_players[i].addEventListener('timeupdate', timeListener);
-            video_players[i].addEventListener('dblclick', function(e) {open_fullscreen(video_players[i]);});
-        }
+        const video_player = document.getElementById("video_player");
+        var video_length = 0;
 
         const timeSelector = document.getElementById('time_selector');
         var tS_max_value = 0;
         var tS_step_size = 0;
 
-        var y_values = [0.10199999809265137, 0.10000000149011612, 0.10000000149011612, 0.10100000351667404, 0.10400000214576721, 0.10599999874830246, 0.1080000028014183, 0.10999999940395355, 0.10999999940395355, 0.11100000143051147, 0.11100000143051147, 0.11100000143051147];
-        var y_entropy = [0.6931391358375549, 0.6931192874908447, 0.69304358959198, 0.6929712891578674, 0.6929212808609009, 0.6928894519805908, 0.692872166633606, 0.6928640007972717, 0.6928601264953613, 0.6928577423095703, 0.6928569078445435, 0.6928578615188599];
-        var y_action = [[0.5020052194595337, 0.4979947507381439], [0.49626368284225464, 0.5037363171577454], [0.492805540561676, 0.507194459438324], [0.4906213879585266, 0.5093786716461182], [0.4893723130226135, 0.5106276869773865], [0.4886491298675537, 0.5113508701324463], [0.4882742762565613, 0.5117257833480835], [0.4881003201007843, 0.5118997097015381], [0.4880202114582062, 0.5119798183441162], [0.4879702627658844, 0.5120297074317932], [0.4879532754421234, 0.5120466947555542], [0.48797348141670227, 0.5120264887809753]];
-        var action =  [1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0];
+        var y_values = [0.07400000095367432, 0.09600000083446503, 0.10000000149011612, 0.09799999743700027, 0.09799999743700027, 0.09700000286102295, 0.09700000286102295, 0.0949999988079071, 0.09399999678134918, 0.09200000017881393];
+        var y_entropy = [0.6930171251296997, 0.6926732063293457, 0.6923873424530029, 0.6921816468238831, 0.6920502185821533, 0.6919784545898438, 0.6919519305229187, 0.6919558048248291, 0.6919718384742737, 0.6919915676116943];
+        var y_action = [[0.49193769693374634, 0.5080623030662537], [0.48460692167282104, 0.515393078327179], [0.4805102050304413, 0.5194898247718811], [0.4780311584472656, 0.5219688415527344], [0.4765840470790863, 0.5234159231185913], [0.47583094239234924, 0.5241690874099731], [0.47555872797966003, 0.5244412422180176], [0.47559747099876404, 0.5244025588035583], [0.47576236724853516, 0.5242376923561096], [0.475967139005661, 0.5240327715873718]];
+        var action =  [1, 1, 1, 1, 1, 1, 0, 0, 0, 0];
         var action_names = ['move right', 'move left'];
 
         window.addEventListener('load', () => {
-            for (let i = 0; i < num_videos; i++) {
-                video_length[i] = video_players[i].duration - 0.9999;
-                video_players[i].currentTime = 0.0001;
-            }
-
-            tS_max_value = video_length[0];
+            video_length = video_player.duration - 0.9999;
+            tS_max_value = video_length;
             tS_step_size = 1.;
             timeSelector.value = 0;
             timeSelector.setAttribute('max', tS_max_value);
             timeSelector.setAttribute('step', tS_step_size);
-            update_plots(0);
+
+            video_player.addEventListener('timeupdate', timeListener);
+            video_player.addEventListener('dblclick', function(e) {open_fullscreen(video_player);});
+            reset();
         }, false)
 
         timeSelector.addEventListener('input', () => {
-            time = video_length[0] / tS_max_value * timeSelector.value
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].currentTime = time
-                if(video_players[i].currentTime == Math.round(video_players[i].currentTime))
-                    video_players[i].currentTime += 0.0001
-            }
-            video_players[0].currentTime = Math.min(video_players[0].currentTime, video_length[0]);
-            N = Math.round(video_players[0].currentTime);
+            time = video_length / tS_max_value * timeSelector.value
+            video_player.currentTime = time
+            if(video_player.currentTime == Math.round(video_player.currentTime))
+                video_player.currentTime += 0.0001
+            video_player.currentTime = Math.min(video_player.currentTime, video_length);
+            update_plots();
         })
 
         function timeListener() {
-            video_players[0].currentTime = Math.min(video_players[0].currentTime, video_length[0]) + 0.0001;
-            timeSelector.value = video_players[0].currentTime
-            N = Math.round(video_players[0].currentTime);
-            update_plots(N);
+            video_player.currentTime = Math.min(video_player.currentTime, video_length) + 0.0001;
+            timeSelector.value = video_player.currentTime
+            update_plots();
         }
 
         function pause() {
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].pause();
-            }
+            video_player.pause();
         }
 
         function play() {
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].play();
-            }
+            video_player.play();
         }
 
         function reset() {
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].currentTime = 0.0001;
-            }
-            N = Math.round(video_players[0].currentTime);
-            update_plots(N);
+            video_player.currentTime = 0.0001;
+            update_plots();
         }
 
         function back() {
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].currentTime = video_players[i].currentTime - tS_step_size
-                if(video_players[i].currentTime == Math.round(video_players[i].currentTime))
-                    video_players[i].currentTime += 0.0001
-            }
-            N = Math.round(video_players[0].currentTime);
-            update_plots(N);
+            video_player.currentTime = video_player.currentTime - tS_step_size
+            if(video_player.currentTime == Math.round(video_player.currentTime))
+                video_player.currentTime += 0.0001
+            update_plots();
         }
 
         function next() {
-            for (let i = 0; i < num_videos; i++) {
-                video_players[i].currentTime = video_players[i].currentTime + tS_step_size;
-            }
-            video_players[0].currentTime = Math.min(video_players[0].currentTime, video_length[0]);
-            N = Math.round(video_players[0].currentTime);
-            update_plots(N);
+            video_player.currentTime = video_player.currentTime + tS_step_size;
+            video_player.currentTime = Math.min(video_player.currentTime, video_length);
+            update_plots();
         }
 
         function open_fullscreen(vid_elem) {
@@ -187,10 +164,11 @@
             vid_elem.pause();
         }
 
-        function update_plots(N)  {
-            set_scatter_line_plot('value_func', "Value Function", y_values, N);
-            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, N);
-            set_bar_action_plot(y_action[N], action[N], action_names);
+        function update_plots()  {
+            step = Math.round(video_player.currentTime);
+            set_scatter_line_plot('value_func', "Value Function", y_values, step);
+            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, step);
+            set_bar_action_plot(y_action[step], action[step], action_names);
         }
 
         function set_bar_action_plot(y_values, action, action_names) {
@@ -253,7 +231,7 @@
                 width: 600,
                 height: 360,
                 margin: {
-                    l: 45,
+                    l: 50,
                     r: 0,
                     b: 30,
                     t: 25,
