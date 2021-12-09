@@ -227,6 +227,7 @@
           video_player.currentTime += 0.0001
       video_player.currentTime = Math.min(video_player.currentTime, video_length);
       update_plots();
+      pause();
   })
 
   function timeListener() {
@@ -248,6 +249,7 @@
   function reset() {
       video_player.currentTime = 0.0001;
       update_plots();
+      pause();
   }
 
   function back() {
@@ -255,12 +257,14 @@
       if(video_player.currentTime == Math.round(video_player.currentTime))
           video_player.currentTime += 0.0001
       update_plots();
+      pause();
   }
 
   function next() {
       video_player.currentTime = video_player.currentTime + tS_step_size;
       video_player.currentTime = Math.min(video_player.currentTime, video_length);
       update_plots();
+      pause();
   }
 
   function open_fullscreen(vid_elem) {
