@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ruamel
 from jinja2 import Environment, FileSystemLoader
+import torch
 
 class VideoRecorder:
     """The VideoRecorder can be used to capture videos of the agent's behavior using enjoy.py or eval.py.
@@ -58,7 +59,7 @@ class VideoRecorder:
             if not i == len(trajectory_data["vis_obs"]) - 1:
                 # Action probabilities
                 next_y = 20
-                for x, probs in enumerate(trajectory_data["log_probs"][i]):
+                for x, probs in enumerate(trajectory_data["probs"][i]):
                     self.draw_text_overlay(debug_frame, 5 , next_y, round(trajectory_data["entropies"][i][x], 5), "entropy dimension " + str(x))
                     next_y += 20
                     for y, prob in enumerate(probs.squeeze(dim=0)):
@@ -123,14 +124,14 @@ class VideoRecorder:
         self._render_environment_episode(trajectory_data, "videos", str(i))
         print("Video rendered!")
         
-        actions_probs_flat = [t[0].tolist()[0] for t in trajectory_data["log_probs"]]
-        actions_flat = sum(trajectory_data["actions"], [])
+        actions_probs_flat = torch.stack(trajectory_data["probs"]).squeeze(dim=2).tolist()
+        actions = trajectory_data["actions"]
         values_flat = sum(np.array(trajectory_data["values"]).round(decimals = 3).tolist(), [])
         entropies_flat = sum(trajectory_data["entropies"], [])
         
         action_names_html = "[" + ", ".join(map(lambda x: "\'" + x + "\'", trajectory_data["action_names"])) + "]"
         action_probs = str(actions_probs_flat)
-        actions_html = str(actions_flat)
+        actions_html = str(actions)
         values_html = str(values_flat)
         entropies_html = str(entropies_flat)
         

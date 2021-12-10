@@ -90,7 +90,7 @@ class Evaluator():
             dones = np.zeros(self.n_workers, dtype=bool)
 
             # Store data for video recording
-            log_probs = [[] for worker in self.workers]
+            probs = [[] for worker in self.workers]
             entropies = [[] for worker in self.workers]
             values = [[] for worker in self.workers]
             actions = [[] for worker in self.workers]
@@ -107,18 +107,18 @@ class Evaluator():
                             policy, value, recurrent_cell[w], _ = model(vis_obs_batch, vec_obs_batch, recurrent_cell[w])
 
                             _actions = []
-                            probs = []
+                            _probs = []
                             entropy = []
                             # Sample action
                             for action_branch in policy:
                                 action = action_branch.sample()
                                 _actions.append(action.cpu().data.item())
-                                probs.append(action_branch.probs)
+                                _probs.append(action_branch.probs)
                                 entropy.append(action_branch.entropy().item())
 
                             # Store data for video recording
                             actions[w].append(_actions)
-                            log_probs[w].append(probs)
+                            probs[w].append(torch.stack(_probs))
                             entropies[w].append(entropy)
                             values[w].append(value.cpu().numpy())
 
@@ -141,7 +141,7 @@ class Evaluator():
                                     worker.child.send(("video", None))
                                     trajectory_data = worker.child.recv()
                                     trajectory_data["actions"] = actions[w]
-                                    trajectory_data["log_probs"] = log_probs[w]
+                                    trajectory_data["probs"] = probs[w]
                                     trajectory_data["entropies"] = entropies[w]
                                     trajectory_data["values"] = values[w]
                                     trajectory_data["episode_reward"] = info["reward"]
