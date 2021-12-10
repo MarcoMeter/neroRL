@@ -124,16 +124,18 @@ class VideoRecorder:
         self._render_environment_episode(trajectory_data, "videos", str(i))
         print("Video rendered!")
         
+        print(trajectory_data["entropies"])
+        
         actions_probs_flat = torch.stack(trajectory_data["probs"]).squeeze(dim=2).tolist()
         actions = trajectory_data["actions"]
         values_flat = sum(np.array(trajectory_data["values"]).round(decimals = 3).tolist(), [])
-        entropies_flat = sum(trajectory_data["entropies"], [])
+        entropies = trajectory_data["entropies"]
         
         action_names_html = "[" + ", ".join(map(lambda x: "\'" + x + "\'", trajectory_data["action_names"])) + "]"
         action_probs = str(actions_probs_flat)
         actions_html = str(actions)
         values_html = str(values_flat)
-        entropies_html = str(entropies_flat)
+        entropies_html = str(entropies)
         
         env_info = self._config_to_html(configs, "environment")
         model_info = self._config_to_html(configs, "model")

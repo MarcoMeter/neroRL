@@ -132,7 +132,7 @@
     <div id='video_section'>
       <div id='figures'>
           <video id='video_player'>
-              <source src="videos/video_seed_1001_0.webm"type="video/webm">
+              <source src="videos/video_seed_1001_2.webm"type="video/webm">
           </video>
           <div id='action_distr'></div>
       </div>
@@ -201,11 +201,11 @@
   var tS_max_value = 0;
   var tS_step_size = 0;
 
-  var y_values = [0.10599999874830246, 0.1289999932050705, 0.13099999725818634, 0.12999999523162842, 0.12999999523162842, 0.13099999725818634, 0.12999999523162842, 0.12999999523162842, 0.1289999932050705, 0.1289999932050705, 0.1289999932050705, 0.1289999932050705, 0.1289999932050705, 0.1289999932050705, 0.12999999523162842, 0.12999999523162842];
-  var y_entropy = [[0.692986011505127], [0.6930184364318848], [0.6930451393127441], [0.6930651664733887], [0.6930780410766602], [0.6930848360061646], [0.6930882930755615], [0.6930906772613525], [0.6930925846099854], [0.6930941343307495], [0.6930949687957764], [0.6930960416793823], [0.6930975914001465], [0.6930989027023315], [0.6931005716323853], [0.6931020617485046], [0.6931037306785583], [0.6931058168411255], [0.6931076645851135], [0.6931094527244568], [0.6931111812591553]];
-  var y_action = [[[0.2, 0.3, 0.5], [0.4, 0.1, 0.5]],  [[0.2, 0.3, 0.5], [0.4, 0.1, 0.5]]]
-  var action =  [[0, 0, 0], [1, 0, 0]];
-  var action_names = [['move right', 'move left', 'move a'], ['move up', 'move down', 'move b'],];
+  var y_values = [0.11599999666213989, 0.12800000607967377, 0.12700000405311584, 0.125, 0.12399999797344208, 0.12200000137090683, 0.11900000274181366, 0.11800000071525574, 0.11699999868869781, 0.11599999666213989, 0.11599999666213989, 0.11500000208616257, 0.11500000208616257, 0.11500000208616257, 0.11500000208616257, 0.11599999666213989, 0.11599999666213989, 0.11599999666213989, 0.11699999868869781, 0.11699999868869781, 0.11800000071525574];
+  var y_entropy = [0.692986011505127, 0.6930184364318848, 0.6930451393127441, 0.6930651664733887, 0.6930780410766602, 0.6930848360061646, 0.6930882930755615, 0.6930906772613525, 0.6930925846099854, 0.6930941343307495, 0.6930949687957764, 0.6930960416793823, 0.6930975914001465, 0.6930989027023315, 0.6931005716323853, 0.6931020617485046, 0.6931037306785583, 0.6931058168411255, 0.6931076645851135, 0.6931094527244568, 0.6931111812591553];
+  var y_action = [[[0.5089747309684753, 0.49102523922920227]], [[0.508022129535675, 0.49197787046432495]], [[0.5071443319320679, 0.4928556978702545]], [[0.5064051747322083, 0.49359485507011414]], [[0.5058795213699341, 0.49412044882774353]], [[0.5055832862854004, 0.4944167137145996]], [[0.505423367023468, 0.494576632976532]], [[0.5053169131278992, 0.49468308687210083]], [[0.5052226781845093, 0.49477729201316833]], [[0.5051506161689758, 0.49484938383102417]], [[0.5051060318946838, 0.4948939085006714]], [[0.5050547122955322, 0.49494531750679016]], [[0.5049821734428406, 0.4950178861618042]], [[0.5049131512641907, 0.4950868785381317]], [[0.5048270225524902, 0.495172917842865]], [[0.5047482252120972, 0.49525168538093567]], [[0.5046603679656982, 0.49533960223197937]], [[0.5045490860939026, 0.4954509735107422]], [[0.5044442415237427, 0.49555569887161255]], [[0.5043395161628723, 0.4956604540348053]], [[0.5042439699172974, 0.495756059885025]]];
+  var action =  [[1], [0], [1], [0], [0], [0], [0], [1], [1], [0], [0], [1], [0], [1], [0], [0], [1], [0], [1], [1], [1]];
+  var action_names = ['move right', 'move left'];
 
   window.addEventListener('load', () => {
       video_length = video_player.duration - 0.9999;
@@ -282,75 +282,9 @@
     step = Math.floor(video_player.currentTime);
     set_scatter_line_plot('value_func', "Value Function", y_values, step);
     set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, step);
-    if(action[0].length == 1) {
-        set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, step);
-        set_bar_action_plot(y_action[step][0], action[step][0], action_names);
-    }
-    else {
-        set_scatter_lines_plot('entropy_func', "Entropy Function", y_entropy, step);
-        set_stacked_bar_action_plot(y_action[step], action[step], action_names);
-    }
+    if(action[0].length == 1)
+      set_bar_action_plot(y_action[step][0], action[step][0], action_names);
 }
-
-  function set_stacked_bar_action_plot(y_values, action, action_names) {
-    var bar_plot_data_action = [];
-    for(var j = 0; j < action_names[0].length; j++) {
-        var color = ""
-        for(var i = 0; i < action_names.length; i++) {
-            if(action[i] == j)
-                color = '#FF0000';
-            else
-                color = '#FAEBD7';               
-            var trace = {
-                x: [["action_space_", String(i)].join("")],
-                y: [y_values[i][j]],
-                text: [y_values[i][j], action_names[i][j]].map(String).join("<br>"),
-                marker: {
-                    color: color,
-                    line: {
-                        color: '#000000',
-                        width: 1
-                      }
-                },
-                type: 'bar'
-            };
-            bar_plot_data_action.push(trace);
-        }
-    }
-      
-      var bar_plot_layout_action = {
-        autosize: true,
-        width: 600,
-        height: 360,
-        margin: {
-            l: 28,
-            r: 0,
-            b: 30,
-            t: 22,
-            pad: 4
-          },
-        plot_bgcolor: '#000',
-        paper_bgcolor: '#000',
-        font: {
-            family: 'Montserrat',
-            size: 12,
-            color: '#fff'
-        },
-        title: {
-            text: 'Action Distribution',
-            font: {
-                family: 'Montserrat',
-                size: 15,
-                color: '#fff'
-            }
-        },
-        barmode: 'stack',
-        showlegend: false
-  };
-
-    Plotly.newPlot('action_distr', bar_plot_data_action, bar_plot_layout_action);
-    
-  }
 
   function set_bar_action_plot(y_values, action, action_names) {
       var bar_plot_layout_action = {
@@ -405,83 +339,6 @@
 
       Plotly.newPlot('action_distr', bar_plot_data_action, bar_plot_layout_action);
   }
-
-  function set_scatter_lines_plot(id, title, y_values, N) {
-    var x_values = [...Array(y_values.length).keys()];
-    var y_vals_plot = [];
-    for(var j = 0; j < y_values[0].length; j++) {
-        var y_vals = [];
-        for(var i = 0; i < y_values.length; i++) {
-            y_vals.push(y_values[i][j]);
-        }
-        y_vals_plot.push(y_vals);
-    }
-
-    line_scatter_plot_data_value = [];
-    
-    var colors = ['#FAEBD7', '#7CFC00', '#FFBF00', '#FF7F50', '#DE3163', '#9FE2BF', '#40E0D0', '#6495ED', '#CCCCFF']
-    for(var i = 0; i < y_vals_plot.length; i++) {
-      var x_values_marker = x_values.slice(0, N + 1);
-      var y_values_marker = y_vals_plot[i].slice(0, N + 1);
-        var trace = [
-        {
-            x: x_values_marker,
-            y: y_values_marker,
-            mode: 'line',
-            line: {
-                color: colors[i]
-            },
-            name: 'action_space_' + String(i),
-            showlegend: true,
-        },
-        {
-            x: x_values,
-            y: y_vals_plot[i],
-            mode: 'markers',
-            marker: {
-                color: colors[i]
-            },
-            showlegend: false,
-        }
-    ];
-        line_scatter_plot_data_value.push(trace);
-    }
-
-    var line__scatter_plot_layout_value = {
-        autosize: true,
-        width: 600,
-        height: 360,
-        margin: {
-            l: 50,
-            r: 0,
-            b: 30,
-            t: 25,
-            pad: 4
-            },
-        yaxis: {
-            automargin: true
-        },
-        plot_bgcolor: '#000',
-        paper_bgcolor: '#000',
-        font: {
-            family: 'Montserrat',
-            size: 12,
-            color: '#fff'
-        },
-        title: {
-            text: title,
-            font: {
-                family: 'Montserrat',
-                size: 15,
-                color: '#fff'
-            }
-        },
-        showlegend: true,
-    };
-
-    Plotly.newPlot(id, line_scatter_plot_data_value[0], line__scatter_plot_layout_value);
-  }
-
 
   function set_scatter_line_plot(id, title, y_values, N) {
       var line__scatter_plot_layout_value = {
