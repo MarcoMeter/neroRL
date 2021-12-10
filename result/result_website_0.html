@@ -291,26 +291,22 @@
   function set_stacked_bar_action_plot(y_values, action, action_names) {
     var bar_plot_data_action = [];
     for(var j = 0; j < action_names[0].length; j++) {
-        y_values_j = [];
-        colors_j = [];
-        action_names_j = [];
+        var color = ""
         for(var i = 0; i < action_names.length; i++) {
-            y_values_j.push(y_values[i][j]);
             if(action[i] == j)
-                colors_j.push('#FAEBD7');
+                color = '#FAEBD7';
             else
-                colors_j.push('#FF0000'); 
-            action_names_j.push(action_names[i].join(', '));               
-        var trace = {
-            x: [action_names_j[i]],
-            y: [y_values_j[i]],
-            text: [y_values_j[i]].map(String),
-            marker: {
-                color: colors_j[i]
-            },
-            type: 'bar'
-          };
-          bar_plot_data_action.push(trace);
+                color = '#FF0000';               
+            var trace = {
+                x: [action_names[i].join(', ')],
+                y: [y_values[i][j]],
+                text: [y_values[i][j]].map(String),
+                marker: {
+                    color: color
+                },
+                type: 'bar'
+            };
+            bar_plot_data_action.push(trace);
         }
     }
       
