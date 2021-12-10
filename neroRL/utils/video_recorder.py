@@ -138,17 +138,15 @@ class VideoRecorder:
         env_info = self._config_to_html(configs, "environment")
         model_info = self._config_to_html(configs, "model")
         hyper_info = self._config_to_html(configs, "trainer")
-        misc_info = "None"
         
         template_env = Environment(loader=FileSystemLoader(searchpath="./"))
-        template = template_env.get_template("./result/template/main.html")
+        template = template_env.get_template("./result/template/result_website.html")
         
         with open(self.website_path + 'result_website_' + str(i) + '.html' , 'w') as output_file:
             output_file.write(template.render(envInfo=env_info,
                                             hyperInfo=hyper_info,
                                             modelInfo=model_info,
-                                            miscInfo=misc_info,
-                                            videoName = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(i) + ".webm",
+                                            videoPath = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(i) + ".webm",
                                             yValues=values_html,
                                             yEntropy = entropies_html,
                                             yAction=action_probs,
