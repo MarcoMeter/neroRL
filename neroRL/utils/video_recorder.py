@@ -116,13 +116,13 @@ class VideoRecorder:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render a website.
             config {dict} -- The configuration dictionary
         """
+        # Generate an id
+        id = self._generate_video_id()
         
-        website_name, i = "result_website_", 0
-        while os.path.exists(self.website_path + website_name + str(i) + ".html") or os.path.exists(self.website_path + "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(i) + ".webm"):
-            i += 1
+        # Render the trajectory data to a video
+        self._render_environment_episode(trajectory_data, "videos", str(id))
         
-        self._render_environment_episode(trajectory_data, "videos", str(i))
-        
+        # Render the configuration to a html file
         actions_probs = torch.stack(trajectory_data["probs"]).squeeze(dim=2).tolist()
         action_names, actions = trajectory_data["action_names"], trajectory_data["actions"]
         values, entropies = np.array(trajectory_data["values"]).tolist(), trajectory_data["entropies"]
@@ -134,11 +134,11 @@ class VideoRecorder:
         template_env = Environment(loader=FileSystemLoader(searchpath="./"))
         template = template_env.get_template("./result/template/result_website.html")
         
-        with open(self.website_path + 'result_website_' + str(i) + '.html' , 'w') as output_file:
+        with open(self.website_path + 'result_website_' + str(id) + '.html' , 'w') as output_file:
             output_file.write(template.render(envInfo=env_info,
                                             hyperInfo=hyper_info,
                                             modelInfo=model_info,
-                                            videoPath = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(i) + ".webm",
+                                            videoPath = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm",
                                             yValues=str(values),
                                             yEntropy=str(entropies),
                                             yAction=str(actions_probs),
@@ -146,7 +146,22 @@ class VideoRecorder:
                                             actionNames=str(action_names)))
         
         
-    
+    def _generate_video_id(self):
+        """Generates a unique video id.
+        
+        Returns:
+            {string} -- The unique video id.
+        """
+        result_website_names, video_names = os.listdir(self.website_path), os.listdir(self.website_path + "videos/")
+        file_names = result_website_names + video_names
+        
+        id = 0
+        for file_name in file_names: # Find the highest not used id
+            file_name_prx = file_name.split(".")[0]
+            if file_name_prx[-len(str(id)):] == str(id): # If the id exists
+                id += 1 # Increment id
+        
+        return str(id) 
 
     def _render_environment_episode(self, trajectory_data, dictionary, video_id):
         """Renders an episode of an agent behaving in its environment.
