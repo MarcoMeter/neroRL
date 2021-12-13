@@ -117,7 +117,7 @@ class VideoRecorder:
             config {dict} -- The configuration dictionary
         """
         # Generate an id
-        id = self._generate_video_id()
+        id = self._generate_id()
         
         # Render the trajectory data to a video
         self._render_environment_episode(trajectory_data, "videos", str(id))
@@ -146,11 +146,11 @@ class VideoRecorder:
                                             actionNames=str(action_names)))
         
         
-    def _generate_video_id(self):
-        """Generates a unique video id.
+    def _generate_id(self):
+        """Generates a unique id.
         
         Returns:
-            {string} -- The unique video id.
+            {string} -- The unique id.
         """
         result_website_names, video_names = os.listdir(self.website_path), os.listdir(self.website_path + "videos/")
         file_names = result_website_names + video_names
