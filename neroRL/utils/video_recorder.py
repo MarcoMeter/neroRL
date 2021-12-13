@@ -124,15 +124,8 @@ class VideoRecorder:
         self._render_environment_episode(trajectory_data, "videos", str(i))
         
         actions_probs = torch.stack(trajectory_data["probs"]).squeeze(dim=2).tolist()
-        actions = trajectory_data["actions"]
-        values = np.array(trajectory_data["values"]).tolist()
-        entropies = trajectory_data["entropies"]
-        
-        action_names_html = str(trajectory_data["action_names"])
-        action_probs_html = str(actions_probs)
-        actions_html = str(actions)
-        values_html = str(values)
-        entropies_html = str(entropies)
+        action_names, actions = trajectory_data["action_names"], trajectory_data["actions"]
+        values, entropies = np.array(trajectory_data["values"]).tolist(), trajectory_data["entropies"]
         
         env_info = self._config_to_html(configs["environment"])
         model_info = self._config_to_html(configs["model"])
@@ -146,11 +139,11 @@ class VideoRecorder:
                                             hyperInfo=hyper_info,
                                             modelInfo=model_info,
                                             videoPath = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(i) + ".webm",
-                                            yValues=values_html,
-                                            yEntropy = entropies_html,
-                                            yAction=action_probs_html,
-                                            action=actions_html,
-                                            actionNames=action_names_html))
+                                            yValues=str(values),
+                                            yEntropy=str(entropies),
+                                            yAction=str(actions_probs),
+                                            action=str(actions),
+                                            actionNames=str(action_names)))
         
 
     def _render_environment_episode(self, trajectory_data, dictionary, video_id):
