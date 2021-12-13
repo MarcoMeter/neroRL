@@ -157,7 +157,7 @@ class VideoRecorder:
         
         id = 0
         for file_name in file_names: # Find the highest not used id
-            file_name_prx = file_name.split(".")[0]
+            file_name_prx = file_name.split(".")[0] # Remove suffix of the file name
             if file_name_prx[-len(str(id)):] == str(id): # If the id exists
                 id += 1 # Increment id
         
