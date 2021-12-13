@@ -91,23 +91,22 @@ class VideoRecorder:
         # Finish up the video
         out.release()
 
-    def _config_to_html(self, config, key, prfx = ""):
+    def _config_to_html(self, config, prfx = ""):
         """Returns a html string that contains the configuration of the key
         
         Arguments:
             config {dict} -- The configuration dictionary
-            key {string} -- The key of the configuration to be processed.
         
         Returns:
             {string}  -- The html string that contains the configuration of the key.
         """
         tab = "&nbsp;&nbsp;&nbsp;&nbsp;" * 2
         html = ""
-        for c_key in config[key]:
-            if type(config[key][c_key]) is ruamel.yaml.comments.CommentedMap:
-                html += prfx + "<b>" + str(c_key) + "</b>: " + "<br>" + self._config_to_html(config[key], c_key, prfx + tab)
+        for key in config:
+            if type(config[key]) is ruamel.yaml.comments.CommentedMap:
+                html += prfx + "<b>" + str(key) + "</b>: " + "<br>" + self._config_to_html(config[key], prfx + tab)
             else:
-                html += prfx + "<b>" + str(c_key) + "</b>: " + str(config[key][c_key]) + "<br>"
+                html += prfx + "<b>" + str(key) + "</b>: " + str(config[key]) + "<br>"
         return html
 
     def generate_website(self, trajectory_data, configs):
@@ -128,15 +127,15 @@ class VideoRecorder:
         values = np.array(trajectory_data["values"]).tolist()
         entropies = trajectory_data["entropies"]
         
-        action_names_html = "[" + ", ".join(map(lambda x: "\'" + x + "\'", trajectory_data["action_names"])) + "]"
+        action_names_html = "[" + ", ".join(map(lambda x: "\'" + x + "\'", trajectory_data["action_names"])) + "]" # TODO: Multi discrete actions does not work yet
         action_probs = str(actions_probs)
         actions_html = str(actions)
         values_html = str(values)
         entropies_html = str(entropies)
         
-        env_info = self._config_to_html(configs, "environment")
-        model_info = self._config_to_html(configs, "model")
-        hyper_info = self._config_to_html(configs, "trainer")
+        env_info = self._config_to_html(configs["environment"]) # TODO function to render configs
+        model_info = self._config_to_html(configs["model"])
+        hyper_info = self._config_to_html(configs["trainer"])
         
         template_env = Environment(loader=FileSystemLoader(searchpath="./"))
         template = template_env.get_template("./result/template/result_website.html")
