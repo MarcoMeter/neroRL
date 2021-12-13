@@ -114,6 +114,7 @@ class VideoRecorder:
         
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render a website.
+            config {dict} -- The configuration dictionary
         """
         
         website_name, i = "result_website_", 0
