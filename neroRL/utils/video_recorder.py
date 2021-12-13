@@ -128,13 +128,15 @@ class VideoRecorder:
         values = np.array(trajectory_data["values"]).tolist()
         entropies = trajectory_data["entropies"]
         
-        action_names_html = "[" + ", ".join(map(lambda x: "\'" + x + "\'", trajectory_data["action_names"])) + "]" # TODO: Multi discrete actions does not work yet
+        action_names_html = str(trajectory_data["action_names"])
         action_probs = str(actions_probs)
         actions_html = str(actions)
         values_html = str(values)
         entropies_html = str(entropies)
         
-        env_info = self._config_to_html(configs["environment"]) # TODO function to render configs
+        print(action_names_html)
+        
+        env_info = self._config_to_html(configs["environment"])
         model_info = self._config_to_html(configs["model"])
         hyper_info = self._config_to_html(configs["trainer"])
         
