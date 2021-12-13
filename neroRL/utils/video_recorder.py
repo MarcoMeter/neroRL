@@ -145,12 +145,15 @@ class VideoRecorder:
                                             action=str(actions),
                                             actionNames=str(action_names)))
         
+        
+    
 
     def _render_environment_episode(self, trajectory_data, dictionary, video_id):
         """Renders an episode of an agent behaving in its environment.
         
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
+            video_id {string} -- The id of the video.
         """
         # Set fourcc s.t. the video is saved as webm
         webm_fourcc = cv2.VideoWriter_fourcc(*'VP09')
