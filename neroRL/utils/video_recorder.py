@@ -129,7 +129,7 @@ class VideoRecorder:
         entropies = trajectory_data["entropies"]
         
         action_names_html = str(trajectory_data["action_names"])
-        action_probs = str(actions_probs)
+        action_probs_html = str(actions_probs)
         actions_html = str(actions)
         values_html = str(values)
         entropies_html = str(entropies)
@@ -148,7 +148,7 @@ class VideoRecorder:
                                             videoPath = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(i) + ".webm",
                                             yValues=values_html,
                                             yEntropy = entropies_html,
-                                            yAction=action_probs,
+                                            yAction=action_probs_html,
                                             action=actions_html,
                                             actionNames=action_names_html))
         
