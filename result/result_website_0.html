@@ -123,24 +123,24 @@
 
     <div id="Environment" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      {{ envInfo }}
+      <b>type</b>: CartPole<br><b>name</b>: CartPole-v0<br><b>frame_skip</b>: 1<br><b>last_action_to_obs</b>: False<br><b>last_reward_to_obs</b>: False<br><b>obs_stacks</b>: 1<br><b>grayscale</b>: False<br><b>resize_vis_obs</b>: [84, 84]<br><b>reset_params</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>start-seed</b>: 0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>num-seeds</b>: 100<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>mask-velocity</b>: True<br>
     </div>
 
     <div id="Model" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      {{ modelInfo }}
+      <b>load_model</b>: False<br><b>model_path</b>: ./checkpoints/cartpole/20210722-103713_2/cartpole-199.pt<br><b>checkpoint_interval</b>: 25<br><b>activation</b>: relu<br><b>vis_encoder</b>: cnn<br><b>vec_encoder</b>: linear<br><b>num_vec_encoder_units</b>: 128<br><b>hidden_layer</b>: default<br><b>num_hidden_layers</b>: 1<br><b>num_hidden_units</b>: 512<br><b>recurrence</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>layer_type</b>: gru<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>sequence_length</b>: 16<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>hidden_state_size</b>: 128<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>hidden_state_init</b>: zero<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>reset_hidden_state</b>: False<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>residual</b>: False<br>
     </div>
 
     <div id="Hyperparameters" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      {{ hyperInfo }}
+      <b>algorithm</b>: PPO<br><b>resume_at</b>: 0<br><b>gamma</b>: 0.99<br><b>lamda</b>: 0.95<br><b>updates</b>: 200<br><b>epochs</b>: 4<br><b>n_mini_batches</b>: 4<br><b>value_coefficient</b>: 0.25<br><b>max_grad_norm</b>: 0.5<br><b>share_parameters</b>: True<br><b>learning_rate_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 0.0001<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 0.0001<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br><b>beta_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 1e-05<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 1e-06<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br><b>clip_range_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 0.2<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 0.2<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br>
     </div>
 
     <div id="Media" class="mediatabcontent">
       <div id="video_section">
         <div id="figures">
           <video id="video_player">
-            <source src="{{ videoPath}}" type="video/webm" />
+            <source src="videos/video_seed_1001_0.webm" type="video/webm" />
           </video>
           <div id="action_distr"></div>
         </div>
@@ -197,11 +197,11 @@
         var tS_max_value = 0;
         var tS_step_size = 0;
 
-        var y_values = {{ yValues }};
-        var y_entropy = {{ yEntropy }};
-        var y_action = {{ yAction }};
-        var action =  {{ action }};
-        var action_names = {{ actionNames }};
+        var y_values = [[0.09655941277742386], [0.10085348784923553], [0.0999232679605484], [0.10043104737997055], [0.10142461955547333], [0.10220536589622498], [0.10273037105798721], [0.10288812965154648], [0.10192397236824036], [0.10058145970106125]];
+        var y_entropy = [[0.6927353143692017], [0.692258894443512], [0.6919015645980835], [0.6917039155960083], [0.6916017532348633], [0.6915543079376221], [0.6915470957756042], [0.6915627717971802], [0.691595733165741], [0.6916391849517822]];
+        var y_action = [[[0.5143508315086365, 0.4856492280960083]], [[0.5210710763931274, 0.4789288341999054]], [[0.5249511003494263, 0.4750489294528961]], [[0.5268568396568298, 0.47314316034317017]], [[0.527790904045105, 0.4722091555595398]], [[0.5282131433486938, 0.4717869162559509]], [[0.5282776355743408, 0.4717223644256592]], [[0.5281382203102112, 0.4718618392944336]], [[0.5278454422950745, 0.4721545875072479]], [[0.5274518728256226, 0.47254815697669983]]];
+        var action =  [[0], [0], [0], [0], [0], [0], [0], [0], [1], [0]];
+        var action_names = ['move right', 'move left'];
 
         window.addEventListener('load', () => {
           video_length = video_player.duration - 0.9999;
