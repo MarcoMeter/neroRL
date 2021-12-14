@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;500&display=swap" rel="stylesheet"/>
     <script src="https://cdn.plot.ly/plotly-2.6.3.min.js"></script>
     <style>
+     /* Style the body */
       html,
       body {
         height: 100%;
@@ -16,27 +17,23 @@
         font-family: "Montserrat", sans-serif;
       }
 
+      /* Set the width and hight of the video*/
       video {
         width: 600px;
         height: 400px;
       }
 
-      #header_videos {
-        text-align: center;
-        font-weight: 500;
-      }
+      /* Style the timeline text*/
       #selector_header {
         font-weight: 200;
       }
-      .divider {
-        width: 1000px;
-        height: 1px;
-        margin: 0 auto;
-        background: rgba(255, 255, 255, 0.548);
-      }
+
+      /* Buttons should be displayed in a row */
       buttonrow {
         display: inline;
       }
+
+      /* Style the figures */
       #figures {
         display: flex;
         flex-direction: row;
@@ -108,10 +105,7 @@
   </head>
   <body>
     <div class="tab">
-      <button
-        class="tablinks"
-        onclick="openTab(event, 'Environment')"
-        id="defaultOpen">
+      <button class="tablinks" onclick="openTab(event, 'Environment')" id="defaultOpen">
         Environment
       </button>
       <button class="tablinks" onclick="openTab(event, 'Hyperparameters')">
