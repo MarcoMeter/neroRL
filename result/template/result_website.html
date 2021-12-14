@@ -8,8 +8,7 @@
     <script src="https://cdn.plot.ly/plotly-2.6.3.min.js"></script>
     <style>
      /* Style the body */
-      html,
-      body {
+      html, body {
         height: 100%;
         margin: 0;
         background-color: #000;
@@ -104,6 +103,7 @@
     </style>
   </head>
   <body>
+    <!--- Define tabs -->
     <div class="tab">
       <button class="tablinks" onclick="openTab(event, 'Environment')" id="defaultOpen">Environment</button>
       <button class="tablinks" onclick="openTab(event, 'Hyperparameters')">Hyperparameters</button>
@@ -111,6 +111,7 @@
       <button class="tablinks" onclick="openTab(event, 'Media')">Media</button>
     </div>
 
+    <!--- Define tab content -->
     <div id="Environment" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
       {{ envInfo }}
@@ -127,17 +128,17 @@
     </div>
 
     <div id="Media" class="mediatabcontent">
-      <div id="video_section">
+      <center>
+        <!-- Set video player and action distr. bar plot -->
         <div id="figures">
           <video id="video_player">
             <source src="{{ videoPath}}" type="video/webm" />
           </video>
           <div id="action_distr"></div>
         </div>
-      </div>
 
-      <br>
-      <center>
+        <br>
+        <!-- Set buttons to control the figures -->
         <buttonrow>
           <button id="play_button" onclick="play()">Play</button>
           <button id="pause_button" onclick="pause()">Pause</button>
@@ -146,13 +147,14 @@
           <button id="next_button" onclick="next()">Next</button>
         </buttonrow>
 
+        <!-- Set slider to control the figures -->
         <h3 id="selector_header">Timeline</h3>
         <input id="time_selector" type="range" min="0" max="100" step="1" />
-        <div id="video_section">
-          <div id="figures">
-            <div id="value_func"></div>
-            <div id="entropy_func"></div>
-          </div>
+
+        <!-- Set value plot and entropy plot -->
+        <div id="figures">
+          <div id="value_func"></div>
+          <div id="entropy_func"></div>
         </div>
       </center>
     </div>
