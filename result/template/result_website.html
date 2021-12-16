@@ -177,6 +177,31 @@
         var y_action = {{ yAction }};
         var action =  {{ action }};
         var action_names = {{ actionNames }};
+        var x_values = [...Array(y_values.length).keys()];
+
+        var y_entropy_plot = [];
+        var y_values_plot = [];
+        
+        for(var j = 0; j < y_values[0].length; j++)
+            for(var i = 0; i < y_values.length; i++)
+                y_values_plot.push(y_values[i][j]);
+
+        if(action[0].length == 1) { // If action_space is discrete
+          for(var j = 0; j < y_values[0].length; j++)
+              for(var i = 0; i < y_values.length; i++)
+                  y_entropy_plot.push(y_entropy[i][j]);
+        }
+        else { // If action_space is multi discrete
+          for(var j = 0; j < y_entropy[0].length; j++) {
+            var y_entropy_vals = [];
+            for(var i = 0; i < y_entropy.length; i++) {
+                y_entropy_vals.push(y_entropy[i][j]);
+            }
+            y_entropy_plot.push(y_vals);
+          }
+        }
+     
+        
 
         window.addEventListener('load', () => {
           // Set video length to length - 0.9999 because the last frame is two seconds long
@@ -268,13 +293,13 @@
         step = Math.floor(video_player.currentTime); // Get step of video for plots
 
         // Update plots
-        set_scatter_line_plot('value_func', "Value Function", y_values, step);
+        set_scatter_line_plot('value_func', "Value Function", y_values_plot, step);
         if(action[0].length == 1) { // If action_space is discrete
-            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, step);
+            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy_plot, step);
             set_bar_action_plot(y_action[step][0], action[step][0], action_names);
         }
         else { // If action_space is multi discrete
-            set_scatter_lines_plot('entropy_func', "Entropy Function", y_entropy, step);
+            set_scatter_lines_plot('entropy_func', "Entropy Function", y_entropy_plot, step);
             set_stacked_bar_action_plot(y_action[step], action[step], action_names);
         }
       }
@@ -354,7 +379,7 @@
 
           var color_value = new Array(y_values.length).fill('#FAEBD7'); // Set color for all actions to white
           color_value[action] = '#FF0000'; // Except the selected action should be red
-
+          // Set data for the plot
           var bar_plot_data_action = [
               {
                   x: action_names,
@@ -409,29 +434,19 @@
 
 
       /**
-      * Sets a scatter plot for the value function
+      * Sets a scatter plot for the emtropy function
       * @param {string} id - The id of the plot
       * @param {string} title - The title of the plot
-      * @param {array} y_values - The value function
+      * @param {array} y_values - The entropy function y values
       * @param {int} step - The step of the video
       */
       function set_scatter_lines_plot(id, title, y_values, step) {
-        var x_values = [...Array(y_values.length).keys()];
-        var y_vals_plot = [];
-        for(var j = 0; j < y_values[0].length; j++) {
-            var y_vals = [];
-            for(var i = 0; i < y_values.length; i++) {
-                y_vals.push(y_values[i][j]);
-            }
-            y_vals_plot.push(y_vals);
-        }
-
         line_scatter_plot_data_value = [];
 
         var colors = ['#FAEBD7', '#7CFC00', '#FFBF00', '#FF7F50', '#DE3163', '#9FE2BF', '#40E0D0', '#6495ED', '#CCCCFF']
         for(var i = 0; i < y_vals_plot.length; i++) {
           var x_values_marker = x_values.slice(0, step + 1);
-          var y_values_marker = y_vals_plot[i].slice(0, step + 1);
+          var y_values_marker = y_values[i].slice(0, step + 1);
             var trace = [
             {
                 x: x_values_marker,
@@ -445,7 +460,7 @@
             },
             {
                 x: x_values,
-                y: y_vals_plot[i],
+                y: y_values[i],
                 mode: 'markers',
                 marker: {
                     color: colors[i]
@@ -493,7 +508,14 @@
       }
 
 
-      function set_scatter_line_plot(id, title, y_values, N) {
+      /**
+      * Sets a scatter plot for the value function
+      * @param {string} id - The id of the plot
+      * @param {string} title - The title of the plot
+      * @param {array} y_values - The value function y values
+      * @param {int} step - The step of the video
+      */
+      function set_scatter_line_plot(id, title, y_values, step) {
           var line__scatter_plot_layout_value = {
               autosize: true,
               width: 600,
@@ -526,14 +548,8 @@
               showlegend: false,
           };
 
-          var x_values = [...Array(y_values.length).keys()];
-          var y_vals_plot = [];
-          for(var j = 0; j < y_values[0].length; j++)
-              for(var i = 0; i < y_values.length; i++)
-                  y_vals_plot.push(y_values[i][j]);
-
-          var x_values_marker = x_values.slice(0, N + 1);
-          var y_values_marker = y_vals_plot.slice(0, N + 1);
+          var x_values_marker = x_values.slice(0, step + 1);
+          var y_values_marker = y_values.slice(0, step + 1);
 
           var line_scatter_plot_data_value = [
               {
@@ -546,7 +562,7 @@
               },
               {
                   x: x_values,
-                  y: y_vals_plot,
+                  y: y_values,
                   mode: 'markers',
                   marker: {
                       color: '#7CFC00'
