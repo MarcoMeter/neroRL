@@ -242,7 +242,7 @@
       * Update time selector and plots when video is playing
       */
       function timeListener() {
-          update();
+        if(!video_player.paused) update();
       }
 
       /**
@@ -480,10 +480,11 @@
                 x: x_values,
                 y: y_values[i],
                 mode: 'markers',
+                name: 'action_space_' + String(i) + "_marker",
                 marker: {
                     color: colors[i]
                 },
-                showlegend: false,
+                showlegend: true,
             }
         ];
             line_scatter_plot_data_value.push(trace[0]);
@@ -563,7 +564,7 @@
                       color: '#fff'
                   }
               },
-              showlegend: false,
+              showlegend: true,
           };
 
           var x_values_marker = x_values.slice(0, step + 1);
@@ -577,6 +578,7 @@
                   line: {
                       color: '#FAEBD7'
                   },
+                  name: 'value_function',
               },
               {
                   x: x_values,
@@ -585,6 +587,7 @@
                   marker: {
                       color: '#7CFC0080'
                   },
+                  name: 'value_function_marker',
               }
           ];
 
