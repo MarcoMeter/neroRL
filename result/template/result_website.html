@@ -279,8 +279,15 @@
         }
       }
 
+      /** 
+      * Sets a stacked bar plot for the action distribution
+      * @param {array} y_values - The action distribution
+      * @param {array} action - The action
+      * @param {array} action_names - The names of the actions
+      */
       function set_stacked_bar_action_plot(y_values, action, action_names) {
         var bar_plot_data_action = [];
+        // Set data for each action
         for(var j = 0; j < action_names[0].length; j++) {
             var color = ""
             for(var i = 0; i < action_names.length; i++) {
@@ -305,7 +312,8 @@
             }
         }
 
-          var bar_plot_layout_action = {
+        // Set layout for the plot
+        var bar_plot_layout_action = {
             autosize: true,
             width: 600,
             height: 360,
@@ -335,8 +343,8 @@
             showlegend: false
       };
 
-        Plotly.newPlot('action_distr', bar_plot_data_action, bar_plot_layout_action);
-
+      // Plot the data
+      Plotly.newPlot('action_distr', bar_plot_data_action, bar_plot_layout_action);
       }
 
       function set_bar_action_plot(y_values, action, action_names) {
