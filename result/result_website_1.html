@@ -114,17 +114,17 @@
     <!--- Define tab content -->
     <div id="Environment" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      {{ envInfo }}
+      <b>type</b>: CartPole<br><b>name</b>: CartPole-v0<br><b>frame_skip</b>: 1<br><b>last_action_to_obs</b>: False<br><b>last_reward_to_obs</b>: False<br><b>obs_stacks</b>: 1<br><b>grayscale</b>: False<br><b>resize_vis_obs</b>: [84, 84]<br><b>reset_params</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>start-seed</b>: 0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>num-seeds</b>: 1<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>mask-velocity</b>: True<br>
     </div>
 
     <div id="Model" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      {{ modelInfo }}
+      <b>load_model</b>: False<br><b>model_path</b>: ./checkpoints/cartpole/20210722-103713_2/cartpole-199.pt<br><b>checkpoint_interval</b>: 25<br><b>activation</b>: relu<br><b>vis_encoder</b>: cnn<br><b>vec_encoder</b>: linear<br><b>num_vec_encoder_units</b>: 128<br><b>hidden_layer</b>: default<br><b>num_hidden_layers</b>: 1<br><b>num_hidden_units</b>: 512<br><b>recurrence</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>layer_type</b>: gru<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>sequence_length</b>: 16<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>hidden_state_size</b>: 128<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>hidden_state_init</b>: zero<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>reset_hidden_state</b>: False<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>residual</b>: False<br>
     </div>
 
     <div id="Hyperparameters" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      {{ hyperInfo }}
+      <b>algorithm</b>: PPO<br><b>resume_at</b>: 0<br><b>gamma</b>: 0.99<br><b>lamda</b>: 0.95<br><b>updates</b>: 200<br><b>epochs</b>: 4<br><b>n_mini_batches</b>: 4<br><b>value_coefficient</b>: 0.25<br><b>max_grad_norm</b>: 0.5<br><b>share_parameters</b>: True<br><b>learning_rate_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 0.0001<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 0.0001<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br><b>beta_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 1e-05<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 1e-06<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br><b>clip_range_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 0.2<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 0.2<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br>
     </div>
 
     <div id="Media" class="mediatabcontent">
@@ -132,7 +132,7 @@
         <!-- Set video player and action distr. bar plot -->
         <div id="figures">
           <video id="video_player">
-            <source src="{{ videoPath }}" type="video/webm" />
+            <source src="videos/video_seed_0_1.webm" type="video/webm" />
           </video>
           <div id="action_distr"></div>
         </div>
@@ -172,11 +172,11 @@
         var tS_step_size = 1.0;
 
         // Set values for the plots
-        var y_values = {{ yValues }};
-        var y_entropy = {{ yEntropy }};
-        var y_action = {{ yAction }};
-        var action =  {{ action }};
-        var action_names = {{ actionNames }};
+        var y_values = [[-0.06965628266334534], [-0.10541817545890808], [-0.12269595265388489], [-0.13060115277767181], [-0.13566751778125763], [-0.13784319162368774], [-0.13914352655410767], [-0.13969123363494873], [-0.13980449736118317], [-0.1397954374551773], [-0.1396966427564621], [-0.13954690098762512], [-0.1393364667892456], [-0.1391497403383255], [-0.13873153924942017], [-0.13839125633239746], [-0.13815182447433472], [-0.13814157247543335], [-0.13807335495948792]];
+        var y_entropy = [[0.693132758140564], [0.6931205987930298], [0.6931140422821045], [0.6931124925613403], [0.6931133270263672], [0.6931153535842896], [0.6931172609329224], [0.693118691444397], [0.6931195259094238], [0.6931199431419373], [0.6931202411651611], [0.6931203007698059], [0.6931202411651611], [0.6931201815605164], [0.6931200623512268], [0.693120002746582], [0.6931196451187134], [0.6931194067001343], [0.6931192874908447]];
+        var y_action = [[[0.5026839375495911, 0.49731606245040894]], [[0.5036479234695435, 0.49635207653045654]], [[0.5040678381919861, 0.4959321618080139]], [[0.5041621327400208, 0.49583783745765686]], [[0.5041139721870422, 0.49588605761528015]], [[0.5039842128753662, 0.4960156977176666]], [[0.5038667321205139, 0.49613332748413086]], [[0.503774106502533, 0.49622586369514465]], [[0.5037204027175903, 0.49627959728240967]], [[0.5036895871162415, 0.4963103234767914]], [[0.5036717057228088, 0.49632832407951355]], [[0.5036670565605164, 0.49633291363716125]], [[0.5036695003509521, 0.496330589056015]], [[0.503673255443573, 0.49632665514945984]], [[0.5036835074424744, 0.496316522359848]], [[0.5036932826042175, 0.4963066875934601]], [[0.5037081837654114, 0.496291846036911]], [[0.5037248134613037, 0.4962751865386963]], [[0.5037375688552856, 0.4962623715400696]]];
+        var action =  [[1], [1], [0], [1], [0], [0], [0], [0], [0], [0], [0], [1], [0], [1], [0], [1], [1], [0], [0]];
+        var action_names = ['move right', 'move left'];
         var x_values = [...Array(y_values.length).keys()];
 
         var y_entropy_plot = [];
