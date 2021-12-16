@@ -116,7 +116,7 @@ def main():
     logger.info("Step 4: Run single episode in realtime . . .")
 
     # Store data for video recording
-    log_probs = []
+    probs = []
     entropies = []
     values = []
     actions = []
@@ -129,18 +129,18 @@ def main():
             policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
 
             _actions = []
-            probs = []
+            _probs = []
             entropy = []
             # Sample action
             for action_branch in policy:
                 action = action_branch.sample()
                 _actions.append(action.item())
-                probs.append(action_branch.probs)
+                _probs.append(action_branch.probs)
                 entropy.append(action_branch.entropy().item())
 
             # Store data for video recording
             actions.append(_actions)
-            log_probs.append(probs)
+            probs.append(torch.stack(_probs))
             entropies.append(entropy)
             values.append(value.cpu().numpy())
 
@@ -155,15 +155,16 @@ def main():
         trajectory_data = env.get_episode_trajectory
         trajectory_data["action_names"] = env.action_names
         trajectory_data["actions"] = actions
-        trajectory_data["log_probs"] = log_probs
+        trajectory_data["probs"] = probs
         trajectory_data["entropies"] = entropies
         trajectory_data["values"] = values
         trajectory_data["episode_reward"] = info["reward"]
         trajectory_data["seed"] = seed
         # Init video recorder
-        video_recorder = VideoRecorder(video_path, frame_rate)
+        video_recorder = VideoRecorder(video_path, 1)
         # Render and serialize video
-        video_recorder.render_video(trajectory_data)
+        # video_recorder.render_video(trajectory_data)
+        video_recorder.generate_website(trajectory_data, configs)
 
     env.close()
 
