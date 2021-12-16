@@ -149,7 +149,7 @@
 
         <!-- Set slider to control the figures -->
         <h3 id="selector_header">Timeline</h3>
-        <input id="time_selector" type="range" min="0" max="100" step="1" />
+        <input id="time_selector" type="range" min="0" max="100" step="1" value="0" />
 
         <!-- Set value plot and entropy plot -->
         <div id="figures">
@@ -160,35 +160,18 @@
     </div>
 
     <script>
-          function openTab(evt, id) {
-              var i, tabcontent, tablinks;
-              tabcontent = document.getElementsByClassName("tabcontent");
-              mediatabcontent = document.getElementsByClassName("mediatabcontent");
-              for (i = 0; i < mediatabcontent.length; i++) {
-                  mediatabcontent[i].style.display = "none";
-              }
-              for (i = 0; i < tabcontent.length; i++) {
-                  tabcontent[i].style.display = "none";
-              }
-              tablinks = document.getElementsByClassName("tablinks");
-              for (i = 0; i < tablinks.length; i++) {
-                  tablinks[i].className = tablinks[i].className.replace(" active", "");
-              }
-              document.getElementById(id).style.display = "block";
-              evt.currentTarget.className += " active";
-              }
-
-        // Get the element with id="defaultOpen" and click on it
+        // Set active tab
         document.getElementById("defaultOpen").click();
 
-        // Media tab
+        // Set video player
         const video_player = document.getElementById("video_player");
         var video_length = 0;
 
+        // Set time selector
         const timeSelector = document.getElementById('time_selector');
-        var tS_max_value = 0;
-        var tS_step_size = 0;
+        var tS_step_size = 1.0;
 
+        // Set values for the plots
         var y_values = {{ yValues }};
         var y_entropy = {{ yEntropy }};
         var y_action = {{ yAction }};
@@ -196,24 +179,23 @@
         var action_names = {{ actionNames }};
 
         window.addEventListener('load', () => {
+          // Set video length to length - 0.9999 because the last frame is two seconds long
           video_length = video_player.duration - 0.9999;
-          tS_max_value = video_length;
-          tS_step_size = 1.;
-          timeSelector.value = 0;
-          timeSelector.setAttribute('max', tS_max_value);
-          timeSelector.setAttribute('step', tS_step_size);
+          timeSelector.setAttribute('max', video_length); // Set max value of time selector to video length
 
-          video_player.addEventListener('timeupdate', timeListener);
-          video_player.addEventListener('dblclick', function(e) {open_fullscreen(video_player);});
-          reset();
+          video_player.addEventListener('timeupdate', timeListener); // Update time selector and plots when video is playing
+          video_player.addEventListener('dblclick', function(e) {open_fullscreen(video_player);}); // Open video in fullscreen when video is double clicked
+          reset(); // Reset video to start
       }, false)
 
+      // Update video time if time selector is changed
       timeSelector.addEventListener('input', () => {
-          video_player.currentTime = video_length / tS_max_value * timeSelector.value
+          video_player.currentTime = timeSelector.value
           pause();
           update();
       })
 
+      // Update time selector and plots when video is playing
       function timeListener() {
           update();
       }
@@ -526,6 +508,24 @@
           ];
 
           Plotly.newPlot(id, line_scatter_plot_data_value, line__scatter_plot_layout_value);
+      }
+
+    function openTab(evt, id) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent");
+        mediatabcontent = document.getElementsByClassName("mediatabcontent");
+        for (i = 0; i < mediatabcontent.length; i++) {
+            mediatabcontent[i].style.display = "none";
+        }
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(id).style.display = "block";
+        evt.currentTarget.className += " active";
       }
     </script>
   </body>
