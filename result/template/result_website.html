@@ -195,37 +195,57 @@
           update();
       })
 
-      // Update time selector and plots when video is playing
+      /**
+      * Update time selector and plots when video is playing
+      */
       function timeListener() {
           update();
       }
 
+      /**
+      * Pauses video
+      */
       function pause() {
           video_player.pause();
       }
 
+      /**
+      * Plays the video
+      */
       function play() {
           video_player.play();
       }
 
+      /**
+      * Resets the video and plots to the start
+      */
       function reset() {
           video_player.currentTime = 0;
           pause();
           update();
       }
 
+      /**
+      * Goes to the previous frame
+      */
       function back() {
           video_player.currentTime = video_player.currentTime - tS_step_size
           pause();
           update();
       }
 
+      /**
+      * Goes to the next frame
+      */
       function next() {
           video_player.currentTime = video_player.currentTime + tS_step_size;
           pause();
           update();
       }
 
+      /**
+      * Opens the video in fullscreen
+      */
       function open_fullscreen(vid_elem) {
           if (vid_elem.requestFullscreen) {
               vid_elem.requestFullscreen();
@@ -237,18 +257,23 @@
           vid_elem.pause();
       }
 
+      /**
+      * Updates the plots and time selector
+      */
       function update()  {
-        if(video_player.currentTime == Math.round(video_player.currentTime))
-              video_player.currentTime += 0.0001
-        video_player.currentTime = Math.min(video_player.currentTime, video_length);
-        timeSelector.value = video_player.currentTime;
-        step = Math.floor(video_player.currentTime);
+        if(video_player.currentTime == Math.round(video_player.currentTime)) // If time t of video is a natural number then step is t - 1
+              video_player.currentTime += 0.0001 // Add a small number to make sure that the step and the current time are the same
+        video_player.currentTime = Math.min(video_player.currentTime, video_length); // Video can't go past the end
+        timeSelector.value = video_player.currentTime; // Update time selector
+        step = Math.floor(video_player.currentTime); // Get step of video for plots
+
+        // Update plots
         set_scatter_line_plot('value_func', "Value Function", y_values, step);
-        if(action[0].length == 1) {
+        if(action[0].length == 1) { // If action_space is discrete
             set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, step);
             set_bar_action_plot(y_action[step][0], action[step][0], action_names);
         }
-        else {
+        else { // If action_space is multi discrete
             set_scatter_lines_plot('entropy_func', "Entropy Function", y_entropy, step);
             set_stacked_bar_action_plot(y_action[step], action[step], action_names);
         }
