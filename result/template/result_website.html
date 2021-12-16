@@ -181,13 +181,13 @@
 
         var y_entropy_plot = [];
         var y_values_plot = [];
-        
+
         for(var j = 0; j < y_values[0].length; j++)
             for(var i = 0; i < y_values.length; i++)
                 y_values_plot.push(y_values[i][j]);
 
         if(action[0].length == 1) { // If action_space is discrete
-          for(var j = 0; j < y_values[0].length; j++)
+          for(var j = 0; j < y_entropy[0].length; j++)
               for(var i = 0; i < y_values.length; i++)
                   y_entropy_plot.push(y_entropy[i][j]);
         }
