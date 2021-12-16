@@ -143,7 +143,7 @@ class VideoRecorder:
                                             yEntropy=str(entropies),
                                             yAction=str(actions_probs),
                                             action=str(actions),
-                                            actionNames=str(action_names)))
+                                            actionNames=str(action_names) if action_names is not None else "null"))
         
         
     def _generate_id(self):

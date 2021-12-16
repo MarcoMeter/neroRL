@@ -174,7 +174,7 @@
         // Set values for the plots
         var y_values = {{ yValues }};
         var y_entropy = {{ yEntropy }};
-        var y_action = {{ yAction }};
+        var y_action = {{ yAction }}; // action probs
         var action =  {{ action }};
         var action_names = {{ actionNames }};
         var x_values = [...Array(y_values.length).keys()];
@@ -182,6 +182,8 @@
         var y_entropy_plot = [];
         var y_values_plot = [];
 
+        // Reformat the data for the plots
+        // Each function y - value should be stored in a separate array
         for(var j = 0; j < y_values[0].length; j++)
             for(var i = 0; i < y_values.length; i++)
                 y_values_plot.push(y_values[i][j]);
@@ -197,11 +199,27 @@
             for(var i = 0; i < y_entropy.length; i++) {
                 y_entropy_vals.push(y_entropy[i][j]);
             }
-            y_entropy_plot.push(y_vals);
+            y_entropy_plot.push(y_entropy_vals);
           }
         }
-     
-        
+
+        // Set action_names for distr. plot
+        if(action_names == null){
+          action_names = [];
+          for(var i = 0; i < y_action[0].length; i++){
+            for(var j = 0; j < y_action[0][0].length; j++)
+              if(action[0].length == 1){ // if action space is discrete
+                action_names.push("action_" + String(j));
+            }
+            else { // if action space is multi_discrete
+              var action_branch_names = []; // names of the branches of the action space
+              for(var j = 0; j < y_action[0][i].length; j++){
+                action_branch_names.push("action_" + String(j));
+              }
+              action_names.push(action_branch_names);
+            }     
+          }
+        }
 
         window.addEventListener('load', () => {
           // Set video length to length - 0.9999 because the last frame is two seconds long
@@ -444,7 +462,7 @@
         line_scatter_plot_data_value = [];
 
         var colors = ['#FAEBD780', '#7CFC0080', '#FFBF0080', '#FF7F5080', '#DE316380', '#9FE2BF80', '#40E0D080', '#6495ED80', '#CCCCFF80']
-        for(var i = 0; i < y_vals_plot.length; i++) {
+        for(var i = 0; i < y_values.length; i++) {
           var x_values_marker = x_values.slice(0, step + 1);
           var y_values_marker = y_values[i].slice(0, step + 1);
             var trace = [
