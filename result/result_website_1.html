@@ -114,17 +114,17 @@
     <!--- Define tab content -->
     <div id="Environment" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      {{ envInfo }}
+      <b>type</b>: CartPole<br><b>name</b>: CartPole-v0<br><b>frame_skip</b>: 1<br><b>last_action_to_obs</b>: False<br><b>last_reward_to_obs</b>: False<br><b>obs_stacks</b>: 1<br><b>grayscale</b>: False<br><b>resize_vis_obs</b>: [84, 84]<br><b>reset_params</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>start-seed</b>: 0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>num-seeds</b>: 1<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>mask-velocity</b>: True<br>
     </div>
 
     <div id="Model" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      {{ modelInfo }}
+      <b>load_model</b>: False<br><b>model_path</b>: ./checkpoints/cartpole/20210722-103713_2/cartpole-199.pt<br><b>checkpoint_interval</b>: 25<br><b>activation</b>: relu<br><b>vis_encoder</b>: cnn<br><b>vec_encoder</b>: linear<br><b>num_vec_encoder_units</b>: 128<br><b>hidden_layer</b>: default<br><b>num_hidden_layers</b>: 1<br><b>num_hidden_units</b>: 512<br><b>recurrence</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>layer_type</b>: gru<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>sequence_length</b>: 16<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>hidden_state_size</b>: 128<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>hidden_state_init</b>: zero<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>reset_hidden_state</b>: False<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>residual</b>: False<br>
     </div>
 
     <div id="Hyperparameters" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      {{ hyperInfo }}
+      <b>algorithm</b>: PPO<br><b>resume_at</b>: 0<br><b>gamma</b>: 0.99<br><b>lamda</b>: 0.95<br><b>updates</b>: 200<br><b>epochs</b>: 4<br><b>n_mini_batches</b>: 4<br><b>value_coefficient</b>: 0.25<br><b>max_grad_norm</b>: 0.5<br><b>share_parameters</b>: True<br><b>learning_rate_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 0.0001<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 0.0001<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br><b>beta_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 1e-05<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 1e-06<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br><b>clip_range_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 0.2<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 0.2<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br>
     </div>
 
     <div id="Media" class="mediatabcontent">
@@ -132,7 +132,7 @@
         <!-- Set video player and action distr. bar plot -->
         <div id="figures">
           <video id="video_player">
-            <source src="{{ videoPath }}" type="video/webm" />
+            <source src="videos/video_seed_0_1.webm" type="video/webm" />
           </video>
           <div id="action_distr"></div>
         </div>
@@ -189,11 +189,11 @@
         var tS_max_value = 0;
         var tS_step_size = 0;
 
-        var y_values = {{ yValues }};
-        var y_entropy = {{ yEntropy }};
-        var y_action = {{ yAction }};
-        var action =  {{ action }};
-        var action_names = {{ actionNames }};
+        var y_values = [[0.016395527869462967], [0.009379472583532333], [0.008363943547010422], [0.009532073512673378], [0.009910853579640388], [0.00980043038725853], [0.009907964617013931], [0.00971740111708641], [0.009302079677581787], [0.00865168683230877], [0.0077481959015131], [0.0068292394280433655], [0.00567619688808918], [0.004310296848416328], [0.0026050731539726257], [0.0007229968905448914]];
+        var y_entropy = [[0.6931381821632385], [0.6931453347206116], [0.6931469440460205], [0.6931471824645996], [0.6931470632553101], [0.6931470632553101], [0.6931469440460205], [0.6931469440460205], [0.6931469440460205], [0.6931470632553101], [0.6931469440460205], [0.6931469440460205], [0.6931470036506653], [0.6931470632553101], [0.6931471824645996], [0.6931471228599548]];
+        var y_action = [[[0.5021181106567383, 0.4978819191455841]], [[0.5009848475456238, 0.4990151524543762]], [[0.5003451108932495, 0.4996548593044281]], [[0.5000689625740051, 0.4999310076236725]], [[0.4998804032802582, 0.5001195669174194]], [[0.4997735023498535, 0.5002264976501465]], [[0.49971267580986023, 0.5002872943878174]], [[0.49969130754470825, 0.5003086924552917]], [[0.49967893958091736, 0.5003209710121155]], [[0.4996747672557831, 0.5003253221511841]], [[0.4996800124645233, 0.5003199577331543]], [[0.499691903591156, 0.500308096408844]], [[0.49970754981040955, 0.5002924799919128]], [[0.4997336268424988, 0.5002663731575012]], [[0.4997684359550476, 0.5002316236495972]], [[0.49980300664901733, 0.5001969337463379]]];
+        var action =  [[1], [1], [0], [0], [0], [1], [1], [1], [1], [0], [1], [1], [1], [1], [1], [1]];
+        var action_names = ['move right', 'move left'];
 
         window.addEventListener('load', () => {
           video_length = video_player.duration - 0.9999;
@@ -269,6 +269,7 @@
       function update_plots()  {
         step = Math.floor(video_player.currentTime);
         set_scatter_line_plot('value_func', "Value Function", y_values, step);
+        set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, step);
         if(action[0].length == 1) {
             set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy, step);
             set_bar_action_plot(y_action[step][0], action[step][0], action_names);
@@ -431,8 +432,7 @@
                 showlegend: false,
             }
         ];
-            line_scatter_plot_data_value.push(trace[0]);
-            line_scatter_plot_data_value.push(trace[1]);
+            line_scatter_plot_data_value.push(trace);
         }
 
         var line__scatter_plot_layout_value = {
@@ -467,7 +467,7 @@
             showlegend: true,
         };
 
-        Plotly.newPlot(id, line_scatter_plot_data_value, line__scatter_plot_layout_value);
+        Plotly.newPlot(id, line_scatter_plot_data_value[0], line__scatter_plot_layout_value);
       }
 
 

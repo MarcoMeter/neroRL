@@ -150,6 +150,7 @@ def main():
     logger.info("Episode Reward: " + str(info["reward"]))
     logger.info("Episode Length: " + str(info["length"]))
 
+
     # Complete video data
     if record_video:
         trajectory_data = env.get_episode_trajectory
