@@ -122,7 +122,7 @@ class VideoRecorder:
         # Render the trajectory data to a video
         self._render_environment_episode(trajectory_data, "videos", str(id))
         
-        # Render the configuration to a html file
+        # Prepare the data for the website
         actions_probs = torch.stack(trajectory_data["probs"]).squeeze(dim=2).tolist()
         action_names, actions = trajectory_data["action_names"], trajectory_data["actions"]
         values, entropies = np.array(trajectory_data["values"]).tolist(), trajectory_data["entropies"]
@@ -131,9 +131,11 @@ class VideoRecorder:
         model_info = self._config_to_html(configs["model"])
         hyper_info = self._config_to_html(configs["trainer"])
         
+        # Load the template file
         template_env = Environment(loader=FileSystemLoader(searchpath="./"))
         template = template_env.get_template("./result/template/result_website.html")
         
+        # Render the template
         with open(self.website_path + 'result_website_' + str(id) + '.html' , 'w') as output_file:
             output_file.write(template.render(envInfo=env_info,
                                             hyperInfo=hyper_info,

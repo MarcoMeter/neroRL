@@ -220,6 +220,11 @@
             }     
           }
         }
+        else{
+          if(action[0].length == 1 && Array.isArray(action_names[0])){ // if action space is discrete and action_names is multi_discrete
+            action_names = action_names[0];
+          }
+        }
 
         window.addEventListener('load', () => {
           // Set video length to length - 0.9999 because the last frame is two seconds long
@@ -564,7 +569,7 @@
                       color: '#fff'
                   }
               },
-              showlegend: true,
+              showlegend: false,
           };
 
           var x_values_marker = x_values.slice(0, step + 1);
@@ -578,7 +583,7 @@
                   line: {
                       color: '#FAEBD7'
                   },
-                  name: 'value_function',
+                  name: 'function',
               },
               {
                   x: x_values,
@@ -587,7 +592,7 @@
                   marker: {
                       color: '#7CFC0080'
                   },
-                  name: 'value_function_marker',
+                  name: 'marker',
               }
           ];
 
