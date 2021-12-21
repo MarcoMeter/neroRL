@@ -116,11 +116,16 @@ class VideoRecorder:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render a website.
             config {dict} -- The configuration dictionary
         """
+        # Create the video path for the website if it does not exist
+        video_path = self.website_path + "videos/"
+        if not os.path.exists(video_path):
+            os.makedirs(video_path)
+            
         # Generate an id
         id = self._generate_id()
         
         # Render the trajectory data to a video
-        self._render_environment_episode(trajectory_data, "videos", str(id))
+        self._render_environment_episode(trajectory_data, video_path, str(id))
         
         # Prepare the data for the website
         actions_probs = torch.stack(trajectory_data["probs"]).squeeze(dim=2).tolist()
@@ -166,18 +171,19 @@ class VideoRecorder:
         
         return str(id) 
 
-    def _render_environment_episode(self, trajectory_data, dictionary, video_id):
+    def _render_environment_episode(self, trajectory_data, path, video_id):
         """Renders an episode of an agent behaving in its environment.
         
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
             video_id {string} -- The id of the video.
         """
+            
         # Set fourcc s.t. the video is saved as webm
         webm_fourcc = cv2.VideoWriter_fourcc(*'VP09')
         
         # Init VideoWriter, the frame rate is defined by each environment individually
-        out = cv2.VideoWriter(self.website_path + dictionary + "/video_seed_" + str(trajectory_data["seed"]) + "_" + video_id + ".webm",
+        out = cv2.VideoWriter(path + "video_seed_" + str(trajectory_data["seed"]) + "_" + video_id + ".webm",
                                 webm_fourcc, 1, (self.width * 2, self.height + self.info_height))
         
         for i in range(len(trajectory_data["vis_obs"])):

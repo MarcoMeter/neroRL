@@ -37,6 +37,7 @@ def main():
         --seed=<n>                 The to be played seed of an episode [default: 0].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of a video shall be rendered. [default: 6]
+        --generate_website         Specifies wether a website shall be generated. [default: False]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]
@@ -45,6 +46,7 @@ def main():
     seed = int(options["--seed"])
     video_path = options["--video"]
     frame_rate = options["--framerate"]
+    generate_website = options["--generate_website"]
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -150,9 +152,8 @@ def main():
     logger.info("Episode Reward: " + str(info["reward"]))
     logger.info("Episode Length: " + str(info["length"]))
 
-
     # Complete video data
-    if record_video:
+    if record_video or generate_website:
         trajectory_data = env.get_episode_trajectory
         trajectory_data["action_names"] = env.action_names
         trajectory_data["actions"] = actions
@@ -164,8 +165,11 @@ def main():
         # Init video recorder
         video_recorder = VideoRecorder(video_path, frame_rate)
         # Render and serialize video
-        # video_recorder.render_video(trajectory_data)
-        video_recorder.generate_website(trajectory_data, configs)
+        if record_video:
+            video_recorder.render_video(trajectory_data)
+        # Generate website
+        if generate_website:
+            video_recorder.generate_website(trajectory_data, configs)
 
     env.close()
 

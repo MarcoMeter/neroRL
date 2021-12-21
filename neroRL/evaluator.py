@@ -7,7 +7,7 @@ from neroRL.utils.video_recorder import VideoRecorder
 
 class Evaluator():
     """Evaluates a model based on the initially provided config."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, video_path = "video", record_video = False, frame_rate = 1):
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, video_path = "video", record_video = False, frame_rate = 1, generate_wesbite = False):
         """Initializes the evaluator and its environments
         
         Arguments:
@@ -26,6 +26,7 @@ class Evaluator():
         self.video_path = video_path
         self.record_video = record_video
         self.frame_rate = frame_rate
+        self.generate_website = generate_website
 
         # Launch environments
         self.workers = []
@@ -137,7 +138,7 @@ class Evaluator():
                                 info["seed"] = seed
                                 episode_infos.append(info)
                                 # record video for this particular worker
-                                if self.record_video:
+                                if self.record_video or self.generate_website:
                                     worker.child.send(("video", None))
                                     trajectory_data = worker.child.recv()
                                     trajectory_data["actions"] = actions[w]
@@ -149,8 +150,11 @@ class Evaluator():
                                     # Init VideoRecorder
                                     video_recorder = VideoRecorder(self.video_path + "_" + str(w), self.frame_rate)
                                     # Render and serialize video
-                                    #video_recorder.render_video(trajectory_data)
-                                    video_recorder.generate_website(trajectory_data, self.configs)
+                                    if self.record_video:
+                                        video_recorder.render_video(trajectory_data)
+                                    # Generate website
+                                    if self.generate_website:
+                                        video_recorder.generate_website(trajectory_data, self.configs)
         
             # Seconds needed for a whole update
             time_end = time.time()
