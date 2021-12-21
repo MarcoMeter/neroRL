@@ -95,7 +95,7 @@ class VideoRecorder:
         """Returns a html string that contains the configuration of the key
         
         Arguments:
-            config {dict} -- The configuration dictionary
+            config {dict} -- The configuration
         
         Returns:
             {string}  -- The html string that contains the configuration of the key.
@@ -114,7 +114,7 @@ class VideoRecorder:
         
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render a website.
-            config {dict} -- The configuration dictionary
+            config {dict} -- The configuration
         """
         # Create the video path for the website if it does not exist
         video_path = self.website_path + "videos/"
