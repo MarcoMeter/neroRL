@@ -26,7 +26,7 @@ class VideoRecorder:
         self.height = 420
         self.info_height = 40
         self.video_path = video_path
-        self.website_path = "./result/"
+        self.website_path = os.getcwd() + "/result/"
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')   # Video codec
         self.frame_rate = int(frame_rate)
 

@@ -457,7 +457,7 @@
 
 
       /**
-      * Sets a scatter plot for the emtropy function
+      * Sets a scatter plot for the emtropy function if multi discrete actions are used
       * @param {string} id - The id of the plot
       * @param {string} title - The title of the plot
       * @param {array} y_values - The entropy function y values
@@ -466,6 +466,7 @@
       function set_scatter_lines_plot(id, title, y_values, step) {
         line_scatter_plot_data_value = [];
 
+        // Set colors and data for the plot
         var colors = ['#FAEBD780', '#7CFC0080', '#FFBF0080', '#FF7F5080', '#DE316380', '#9FE2BF80', '#40E0D080', '#6495ED80', '#CCCCFF80']
         for(var i = 0; i < y_values.length; i++) {
           var x_values_marker = x_values.slice(0, step + 1);
@@ -492,10 +493,12 @@
                 showlegend: true,
             }
         ];
+            // Add data to the plot
             line_scatter_plot_data_value.push(trace[0]);
-            line_scatter_plot_data_value.push(trace[1]);
+            line_scatter_plot_data_value.push(trace[1]); 
         }
 
+        // Set layout for the plot
         var line__scatter_plot_layout_value = {
             autosize: true,
             width: 600,
@@ -528,6 +531,7 @@
             showlegend: true,
         };
 
+        // Plot the data
         Plotly.newPlot(id, line_scatter_plot_data_value, line__scatter_plot_layout_value);
       }
 
@@ -540,6 +544,7 @@
       * @param {int} step - The step of the video
       */
       function set_scatter_line_plot(id, title, y_values, step) {
+          // Set data for layout for the plot
           var line__scatter_plot_layout_value = {
               autosize: true,
               width: 600,
@@ -572,6 +577,7 @@
               showlegend: false,
           };
 
+          // Set data for the plot
           var x_values_marker = x_values.slice(0, step + 1);
           var y_values_marker = y_values.slice(0, step + 1);
 
@@ -596,19 +602,26 @@
               }
           ];
 
+          // Plot the value function
           Plotly.newPlot(id, line_scatter_plot_data_value, line__scatter_plot_layout_value);
       }
-
+    
+    /**
+    * Opens the specific tab based on the probided id
+    * @param {string} id - The id of the tab
+    */
     function openTab(evt, id) {
         var i, tabcontent, tablinks;
         tabcontent = document.getElementsByClassName("tabcontent");
         mediatabcontent = document.getElementsByClassName("mediatabcontent");
+        // Hide all elements with class="tabcontent" and "mediacontent" by default
         for (i = 0; i < mediatabcontent.length; i++) {
             mediatabcontent[i].style.display = "none";
         }
         for (i = 0; i < tabcontent.length; i++) {
             tabcontent[i].style.display = "none";
         }
+        // Show the specific tab content
         tablinks = document.getElementsByClassName("tablinks");
         for (i = 0; i < tablinks.length; i++) {
             tablinks[i].className = tablinks[i].className.replace(" active", "");
