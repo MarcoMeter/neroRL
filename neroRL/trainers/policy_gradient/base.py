@@ -86,7 +86,7 @@ class BaseTrainer():
         self.eval_interval = configs["evaluation"]["interval"]
         if self.eval and self.eval_interval > 0:
             self.monitor.log("Step 2b: Initializing evaluator")
-            self.evaluator = Evaluator(configs, worker_id, self.visual_observation_space, self.vector_observation_space, record_video=True)
+            self.evaluator = Evaluator(configs, worker_id, self.visual_observation_space, self.vector_observation_space)
 
         # Init model
         self.monitor.log("Step 3: Creating model")
