@@ -168,7 +168,7 @@
         var video_length = 0;
 
         // Set time selector
-        const timeSelector = document.getElementById('time_selector');
+        const time_selector = document.getElementById('time_selector');
         var tS_step_size = 1.0;
 
         // Set values for the plots
@@ -229,16 +229,17 @@
         window.addEventListener('load', () => {
           // Set video length to length - 0.9999 because the last frame is two seconds long
           video_length = video_player.duration - 0.9999;
-          timeSelector.setAttribute('max', video_length); // Set max value of time selector to video length
+          time_selector.setAttribute('max', video_length); // Set max value of time selector to video length
 
           video_player.addEventListener('timeupdate', timeListener); // Update time selector and plots when video is playing
           video_player.addEventListener('dblclick', function(e) {open_fullscreen(video_player);}); // Open video in fullscreen when video is double clicked
+          video_player.playbackRate = {{ frameRate }}
           reset(); // Reset video to start
       }, false)
 
       // Update video time if time selector is changed
-      timeSelector.addEventListener('input', () => {
-          video_player.currentTime = timeSelector.value
+      time_selector.addEventListener('input', () => {
+          video_player.currentTime = time_selector.value
           pause();
           update();
       })
@@ -312,7 +313,7 @@
         if(video_player.currentTime == Math.round(video_player.currentTime)) // If time t of video is a natural number then step is t - 1
               video_player.currentTime += 0.0001 // Add a small number to make sure that the step and the current time are the same
         video_player.currentTime = Math.min(video_player.currentTime, video_length); // Video can't go past the end
-        timeSelector.value = video_player.currentTime; // Update time selector
+        time_selector.value = video_player.currentTime; // Update time selector
         step = Math.floor(video_player.currentTime); // Get step of video for plots
 
         // Update plots

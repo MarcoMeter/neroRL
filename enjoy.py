@@ -162,7 +162,7 @@ def main():
         trajectory_data["episode_reward"] = info["reward"]
         trajectory_data["seed"] = seed
         # Init video recorder
-        video_recorder = VideoRecorder(video_path, 1)
+        video_recorder = VideoRecorder(video_path, frame_rate)
         # Render and serialize video
         # video_recorder.render_video(trajectory_data)
         video_recorder.generate_website(trajectory_data, configs)

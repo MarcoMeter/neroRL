@@ -145,7 +145,8 @@ class VideoRecorder:
                                             yEntropy=str(entropies),
                                             yAction=str(actions_probs),
                                             action=str(actions),
-                                            actionNames=str(action_names) if action_names is not None else "null"))
+                                            actionNames=str(action_names) if action_names is not None else "null",
+                                            frameRate=str(self.frame_rate)))
         
         
     def _generate_id(self):
@@ -177,7 +178,7 @@ class VideoRecorder:
         
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(self.website_path + dictionary + "/video_seed_" + str(trajectory_data["seed"]) + "_" + video_id + ".webm",
-                                webm_fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
+                                webm_fourcc, 1, (self.width * 2, self.height + self.info_height))
         
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
