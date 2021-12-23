@@ -157,7 +157,6 @@ class MortarEnv(MiniGridEnv):
             if self.current_command >= self.num_commands:
                 # All commands completed!
                 done = True
-                print(self.step_count)
         else:
             # Turn off lava
             self._toggle_lave_off()

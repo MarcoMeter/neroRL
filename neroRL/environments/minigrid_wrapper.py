@@ -5,11 +5,13 @@ import gym
 from gym import error, spaces
 from random import randint
 from neroRL.environments.env import Env
-from gym_minigrid.wrappers import ViewSizeWrapper
+from gym_minigrid.wrappers import *
 
 class MinigridWrapper(Env):
     """This class wraps Gym Minigrid environments.
     https://github.com/maximecb/gym-minigrid
+    Custom Environments:
+        MiniGrid-Mortar-v0
     Available Environments:
         Empty
             - MiniGrid-Empty-5x5-v0
@@ -117,7 +119,11 @@ class MinigridWrapper(Env):
             self._default_reset_params = reset_params
 
         self._env = gym.make(env_name)
-        self._env = ViewSizeWrapper(self._env, self._default_reset_params["view-size"])
+        if env_name == "MiniGrid-Mortar-v0":
+            self._env = RGBImgObsWrapper(self._env, tile_size=10)
+            self._env = ImgObsWrapper(self._env)
+        else:
+            self._env = ViewSizeWrapper(self._env, self._default_reset_params["view-size"])
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
@@ -184,8 +190,8 @@ class MinigridWrapper(Env):
         self._rewards = []
         # Reset the environment and retrieve the initial observation
         obs = self._env.reset()
-        # Retrieve the RGB frame of the agent"s vision
-        vis_obs = self._env.get_obs_render(obs["image"], tile_size=28)
+        # Retrieve the RGB frame of the agent's vision
+        vis_obs = obs #self._env.get_obs_render(obs["image"], tile_size=28)
         vis_obs = vis_obs.astype(np.float32) / 255.
 
         # Render environment?
@@ -216,7 +222,7 @@ class MinigridWrapper(Env):
         obs, reward, done, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
-        vis_obs = self._env.get_obs_render(obs["image"], tile_size=28)  / 255.
+        vis_obs = obs / 255.# self._env.get_obs_render(obs["image"], tile_size=28)  / 255.
 
         # Render the environment in realtime
         if self._realtime_mode:
