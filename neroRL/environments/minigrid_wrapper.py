@@ -118,12 +118,18 @@ class MinigridWrapper(Env):
         else:
             self._default_reset_params = reset_params
 
+        # Instantiate the environment and apply various wrappers
         self._env = gym.make(env_name)
-        if env_name == "MiniGrid-Mortar-v0":
+        if "Mortar" in env_name:
+            # In Mortar, we want to see the entire environment
             self._env = RGBImgObsWrapper(self._env, tile_size=10)
-            self._env = ImgObsWrapper(self._env)
-        else:
+        elif "Memory" in env_name:
+            # In Memory, we want to limit the field of view and thereas use parial observability
             self._env = ViewSizeWrapper(self._env, self._default_reset_params["view-size"])
+            self._env = RGBImgPartialObsWrapper(self._env)
+        else:
+            self._env = RGBImgPartialObsWrapper(self._env)
+        self._env = ImgObsWrapper(self._env)
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
@@ -134,6 +140,14 @@ class MinigridWrapper(Env):
                 high = 1.0,
                 shape = (84, 84, 3),
                 dtype = np.float32)
+
+        # Set action space
+        if "Mortar" in env_name or "Memory" in env_name:
+            self._action_space = spaces.Discrete(4)
+            self._action_names = [["left", "right", "forward", "toggle"]]
+        else:
+            self._action_space = self._env.action_space
+            self._action_names = [["left", "right", "forward", "toggle", "pickup", "drop", "done"]]
 
     @property
     def unwrapped(self):
@@ -153,14 +167,12 @@ class MinigridWrapper(Env):
     @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
-        return spaces.Discrete(3)
-        # return self._env.action_space
+        return self._action_space
 
     @property
     def action_names(self):
         """Returns a list of action names."""
-        return [["left", "right", "forward"]]
-        # return [["left", "right", "forward", "toggle", "pickup", "drop", "done"]]
+        return self._action_names
 
     @property
     def get_episode_trajectory(self):
@@ -191,8 +203,7 @@ class MinigridWrapper(Env):
         # Reset the environment and retrieve the initial observation
         obs = self._env.reset()
         # Retrieve the RGB frame of the agent's vision
-        vis_obs = obs #self._env.get_obs_render(obs["image"], tile_size=28)
-        vis_obs = vis_obs.astype(np.float32) / 255.
+        vis_obs = obs.astype(np.float32) / 255.
 
         # Render environment?
         if self._realtime_mode:
@@ -202,7 +213,7 @@ class MinigridWrapper(Env):
         self._trajectory = {
             "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [None],
             "rewards": [0.0], "actions": []
-        }
+        } if self._record else None # The render function seems to be very very costly, so don't use this even once during training or evaluation
 
         return vis_obs, None
 
@@ -222,7 +233,7 @@ class MinigridWrapper(Env):
         obs, reward, done, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
-        vis_obs = obs / 255.# self._env.get_obs_render(obs["image"], tile_size=28)  / 255.
+        vis_obs = obs.astype(np.float32) / 255.
 
         # Render the environment in realtime
         if self._realtime_mode:
