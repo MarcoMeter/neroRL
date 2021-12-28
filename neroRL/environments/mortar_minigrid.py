@@ -55,7 +55,7 @@ class ArrowUp(WorldObj):
 class MortarEnv(MiniGridEnv):
     def __init__(self, seed=None):
         self.num_available_commands = 5 # right, down, left, up, stay
-        self.num_commands = 5           # how many commands to execute
+        self.num_commands = 9           # how many commands to execute
         self.command_duration = 5       # how much time the agent has to move to the commanded position
         max_steps = self.num_commands * self.command_duration + 1
         super().__init__(grid_size=9, max_steps=max_steps, seed=seed, see_through_walls=True)
@@ -152,7 +152,7 @@ class MortarEnv(MiniGridEnv):
                 else:
                     # Failure!
                     done = True
-                    reward = -0.1
+                    reward = 0.0#-0.1
             # Finish the episode once all commands are completed
             if self.current_command >= self.num_commands:
                 # All commands completed!

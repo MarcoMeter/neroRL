@@ -5,7 +5,8 @@ import gym
 from gym import error, spaces
 from random import randint
 from neroRL.environments.env import Env
-from gym_minigrid.wrappers import ViewSizeWrapper
+from gym_minigrid.wrappers import *
+from gym_minigrid.minigrid import OBJECT_TO_IDX
 
 class MinigridVecWrapper(Env):
     """This class wraps Gym Minigrid environments.
@@ -23,19 +24,40 @@ class MinigridVecWrapper(Env):
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "view-size": 3}
         else:
             self._default_reset_params = reset_params
 
+        self._add_agent_rot_to_obs = False
+
+        # Instantiate the environment and apply various wrappers
         self._env = gym.make(env_name)
-        self.agent_view_size = 3
-        self._env = ViewSizeWrapper(self._env, self.agent_view_size)
+        if "Mortar" in env_name:
+            # In Mortar, we want to see the entire environment
+            self._env = FullyObsWrapper(self._env)
+            self._view_size = 9
+            self._add_agent_rot_to_obs = True
+        elif "Memory" in env_name:
+            # In Memory, we want to limit the field of view and thereas use parial observability
+            self._env = ViewSizeWrapper(self._env, self._default_reset_params["view-size"])
+            self._view_size = self._default_reset_params["view-size"]
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
 
         # Prepare observation space
-        self._vector_observation_space = (self.agent_view_size**2*5,)
+        if self._add_agent_rot_to_obs:
+            self._vector_observation_space = (self._view_size**2*6+4,)
+        else:
+            self._vector_observation_space = (self._view_size**2*6,)
+
+        # Set action space
+        if "Mortar" in env_name or "Memory" in env_name:
+            self._action_space = spaces.Discrete(4)
+            self._action_names = [["left", "right", "forward", "no-ops"]] # pickup is used as a no-ops action
+        else:
+            self._action_space = self._env.action_space
+            self._action_names = [["left", "right", "forward", "pickup", "drop", "toggle", "done"]]
 
     @property
     def unwrapped(self):
@@ -55,14 +77,12 @@ class MinigridVecWrapper(Env):
     @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
-        return spaces.Discrete(3)
-        # return self._env.action_space
+        return self._action_space
 
     @property
     def action_names(self):
         """Returns a list of action names."""
-        return [["left", "right", "forward"]]
-        # return [["left", "right", "forward", "toggle", "pickup", "drop", "done"]]
+        return self._action_names
 
     @property
     def get_episode_trajectory(self):
@@ -104,7 +124,7 @@ class MinigridVecWrapper(Env):
         self._trajectory = {
             "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [None],
             "rewards": [0.0], "actions": []
-        }
+        } if self._record else None # The render function seems to be very very costly, so don't use this even once during training or evaluation
         return None, vec_obs
 
     def step(self, action):
@@ -158,19 +178,34 @@ class MinigridVecWrapper(Env):
         one_hot_obs = []
         for i in range(obs.shape[0]):
             for j in range(obs.shape[1]):
-                # print(obs[i,j,0])
-                # if i == 1 and j == 2:
-                #     one_hot_obs.append([1, 0, 0, 0, 0]) # agent tile
-                # else:
-                if obs[i,j,0] == 1:
-                    one_hot_obs.append([0, 1, 0, 0, 0]) # walkable tile
-                elif obs[i,j,0] == 2:
-                    one_hot_obs.append([0, 0, 1, 0, 0]) # blocked tile
-                elif obs[i,j,0] == 5:
-                    one_hot_obs.append([0, 0, 0, 1, 0]) # key tile
-                elif obs[i,j,0] == 6:
-                    one_hot_obs.append([0, 0, 0, 0, 1]) # circle tile
-                else:
-                    one_hot_obs.append([0, 0, 0, 0, 0]) # anything else
-        # return flattened one-hot encoded observation
-        return np.asarray(one_hot_obs, dtype=np.float32).reshape(-1)
+                if obs[i,j,0] == OBJECT_TO_IDX["agent"]:        # The agent is only visible when using the FullyObsWrapper
+                    one_hot_obs.append([1, 0, 0, 0, 0, 0])
+                    agent_rotation = obs[i,j,2]
+                elif obs[i,j,0] == OBJECT_TO_IDX["empty"]:
+                    one_hot_obs.append([0, 1, 0, 0, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["wall"]:
+                    one_hot_obs.append([0, 0, 1, 0, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["key"]:
+                    one_hot_obs.append([0, 0, 0, 1, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["ball"]:
+                    one_hot_obs.append([0, 0, 0, 0, 1, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["lava"]:
+                    one_hot_obs.append([0, 0, 0, 0, 0, 1])
+                elif obs[i,j,0] == OBJECT_TO_IDX["arrow_right"]:# Arrows are only used by mortar at fixed locations
+                    one_hot_obs.append([1, 0, 0, 0, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["arrow_down"]:
+                    one_hot_obs.append([0, 1, 0, 0, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["arrow_left"]:
+                    one_hot_obs.append([0, 0, 1, 0, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["arrow_up"]:
+                    one_hot_obs.append([0, 0, 0, 1, 0, 0])
+                else: # anything else
+                    one_hot_obs.append([0, 0, 0, 0, 0, 0])
+
+        # Flatten the observation encoding
+        one_hot_encoding = np.asarray(one_hot_obs, dtype=np.float32).reshape(-1)
+        if self._add_agent_rot_to_obs:
+            rotation_encoding = np.zeros((4,), dtype=np.float32)
+            rotation_encoding[agent_rotation] = 1.0
+            one_hot_encoding = np.concatenate([one_hot_encoding, rotation_encoding])
+        return one_hot_encoding

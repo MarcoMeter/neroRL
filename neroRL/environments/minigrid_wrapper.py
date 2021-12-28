@@ -144,10 +144,10 @@ class MinigridWrapper(Env):
         # Set action space
         if "Mortar" in env_name or "Memory" in env_name:
             self._action_space = spaces.Discrete(4)
-            self._action_names = [["left", "right", "forward", "toggle"]]
+            self._action_names = [["left", "right", "forward", "no-ops"]] # pickup is used as a no-ops action
         else:
             self._action_space = self._env.action_space
-            self._action_names = [["left", "right", "forward", "toggle", "pickup", "drop", "done"]]
+            self._action_names = [["left", "right", "forward", "pickup", "drop", "toggle", "done"]]
 
     @property
     def unwrapped(self):
