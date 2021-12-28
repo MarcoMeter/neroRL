@@ -2,7 +2,7 @@
 
 environment:
   type: "Minigrid"
-  name: "MiniGrid-Mortar-v0"
+  name: "MiniGrid-MortarB-v0"
   frame_skip: 1
   last_action_to_obs: True
   last_reward_to_obs: True

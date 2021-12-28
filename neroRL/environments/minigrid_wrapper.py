@@ -11,7 +11,8 @@ class MinigridWrapper(Env):
     """This class wraps Gym Minigrid environments.
     https://github.com/maximecb/gym-minigrid
     Custom Environments:
-        MiniGrid-Mortar-v0
+        MiniGrid-MortarAB-v0
+        MiniGrid-MortarB-v0
     Available Environments:
         Empty
             - MiniGrid-Empty-5x5-v0
