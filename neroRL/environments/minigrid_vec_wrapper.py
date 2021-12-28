@@ -199,6 +199,14 @@ class MinigridVecWrapper(Env):
                     one_hot_obs.append([0, 0, 1, 0, 0, 0])
                 elif obs[i,j,0] == OBJECT_TO_IDX["arrow_up"]:
                     one_hot_obs.append([0, 0, 0, 1, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["arrow_right_up"]:
+                    one_hot_obs.append([1, 0, 0, 1, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["arrow_right_down"]:
+                    one_hot_obs.append([1, 1, 0, 0, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["arrow_left_down"]:
+                    one_hot_obs.append([0, 1, 1, 0, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["arrow_left_up"]:
+                    one_hot_obs.append([0, 0, 1, 1, 0, 0])
                 else: # anything else
                     one_hot_obs.append([0, 0, 0, 0, 0, 0])
 
