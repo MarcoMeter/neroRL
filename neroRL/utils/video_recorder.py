@@ -153,7 +153,6 @@ class VideoRecorder:
                                             actionNames=str(action_names) if action_names is not None else "null",
                                             frameRate=str(self.frame_rate)))
         
-        
     def _generate_id(self):
         """Generates a unique id.
         
