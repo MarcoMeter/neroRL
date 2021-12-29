@@ -1,0 +1,71 @@
+# https://github.com/maximecb/gym-minigrid
+
+environment:
+  type: "Minigrid"
+  name: "MiniGrid-MortarB-v0"
+  frame_skip: 1
+  last_action_to_obs: True
+  last_reward_to_obs: True
+  obs_stacks: 1
+  grayscale: False
+  resize_vis_obs: [84, 84]
+  reset_params:
+    start-seed: 0
+    num-seeds: 100
+
+model:
+  load_model: False
+  model_path: "./models/minigrid_S17-199.pt"
+  checkpoint_interval: 100
+  activation: "relu"
+  vis_encoder: "cnn"
+  vec_encoder_layer: "linear"
+  num_vec_encoder_units: 128
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
+  recurrence:
+    layer_type: "gru"
+    sequence_length: -1
+    hidden_state_size: 256
+    hidden_state_init: "zero"
+    reset_hidden_state: True
+    residual: False
+
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds: [1001, 1002, 1003, 1004, 1005]
+  interval: 100
+
+sampler:
+  type: "TrajectorySampler"
+  n_workers: 16
+  worker_steps: 256
+
+trainer:
+  algorithm: "PPO"
+  resume_at: 0
+  gamma: 0.99
+  lamda: 0.95
+  updates: 1000
+  epochs: 4
+  n_mini_batches: 8
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
+  share_parameters: True
+  learning_rate_schedule:
+    initial: 2.0e-4
+    final: 2.0e-4
+    power: 1.0
+    max_decay_steps: 1000
+  beta_schedule:
+    initial: 0.001
+    final: 0.001
+    power: 1.0
+    max_decay_steps: 1000
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 1000
