@@ -115,6 +115,7 @@
         display: inline-block;
       }
       
+      /* Style of the dropdown content */
       .dropdown-content {
         display: none;
         position: absolute;
@@ -132,6 +133,7 @@
         display: block;
       }
       
+      /* Style of the dropdown at hover */
       .dropdown-content a:hover {background-color: #ddd;}
       
       .dropdown:hover .dropdown-content {display: block;}
@@ -235,13 +237,16 @@
         // Set the to be shown action_space(s) for the entropy plot
         var entr_selected_action_space = null;
 
+        var is_multi_discrete = action[0].length != 1;
+        var is_discrete = action[0].length == 1;
+
         // Reformat the data for the plots
         // Each function y - value should be stored in a separate array
         for(var j = 0; j < y_values[0].length; j++)
             for(var i = 0; i < y_values.length; i++)
                 y_values_plot.push(y_values[i][j]);
 
-        if(action[0].length == 1) { // If action_space is discrete
+        if(is_discrete) { // If action_space is discrete
           for(var j = 0; j < y_entropy[0].length; j++)
               for(var i = 0; i < y_values.length; i++)
                   y_entropy_plot.push(y_entropy[i][j]);
@@ -256,16 +261,16 @@
           }
         }
 
-        // Set action_names for distr. plot
+        // Set action_names for distr. plot if it does not exist
         if(action_names == null){
           action_names = [];
           for(var i = 0; i < y_action[0].length; i++){
             for(var j = 0; j < y_action[0][0].length; j++)
-              if(action[0].length == 1){ // if action space is discrete
+              if(is_discrete){ // if action space is discrete
                 action_names.push("action_" + String(j));
             }
             else { // if action space is multi_discrete
-              var action_branch_names = []; // names of the branches of the action space
+              var action_branch_names = []; // Names of the branches of the action space
               for(var j = 0; j < y_action[0][i].length; j++){
                 action_branch_names.push("action_" + String(j));
               }
@@ -274,15 +279,16 @@
           }
         }
         else{
-          if(action[0].length == 1 && Array.isArray(action_names[0])){ // if action space is discrete and action_names is multi_discrete
-            action_names = action_names[0];
+          if(action[0].length == 1 && Array.isArray(action_names[0])){ // If action space is discrete and action_names is multi_discrete
+            action_names = action_names[0]; // Set action_names to the first branch of the action space
           }
         }
 
-        if(action[0].length == 1){ // if action space is discrete
+        // Modify dropdown menu
+        if(is_discrete){ // if action space is discrete
           document.getElementById("all").outerHTML=""; // remove dropdown option 'all'
         }
-        else { // if action space is multi_discrete
+        else { // If action space is multi_discrete
           // Create dropdown menu for the entropy function
           var dropdown_content = document.getElementById("dropdown_content"); 
           for(var i = 0; i < action[0].length; i++){
@@ -403,7 +409,7 @@
 
         // Update plots
         set_scatter_line_plot('value_func', "Value Function", y_values_plot, step, value_marker);
-        if(action[0].length == 1) { // If action_space is discrete
+        if(is_discrete) { // If action_space is discrete
             set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
             set_bar_action_plot(y_action[step][0], action[step][0], action_names);
         }
@@ -426,9 +432,9 @@
             var color = ""
             for(var i = 0; i < action_names.length; i++) {
                 if(action[i] == j) // If action sampled in the current frame
-                    color = '#FF0000'; // color it red
+                    color = '#FF0000'; // Color it red
                 else
-                    color = '#FAEBD7'; // color it white
+                    color = '#FAEBD7'; // Color it white
                 var trace = {
                     x: [["action_space_", String(i)].join("")],
                     y: [y_values[i][j]],
@@ -482,7 +488,7 @@
       }
 
       /**
-      *Sets a bar plot for the discrete action distribution
+      * Sets a bar plot for the discrete action distribution
       */
       function set_bar_action_plot(y_values, action, action_names) {
 
@@ -548,6 +554,7 @@
       * @param {string} title - The title of the plot
       * @param {array} y_values - The entropy function y values
       * @param {int} step - The step of the video
+      * @param {boolean} marker - If the marker should be shown
       */
       function set_scatter_lines_plot(id, title, y_values, step, marker) {
         line_scatter_plot_data_value = [];
@@ -635,6 +642,7 @@
       * @param {string} title - The title of the plot
       * @param {array} y_values - The value function y values
       * @param {int} step - The step of the video
+      * @param {boolean} marker - If the marker should be shown
       */
       function set_scatter_line_plot(id, title, y_values, step, marker) {
           // Set data for layout for the plot

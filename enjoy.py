@@ -68,7 +68,7 @@ def main():
 
     # Launch environment
     logger.info("Step 1: Launching environment")
-    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video)
+    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
     # Retrieve observation space
     visual_observation_space = env.visual_observation_space
     vector_observation_space = env.vector_observation_space
