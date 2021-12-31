@@ -178,7 +178,7 @@ class MinigridVecWrapper(Env):
         one_hot_obs = []
         for i in range(obs.shape[0]):
             for j in range(obs.shape[1]):
-                if obs[i,j,0] == OBJECT_TO_IDX["agent"]:        # The agent is only visible when using the FullyObsWrapper
+                if obs[i,j,0] == OBJECT_TO_IDX["agent"]: # The agent is only visible when using the FullyObsWrapper
                     one_hot_obs.append([1, 0, 0, 0, 0, 0])
                     agent_rotation = obs[i,j,2]
                 elif obs[i,j,0] == OBJECT_TO_IDX["empty"]:
@@ -191,7 +191,7 @@ class MinigridVecWrapper(Env):
                     one_hot_obs.append([0, 0, 0, 0, 1, 0])
                 elif obs[i,j,0] == OBJECT_TO_IDX["lava"]:
                     one_hot_obs.append([0, 0, 0, 0, 0, 1])
-                elif obs[i,j,0] == OBJECT_TO_IDX["arrow_right"]:# Arrows are only used by mortar at fixed locations
+                elif obs[i,j,0] == OBJECT_TO_IDX["arrow_right"]: # Arrows are only used by mortar at fixed locations
                     one_hot_obs.append([1, 0, 0, 0, 0, 0])
                 elif obs[i,j,0] == OBJECT_TO_IDX["arrow_down"]:
                     one_hot_obs.append([0, 1, 0, 0, 0, 0])
