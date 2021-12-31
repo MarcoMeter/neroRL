@@ -307,7 +307,7 @@
 
           video_player.addEventListener('timeupdate', timeListener); // Update time selector and plots when video is playing
           video_player.addEventListener('dblclick', function(e) {open_fullscreen(video_player);}); // Open video in fullscreen when video is double clicked
-          video_player.playbackRate = 6
+          video_player.playbackRate = {{ frameRate }}; // Set video playback rate to frame rate
           reset(); // Reset video to start
       }, false)
 
