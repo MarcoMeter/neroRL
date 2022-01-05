@@ -319,11 +319,11 @@ class MortarEnv(MiniGridEnv):
 
 class MortarABEnv(MortarEnv):
     def __init__(self, seed=None):
-        super().__init__(seed=seed, num_available_c=5, num_c=9, c_duration=5, c_delay=1, c_show_duration=1, show_all=False)
+        super().__init__(seed=seed, num_available_c=5, num_c=10, c_duration=5, c_delay=6, c_show_duration=1, show_all=False)
 
 class MortarBEnv(MortarEnv):
     def __init__(self, seed=None):
-        super().__init__(seed=seed, num_available_c=5, num_c=9, show_all=True)
+        super().__init__(seed=seed, num_available_c=5, num_c=10, c_duration=5, show_all=True)
 
 register(
     id="MiniGrid-MortarAB-v0",
