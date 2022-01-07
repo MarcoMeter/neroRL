@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
 
+# Get install requirements from requirements.txt
 install_requires = None
 with open("requirements.txt") as file:
     install_requires = [module_name.rstrip() for module_name in file.readlines()]
