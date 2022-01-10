@@ -34,11 +34,20 @@ environment:
     # The duration of dimming the light until on or off
     light-dim-duration: 10
     # The number of coins to be collected until the exit is open
+    # If there is no exit, the episode will terminate after collecting all coins
     num-coins: 1
+    # The scale of the coins
+    coin-scale: 1.0
+    # Whether to spawn an exit that can be used upon collecting all coins
+    use-exit: True
+    # The scale of the exit
+    exit-scale: 1.0
     # The speed of the agent
     agent-speed: 35
     # The agent's health, the episode terminates once the health falls to zero
     agent-health: 100.0
+    # The scale of the agent
+    agent-scale: 1.0
     # Reward Function
     # Punish the agent for being inside a spotlight
     reward-inside-spotlight: 0.0
