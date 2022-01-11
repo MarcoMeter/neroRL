@@ -179,8 +179,7 @@
         <br>
         <!-- Set buttons to control the figures -->
         <buttonrow>
-          <button id="play_button" onclick="play()">Play</button>
-          <button id="pause_button" onclick="pause()">Pause</button>
+          <button id="play_pause_button" onclick="play_pause()">Play</button>
           <button id="reset_button" onclick="reset()">Reset</button>
           <button id="back_button" onclick="back()">Back</button>
           <button id="next_button" onclick="next()">Next</button>
@@ -214,6 +213,9 @@
         // Set video player
         const video_player = document.getElementById("video_player");
         var video_length = 0;
+
+        // Play and pause button
+        const play_pause_button = document.getElementById("play_pause_button");
 
         // Set time selector
         const time_selector = document.getElementById('time_selector');
@@ -326,9 +328,20 @@
       }
 
       /**
+      * Toggles button and video between playing and paused
+      */
+      function play_pause() {
+        if(video_player.paused)
+          play();
+        else 
+          pause();
+      }
+
+      /**
       * Pauses video
       */
       function pause() {
+          play_pause_button.innerHTML = "Play";
           video_player.pause();
       }
 
@@ -336,6 +349,7 @@
       * Plays the video
       */
       function play() {
+          play_pause_button.innerHTML = "Pause";
           video_player.play();
       }
 
