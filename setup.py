@@ -16,8 +16,11 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/MarcoMeter/neroRL",
+    license="MIT",
+    keywords = ["Reinforcement Learning", "PyTorch", "PPO", "Recurrent", "Recurrence"],
     project_urls={
-        "Bug Tracker": "https://github.com/MarcoMeter/neroRL/issues",
+        "Github": "https://github.com/MarcoMeter/neroRL",
+        "Bug Tracker": "https://github.com/MarcoMeter/neroRL/issues"
     },
     classifiers=[
         "Programming Language :: Python :: 3",
