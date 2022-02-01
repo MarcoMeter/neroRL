@@ -22,7 +22,6 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/MarcoMeter/neroRL",
-    license="MIT",
     keywords = ["Reinforcement Learning", "PyTorch", "PPO", "Recurrent", "Recurrence"],
     project_urls={
         "Github": "https://github.com/MarcoMeter/neroRL",
@@ -33,8 +32,10 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    package_dir={"": "neroRL"},
-    packages=find_packages(where="neroRL"),
+    autor="Marco Pleines",
+    package_dir={'': '.'},
+    packages=find_packages(where='.', include='neroRL*'),
     python_requires=">=3.6",
+    include_package_data=True,
     install_requires=install_requires
 )
