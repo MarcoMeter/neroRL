@@ -1,14 +1,20 @@
 from setuptools import setup, find_packages
+import os
+
+# Get current working directory
+cwd = os.getcwd()
 
 # Get install requirements from requirements.txt
 install_requires = None
-with open("requirements.txt") as file:
+with open(cwd + "\\requirements.txt") as file:
     install_requires = [module_name.rstrip() for module_name in file.readlines()]
 
+# Get long description from README.md
 long_description = ""
-with open("README.md", "r", encoding="utf-8") as fh:
+with open(cwd + "\\README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+# Set up package
 setup(
     name="neroRL",
     version="0.0.1",
@@ -27,8 +33,8 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    package_dir={"": ""},
-    packages=find_packages(),
+    package_dir={"": "neroRL"},
+    packages=find_packages(where="neroRL"),
     python_requires=">=3.6",
     install_requires=install_requires
 )

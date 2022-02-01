@@ -1,4 +1,5 @@
 recursive-include . *.md
 recursive-include . *.yaml
 recursive-include . *.ipynb
+recursive-include . *.txt
 include LICENSE
