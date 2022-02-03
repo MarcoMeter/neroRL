@@ -34,7 +34,7 @@ setup(
     ],
     autor="Marco Pleines",
     package_dir={'': '.'},
-    packages=find_packages(where='.', include='neroRL*'),
+    packages=find_packages(where='.', include="neroRL*"),
     python_requires=">=3.6",
     include_package_data=True,
     install_requires=install_requires
