@@ -16,7 +16,7 @@ pypi_files = ["enjoy.py", "eval.py", "train.py", "eval_checkpoints.py", "tune.py
 # Setup files to create the package
 setup_files = ["setup.py", "LICENSE", "README.md", "requirements.txt", "MANIFEST.in"]
 
-# Build the package directory
+# Build the package directories
 for folder in pypi_folders:
     copy_tree(folder, dst="tmp\\neroRL\\" + folder)
 
