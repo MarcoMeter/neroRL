@@ -50,3 +50,6 @@ copy_tree("tmp\\dist", "dist")
 
 # Clean up
 shutil.rmtree("tmp")
+
+# Upload the package to PyPI
+# os.system("py -m twine upload --repository neroRL dist/*")
