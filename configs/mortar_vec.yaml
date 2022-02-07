@@ -1,22 +1,20 @@
-# https://github.com/maximecb/gym-minigrid
-
 environment:
   type: "MinigridVec"
   name: "MiniGrid-MortarAB-v0"
   frame_skip: 1
-  last_action_to_obs: False
-  last_reward_to_obs: False
+  last_action_to_obs: True
+  last_reward_to_obs: True
   obs_stacks: 1
   grayscale: False
   resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
-    num-seeds: 200
+    num-seeds: 500
     view-size: 3
 
 model:
   load_model: False
-  model_path: "./checkpoints/test_mortar_3/20211224-064055_2/test_mortar_3-1561.pt"
+  model_path: "./checkpoints/last_ar-1649.pt"
   checkpoint_interval: 150
   activation: "relu"
   vis_encoder: "cnn"
@@ -36,7 +34,7 @@ model:
 evaluation:
   evaluate: False
   n_workers: 3
-  seeds: [1001, 1002, 1003, 1004, 1005]
+  seeds: [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]
   interval: 150
 
 sampler:
