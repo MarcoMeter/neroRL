@@ -66,6 +66,9 @@ def main():
 
     # Launch environment
     logger.info("Step 1: Launching environment")
+    configs["environment"]["reset_params"]["start-seed"] = seed
+    configs["environment"]["reset_params"]["num-seeds"] = 1
+    configs["environment"]["reset_params"]["seed"] = seed
     env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video)
     # Retrieve observation space
     visual_observation_space = env.visual_observation_space
@@ -96,9 +99,6 @@ def main():
     # Reset environment
     logger.info("Step 3: Resetting the environment")
     logger.info("Step 3: Using seed " + str(seed))
-    reset_params = configs["environment"]["reset_params"]
-    reset_params["start-seed"] = seed
-    reset_params["num-seeds"] = 1
     vis_obs, vec_obs = env.reset(reset_params)
     done = False
     
