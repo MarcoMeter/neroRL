@@ -1,7 +1,11 @@
 import cv2
+import os
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import ruamel
+from jinja2 import Environment, FileSystemLoader
+import torch
 
 class VideoRecorder:
     """The VideoRecorder can be used to capture videos of the agent's behavior using enjoy.py or eval.py.
@@ -22,6 +26,7 @@ class VideoRecorder:
         self.height = 420
         self.info_height = 40
         self.video_path = video_path
+        self.website_path = os.getcwd() + "/result/"
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')   # Video codec
         self.frame_rate = int(frame_rate)
 
@@ -38,7 +43,7 @@ class VideoRecorder:
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
             env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
-            env_frame = cv2.resize(env_frame, (self.height, self.width), interpolation=cv2.INTER_AREA)
+            env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
 
             # Setup info frame
             info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
@@ -54,7 +59,7 @@ class VideoRecorder:
             if not i == len(trajectory_data["vis_obs"]) - 1:
                 # Action probabilities
                 next_y = 20
-                for x, probs in enumerate(trajectory_data["log_probs"][i]):
+                for x, probs in enumerate(trajectory_data["probs"][i]):
                     self.draw_text_overlay(debug_frame, 5 , next_y, round(trajectory_data["entropies"][i][x], 5), "entropy dimension " + str(x))
                     next_y += 20
                     for y, prob in enumerate(probs.squeeze(dim=0)):
@@ -80,6 +85,127 @@ class VideoRecorder:
             # Concatenate environment and debug frames
             output_image = np.hstack((env_frame, debug_frame))
             output_image = np.vstack((info_frame, output_image))
+
+            # Write frame
+            out.write(output_image)
+        # Finish up the video
+        out.release()
+
+    def _config_to_html(self, config, prfx = ""):
+        """Returns a html string that contains the configuration of the key
+        
+        Arguments:
+            config {dict} -- The configuration
+        
+        Returns:
+            {string}  -- The html string that contains the configuration of the key.
+        """
+        tab = "&nbsp;&nbsp;&nbsp;&nbsp;" * 2
+        html = ""
+        for key in config:
+            if type(config[key]) is ruamel.yaml.comments.CommentedMap:
+                html += prfx + "<b>" + str(key) + "</b>: " + "<br>" + self._config_to_html(config[key], prfx + tab)
+            else:
+                html += prfx + "<b>" + str(key) + "</b>: " + str(config[key]) + "<br>"
+        return html
+
+    def generate_website(self, trajectory_data, configs):
+        """Generates a website that can be used to view the trajectory data.
+        
+        Arguments:
+            trajectory_data {dift} -- This dictionary provides all the necessary information to render a website.
+            config {dict} -- The configuration
+        """
+        # Create the video path for the website if it does not exist
+        video_path = self.website_path + "videos/"
+        if not os.path.exists(video_path):
+            os.makedirs(video_path)
+            
+        # Generate an id
+        id = self._generate_id()
+        
+        # Render the trajectory data to a video
+        self._render_environment_episode(trajectory_data, video_path, str(id))
+        
+        # Prepare the data for the website
+        actions_probs = torch.stack(trajectory_data["probs"]).squeeze(dim=2).tolist()
+        action_names, actions = trajectory_data["action_names"], trajectory_data["actions"]
+        values, entropies = np.array(trajectory_data["values"]).tolist(), trajectory_data["entropies"]
+        
+        env_info = self._config_to_html(configs["environment"])
+        model_info = self._config_to_html(configs["model"])
+        hyper_info = self._config_to_html(configs["trainer"])
+        
+        # Load the template file
+        template_env = Environment(loader=FileSystemLoader(searchpath="./"))
+        template = template_env.get_template("./result/template/result_website.html")
+        
+        # Render the template
+        with open(self.website_path + 'result_website_' + str(id) + '.html' , 'w') as output_file:
+            output_file.write(template.render(envInfo=env_info,
+                                            hyperInfo=hyper_info,
+                                            modelInfo=model_info,
+                                            videoPath = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm",
+                                            yValues=str(values),
+                                            yEntropy=str(entropies),
+                                            yAction=str(actions_probs),
+                                            action=str(actions),
+                                            actionNames=str(action_names) if action_names is not None else "null",
+                                            frameRate=str(self.frame_rate)))
+        
+    def _generate_id(self):
+        """Generates a unique id.
+        
+        Returns:
+            {string} -- The unique id.
+        """
+        result_website_names, video_names = os.listdir(self.website_path), os.listdir(self.website_path + "videos/")
+        file_names = result_website_names + video_names
+        
+        id = 0
+        for file_name in file_names: # Find the highest not used id
+            file_name_prx = file_name.split(".")[0] # Remove suffix of the file name
+            if file_name_prx[-len(str(id)):] == str(id): # If the id exists
+                id += 1 # Increment id
+        
+        return str(id) 
+
+    def _render_environment_episode(self, trajectory_data, path, video_id):
+        """Renders an episode of an agent behaving in its environment.
+        
+        Arguments:
+            trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
+            video_id {string} -- The id of the video.
+        """
+            
+        # Set fourcc s.t. the video is saved as webm
+        webm_fourcc = cv2.VideoWriter_fourcc(*'VP09')
+        
+        # Init VideoWriter, the frame rate is defined by each environment individually
+        out = cv2.VideoWriter(path + "video_seed_" + str(trajectory_data["seed"]) + "_" + video_id + ".webm",
+                                webm_fourcc, 1, (self.width * 2, self.height + self.info_height))
+        
+        for i in range(len(trajectory_data["vis_obs"])):
+            # Setup environment frame
+            env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
+            env_frame = cv2.resize(env_frame, (self.width * 2, self.height), interpolation=cv2.INTER_AREA)
+
+            # Setup info frame
+            info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
+            # Seed
+            self.draw_text_overlay(info_frame, 8, 20, trajectory_data["seed"], "seed")
+            # Current step
+            self.draw_text_overlay(info_frame, 108, 20, i, "step")
+            # Collected rewards so far
+            self.draw_text_overlay(info_frame, 208, 20, round(sum(trajectory_data["rewards"][0:i]), 3), "total reward")
+
+            if i == len(trajectory_data["vis_obs"]) - 1:
+                self.draw_text_overlay(info_frame, 368, 20, "True", "episode done")
+            else:
+                self.draw_text_overlay(info_frame, 368, 20, "False", "episode done")
+            
+            # Concatenate environment and debug frames
+            output_image = np.vstack((info_frame, env_frame))
 
             # Write frame
             out.write(output_image)
