@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;500&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.plot.ly/plotly-2.6.3.min.js"></script>
+    <style>
+     /* Style the body */
+      html, body {
+        height: 100%;
+        margin: 0;
+        background-color: #000;
+        color: white;
+        font-family: "Montserrat", sans-serif;
+      }
+
+      /* Set the width and hight of the video*/
+      video {
+        width: 600px;
+        height: 400px;
+      }
+
+      /* Style the timeline text*/
+      #selector_header {
+        font-weight: 200;
+      }
+
+      /* Buttons should be displayed in a row */
+      buttonrow {
+        display: inline;
+      }
+
+      /* Style the figures */
+      #figures {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        flex-flow: row wrap;
+      }
+
+      /* Style the tab */
+      .tab {
+        overflow: hidden;
+        border: 1px solid #ccc;
+        background-color: #54595f;
+      }
+
+      /* Style the buttons inside the tab */
+      .tab button {
+        background-color: inherit;
+        float: left;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 14px 16px;
+        transition: 0.3s;
+        font-size: 17px;
+        color: white;
+      }
+
+      /* Change background color of buttons on hover */
+      .tab button:hover {
+        background-color: #909090;
+      }
+
+      /* Create an active/current tablink class */
+      .tab button.active {
+        background-color: #838383;
+      }
+
+      /* Style the tab content */
+      .tabcontent {
+        display: none;
+        padding: 6px 12px;
+        border: 1px solid #ccc;
+        border-top: none;
+        background-color: #000;
+      }
+
+      .mediatabcontent {
+        display: none;
+        padding: 0 px 0 px;
+        border: 1px solid #ccc;
+        border-top: none;
+        background-color: #000;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* Style the close button */
+      .topright {
+        float: right;
+        cursor: pointer;
+        font-size: 28px;
+      }
+
+      .topright:hover {
+        color: red;
+      }
+
+      /* Style of the dropdown button */
+      .dropbtn {
+        background-color: #17202A;
+        color: white;
+        padding: 16px;
+        font-size: 16px;
+        border: none;
+      }
+      
+      .dropdown {
+        position: relative;
+        display: inline-block;
+      }
+      
+      /* Style of the dropdown content */
+      .dropdown-content {
+        display: none;
+        position: absolute;
+        background-color: #f1f1f1;
+        min-width: 160px;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        background-color: #A6ACAF;
+        z-index: 1;
+      }
+      
+      .dropdown-content a {
+        color: black;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+      }
+      
+      /* Style of the dropdown at hover */
+      .dropdown-content a:hover {background-color: #ddd;}
+      
+      .dropdown:hover .dropdown-content {display: block;}
+      
+      .dropdown:hover .dropbtn {background-color: #161515;}
+    </style>
+  </head>
+  <body>
+    <!--- Define tabs -->
+    <div class="tab">
+      <button class="tablinks" onclick="openTab(event, 'Environment')" id="defaultOpen">Environment</button>
+      <button class="tablinks" onclick="openTab(event, 'Hyperparameters')">Hyperparameters</button>
+      <button class="tablinks" onclick="openTab(event, 'Model')">Model</button>
+      <button class="tablinks" onclick="openTab(event, 'Media')">Media</button>
+    </div>
+
+    <!--- Define tab content -->
+    <div id="Environment" class="tabcontent">
+      <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
+      <b>type</b>: CartPole<br><b>name</b>: CartPole-v0<br><b>frame_skip</b>: 1<br><b>last_action_to_obs</b>: False<br><b>last_reward_to_obs</b>: False<br><b>obs_stacks</b>: 1<br><b>grayscale</b>: False<br><b>resize_vis_obs</b>: [84, 84]<br><b>reset_params</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>start-seed</b>: 0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>num-seeds</b>: 1<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>mask-velocity</b>: True<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>seed</b>: 0<br>
+    </div>
+
+    <div id="Model" class="tabcontent">
+      <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
+      <b>load_model</b>: False<br><b>model_path</b>: ./checkpoints/cartpole/20210722-103713_2/cartpole-199.pt<br><b>checkpoint_interval</b>: 25<br><b>activation</b>: relu<br><b>vis_encoder</b>: cnn<br><b>vec_encoder</b>: linear<br><b>num_vec_encoder_units</b>: 128<br><b>hidden_layer</b>: default<br><b>num_hidden_layers</b>: 1<br><b>num_hidden_units</b>: 512<br><b>recurrence</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>layer_type</b>: gru<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>sequence_length</b>: 16<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>hidden_state_size</b>: 128<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>hidden_state_init</b>: zero<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>reset_hidden_state</b>: False<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>residual</b>: False<br>
+    </div>
+
+    <div id="Hyperparameters" class="tabcontent">
+      <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
+      <b>algorithm</b>: PPO<br><b>resume_at</b>: 0<br><b>gamma</b>: 0.99<br><b>lamda</b>: 0.95<br><b>updates</b>: 200<br><b>epochs</b>: 4<br><b>refresh_buffer_epoch</b>: -1<br><b>n_mini_batches</b>: 4<br><b>value_coefficient</b>: 0.25<br><b>max_grad_norm</b>: 0.5<br><b>share_parameters</b>: True<br><b>learning_rate_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 0.0001<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 0.0001<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br><b>beta_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 1e-05<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 1e-06<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br><b>clip_range_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 0.2<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 0.2<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br>
+    </div>
+
+    <div id="Media" class="mediatabcontent">
+      <center>
+        <!-- Set video player and action distr. bar plot -->
+        <div id="figures">
+          <video id="video_player">
+            <source src="videos/video_seed_0_1.webm" type="video/webm" />
+          </video>
+          <div id="action_distr"></div>
+        </div>
+
+        <br>
+        <!-- Set buttons to control the figures -->
+        <buttonrow>
+          <button id="play_pause_button" onclick="play_pause()" style="width:53px">Play</button>
+          <button id="reset_button" onclick="reset()">Reset</button>
+          <button id="back_button" onclick="back()">Back</button>
+          <button id="next_button" onclick="next()">Next</button>
+        </buttonrow>
+
+        <!-- Set slider to control the figures -->
+        <h3 id="selector_header">Timeline</h3>
+        <input id="time_selector" type="range" min="0" max="100" step="1" value="0" />
+
+        <!-- Set value plot and entropy plot -->
+        <div id="figures">
+          <div id="value_func"></div>
+          <div id="entropy_func"></div>
+          <!-- Dropdown button with some options-->
+          <div class="dropdown">
+            <button class="dropbtn">Options</button>
+            <div class="dropdown-content" id="dropdown_content">
+              <a href ="#" onclick="marker('value')">value_marker_toggle</a>
+              <a href ="#" onclick="marker('entropy')">entropy_marker_toggle</a>
+              <a href="#" id="all" onclick="set_action_space('all')">All</a>
+            </div>
+          </div>
+        </div>
+      </center>
+    </div>
+
+    <script>
+        // Set active tab
+        document.getElementById("defaultOpen").click();
+
+        // Set video player
+        const video_player = document.getElementById("video_player");
+        var video_length = 0;
+
+        // Play and pause button
+        const play_pause_button = document.getElementById("play_pause_button");
+
+        // Set time selector
+        const time_selector = document.getElementById('time_selector');
+        var tS_step_size = 1.0;
+
+        // Set values for the plots
+        var y_values = [[-0.06076248362660408], [-0.056555651128292084], [-0.05275775492191315], [-0.047449372708797455], [-0.045013487339019775], [-0.042667265981435776], [-0.040823645889759064], [-0.03927168995141983], [-0.0378183051943779], [-0.036762744188308716], [-0.036111969500780106], [-0.035718128085136414], [-0.035829972475767136]];
+        var y_entropy = [[0.693105936050415], [0.6931096315383911], [0.6931147575378418], [0.6931172609329224], [0.6931197643280029], [0.6931220293045044], [0.6931238770484924], [0.6931252479553223], [0.6931262016296387], [0.6931267976760864], [0.6931272745132446], [0.6931275725364685], [0.6931279897689819]];
+        var y_action = [[[0.5045393705368042, 0.4954605996608734]], [[0.5043339729309082, 0.4956659972667694]], [[0.5040310621261597, 0.4959689676761627]], [[0.5038672685623169, 0.4961327314376831]], [[0.503705620765686, 0.4962943196296692]], [[0.5035450458526611, 0.49645498394966125]], [[0.5034128427505493, 0.4965870976448059]], [[0.5033124089241028, 0.4966875910758972]], [[0.5032392740249634, 0.4967607855796814]], [[0.5031924843788147, 0.4968075752258301]], [[0.5031595230102539, 0.4968405067920685]], [[0.5031284093856812, 0.4968715310096741]], [[0.503102719783783, 0.4968973398208618]]]; // action probs
+        var action =  [[0], [1], [0], [0], [1], [0], [0], [0], [0], [0], [0], [0], [1]];
+        var action_names = ['move right', 'move left'];
+        var x_values = [...Array(y_values.length).keys()];
+
+        var y_entropy_plot = [];
+        var y_values_plot = [];
+
+        // Set marker for plots
+        var entropy_marker = true;
+        var value_marker = true;
+
+        // Set the to be shown action_space(s) for the entropy plot
+        var entr_selected_action_space = null;
+
+        var is_multi_discrete = action[0].length != 1;
+        var is_discrete = action[0].length == 1;
+
+        // Reformat the data for the plots
+        // Each function y - value should be stored in a separate array
+        for(var j = 0; j < y_values[0].length; j++)
+            for(var i = 0; i < y_values.length; i++)
+                y_values_plot.push(y_values[i][j]);
+
+        if(is_discrete) { // If action_space is discrete
+          for(var j = 0; j < y_entropy[0].length; j++)
+              for(var i = 0; i < y_values.length; i++)
+                  y_entropy_plot.push(y_entropy[i][j]);
+        }
+        else { // If action_space is multi discrete
+          for(var j = 0; j < y_entropy[0].length; j++) {
+            var y_entropy_vals = [];
+            for(var i = 0; i < y_entropy.length; i++) {
+                y_entropy_vals.push(y_entropy[i][j]);
+            }
+            y_entropy_plot.push(y_entropy_vals);
+          }
+        }
+
+        // Set action_names for distr. plot if it does not exist
+        if(action_names == null){
+          action_names = [];
+          for(var i = 0; i < y_action[0].length; i++){
+            for(var j = 0; j < y_action[0][0].length; j++)
+              if(is_discrete){ // if action space is discrete
+                action_names.push("action_" + String(j));
+            }
+            else { // if action space is multi_discrete
+              var action_branch_names = []; // Names of the branches of the action space
+              for(var j = 0; j < y_action[0][i].length; j++){
+                action_branch_names.push("action_" + String(j));
+              }
+              action_names.push(action_branch_names);
+            }     
+          }
+        }
+        else{
+          if(action[0].length == 1 && Array.isArray(action_names[0])){ // If action space is discrete and action_names is multi_discrete
+            action_names = action_names[0]; // Set action_names to the first branch of the action space
+          }
+        }
+
+        // Modify dropdown menu
+        if(is_discrete){ // if action space is discrete
+          document.getElementById("all").outerHTML=""; // remove dropdown option 'all'
+        }
+        else { // If action space is multi_discrete
+          // Create dropdown menu for the entropy function
+          var dropdown_content = document.getElementById("dropdown_content"); 
+          for(var i = 0; i < action[0].length; i++){
+            var entropy_dropdown_option = document.createElement("a");
+            entropy_dropdown_option.innerHTML = "action_space_" + String(i);
+            entropy_dropdown_option.setAttribute("href", "#");
+            entropy_dropdown_option.setAttribute("onclick", "set_action_space(" + String(i) + ")");
+            dropdown_content.appendChild(entropy_dropdown_option);
+          }
+        }
+
+        window.addEventListener('load', () => {
+          // Set video length to length - 0.9999 because the last frame is two seconds long
+          video_length = video_player.duration - 0.9999;
+          time_selector.setAttribute('max', video_length); // Set max value of time selector to video length
+
+          video_player.addEventListener('timeupdate', timeListener); // Update time selector and plots when video is playing
+          video_player.addEventListener('dblclick', function(e) {open_fullscreen(video_player);}); // Open video in fullscreen when video is double clicked
+          video_player.playbackRate = 6; // Set video playback rate to frame rate
+          reset(); // Reset video to start
+      }, false)
+
+      // Update video time if time selector is changed
+      time_selector.addEventListener('input', () => {
+          video_player.currentTime = time_selector.value
+          pause();
+          update();
+      })
+
+      /**
+      * Update time selector and plots when video is playing
+      */
+      function timeListener() {
+        if(!video_player.paused) update();
+      }
+
+      /**
+      * Toggles button and video between playing and paused
+      */
+      function play_pause() {
+        if(video_player.paused)
+          play();
+        else 
+          pause();
+      }
+
+      /**
+      * Pauses video
+      */
+      function pause() {
+          play_pause_button.innerHTML = "Play";
+          video_player.pause();
+      }
+
+      /**
+      * Plays the video
+      */
+      function play() {
+          play_pause_button.innerHTML = "Pause";
+          video_player.play();
+      }
+
+      /**
+      * Resets the video and plots to the start
+      */
+      function reset() {
+          video_player.currentTime = 0;
+          pause();
+          update();
+      }
+
+      /**
+      * Goes to the previous frame
+      */
+      function back() {
+          video_player.currentTime = video_player.currentTime - tS_step_size
+          pause();
+          update();
+      }
+
+      /**
+      * Goes to the next frame
+      */
+      function next() {
+          video_player.currentTime = video_player.currentTime + tS_step_size;
+          pause();
+          update();
+      }
+
+      /**
+      * Opens the video in fullscreen
+      */
+      function open_fullscreen(vid_elem) {
+          if (vid_elem.requestFullscreen) {
+              vid_elem.requestFullscreen();
+          } else if (vid_elem.webkitRequestFullscreen) { /* Safari */
+              vid_elem.webkitRequestFullscreen();
+          } else if (vid_elem.msRequestFullscreen) { /* IE11 */
+              vid_elem.msRequestFullscreen();
+          }
+          vid_elem.pause();
+      }
+
+      // Selects the action space for the entropy plot
+      function set_action_space(spaces){
+        if (spaces == 'all')
+          entr_selected_action_space = null;
+        else
+          entr_selected_action_space = Number(spaces);
+        update();
+      }
+
+      function marker(marker_id){
+        if(marker_id == "entropy")
+          entropy_marker = !entropy_marker;
+        else if(marker_id == "value")
+          value_marker = !value_marker;
+        update();
+      }
+
+      /**
+      * Updates the plots and time selector
+      */
+      function update()  {
+        if(video_player.currentTime == Math.round(video_player.currentTime)) // If time t of video is a natural number then step is t - 1
+              video_player.currentTime += 0.0001 // Add a small number to make sure that the step and the current time are the same
+        if(video_player.currentTime > video_length) {
+           video_player.currentTime = video_length;
+           pause();
+        } // Video can't go past the end
+        time_selector.value = video_player.currentTime; // Update time selector
+        step = Math.floor(video_player.currentTime); // Get step of video for plots
+
+        // Update plots
+        set_scatter_line_plot('value_func', "Value Function", y_values_plot, step, value_marker);
+        if(is_discrete) { // If action_space is discrete
+            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
+            set_bar_action_plot(y_action[step][0], action[step][0], action_names);
+        }
+        else { // If action_space is multi discrete
+            set_scatter_lines_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
+            set_stacked_bar_action_plot(y_action[step], action[step], action_names);
+        }
+      }
+
+      /** 
+      * Sets a stacked bar plot for the multi discrete action distribution
+      * @param {array} y_values - The action distribution
+      * @param {array} action - The action
+      * @param {array} action_names - The names of the actions
+      */
+      function set_stacked_bar_action_plot(y_values, action, action_names) {
+        var bar_plot_data_action = [];
+        // Set data for each action
+        for(var j = 0; j < action_names[0].length; j++) {
+            var color = ""
+            for(var i = 0; i < action_names.length; i++) {
+                if(action[i] == j) // If action sampled in the current frame
+                    color = '#FF0000'; // Color it red
+                else
+                    color = '#FAEBD7'; // Color it white
+                var trace = {
+                    x: [["action_space_", String(i)].join("")],
+                    y: [y_values[i][j]],
+                    text: [y_values[i][j], action_names[i][j]].map(String).join("<br>"), // Add action name and prob to the bar
+                    marker: {
+                        color: color,
+                        line: {
+                            color: '#000000',
+                            width: 1
+                          }
+                    },
+                    type: 'bar'
+                };
+                bar_plot_data_action.push(trace);
+            }
+        }
+
+        // Set layout for the plot
+        var bar_plot_layout_action = {
+            autosize: true,
+            width: 600,
+            height: 360,
+            margin: {
+                l: 28,
+                r: 0,
+                b: 30,
+                t: 22,
+                pad: 4
+              },
+            plot_bgcolor: '#000',
+            paper_bgcolor: '#000',
+            font: {
+                family: 'Montserrat',
+                size: 12,
+                color: '#fff'
+            },
+            title: {
+                text: 'Action Distribution',
+                font: {
+                    family: 'Montserrat',
+                    size: 15,
+                    color: '#fff'
+                }
+            },
+            barmode: 'stack',
+            showlegend: false
+      };
+
+      // Plot the data
+      Plotly.newPlot('action_distr', bar_plot_data_action, bar_plot_layout_action);
+      }
+
+      /**
+      * Sets a bar plot for the discrete action distribution
+      */
+      function set_bar_action_plot(y_values, action, action_names) {
+
+          var color_value = new Array(y_values.length).fill('#FAEBD7'); // Set color for all actions to white
+          color_value[action] = '#FF0000'; // Except the selected action should be red
+          // Set data for the plot
+          var bar_plot_data_action = [
+              {
+                  x: action_names,
+                  y: y_values,
+                  type: 'bar',
+                  marker: {
+                      color: color_value
+                  },
+                  textposition: 'auto',
+                  text: y_values.map(String), // Add prob to the bar plot
+                  textfont: {
+                      family: 'Montserrat',
+                      size: 12,
+                  },
+                  textangle: 0,
+                  textposition: 'bottom center',
+              }
+          ];
+
+          // Set layout for the plot
+          var bar_plot_layout_action = {
+            autosize: true,
+            width: 600,
+            height: 360,
+            margin: {
+                l: 28,
+                r: 0,
+                b: 30,
+                t: 22,
+                pad: 4
+              },
+            plot_bgcolor: '#000',
+            paper_bgcolor: '#000',
+            font: {
+                family: 'Montserrat',
+                size: 12,
+                color: '#fff'
+            },
+            title: {
+                text: 'Action Distribution',
+                font: {
+                    family: 'Montserrat',
+                    size: 15,
+                    color: '#fff'
+                }
+            }
+      };
+          
+          // Plot the action distribution
+          Plotly.newPlot('action_distr', bar_plot_data_action, bar_plot_layout_action);
+      }
+
+
+      /**
+      * Sets a scatter plot for the emtropy function if multi discrete actions are used
+      * @param {string} id - The id of the plot
+      * @param {string} title - The title of the plot
+      * @param {array} y_values - The entropy function y values
+      * @param {int} step - The step of the video
+      * @param {boolean} marker - If the marker should be shown
+      */
+      function set_scatter_lines_plot(id, title, y_values, step, marker) {
+        line_scatter_plot_data_value = [];
+
+        // Set colors and data for the plot
+        var colors = ['#FAEBD780', '#7CFC0080', '#FFBF0080', '#FF7F5080', '#DE316380', '#9FE2BF80', '#40E0D080', '#6495ED80', '#CCCCFF80']
+        for(var i = 0; i < y_values.length; i++) {
+          var x_values_marker = x_values.slice(0, step + 1);
+          var y_values_marker = y_values[i].slice(0, step + 1);
+            var trace = [
+            {
+                x: x_values_marker,
+                y: y_values_marker,
+                mode: 'line',
+                line: {
+                    color: colors[i]
+                },
+                name: 'action_space_' + String(i),
+                showlegend: true,
+            },
+            {
+                x: x_values,
+                y: y_values[i],
+                mode: 'markers',
+                name: 'action_space_' + String(i) + "_marker",
+                marker: {
+                    color: colors[i]
+                },
+                showlegend: true,
+            }
+        ];
+            // Add data to the plot
+            line_scatter_plot_data_value.push(trace[0]);
+            if(marker)
+              line_scatter_plot_data_value.push(trace[1]); 
+        }
+
+        // Select the selected action_space for the entropy plot
+        if(entr_selected_action_space != null && marker)
+          line_scatter_plot_data_value = [line_scatter_plot_data_value[entr_selected_action_space * 2], line_scatter_plot_data_value[entr_selected_action_space * 2 + 1]];
+        else if(entr_selected_action_space != null && !marker)
+          line_scatter_plot_data_value = [line_scatter_plot_data_value[entr_selected_action_space]];
+
+        // Set layout for the plot
+        var line__scatter_plot_layout_value = {
+            autosize: true,
+            width: 600,
+            height: 360,
+            margin: {
+                l: 50,
+                r: 0,
+                b: 30,
+                t: 25,
+                pad: 4
+                },
+            yaxis: {
+                automargin: true
+            },
+            plot_bgcolor: '#000',
+            paper_bgcolor: '#000',
+            font: {
+                family: 'Montserrat',
+                size: 12,
+                color: '#fff'
+            },
+            title: {
+                text: title,
+                font: {
+                    family: 'Montserrat',
+                    size: 15,
+                    color: '#fff'
+                }
+            },
+            showlegend: true,
+        };
+
+        // Plot the data
+        Plotly.newPlot(id, line_scatter_plot_data_value, line__scatter_plot_layout_value);
+      }
+
+
+      /**
+      * Sets a scatter plot for the value function
+      * @param {string} id - The id of the plot
+      * @param {string} title - The title of the plot
+      * @param {array} y_values - The value function y values
+      * @param {int} step - The step of the video
+      * @param {boolean} marker - If the marker should be shown
+      */
+      function set_scatter_line_plot(id, title, y_values, step, marker) {
+          // Set data for layout for the plot
+          var line__scatter_plot_layout_value = {
+              autosize: true,
+              width: 600,
+              height: 360,
+              margin: {
+                  l: 50,
+                  r: 0,
+                  b: 30,
+                  t: 25,
+                  pad: 4
+                  },
+              yaxis: {
+                  automargin: true
+              },
+              plot_bgcolor: '#000',
+              paper_bgcolor: '#000',
+              font: {
+                  family: 'Montserrat',
+                  size: 12,
+                  color: '#fff'
+              },
+              title: {
+                  text: title,
+                  font: {
+                      family: 'Montserrat',
+                      size: 15,
+                      color: '#fff'
+                  }
+              },
+              showlegend: false,
+          };
+
+          // Set data for the plot
+          var x_values_marker = x_values.slice(0, step + 1);
+          var y_values_marker = y_values.slice(0, step + 1);
+
+          var line_scatter_plot_data_value = [
+              {
+                  x: x_values_marker,
+                  y: y_values_marker,
+                  mode: 'line',
+                  line: {
+                      color: '#FAEBD7'
+                  },
+                  name: 'function',
+              },
+              {
+                  x: x_values,
+                  y: y_values,
+                  mode: 'markers',
+                  marker: {
+                      color: '#7CFC0080'
+                  },
+                  name: 'marker',
+              }
+          ];
+
+          if(!marker)
+            line_scatter_plot_data_value = [line_scatter_plot_data_value[0]];
+
+          // Plot the value function
+          Plotly.newPlot(id, line_scatter_plot_data_value, line__scatter_plot_layout_value);
+      }
+    
+    /**
+    * Opens the specific tab based on the probided id
+    * @param {string} id - The id of the tab
+    */
+    function openTab(evt, id) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent");
+        mediatabcontent = document.getElementsByClassName("mediatabcontent");
+        // Hide all elements with class="tabcontent" and "mediacontent" by default
+        for (i = 0; i < mediatabcontent.length; i++) {
+            mediatabcontent[i].style.display = "none";
+        }
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        // Show the specific tab content
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(id).style.display = "block";
+        evt.currentTarget.className += " active";
+      }
+    </script>
+  </body>
+</html>
