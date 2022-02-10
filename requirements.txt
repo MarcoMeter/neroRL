@@ -14,3 +14,4 @@ mlagents
 windows-curses
 opencv-python
 matplotlib
+pyglet
