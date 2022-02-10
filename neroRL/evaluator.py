@@ -78,7 +78,10 @@ class Evaluator():
             
             # Reset workers and set evaluation seed
             for worker in self.workers:
-                worker.child.send(("reset", {"start-seed": seed, "num-seeds": 1}))
+                reset_params = self.configs["environment"]["reset_params"]
+                reset_params["start-seed"] = seed
+                reset_params["num-seeds"] = 1
+                worker.child.send(("reset", reset_params))
             # Grab initial observations
             for w, worker in enumerate(self.workers):
                 vis, vec = worker.child.recv()
@@ -86,7 +89,7 @@ class Evaluator():
                     vis_obs[w] = vis
                 if vec_obs is not None:
                     vec_obs[w] = vec
-
+            
             # Every worker plays its episode
             dones = np.zeros(self.n_workers, dtype=bool)
 
