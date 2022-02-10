@@ -54,6 +54,7 @@ trainer:
   n_policy_mini_batches: 8
   value_epochs: 4
   n_value_mini_batches: 8
+  refresh_buffer_epoch: -1
   value_update_interval: 1
   max_policy_grad_norm: 0.5
   max_value_grad_norm: 0.5

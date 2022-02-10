@@ -29,7 +29,7 @@ model:
   recurrence:
     layer_type: "gru"
     sequence_length: -1
-    hidden_state_size: 1024
+    hidden_state_size: 512
     hidden_state_init: "zero"
     reset_hidden_state: True
     residual: False
@@ -57,6 +57,7 @@ trainer:
   lamda: 0.95
   updates: 1650
   epochs: 3
+  refresh_buffer_epoch: -1
   n_mini_batches: 8
   value_coefficient: 0.25
   max_grad_norm: 0.5

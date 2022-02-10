@@ -6,7 +6,7 @@ class Buffer():
     The buffer stores and prepares the training data. It supports recurrent policies.
     """
     def __init__(self, num_workers, worker_steps, visual_observation_space, vector_observation_space,
-                    action_space_shape, recurrence, device, share_parameters):
+                    action_space_shape, recurrence, device, share_parameters, sampler):
         """
         Arguments:
             num_workers {int} -- Number of environments/agents to sample training data
@@ -18,8 +18,10 @@ class Buffer():
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
                 - layer_type {str}, sequence_length {int}, hidden_state_size {int}, hiddens_state_init {str}, reset_hidden_state {bool}
             device {torch.device} -- The device that will be used for training/storing single mini batches
+            sampler {TrajectorySampler} -- The current sampler
         """
         self.device = device
+        self.sampler = sampler
         self.recurrence = recurrence
         self.sequence_length = recurrence["sequence_length"] if recurrence is not None else None
         self.num_workers = num_workers
@@ -149,7 +151,7 @@ class Buffer():
         for key, value in samples.items():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
-            self.samples_flat[key] = value
+            self.samples_flat[key] = value        
 
     def _pad_sequence(self, sequence, target_length):
         """Pads a sequence to the target length using zeros.
@@ -234,3 +236,57 @@ class Buffer():
                     mini_batch[key] = value[sequence_indices[start:end]].to(self.device)
             start = end
             yield mini_batch
+
+    def refresh(self, model, gamma, lamda):
+        """Refreshes the buffer with the current model.
+
+        Arguments:
+            model {nn.Module} -- The model to retrieve the policy and value from
+            gamma {float} -- Discount factor
+            lamda {float} -- GAE regularization parameter
+        """
+        # Init recurrent cells
+        recurrent_cell = None
+        if self.recurrence is not None:
+            if self.recurrence["layer_type"] == "gru":
+                recurrent_cell = self.hxs[:, 0].unsqueeze(0).contiguous()
+            elif self.recurrence["layer_type"] == "lstm":
+                recurrent_cell = (self.hxs[:, 0].unsqueeze(0).contiguous(), self.cxs[:, 0].unsqueeze(0).contiguous())
+
+        # Refresh values and hidden_states with current model
+        for t in range(self.worker_steps):
+            # Gradients can be omitted for refreshing buffer
+            with torch.no_grad():
+                # Refresh hidden states
+                if self.recurrence is not None:
+                    if self.recurrence["layer_type"] == "gru":
+                        self.hxs[:, t] = recurrent_cell.squeeze(0)
+                    elif self.recurrence["layer_type"] == "lstm":
+                        self.hxs[:, t] = recurrent_cell[0].squeeze(0)
+                        self.cxs[:, t] = recurrent_cell[1].squeeze(0)
+
+                    # Forward the model to retrieve the policy (making decisions), 
+                    # the states' value of the value function and the recurrent hidden states (if available)
+                    vis_obs = self.vis_obs[:, t] if self.vis_obs is not None else None
+                    vec_obs = self.vec_obs[:, t] if self.vec_obs is not None else None
+                    policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
+                    # Refresh values
+                    self.values[:, t] = value
+                    
+                # Reset hidden states if necessary
+                for w in range(self.num_workers):
+                    if self.recurrence is not None and self.dones[w, t]:
+                        if self.recurrence["reset_hidden_state"]:
+                            hxs, cxs = model.init_recurrent_cell_states(1, self.device)
+                            if self.recurrence["layer_type"] == "gru":
+                                recurrent_cell[:, w] = hxs.contiguous()
+                            elif self.recurrence["layer_type"] == "lstm":
+                                recurrent_cell[0][:, w] = hxs.contiguous()
+                                recurrent_cell[1][:, w] = cxs.contiguous()
+
+        # Refresh advantages
+        _, last_value, _, _ = model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
+        self.calc_advantages(last_value, gamma, lamda)
+        
+        # Refresh batches
+        self.prepare_batch_dict() 
