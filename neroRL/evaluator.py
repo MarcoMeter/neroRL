@@ -7,7 +7,7 @@ from neroRL.utils.video_recorder import VideoRecorder
 
 class Evaluator():
     """Evaluates a model based on the initially provided config."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, video_path = "video", record_video = False, frame_rate = 1):
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, video_path = "video", record_video = False, frame_rate = 1, generate_website = False):
         """Initializes the evaluator and its environments
         
         Arguments:
@@ -26,6 +26,7 @@ class Evaluator():
         self.video_path = video_path
         self.record_video = record_video
         self.frame_rate = frame_rate
+        self.generate_website = generate_website
 
         # Launch environments
         self.workers = []
@@ -77,7 +78,10 @@ class Evaluator():
             
             # Reset workers and set evaluation seed
             for worker in self.workers:
-                worker.child.send(("reset", {"start-seed": seed, "num-seeds": 1}))
+                reset_params = self.configs["environment"]["reset_params"]
+                reset_params["start-seed"] = seed
+                reset_params["num-seeds"] = 1
+                worker.child.send(("reset", reset_params))
             # Grab initial observations
             for w, worker in enumerate(self.workers):
                 vis, vec = worker.child.recv()
@@ -85,12 +89,12 @@ class Evaluator():
                     vis_obs[w] = vis
                 if vec_obs is not None:
                     vec_obs[w] = vec
-
+            
             # Every worker plays its episode
             dones = np.zeros(self.n_workers, dtype=bool)
 
             # Store data for video recording
-            log_probs = [[] for worker in self.workers]
+            probs = [[] for worker in self.workers]
             entropies = [[] for worker in self.workers]
             values = [[] for worker in self.workers]
             actions = [[] for worker in self.workers]
@@ -107,18 +111,18 @@ class Evaluator():
                             policy, value, recurrent_cell[w], _ = model(vis_obs_batch, vec_obs_batch, recurrent_cell[w])
 
                             _actions = []
-                            probs = []
+                            _probs = []
                             entropy = []
                             # Sample action
                             for action_branch in policy:
                                 action = action_branch.sample()
                                 _actions.append(action.cpu().data.item())
-                                probs.append(action_branch.probs)
+                                _probs.append(action_branch.probs)
                                 entropy.append(action_branch.entropy().item())
 
                             # Store data for video recording
                             actions[w].append(_actions)
-                            log_probs[w].append(probs)
+                            probs[w].append(torch.stack(_probs))
                             entropies[w].append(entropy)
                             values[w].append(value.cpu().numpy())
 
@@ -137,11 +141,11 @@ class Evaluator():
                                 info["seed"] = seed
                                 episode_infos.append(info)
                                 # record video for this particular worker
-                                if self.record_video:
+                                if self.record_video or self.generate_website:
                                     worker.child.send(("video", None))
                                     trajectory_data = worker.child.recv()
                                     trajectory_data["actions"] = actions[w]
-                                    trajectory_data["log_probs"] = log_probs[w]
+                                    trajectory_data["probs"] = probs[w]
                                     trajectory_data["entropies"] = entropies[w]
                                     trajectory_data["values"] = values[w]
                                     trajectory_data["episode_reward"] = info["reward"]
@@ -149,7 +153,11 @@ class Evaluator():
                                     # Init VideoRecorder
                                     video_recorder = VideoRecorder(self.video_path + "_" + str(w), self.frame_rate)
                                     # Render and serialize video
-                                    video_recorder.render_video(trajectory_data)
+                                    if self.record_video:
+                                        video_recorder.render_video(trajectory_data)
+                                    # Generate website
+                                    if self.generate_website:
+                                        video_recorder.generate_website(trajectory_data, self.configs)
         
             # Seconds needed for a whole update
             time_end = time.time()

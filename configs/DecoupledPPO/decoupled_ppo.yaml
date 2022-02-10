@@ -115,6 +115,8 @@ trainer:
   # Number of mini batches that are trained throughout one value epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
   n_value_mini_batches: 1
+  # Refreshes buffer every n epochs(-1 = turned off):
+  refresh_buffer_epoch: -1
   # This interval determines when to optimize the value function based on how many update cycles have passed.
   value_update_interval: 1
   # Strength of clipping the norm of the policy loss gradients
