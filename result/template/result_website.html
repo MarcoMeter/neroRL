@@ -417,7 +417,10 @@
       function update()  {
         if(video_player.currentTime == Math.round(video_player.currentTime)) // If time t of video is a natural number then step is t - 1
               video_player.currentTime += 0.0001 // Add a small number to make sure that the step and the current time are the same
-        video_player.currentTime = Math.min(video_player.currentTime, video_length); // Video can't go past the end
+        if(video_player.currentTime > video_length) {
+           video_player.currentTime = video_length;
+           pause();
+        } // Video can't go past the end
         time_selector.value = video_player.currentTime; // Update time selector
         step = Math.floor(video_player.currentTime); // Get step of video for plots
 
