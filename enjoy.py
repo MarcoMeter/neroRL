@@ -32,7 +32,6 @@ def main():
 
     Options:
         --config=<path>            Path of the Config file [default: ./configs/default.yaml].
-        --use_module_path          Wether the relative path should start from the file location [default: False].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --seed=<n>                 The to be played seed of an episode [default: 0].
@@ -40,11 +39,7 @@ def main():
         --framerate=<n>            Specifies the frame rate of a video shall be rendered. [default: 6]
     """
     options = docopt(_USAGE)
-    if options["--use_module_path"]:
-        cwd = os.path.dirname(os.path.abspath(__file__))
-        config_path = cwd + options["--config"][1:]
-    else:
-        config_path = options["--config"]
+    config_path = options["--config"]
     untrained = options["--untrained"]
     worker_id = int(options["--worker-id"])
     seed = int(options["--seed"])

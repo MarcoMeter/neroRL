@@ -10,7 +10,7 @@ if not os.path.exists("tmp"):
     os.makedirs("tmp")
   
 # Files and directories which should be included in the package  
-pypi_folders = ["neroRL", "configs"]
+pypi_folders = ["neroRL"]
 pypi_files = ["enjoy.py", "eval.py", "train.py", "eval_checkpoints.py", "tune.py", "__init__.py"]
 
 # Setup files to create the package

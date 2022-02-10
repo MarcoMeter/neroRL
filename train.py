@@ -20,7 +20,6 @@ def main():
 
     Options:
         --config=<path>            Path to the config file [default: ./configs/default.yaml].
-        --use_module_path          Wether the relative path should start from the file location [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --run-id=<path>            Specifies the tag of the tensorboard summaries [default: default].
         --out=<path>               Specifies the path to output files such as summaries and checkpoints. [default: ./]
@@ -28,11 +27,7 @@ def main():
     """
     
     options = docopt(_USAGE)
-    if options["--use_module_path"]:
-        cwd = os.path.dirname(os.path.abspath(__file__))
-        config_path = cwd + options["--config"][1:]
-    else:
-        config_path = options["--config"]
+    config_path = options["--config"]
     worker_id = int(options["--worker-id"])
     run_id = options["--run-id"]
     out_path = options["--out"]

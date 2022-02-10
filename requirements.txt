@@ -12,3 +12,5 @@ dm-env==1.5
 pycolab==1.2
 mlagents
 windows-curses
+opencv-python
+matplotlib
