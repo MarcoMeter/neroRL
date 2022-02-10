@@ -215,7 +215,7 @@ class BaseTrainer():
         Arguments:
             update {int} -- Current update#
 
-        Returns
+        Returns:
             {dict} -- Dictionary containing the current values of all decayed hyperparameters
         """
         raise NotImplementedError

@@ -37,6 +37,7 @@ def main():
         --seed=<n>                 The to be played seed of an episode [default: 0].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of a video shall be rendered. [default: 6]
+        --generate_website         Specifies wether a website shall be generated. [default: False]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]
@@ -45,6 +46,7 @@ def main():
     seed = int(options["--seed"])
     video_path = options["--video"]
     frame_rate = options["--framerate"]
+    generate_website = options["--generate_website"]
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -66,10 +68,11 @@ def main():
 
     # Launch environment
     logger.info("Step 1: Launching environment")
+    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
     configs["environment"]["reset_params"]["start-seed"] = seed
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
-    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video)
+    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
     # Retrieve observation space
     visual_observation_space = env.visual_observation_space
     vector_observation_space = env.vector_observation_space
@@ -116,7 +119,7 @@ def main():
     logger.info("Step 4: Run single episode in realtime . . .")
 
     # Store data for video recording
-    log_probs = []
+    probs = []
     entropies = []
     values = []
     actions = []
@@ -129,18 +132,18 @@ def main():
             policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
 
             _actions = []
-            probs = []
+            _probs = []
             entropy = []
             # Sample action
             for action_branch in policy:
                 action = action_branch.sample()
                 _actions.append(action.item())
-                probs.append(action_branch.probs)
+                _probs.append(action_branch.probs)
                 entropy.append(action_branch.entropy().item())
 
             # Store data for video recording
             actions.append(_actions)
-            log_probs.append(probs)
+            probs.append(torch.stack(_probs))
             entropies.append(entropy)
             values.append(value.cpu().numpy())
 
@@ -151,11 +154,11 @@ def main():
     logger.info("Episode Length: " + str(info["length"]))
 
     # Complete video data
-    if record_video:
+    if record_video or generate_website:
         trajectory_data = env.get_episode_trajectory
         trajectory_data["action_names"] = env.action_names
         trajectory_data["actions"] = actions
-        trajectory_data["log_probs"] = log_probs
+        trajectory_data["probs"] = probs
         trajectory_data["entropies"] = entropies
         trajectory_data["values"] = values
         trajectory_data["episode_reward"] = info["reward"]
@@ -163,7 +166,11 @@ def main():
         # Init video recorder
         video_recorder = VideoRecorder(video_path, frame_rate)
         # Render and serialize video
-        video_recorder.render_video(trajectory_data)
+        if record_video:
+            video_recorder.render_video(trajectory_data)
+        # Generate website
+        if generate_website:
+            video_recorder.generate_website(trajectory_data, configs)
 
     env.close()
 
