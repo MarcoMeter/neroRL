@@ -31,6 +31,8 @@ for dname, dirs, files in os.walk("tmp\\neroRL"):
     if "__pycache__" in dname:
         shutil.rmtree(dname)
         continue
+    if "result" in dname:
+        continue
     for fname in files:
         fpath = os.path.join(dname, fname)
         with open(fpath) as f:
