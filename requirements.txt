@@ -15,5 +15,4 @@ windows-curses
 opencv-python
 matplotlib
 pyglet
-rliable
 jinja2
