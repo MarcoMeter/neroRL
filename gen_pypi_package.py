@@ -18,7 +18,7 @@ setup_files = ["setup.py", "LICENSE", "README.md", "requirements.txt", "MANIFEST
 
 # Build the package directories
 for folder in pypi_folders:
-    copy_tree(folder, dst="tmp\\neroRL\\" + folder)
+    copy_tree(folder, dst="tmp\\neroRL")
 
 for file in pypi_files:
     shutil.copy(file, "tmp\\neroRL")
@@ -29,19 +29,8 @@ for file in setup_files:
 # Fix imports for the module and delete pycache folders
 for dname, dirs, files in os.walk("tmp\\neroRL"):
     if "__pycache__" in dname:
-        shutil.rmtree(dname)
-        continue
-    if "result" in dname:
-        continue
-    for fname in files:
-        fpath = os.path.join(dname, fname)
-        with open(fpath) as f:
-            s = f.read()
-        s = s.replace("import neroRL", "import neroRL.neroRL")
-        s = s.replace("from neroRL", "from neroRL.neroRL")
-        with open(fpath, "w") as f:
-            f.write(s)
-  
+         shutil.rmtree(dname)
+
 # Build the package
 os.chdir("./tmp")          
 os.system("py -m build")
@@ -51,7 +40,7 @@ os.chdir(cwd)
 copy_tree("tmp\\dist", "dist")
 
 # Clean up
-shutil.rmtree("tmp")
+#shutil.rmtree("tmp")
 
 # Upload the package to PyPI
 # os.system("py -m twine upload dist/*")
