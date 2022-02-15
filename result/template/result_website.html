@@ -153,17 +153,17 @@
     <!--- Define tab content -->
     <div id="Environment" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      <b>type</b>: CartPole<br><b>name</b>: CartPole-v0<br><b>frame_skip</b>: 1<br><b>last_action_to_obs</b>: False<br><b>last_reward_to_obs</b>: False<br><b>obs_stacks</b>: 1<br><b>grayscale</b>: False<br><b>resize_vis_obs</b>: [84, 84]<br><b>reset_params</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>start-seed</b>: 0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>num-seeds</b>: 1<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>mask-velocity</b>: True<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>seed</b>: 0<br>
+      {{ envInfo }}
     </div>
 
     <div id="Model" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      <b>load_model</b>: False<br><b>model_path</b>: ./checkpoints/cartpole/20210722-103713_2/cartpole-199.pt<br><b>checkpoint_interval</b>: 25<br><b>activation</b>: relu<br><b>vis_encoder</b>: cnn<br><b>vec_encoder</b>: linear<br><b>num_vec_encoder_units</b>: 128<br><b>hidden_layer</b>: default<br><b>num_hidden_layers</b>: 1<br><b>num_hidden_units</b>: 512<br><b>recurrence</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>layer_type</b>: gru<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>sequence_length</b>: 16<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>hidden_state_size</b>: 128<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>hidden_state_init</b>: zero<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>reset_hidden_state</b>: False<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>residual</b>: False<br>
+      {{ modelInfo }}
     </div>
 
     <div id="Hyperparameters" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
-      <b>algorithm</b>: PPO<br><b>resume_at</b>: 0<br><b>gamma</b>: 0.99<br><b>lamda</b>: 0.95<br><b>updates</b>: 200<br><b>epochs</b>: 4<br><b>refresh_buffer_epoch</b>: -1<br><b>n_mini_batches</b>: 4<br><b>value_coefficient</b>: 0.25<br><b>max_grad_norm</b>: 0.5<br><b>share_parameters</b>: True<br><b>learning_rate_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 0.0001<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 0.0001<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br><b>beta_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 1e-05<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 1e-06<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br><b>clip_range_schedule</b>: <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>initial</b>: 0.2<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>final</b>: 0.2<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>power</b>: 1.0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>max_decay_steps</b>: 50<br>
+      {{ hyperInfo }}
     </div>
 
     <div id="Media" class="mediatabcontent">
@@ -171,7 +171,7 @@
         <!-- Set video player and action distr. bar plot -->
         <div id="figures">
           <video id="video_player">
-            <source src="videos/video_seed_0_0.webm" type="video/webm" />
+            <source src="{{ videoPath }}" type="video/webm" />
           </video>
           <div id="action_distr"></div>
         </div>
@@ -222,11 +222,11 @@
         var tS_step_size = 1.0;
 
         // Set values for the plots
-        var y_values = [[-0.057679563760757446], [-0.06675557047128677], [-0.057186514139175415], [-0.047303102910518646], [-0.03937181830406189], [-0.03356286510825157], [-0.029828079044818878], [-0.027309004217386246], [-0.026344366371631622], [-0.025986526161432266], [-0.026145339012145996], [-0.026492781937122345], [-0.026738692075014114], [-0.026942353695631027], [-0.027117758989334106], [-0.027245383709669113], [-0.027410686016082764], [-0.027553748339414597], [-0.027647390961647034], [-0.027760043740272522]];
-        var y_entropy = [[0.6930118799209595], [0.6930171251296997], [0.6930195093154907], [0.6930173635482788], [0.6930162906646729], [0.6930146217346191], [0.6930128335952759], [0.6930115222930908], [0.6930108070373535], [0.6930106282234192], [0.6930109262466431], [0.6930110454559326], [0.6930114030838013], [0.6930117607116699], [0.6930121183395386], [0.6930121779441833], [0.6930123567581177], [0.6930124759674072], [0.6930127143859863], [0.6930127739906311]];
-        var y_action = [[[0.4917759299278259, 0.5082241296768188]], [[0.49193668365478516, 0.5080633163452148]], [[0.4920113682746887, 0.5079886317253113]], [[0.4919409155845642, 0.5080590844154358]], [[0.4919130504131317, 0.5080869197845459]], [[0.49186021089553833, 0.5081397891044617]], [[0.4918043911457062, 0.5081955194473267]], [[0.49176472425460815, 0.5082352757453918]], [[0.4917430877685547, 0.5082568526268005]], [[0.49173855781555176, 0.5082613825798035]], [[0.4917452037334442, 0.5082547664642334]], [[0.491752564907074, 0.5082473754882812]], [[0.4917602241039276, 0.5082398056983948]], [[0.4917716383934021, 0.5082283616065979]], [[0.4917801320552826, 0.5082199573516846]], [[0.4917840361595154, 0.5082159042358398]], [[0.4917885363101959, 0.5082114338874817]], [[0.4917948544025421, 0.5082051753997803]], [[0.4918002486228943, 0.5081997513771057]], [[0.4918041229248047, 0.5081958770751953]]]; // action probs
-        var action =  [[1], [1], [0], [0], [1], [0], [1], [1], [1], [0], [0], [1], [0], [0], [1], [1], [1], [1], [1], [1]];
-        var action_names = ['move right', 'move left'];
+        var y_values = {{ yValues }};
+        var y_entropy = {{ yEntropy }};
+        var y_action = {{ yAction }}; // action probs
+        var action =  {{ action }};
+        var action_names = {{ actionNames }};
         var x_values = [...Array(y_values.length).keys()];
 
         var y_entropy_plot = [];
@@ -309,7 +309,7 @@
 
           video_player.addEventListener('timeupdate', timeListener); // Update time selector and plots when video is playing
           video_player.addEventListener('dblclick', function(e) {open_fullscreen(video_player);}); // Open video in fullscreen when video is double clicked
-          video_player.playbackRate = 6; // Set video playback rate to frame rate
+          video_player.playbackRate = {{ frameRate }}; // Set video playback rate to frame rate
           reset(); // Reset video to start
       }, false)
 
