@@ -5,7 +5,6 @@ Runs the training program using the provided config and arguments.
 import random
 
 from docopt import docopt
-import os
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
