@@ -9,23 +9,26 @@ cwd = os.getcwd()
 if not os.path.exists("tmp"):
     os.makedirs("tmp")
   
-# Files and directories which should be included in the package  
-pypi_folders = ["neroRL", "result"]
+# Copy the python files of the nerorl package to the new directory
+copy_tree("neroRL", dst="tmp\\neroRL")
+
+# Extra directories which should be included in the package  
+pypi_folders = ["result"]
 
 # Setup files to create the package
 setup_files = ["setup.py", "LICENSE", "README.md", "requirements.txt", "MANIFEST.in"]
 
 # Build the package directories
 for folder in pypi_folders:
-    copy_tree(folder, dst="tmp\\neroRL")
+    copy_tree(folder, dst="tmp\\neroRL\\" + folder)
 
 for file in setup_files:
     shutil.copy(file, "tmp")
 
-# Fix imports for the module and delete pycache folders
+# Deletes all pycache folders
 for dname, dirs, files in os.walk("tmp\\neroRL"):
     if "__pycache__" in dname:
-         shutil.rmtree(dname)
+        shutil.rmtree(dname)
 
 # Build the package
 os.chdir("./tmp")          

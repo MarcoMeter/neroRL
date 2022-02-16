@@ -1,7 +1,7 @@
 """
 Runs the training program using the provided config and arguments.
+# (pip install -e . to fix import errors: https://stackoverflow.com/questions/714063/importing-modules-from-parent-folder)
 """
-
 import random
 
 from docopt import docopt
