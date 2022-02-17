@@ -27,7 +27,7 @@ class VideoRecorder:
         self.info_height = 40
         self.video_path = video_path
         self.cwd = os.path.dirname(os.path.abspath(__file__)) # Fix path for loading the template (pip)
-        self.cwd = self.cwd[:self.cwd.rfind("neroRL") -1 ]
+        self.cwd = self.cwd[:self.cwd.rfind("neroRL") -1]
         self.website_path = self.cwd + "/result/"
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')   # Video codec
         self.frame_rate = int(frame_rate)

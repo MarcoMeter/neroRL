@@ -42,4 +42,4 @@ copy_tree("tmp\\dist", "dist")
 shutil.rmtree("tmp")
 
 # Upload the package to PyPI
-# os.system("py -m twine upload dist/*")
+os.system("py -m twine upload dist/*")
