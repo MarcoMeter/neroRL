@@ -27,7 +27,7 @@ class VideoRecorder:
         self.info_height = 40
         self.video_path = video_path
         self.cwd = os.path.dirname(os.path.abspath(__file__))
-        self.cwd = self.cwd[:self.cwd.rfind("neroRL") -1] # Fix relative path
+        self.cwd = self.cwd[:self.cwd.rfind("neroRL") -1] # Fixed relative path
         self.website_path = self.cwd + "/result/"
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')   # Video codec
         self.frame_rate = int(frame_rate)
