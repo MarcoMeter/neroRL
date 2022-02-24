@@ -9,11 +9,11 @@ cwd = os.getcwd()
 if not os.path.exists("tmp"):
     os.makedirs("tmp")
   
-# Copy the python files of the nerorl package to the new directory
+# Copy the python files of the neroRL package to the new directory
 copy_tree("neroRL", dst="tmp\\neroRL")
 
-# Extra directories which should be included in the package  
-pypi_folders = ["result"]
+# Optional: Add extra directories which should be included in the package  
+pypi_folders = []
 
 # Setup files to create the package
 setup_files = ["setup.py", "LICENSE", "README.md", "requirements.txt", "MANIFEST.in"]
