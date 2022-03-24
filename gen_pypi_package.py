@@ -32,7 +32,7 @@ for dname, dirs, files in os.walk("tmp\\neroRL"):
 
 # Build the package
 os.chdir("./tmp")          
-os.system("py -m build")
+os.system("python -m build")
 os.chdir(cwd)
 
 # Copy the package to the current directory
@@ -42,4 +42,4 @@ copy_tree("tmp\\dist", "dist")
 shutil.rmtree("tmp")
 
 # Upload the package to PyPI
-os.system("py -m twine upload dist/*")
+os.system("python -m twine upload dist/*")

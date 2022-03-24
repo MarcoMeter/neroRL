@@ -17,7 +17,7 @@ with open(cwd + "\\README.md", "r", encoding="utf-8") as fh:
 # Set up package
 setup(
     name="neroRL",
-    version="1.0.0",
+    version="0.0.1",
     description="A library for Deep Reinforcement Learning (PPO) in PyTorch",
     long_description=long_description,
     long_description_content_type="text/markdown",
