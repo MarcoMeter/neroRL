@@ -12,3 +12,4 @@ csharp_timers.json
 .vscode/.ropeproject/config.py
 .vscode/.ropeproject/objectdb
 .vscode/
+*.egg-info*
