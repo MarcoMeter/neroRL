@@ -4,7 +4,7 @@ It either executes all training runs sequentially or just outputs each permutati
 """
 
 from docopt import docopt
-from neroRL.tune.grid_search import GridSearch
+from neroRL.utils.grid_search import GridSearch
 from neroRL.utils.yaml_parser import GridSearchYamlParser, YamlParser
 
 def main():
