@@ -236,6 +236,9 @@ class BaseTrainer():
         checkpoint_data["update"] = update
         checkpoint_data["hxs"] = self.model.mean_hxs if self.recurrence is not None else None
         checkpoint_data["cxs"] = self.model.mean_cxs if self.recurrence is not None else None
+        checkpoint_data["visual_observation_space"] = self.visual_observation_space
+        checkpoint_data["vector_observation_space"] = self.vector_observation_space
+        checkpoint_data["action_space_shape"] = self.action_space_shape
         return checkpoint_data
 
     def apply_checkpoint_data(self, checkpoint):
