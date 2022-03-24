@@ -1,7 +1,7 @@
 """
 Runs the training program using the provided config and arguments.
+# (pip install -e . to fix import errors: https://stackoverflow.com/questions/714063/importing-modules-from-parent-folder)
 """
-
 import random
 
 from docopt import docopt
@@ -24,6 +24,7 @@ def main():
         --out=<path>               Specifies the path to output files such as summaries and checkpoints. [default: ./]
         --seed=<n>      	       Specifies the seed to use during training. If set to smaller than 0, use a random seed. [default: -1]
     """
+    
     options = docopt(_USAGE)
     config_path = options["--config"]
     worker_id = int(options["--worker-id"])

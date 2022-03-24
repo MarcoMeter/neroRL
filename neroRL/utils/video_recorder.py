@@ -26,7 +26,9 @@ class VideoRecorder:
         self.height = 420
         self.info_height = 40
         self.video_path = video_path
-        self.website_path = os.getcwd() + "/result/"
+        self.cwd = os.path.dirname(os.path.abspath(__file__))
+        self.cwd = self.cwd[:self.cwd.rfind("neroRL") -1] # Fixed relative path
+        self.website_path = self.cwd + "/result/"
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')   # Video codec
         self.frame_rate = int(frame_rate)
 
@@ -137,8 +139,8 @@ class VideoRecorder:
         hyper_info = self._config_to_html(configs["trainer"])
         
         # Load the template file
-        template_env = Environment(loader=FileSystemLoader(searchpath="./"))
-        template = template_env.get_template("./result/template/result_website.html")
+        template_env = Environment(loader=FileSystemLoader(searchpath=self.website_path))
+        template = template_env.get_template("./template/result_website.html")
         
         # Render the template
         with open(self.website_path + 'result_website_' + str(id) + '.html' , 'w') as output_file:

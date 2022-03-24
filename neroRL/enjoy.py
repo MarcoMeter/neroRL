@@ -40,8 +40,8 @@ def main():
         --generate_website         Specifies wether a website shall be generated. [default: False]
     """
     options = docopt(_USAGE)
-    untrained = options["--untrained"]
     config_path = options["--config"]
+    untrained = options["--untrained"]
     worker_id = int(options["--worker-id"])
     seed = int(options["--seed"])
     video_path = options["--video"]

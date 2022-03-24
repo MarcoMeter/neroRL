@@ -36,8 +36,8 @@ def main():
         --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
     """
     options = docopt(_USAGE)
-    untrained = options["--untrained"]
     config_path = options["--config"]
+    untrained = options["--untrained"]
     worker_id = int(options["--worker-id"])
     video_path = options["--video"]
 

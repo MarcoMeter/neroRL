@@ -10,4 +10,9 @@ gym-minigrid==1.0.2
 procgen
 dm-env==1.5
 pycolab==1.2
-rliable
+mlagents
+windows-curses
+opencv-python
+matplotlib
+pyglet
+jinja2
