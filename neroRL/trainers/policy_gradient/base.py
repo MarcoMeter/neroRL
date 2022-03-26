@@ -7,6 +7,7 @@ from gym import spaces
 from sys import exit
 from signal import signal, SIGINT
 
+import neroRL
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
 from neroRL.evaluator import Evaluator
@@ -239,6 +240,7 @@ class BaseTrainer():
         checkpoint_data["visual_observation_space"] = self.visual_observation_space
         checkpoint_data["vector_observation_space"] = self.vector_observation_space
         checkpoint_data["action_space_shape"] = self.action_space_shape
+        checkpoint_data["version"] = neroRL.__version__
         return checkpoint_data
 
     def apply_checkpoint_data(self, checkpoint):
