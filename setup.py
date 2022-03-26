@@ -1,5 +1,8 @@
 from setuptools import setup, find_packages
 import os
+import sys
+sys.path.insert(0, os.getcwd() + "\\neroRL")
+import __init__ as neroRL
 
 # Get current working directory
 cwd = os.getcwd()
@@ -17,7 +20,7 @@ with open(cwd + "\\README.md", "r", encoding="utf-8") as fh:
 # Set up package
 setup(
     name="neroRL",
-    version="0.0.1",
+    version=neroRL.__version__,
     description="A library for Deep Reinforcement Learning (PPO) in PyTorch",
     long_description=long_description,
     long_description_content_type="text/markdown",
