@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 import os
 import sys
-sys.path.insert(0, os.getcwd() + "\\neroRL")
-import __init__ as neroRL
+sys.path.insert(0, os.getcwd())
+import neroRL
 
 # Get current working directory
 cwd = os.getcwd()
