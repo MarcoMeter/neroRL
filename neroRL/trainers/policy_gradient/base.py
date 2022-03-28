@@ -242,6 +242,7 @@ class BaseTrainer():
         checkpoint_data["action_space_shape"] = self.action_space_shape
         checkpoint_data["version"] = neroRL.__version__
         checkpoint_data["run_id"] = self.run_id
+        checkpoint_data["seed"] = self.seed
         return checkpoint_data
 
     def apply_checkpoint_data(self, checkpoint):
