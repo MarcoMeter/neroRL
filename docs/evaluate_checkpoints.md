@@ -35,7 +35,7 @@ This is the file path to save the results of the evaluation.
 neval-checkpoints --config=./configs/minigrid.yaml --path=./checkpoints/default/20200527-111513_2 --name=results.res
 ```
 This command
-- loads all checkpoints located in the stated directory,,
+- loads all checkpoints located in the stated directory,
 - evaluates these on the Minigrid environment,
 - and outputs the file results.res with the evaluation's results.
 
