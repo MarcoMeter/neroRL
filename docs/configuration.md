@@ -135,6 +135,8 @@ trainer:
   # Number of times that the whole batch of data is used for optimization using PPO
   # Each epoch trains on a random permutation of the sampled training batch
   epochs: 4
+  # Refreshes the buffer every n epochs (-1 = turned off). Stale advantages and hidden states are refresged.
+  refresh_buffer_epoch: -1
   # Number of mini batches that are trained throughout one epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
   n_mini_batches: 4

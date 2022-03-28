@@ -6,9 +6,10 @@ Additionally each evaluation episode can be rendered as a video.
 import logging
 import torch
 import numpy as np
+import sys
+
 from docopt import docopt
 from gym import spaces
-import sys
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
@@ -26,8 +27,8 @@ def main():
     # Docopt command line arguments
     _USAGE = """
     Usage:
-        evaluate.py [options]
-        evaluate.py --help
+        neval [options]
+        neval --help
 
     Options:
         --config=<path>            Path to the config file [default: ./configs/default.yaml].

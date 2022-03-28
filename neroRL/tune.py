@@ -11,8 +11,8 @@ def main():
     # Docopt command line arguments
     _USAGE = """
     Usage:
-        tune.py [options]
-        tune.py --help
+        ntune [options]
+        ntune --help
 
     Options:
         --config=<path>             Path to the config file [default: ./configs/default.yaml].

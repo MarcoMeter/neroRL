@@ -1,6 +1,5 @@
 """
 Runs the training program using the provided config and arguments.
-# (pip install -e . to fix import errors: https://stackoverflow.com/questions/714063/importing-modules-from-parent-folder)
 """
 import random
 
@@ -14,8 +13,8 @@ def main():
     # Docopt command line arguments
     _USAGE = """
     Usage:
-        train.py [options]
-        train.py --help
+        ntrain [options]
+        ntrain --help
 
     Options:
         --config=<path>            Path to the config file [default: ./configs/default.yaml].

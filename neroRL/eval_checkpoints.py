@@ -29,8 +29,8 @@ def main():
     # Docopt command line arguments
     _USAGE = """
     Usage:
-        evaluate.py [options]
-        evaluate.py --help
+        neval-checkpoints [options]
+        neval-checkpoints --help
 
     Options:
         --config=<path>            Path to the config file [default: ./configs/default.yaml].

@@ -1,30 +1,27 @@
 # Hyperparameter Tuning using Grid Search
 
-Hyperparameter tuning, based on grid search, is launched via the command `python tune.py`.
-It generates training configs for each possible permutation of hyperparameter choices specified by a tuning config.
-After that, training sessions are run sequentially.
-You can also just generate and serialize the configs using the `--generate-only` flag.
+Hyperparameter tuning, based on grid search, is launched via the command `ntune` or alternatively `python neroRL/tune.py` using the source code. It generates training configs for each possible permutation of hyperparameter choices specified by a tuning config. After that, training sessions are run sequentially. You can also just generate and serialize the configs using the `--generate-only` flag.
 
 ```
 """
     Usage:
-        tune.py [options]
-        tune.py --help
+        ntune [options]
+        ntune --help
 
     Options:
-        --config=<path>             Path of the config file [default: ./configs/default.yaml].
+        --config=<path>             Path to the config file [default: ./configs/default.yaml].
         --tune=<path>               Path to the config file that features the hyperparameter search space for tuning [default: ./configs/tune/example.yaml]
         --num-repetitions=<n>       How many times to repeat the training of one config [default: 1]
         --worker-id=<n>             Sets the port for each environment instance [default: 2].
         --run-id=<path>             Specifies the tag of the tensorboard summaries [default: default].
         --generate-only             Whether to only generate the config files [default: False]
         --out=<path>                Where to output the generated config files [default: ./grid_search/]
-    """
+"""
 ```
 
 ## --config
 In general, [training](training.md), [evaluating](evaluation.md) and [enjoying](enjoy.md) a model relies on a [config file](configuration.md) that specifies the environment and further necessary parameters.
-Therefore make use of the `--config=./configs/otc.yaml` argument to specify your configuration file.
+Therefore make use of the `--config=./configs/mortar.yaml` argument to specify your configuration file.
 In the case of tuning hyperparemeters based on grid search, the specified config is used as a basis.
 
 ## --tune
@@ -54,7 +51,7 @@ Specifies a destination path for the to be created configs or training results l
 ## Example
 
 ```
-python tune.py --config=./configs/minigrid.yaml --tune=./configs/tune/example.yaml --run-id=minigrid --out=./grid_search/
+ntune --config=./configs/minigrid.yaml --tune=./configs/tune/example.yaml --run-id=minigrid --out=./grid_search/
 ```
 
 This command will conduct sequentially training sessions using the Minigrd environment. Each training draws its hyperparameters from the minigrid.yaml, but those values that are specified by the tuning config are overriden based on the generated permutations. All outputs, like [tensorboard](tensorboard.md) summaries and checkpoints, are saved to the grid_search directory.
@@ -77,7 +74,7 @@ beta_schedule:
 ```
 
 Every single parameter from a config can be used, but it has to be noted that not every parameter combination is desirable.
-For example, choosing different environment names and type conflict.
+For example, choosing different environment names and types conflict.
 
 In general, you specify most parameters and its choices under the `hyperparameters` section.
 Deyacing schedules, like for the learning rate, have to be treated seperately, like seen above.
