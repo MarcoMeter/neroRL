@@ -1,8 +1,7 @@
 # neroRL
 
-neroRL is a PyTorch based framework for Deep Reinforcement Learning, which I'm currently developing while pursuing my PhD in this academic field.
+neroRL is a PyTorch based research framework for Deep Reinforcement Learning specializing on Recurrent Proximal Policy Optimization.
 Its focus is set on environments that are procedurally generated, while providing some usefull tools for experimenting and analyzing a trained behavior.
-One core feature encompasses recurrent policies
 
 # Features
 - Environments:
