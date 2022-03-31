@@ -35,7 +35,7 @@ def main():
     Options:
         --config=<path>            Path to the config file [default: ./configs/default.yaml].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
-        --path=<path>              Path to the directory containing checkpoints [default: "./"].
+        --path=<path>              Path to the directory containing checkpoints [default: ./].
         --name=<path>              Specifies the full path to save the output file [default: results.res].
     """
     options = docopt(_USAGE)
@@ -97,6 +97,7 @@ def main():
     # Load checkpoint paths
     print("Step 3: Load Checkpoint Paths")
     checkpoints = get_sorted_checkpoints(path)
+    print(checkpoints)
     print("Step 3: Number of Loaded Checkpoint Paths: " + str(len(checkpoints)))
 
     # Evaluate checkpoints
