@@ -41,6 +41,14 @@ setup(
     python_requires=">=3.6",
     include_package_data=True,
     install_requires=install_requires,
+    extras_require={
+        ':sys_platform == "win32"': [ # Extra windows install requirements
+            'windows-curses'
+        ],
+        ':"linux" in sys_platform': [ # Extra linux install requirements
+            ''
+        ]
+    },
     entry_points={
         "console_scripts": [
             "ntrain=neroRL.train:main",
