@@ -15,3 +15,4 @@ opencv-python
 matplotlib
 pyglet
 jinja2
+pygame
