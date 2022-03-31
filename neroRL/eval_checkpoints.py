@@ -97,7 +97,6 @@ def main():
     # Load checkpoint paths
     print("Step 3: Load Checkpoint Paths")
     checkpoints = get_sorted_checkpoints(path)
-    print(checkpoints)
     print("Step 3: Number of Loaded Checkpoint Paths: " + str(len(checkpoints)))
 
     # Evaluate checkpoints
