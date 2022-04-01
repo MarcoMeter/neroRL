@@ -10,7 +10,6 @@ gym-minigrid==1.0.2
 procgen
 dm-env==1.5
 pycolab==1.2
-mlagents
 opencv-python
 matplotlib
 pyglet
