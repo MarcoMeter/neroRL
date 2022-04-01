@@ -36,7 +36,7 @@ def main():
         --config=<path>            Path to the config file [default: ./configs/default.yaml].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --path=<path>              Path to the directory containing checkpoints [default: ./].
-        --name=<path>              Specifies the full path to save the output file [default: results.res].
+        --name=<path>              Specifies the full path to save the output file [default: ./results.res].
     """
     options = docopt(_USAGE)
     config_path = options["--config"]
