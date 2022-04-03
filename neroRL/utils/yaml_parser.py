@@ -16,9 +16,14 @@ class YamlParser:
             path {str} -- Yaml file path to the to be loaded config (default: {"./configs/default.yaml"})
         """
         # Load the config file
-        stream = open(path, "r")
-        yaml = YAML()
-        yaml_args = yaml.load_all(stream)
+        try:
+            stream = open(path, "r")
+            yaml = YAML()
+            yaml_args = yaml.load_all(stream)
+        except Exception:
+            print("Config file not found: {}".format(path))
+            print("Default config will be generated.")
+            yaml_args = []
         
         # Final contents of the config file will be added to a dictionary
         self._config = {}
