@@ -1,0 +1,85 @@
+# Environment: https://github.com/Unity-Technologies/obstacle-tower-env
+# Source: https://github.com/Unity-Technologies/obstacle-tower-source
+
+# In comparison to the original environment, this environment comes with a restricted set of actions.
+
+environment:
+  type: "ObstacleTower"
+  name: "./UnityBuilds/ObstacleTower/ObstacleTower"
+  frame_skip: 2
+  last_action_to_obs: False
+  last_reward_to_obs: False
+  obs_stacks: 3
+  grayscale: False
+  resize_vis_obs: [84, 84]
+  reset_params:
+    start-seed: 0
+    num-seeds: 100
+    # Whether to use visual observations only
+    # The remaining time and the number of held keys is added to the visual observation
+    retro-vis-obs: False
+    # Whether to flatten to the multi-discrete action space to one dimension
+    flat-action-space: False
+    # Obstacle Tower specific reset parameters:
+    # https://github.com/Unity-Technologies/obstacle-tower-env/blob/master/reset-parameters.md
+    tower-seed: -1
+    starting-floor: 0
+    dense-reward: 1
+    lighting-type: 1
+    visual-theme: 2
+    agent-perspective: 1
+    allowed-rooms: 2
+    allowed-modules: 2
+    allowed-floors: 2
+    total-floors: 10
+    default-theme: 0
+    use-ancient: True
+    use-moorish: False
+    use-industrial: True
+    use-modern: True
+    use-future: False
+
+model:
+  load_model: False
+  model_path: "./models/otc.pt"
+  checkpoint_interval: 200
+  activation: "relu"
+
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds: [1001, 1002, 1003, 1004, 1005]
+  interval: 200
+
+sampler:
+  type: "TrajectorySampler"
+  n_workers: 16
+  worker_steps: 512
+
+trainer:
+  algorithm: "PPO"
+  resume_at: 0
+  gamma: 0.99
+  lamda: 0.95
+  updates: 50000
+  epochs: 4
+  refresh_buffer_epoch: -1
+  n_mini_batches: 4
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
+  share_parameters: True
+  learning_rate_schedule:
+    initial: 7.5e-5
+    final: 1.0e-8
+    power: 1.0
+    max_decay_steps: 50000
+  beta_schedule:
+    initial: 0.01
+    final: 0.0001
+    power: 1.0
+    max_decay_steps: 50000
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 50000

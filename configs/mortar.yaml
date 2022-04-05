@@ -1,0 +1,71 @@
+environment:
+  type: "Minigrid"
+  name: "MiniGrid-MortarAB-v0"
+  frame_skip: 1
+  last_action_to_obs: True
+  last_reward_to_obs: True
+  obs_stacks: 1
+  grayscale: False
+  resize_vis_obs: [84, 84]
+  reset_params:
+    start-seed: 0
+    num-seeds: 500
+    view-size: 3
+
+model:
+  load_model: False
+  model_path: "./checkpoints/1_seed_3_commands_vis/20220125-141940_2/1_seed_3_commands_vis-21.pt"
+  checkpoint_interval: 100
+  activation: "relu"
+  vis_encoder: "cnn"
+  vec_encoder_layer: "linear"
+  num_vec_encoder_units: 256
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
+  recurrence:
+    layer_type: "gru"
+    sequence_length: -1
+    hidden_state_size: 512
+    hidden_state_init: "zero"
+    reset_hidden_state: True
+    residual: False
+
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds: [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]
+  interval: 150
+
+sampler:
+  type: "TrajectorySampler"
+  n_workers: 32
+  worker_steps: 512
+
+trainer:
+  algorithm: "PPO"
+  resume_at: 0
+  gamma: 0.99
+  lamda: 0.95
+  updates: 1650
+  epochs: 4
+  refresh_buffer_epoch: -1
+  n_mini_batches: 8
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
+  share_parameters: True
+  learning_rate_schedule:
+    initial: 3.0e-4
+    final: 3.0e-5
+    power: 1.0
+    max_decay_steps: 1650
+  beta_schedule:
+    initial: 0.1
+    final: 0.0001
+    power: 1.0
+    max_decay_steps: 1650
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 1650
