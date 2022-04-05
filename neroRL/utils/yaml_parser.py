@@ -22,8 +22,11 @@ class YamlParser:
             yaml_args = yaml.load_all(stream)
         except Exception:
             print("Config file not found: {}".format(path))
-            print("Default config will be generated.")
-            yaml_args = []
+            if path == "./configs/default.yaml": # Only generate default config if default config is requested and not found
+                print("Default config will be generated.")
+                yaml_args = []
+            else:
+                raise Exception("Config file not found.")
         
         # Final contents of the config file will be added to a dictionary
         self._config = {}
