@@ -12,3 +12,4 @@ pygame
 pyglet
 ruamel.yaml
 scipy
+tensorboard
