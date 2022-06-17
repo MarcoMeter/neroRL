@@ -1,6 +1,6 @@
 dm-env==1.5
 docopt
-gym
+gym==0.18.3
 gym-minigrid==1.0.2
 jinja2
 matplotlib
