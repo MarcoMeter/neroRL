@@ -47,7 +47,9 @@ setup(
         ],
         ':"linux" in sys_platform': [ # Extra linux install requirements
             ''
-        ]
+        ],
+        "procgen": ["gym==0.18.3"],
+        "obstacle-tower": ["mlagents-envs==0.17.0"],
     },
     entry_points={
         "console_scripts": [

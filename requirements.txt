@@ -1,9 +1,11 @@
 dm-env==1.5
 docopt
-gym==0.18.3
-gym-minigrid==1.0.2
+gym
+gym-minigrid
 jinja2
 matplotlib
+memory_gym
+mlagents-envs==0.29.0
 opencv-python
 pandas
 procgen
