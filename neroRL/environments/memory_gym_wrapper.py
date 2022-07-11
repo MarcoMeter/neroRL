@@ -50,7 +50,7 @@ class MemoryGymWrapper(Env):
     @property
     def action_names(self):
         """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
-        return [["no-op", "left", "right"], ["no-op", "up", "down"]] # TODO check
+        return [["no-op", "left", "right"], ["no-op", "up", "down"]]
 
     @property
     def get_episode_trajectory(self):
