@@ -1,6 +1,6 @@
 environment:
-  type: "Unity"
-  name: "./UnityBuilds/SearingSpotlights/SearingSpotlights"
+  type: "MemoryGym"
+  name: "SearingSpotlights-v0"
   frame_skip: 1
   last_action_to_obs: True
   last_reward_to_obs: True
@@ -9,60 +9,35 @@ environment:
   resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
-    num-seeds: 200
-    # Number of spotlights that are spawned across an episode
-    # The more spotlights are spawned the longer the episode lasts
-    num-spotlight-spawns: 50
-    # The initial interval of spawning spotlights, which is linearly decayed over spawns
-    # A lower interval means a higher frequency of spawns
-    initial-spawn-interval: 12
-    # The lower bound of the spawn interval, which is added as offset
-    # The interval never falls below this threshold
-    interval-threshold: 4
-    # The range (min, max) of the to be sampled spotlight speed
-    min-spotlight-speed: 20
-    max-spotlight-speed: 45
-    # The range (min, max) of the to be sampled spotlight radius
-    min-spotlight-radius: 10
-    max-spotlight-radius: 15
-    # The amount of damage that the spotlight may cause on the agent
-    spotlight-damage: 0.0
-    # The interval on when to turn the light back on
-    light-on-interval: 600
-    # The duration for the light to be on
-    light-on-duration: 3
-    # The duration of dimming the light until on or off
-    light-dim-duration: 10
-    # The number of coins to be collected until the exit is open
-    # If there is no exit, the episode will terminate after collecting all coins
-    num-coins: 1
-    # The scale of the coins
-    coin-scale: 1.0
-    # Whether to spawn an exit that can be used upon collecting all coins
-    use-exit: False
-    # The scale of the exit
-    exit-scale: 1.0
-    # The speed of the agent
-    agent-speed: 35
-    # The agent's health, the episode terminates once the health falls to zero
-    agent-health: 100.0
-    # The scale of the agent
-    agent-scale: 1.0
-    # Reward Function
-    # Punish the agent for being inside a spotlight
-    reward-inside-spotlight: 0.0
-    # Don't signal a reward to the agent while being not in range of a spotlight
-    reward-outside-spotlight: 0.0
-    # Signal a reward for reaching the exit once all coins were collected
-    reward-exit: 1.0
-    # Punish the agent if the episode reaches max steps
-    reward-max-steps: 0.0
-    # Reward the agent for picking up a coin
-    reward-coin: 1.0
+    num-seeds: 1000
+    initial_spawns: 4
+    num_spawns: 30
+    initial_spawn_interval: 30
+    spawn_interval_threshold: 10
+    spawn_interval_decay: 0.95
+    spot_min_radius: 7.5
+    spot_max_radius: 13.75
+    spot_min_speed: 0.0025
+    spot_max_speed: 0.0075
+    spot_damage: 1.0
+    light_dim_off_duration: 10
+    min_num_coins: 2
+    max_num_coins: 5
+    coin_scale: 0.375
+    use_exit: True
+    exit_scale: 0.5
+    agent_speed: 2.5
+    agent_health: 100.0
+    agent_scale: 0.25
+    reward_inside_spotlight: -0.01
+    reward_outside_spotlight: 0.0
+    reward_exit: 1.0
+    reward_max_steps: 0.0
+    reward_coin: 0.0
 
 model:
   load_model: False
-  model_path: "./checkpoints/ss_coin_6/20211112-215004_2/ss_coin_6-8945.pt"
+  model_path: ""
   checkpoint_interval: 200
   activation: "relu"
   vis_encoder: "cnn"
@@ -88,7 +63,7 @@ evaluation:
 sampler:
   type: "TrajectorySampler"
   n_workers: 16
-  worker_steps: 256
+  worker_steps: 512
 
 trainer:
   algorithm: "PPO"
