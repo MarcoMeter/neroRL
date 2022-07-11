@@ -1,7 +1,5 @@
-from cgitb import reset
 import gym
 import memory_gym
-import numpy as np
 
 from random import randint
 
@@ -9,12 +7,22 @@ from neroRL.environments.env import Env
 
 class MemoryGymWrapper(Env):
     """
-    This abstract class helps to implement new environments that fit this implementation.
-    It is to some extend inspired by OpenAI gym.
-    The key difference is that an environment can have a visual and a vector observation space at the same time.
-    The provided arguments of the to be implemented functions are not fixed, but are recommended at minimum.
+    This class wraps memory-gym environments.
+    https://github.com/MarcoMeter/drl-memory-gym
+    Available Environments:
+        SearingSpotlights-v0
+        soon MortarMayhem-v0
+        soon MysteryMaze-v0
     """
     def __init__(self, env_name, reset_params = None, realtime_mode = False, record_trajectory = False) -> None:
+        """Instantiates the memory-gym environment.
+        
+        Arguments:
+            env_name {string} -- Name of the memory-gym environment
+            reset_params {dict} -- Provides parameters, like a seed, to configure the environment. (default: {None})
+            realtime_mode {bool} -- Whether to render the environment in realtime. (default: {False})
+            record_trajectory {bool} -- Whether to record the trajectory of an entire episode. This can be used for video recording. (default: {False})
+        """
         if reset_params is None:
             self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
         else:
@@ -54,12 +62,20 @@ class MemoryGymWrapper(Env):
 
     @property
     def get_episode_trajectory(self):
-        """Returns a dictionary containing a complete trajectory of data comprising an entire episode. This is only used for recording a video."""
+        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions)."""
         self._trajectory["action_names"] = self.action_names
         return self._trajectory if self._trajectory else None
 
     def reset(self, reset_params = None):
-        """Reset the environment. The provided config is a dictionary featuring reset parameters for the environment (e.g. seed)."""
+        """Resets the environment.
+        
+        Keyword Arguments:
+            reset_params {dict} -- Provides parameters, like a seed, to configure the environment. (default: {None})
+        
+        Returns:
+            {numpy.ndarray} -- Visual observation
+            {numpy.ndarray} -- Vector observation
+        """
         # Process reset parameters
         if reset_params is None:
             reset_params = self._default_reset_params
@@ -94,7 +110,18 @@ class MemoryGymWrapper(Env):
         return vis_obs, None
 
     def step(self, action):
-        """Executes one step of the agent."""
+        """Runs one timestep of the environment's dynamics.
+        
+        Arguments:
+            action {int} -- The to be executed action
+        
+        Returns:
+            {numpy.ndarray} -- Visual observation
+            {numpy.ndarray} -- Vector observation
+            {float} -- (Total) Scalar reward signaled by the environment
+            {bool} -- Whether the episode of the environment terminated
+            {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
+        """
         vis_obs, reward, done, info = self._env.step(action)
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
