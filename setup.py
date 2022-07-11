@@ -38,7 +38,7 @@ setup(
     author="Marco Pleines",
     package_dir={'': '.'},
     packages=find_packages(where='.', include="neroRL*"),
-    python_requires=">=3.6",
+    python_requires=">=3.6<3.10",
     include_package_data=True,
     install_requires=install_requires,
     extras_require={
@@ -50,6 +50,7 @@ setup(
         ],
         "procgen": ["gym==0.18.3"],
         "obstacle-tower": ["mlagents-envs==0.17.0"],
+        "minigrid": ["gym==0.18.3"]
     },
     entry_points={
         "console_scripts": [
