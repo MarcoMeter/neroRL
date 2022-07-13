@@ -97,9 +97,12 @@ class MemoryGymWrapper(Env):
         # Reset the environment to retrieve the visual observation
         vis_obs = self._env.reset(seed=seed, options=options)
 
+        if self._realtime_mode:
+            self._env.render(mode="debug_rgb_array")
+
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [self._env.render()], "vec_obs": [None],
+            "vis_obs": [self._env.render(mode="debug_rgb_array")], "vec_obs": [None],
             "rewards": [0.0], "actions": []
         } if self._record else None
 
@@ -120,11 +123,13 @@ class MemoryGymWrapper(Env):
         """
         vis_obs, reward, done, info = self._env.step(action)
         self._rewards.append(reward)
-        # Retrieve the RGB frame of the agent's vision)
+
+        if self._realtime_mode:
+            self._env.render(mode="debug_rgb_array")
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(self._env.render())
+            self._trajectory["vis_obs"].append(self._env.render(mode="debug_rgb_array"))
             self._trajectory["vec_obs"].append(None)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
