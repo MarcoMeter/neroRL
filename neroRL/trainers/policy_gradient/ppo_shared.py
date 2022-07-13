@@ -97,9 +97,10 @@ class PPOTrainer(BaseTrainer):
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
         
-        policy, value, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
+        policy, value, *_ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
+                                    samples["h_helm"],
                                     self.sampler.buffer.actual_sequence_length)
         
         # Policy Loss

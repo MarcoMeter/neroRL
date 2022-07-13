@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from neroRL.nn.encoder import CNNEncoder, ResCNN, LinVecEncoder
+from neroRL.nn.encoder import CNNEncoder, ResCNN, LinVecEncoder, HELMEncoder
 from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU
 from neroRL.nn.body import HiddenLayer
 from neroRL.nn.module import Module, Sequential
@@ -50,7 +50,14 @@ class ActorCriticBase(Module):
         Returns:
             {tuple} -- visual encoder, vector encoder, recurrent layer, body
         """
-        vis_encoder, vec_encoder, recurrent_layer, body = None, None, None, None
+        vis_encoder, vec_encoder, helm_encoder, recurrent_layer, body = None, None, None, None, None
+
+        # Helm encoder
+        helm_out_dim = 0
+        if config["use_helm"]:
+            in_dim = vis_obs_space.shape[1] * vis_obs_space.shape[2]
+            helm_encoder = HELMEncoder(in_dim, device = torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+            helm_out_dim = helm_encoder.out_dim
 
         # Observation encoder
         if vis_obs_space is not None:
@@ -83,9 +90,9 @@ class ActorCriticBase(Module):
         
         # Network body
         out_features = config["num_hidden_units"]
-        body = self.create_body(config, in_features_next_layer, out_features)
+        body = self.create_body(config, in_features_next_layer + helm_out_dim, out_features)
 
-        return vis_encoder, vec_encoder, recurrent_layer, body
+        return vis_encoder, vec_encoder, helm_encoder, recurrent_layer, body
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.

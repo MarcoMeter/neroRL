@@ -53,6 +53,7 @@ class BaseTrainer():
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
+        self.use_helm = configs["model"]["use_helm"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
         # Set the seed for conducting the training
@@ -134,9 +135,8 @@ class BaseTrainer():
 
             # 2.: Sample data from each worker for worker steps
             sample_episode_info = self.sampler.sample(self.device)
-
             # 3.: Calculate advantages
-            _, last_value, _, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
+            _, last_value, *_ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
             self.sampler.buffer.calc_advantages(last_value, self.gamma, self.lamda)
             
             # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations

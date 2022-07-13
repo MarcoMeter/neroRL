@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
+from transformers import TransfoXLModel, TransfoXLConfig
 
 from neroRL.nn.module import Module
 
@@ -250,3 +251,53 @@ class LinVecEncoder(Module):
             {torch.tensor} -- Feature tensor
         """
         return self.activ_fn(self.lin_layer(h))
+
+class FrozenHopfield(nn.Module):
+    def __init__(self, hidden_dim, input_dim, embeddings, beta):
+        super(FrozenHopfield, self).__init__()
+        self.rand_obs_proj = torch.nn.Parameter(torch.normal(mean=0.0, std=1 / np.sqrt(hidden_dim), size=(hidden_dim, input_dim)), requires_grad=False)
+        self.word_embs = embeddings
+        self.beta = beta
+
+    def forward(self, observations):
+        observations = self._preprocess_obs(observations)
+        observations = observations @ self.rand_obs_proj.T
+        similarities = observations @ self.word_embs.T / (
+                    observations.norm(dim=-1).unsqueeze(1) @ self.word_embs.norm(dim=-1).unsqueeze(0) + 1e-8)
+        softm = torch.softmax(self.beta * similarities, dim=-1)
+        state = softm @ self.word_embs
+        return state
+
+    def _preprocess_obs(self, obs):
+        obs = obs.mean(1)
+        obs = torch.stack([o.view(-1) for o in obs])
+        return obs
+
+class HELMEncoder(nn.Module):
+    def __init__(self, input_dim, mem_len=511, beta=1, device='cuda'):
+        super(HELMEncoder, self).__init__()
+        config = TransfoXLConfig()
+        config.mem_len = mem_len
+        self.mem_len = config.mem_len
+
+        self.model = TransfoXLModel.from_pretrained('transfo-xl-wt103', config=config)
+        self.model.to(device)
+        n_tokens = self.model.word_emb.n_token
+        word_embs = self.model.word_emb(torch.arange(n_tokens)).to(device)
+        hidden_dim = self.model.d_embed
+        self.frozen_hopfield = FrozenHopfield(hidden_dim, input_dim, word_embs, beta=beta)
+
+        for p in self.model.parameters():
+            p.requires_grad_(False)
+
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.out_dim = hidden_dim
+        self.memory = None
+
+    def forward(self, observation):
+        vocab_encoding = self.frozen_hopfield.forward(observation)
+        out = self.model(inputs_embeds=vocab_encoding.unsqueeze(1), output_hidden_states=True, mems=self.memory)
+        self.memory = out.mems
+        hidden = out.last_hidden_state[:, -1, :]
+        return hidden

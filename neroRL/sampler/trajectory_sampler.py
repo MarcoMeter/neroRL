@@ -31,7 +31,7 @@ class TrajectorySampler():
 
         # Create Buffer
         self.buffer = Buffer(self.n_workers, self.worker_steps, visual_observation_space, vector_observation_space,
-                        action_space_shape, self.recurrence, self.device, self.model.share_parameters, self)
+                        action_space_shape, self.recurrence, configs["model"]["use_helm"], self.device, self.model.share_parameters, self)
 
         # Launch workers
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
@@ -100,7 +100,9 @@ class TrajectorySampler():
                 # the states' value of the value function and the recurrent hidden states (if available)
                 vis_obs_batch = torch.tensor(self.vis_obs) if self.vis_obs is not None else None
                 vec_obs_batch = torch.tensor(self.vec_obs) if self.vec_obs is not None else None
-                policy, value, self.recurrent_cell, _ = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
+                policy, value, self.recurrent_cell, _, h_helm = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
+                if self.configs["model"]["use_helm"]:
+                    self.buffer.h_helm[:, t] = h_helm
                 self.buffer.values[:, t] = value.data
 
                 # Sample actions from each individual policy branch
