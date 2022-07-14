@@ -274,7 +274,7 @@ class FrozenHopfield(nn.Module):
         return obs
 
 class HELMEncoder(nn.Module):
-    def __init__(self, input_dim, mem_len=511, beta=1, device='cuda'):
+    def __init__(self, input_dim, mem_len=511, beta=100, device='cuda'):
         super(HELMEncoder, self).__init__()
         config = TransfoXLConfig()
         config.mem_len = mem_len
@@ -294,6 +294,7 @@ class HELMEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.out_dim = hidden_dim
         self.memory = None
+        self.eval()
 
     def forward(self, observation):
         vocab_encoding = self.frozen_hopfield.forward(observation)
