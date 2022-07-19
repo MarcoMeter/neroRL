@@ -43,3 +43,6 @@ shutil.rmtree("tmp")
 
 # Upload the package to PyPI
 os.system("python -m twine upload dist/*")
+
+# Clean up
+shutil.rmtree("dist")

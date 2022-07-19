@@ -35,7 +35,7 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    autor="Marco Pleines",
+    author="Marco Pleines",
     package_dir={'': '.'},
     packages=find_packages(where='.', include="neroRL*"),
     python_requires=">=3.6",

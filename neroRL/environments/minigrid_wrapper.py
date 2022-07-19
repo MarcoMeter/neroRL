@@ -123,7 +123,7 @@ class MinigridWrapper(Env):
         self._env = gym.make(env_name)
         if "Mortar" in env_name:
             # In Mortar, we want to see the entire environment
-            self._env = RGBImgObsWrapper(self._env, tile_size=10)
+            self._env = RGBImgObsWrapper(self._env, tile_size=9)
         elif "Memory" in env_name:
             # In Memory, we want to limit the field of view and thereas use parial observability
             self._env = ViewSizeWrapper(self._env, self._default_reset_params["view-size"])
