@@ -301,4 +301,4 @@ class HELMEncoder(nn.Module):
         out = self.model(inputs_embeds=vocab_encoding.unsqueeze(1), output_hidden_states=True, mems=self.memory)
         self.memory = out.mems
         hidden = out.last_hidden_state[:, -1, :]
-        return hidden
+        return hidden.detach()

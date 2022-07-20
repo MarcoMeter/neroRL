@@ -38,28 +38,28 @@ evaluation:
 sampler:
   type: "TrajectorySampler"
   n_workers: 16
-  worker_steps: 64
+  worker_steps: 128
 
 trainer:
   algorithm: "PPO"
   resume_at: 0
   gamma: 0.99
-  lamda: 0.95
-  updates: 500
-  epochs: 4
+  lamda: 0.99
+  updates: 245
+  epochs: 3
   refresh_buffer_epoch: -1
   n_mini_batches: 8
-  value_coefficient: 0.25
+  value_coefficient: 0.5
   max_grad_norm: 0.5
   share_parameters: True
   learning_rate_schedule:
-    initial: 2.5e-4
-    final: 2.5e-4
+    initial: 1.0e-4
+    final: 1.0e-4
     power: 1.0
     max_decay_steps: 1000
   beta_schedule:
-    initial: 0.001
-    final: 0.0001
+    initial: 0.00001
+    final: 0.000001
     power: 1.0
     max_decay_steps: 1000
   clip_range_schedule:
