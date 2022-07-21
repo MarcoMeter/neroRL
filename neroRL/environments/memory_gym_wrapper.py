@@ -124,12 +124,12 @@ class MemoryGymWrapper(Env):
         vis_obs, reward, done, info = self._env.step(action)
         self._rewards.append(reward)
 
-        if self._realtime_mode:
-            self._env.render(mode="debug_rgb_array")
+        if self._realtime_mode or self._record:
+            img = self._env.render(mode="debug_rgb_array")
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(self._env.render(mode="debug_rgb_array"))
+            self._trajectory["vis_obs"].append(img)
             self._trajectory["vec_obs"].append(None)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
