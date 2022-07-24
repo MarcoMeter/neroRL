@@ -100,7 +100,7 @@ class PPOTrainer(BaseTrainer):
         policy, value, *_ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
-                                    samples["h_helm"],
+                                    samples["h_helm"] if self.configs["model"]["use_helm"] else None,
                                     self.sampler.buffer.actual_sequence_length)
         
         # Policy Loss

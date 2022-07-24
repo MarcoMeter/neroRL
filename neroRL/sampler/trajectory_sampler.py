@@ -59,6 +59,8 @@ class TrajectorySampler():
         # Setup HELM memory
         if self.configs["model"]["use_helm"]:
             self.helm_memory = [torch.zeros((511, self.n_workers, 1024)) for _ in range(18)]
+        else:
+            self.helm_memory = None
 
         # Reset workers
         for worker in self.workers:
@@ -104,9 +106,11 @@ class TrajectorySampler():
                 # the states' value of the value function and the recurrent hidden states (if available)
                 vis_obs_batch = torch.tensor(self.vis_obs) if self.vis_obs is not None else None
                 vec_obs_batch = torch.tensor(self.vec_obs) if self.vec_obs is not None else None
-                self.model.helm_encoder.memory = self.helm_memory
+                if self.helm_memory is not None:
+                    self.model.helm_encoder.memory = self.helm_memory
                 policy, value, self.recurrent_cell, _, h_helm = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
-                self.helm_memory = self.model.helm_encoder.memory
+                if self.helm_memory is not None:
+                    self.helm_memory = self.model.helm_encoder.memory
                 if self.configs["model"]["use_helm"]:
                     self.buffer.h_helm[:, t] = h_helm
                 self.buffer.values[:, t] = value.data
