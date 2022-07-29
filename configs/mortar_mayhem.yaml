@@ -13,8 +13,8 @@ environment:
     agent_scale: 0.25
     agent_speed: 2.5
     arena_size: 5
-    allowed_commands: 4
-    command_count: 5
+    allowed_commands: 9
+    command_count: [5]
     command_show_duration: 3
     command_show_delay: 1
     explosion_duration: 6

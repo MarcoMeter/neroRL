@@ -21,8 +21,7 @@ environment:
     spot_max_speed: 0.0075
     spot_damage: 1.0
     light_dim_off_duration: 10
-    min_num_coins: 2
-    max_num_coins: 5
+    num_coins: [1]
     coin_scale: 0.375
     use_exit: True
     exit_scale: 0.5
