@@ -212,12 +212,12 @@ class ActorCriticBase(Module):
         """
         if recurrence["layer_type"] == "gru":
             if recurrence["residual"]:
-                return ResGRU(input_shape, hidden_state_size)
-            return GRU(input_shape, hidden_state_size)
+                return ResGRU(input_shape, hidden_state_size, recurrence["num_layers"])
+            return GRU(input_shape, hidden_state_size, recurrence["num_layers"])
         elif recurrence["layer_type"] == "lstm":
             if recurrence["residual"]:
-                return ResLSTM(input_shape, hidden_state_size)
-            return LSTM(input_shape, hidden_state_size)
+                return ResLSTM(input_shape, hidden_state_size, recurrence["num_layers"])
+            return LSTM(input_shape, hidden_state_size, recurrence["num_layers"])
 
     def get_vis_enc_output(self, vis_encoder, shape):
         """Computes the output size of the visual encoder by feeding a dummy tensor.

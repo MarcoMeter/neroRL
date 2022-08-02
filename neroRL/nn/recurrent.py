@@ -7,7 +7,7 @@ class GRU(Module):
     """
     A single-layer gated recurrent unit (GRU) module.
     """
-    def __init__(self, input_shape, hidden_state_size):
+    def __init__(self, input_shape, hidden_state_size, num_layers):
         """
         Initializes the gated recurrent unit.
 
@@ -16,7 +16,7 @@ class GRU(Module):
             hidden_state_size {int} -- The number of features in the hidden state
         """
         super().__init__()
-        self.recurrent_layer = nn.GRU(input_shape, hidden_state_size, batch_first=True)
+        self.recurrent_layer = nn.GRU(input_shape, hidden_state_size, num_layers, batch_first=True)
         # Init recurrent layer
         for name, param in self.recurrent_layer.named_parameters():
             if "bias" in name:
@@ -58,7 +58,7 @@ class ResGRU(Module):
     """
     A single-layer residual based gated recurrent unit (GRU) module.
     """
-    def __init__(self, input_shape, hidden_state_size):
+    def __init__(self, input_shape, hidden_state_size, num_layers):
         """
         Initializes the gated recurrent unit.
 
@@ -69,7 +69,7 @@ class ResGRU(Module):
         super().__init__()
         self.preprocessing_layer = nn.Linear(input_shape, hidden_state_size)
         nn.init.orthogonal_(self.preprocessing_layer.weight, np.sqrt(2))
-        self.recurrent_layer = nn.GRU(hidden_state_size, hidden_state_size, batch_first=True)
+        self.recurrent_layer = nn.GRU(hidden_state_size, hidden_state_size, num_layers, batch_first=True)
         # Init recurrent layer
         for name, param in self.recurrent_layer.named_parameters():
             if "bias" in name:
@@ -116,7 +116,7 @@ class LSTM(Module):
     """
     A single-layer long short-term memory (LSTM) module.
     """
-    def __init__(self, input_shape, hidden_state_size):
+    def __init__(self, input_shape, hidden_state_size, num_layers):
         """
         Initializes the long short-term memory network.
 
@@ -125,7 +125,7 @@ class LSTM(Module):
             hidden_state_size {int} -- The number of features in the hidden state
         """
         super().__init__()
-        self.recurrent_layer = nn.LSTM(input_shape, hidden_state_size, batch_first=True)
+        self.recurrent_layer = nn.LSTM(input_shape, hidden_state_size, num_layers, batch_first=True)
         # Init recurrent layer
         for name, param in self.recurrent_layer.named_parameters():
             if "bias" in name:
@@ -167,7 +167,7 @@ class ResLSTM(Module):
     """
     A single-layer residual based long short-term memory (LSTM) module.
     """
-    def __init__(self, input_shape, hidden_state_size):
+    def __init__(self, input_shape, hidden_state_size, num_layers):
         """
         Initializes the long short-term memory network.
 
@@ -177,7 +177,7 @@ class ResLSTM(Module):
         super().__init__()
         self.preprocessing_layer = nn.Linear(input_shape, hidden_state_size)
         nn.init.orthogonal_(self.preprocessing_layer.weight, np.sqrt(2))
-        self.recurrent_layer = nn.LSTM(hidden_state_size, hidden_state_size, batch_first=True)
+        self.recurrent_layer = nn.LSTM(hidden_state_size, hidden_state_size, num_layers, batch_first=True)
         # Init recurrent layer
         for name, param in self.recurrent_layer.named_parameters():
             if "bias" in name:
