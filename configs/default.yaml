@@ -44,6 +44,8 @@ model:
   recurrence:
     # Supported recurrent layers: gru, lstm
     layer_type: "lstm"
+    # The number of layers
+    num_layers: 2
     # Length of the trained sequences, if set to 0 or smaller the sequence length is dynamically fit to episode lengths
     sequence_length: 32
     # Size of the recurrent layer's hidden state
