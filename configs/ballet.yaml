@@ -28,7 +28,7 @@ model:
   vis_encoder: "cnn"
   recurrence:
     layer_type: "gru"
-    num_layers: 2
+    num_layers: 1
     sequence_length: -1
     hidden_state_size: 512
     hidden_state_init: "zero"
