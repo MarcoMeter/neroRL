@@ -5,6 +5,7 @@ from neroRL.environments.minigrid_vec_wrapper import MinigridVecWrapper
 from neroRL.environments.procgen_wrapper import ProcgenWrapper
 from neroRL.environments.cartpole_wrapper import CartPoleWrapper
 from neroRL.environments.ballet_wrapper import BalletWrapper
+from neroRL.environments.memory_gym_wrapper import MemoryGymWrapper
 from neroRL.environments.wrappers.frame_skip import FrameSkipEnv
 from neroRL.environments.wrappers.stacked_observation import StackedObservationEnv
 from neroRL.environments.wrappers.scaled_visual_observation import ScaledVisualObsEnv
@@ -26,7 +27,9 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
         {Env} -- The wrapped environment
     """
     # Instantiate environment
-    if config["type"] == "Unity":
+    if config["type"] == "MemoryGym":
+        env = MemoryGymWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
+    elif config["type"] == "Unity":
         env = UnityWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode, record_trajectory=record_trajectory)
     elif config["type"] == "ObstacleTower":
         env = ObstacleTowerWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode, record_trajectory=record_trajectory)
