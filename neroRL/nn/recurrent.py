@@ -37,7 +37,7 @@ class GRU(Module):
             {torch.tensor} -- Memory cell of the recurrent layer
         """
         # (batch_size, num_layers, hidden_size) => (num_layers, batch_size, hidden_size) 
-        recurrent_cell = recurrent_cell.swapaxes(0, 1)
+        recurrent_cell = recurrent_cell.swapaxes(0, 1).contiguous()
         if sequence_length == 1:
                 # Case: sampling training data or model optimization using fake recurrence
                 h, recurrent_cell = self.recurrent_layer(h.unsqueeze(1), recurrent_cell)
@@ -97,7 +97,7 @@ class ResGRU(Module):
         h = self.preprocessing_layer(h)
         h_identity = h
         # (batch_size, num_layers, hidden_size) => (num_layers, batch_size, hidden_size) 
-        recurrent_cell = recurrent_cell.swapaxes(0, 1)
+        recurrent_cell = recurrent_cell.swapaxes(0, 1).contiguous()
         if sequence_length == 1:
                 # Case: sampling training data or model optimization using fake recurrence
                 h, recurrent_cell = self.recurrent_layer(h.unsqueeze(1), recurrent_cell)
@@ -155,7 +155,7 @@ class LSTM(Module):
             {torch.tensor} -- Memory cell of the recurrent layer
         """
         # (batch_size, num_layers, hidden_size) => (num_layers, batch_size, hidden_size) 
-        recurrent_cell = (recurrent_cell[0].swapaxes(0, 1), recurrent_cell[1].swapaxes(0, 1))
+        recurrent_cell = (recurrent_cell[0].swapaxes(0, 1).contiguous(), recurrent_cell[1].swapaxes(0, 1).contiguous())
         if sequence_length == 1:
                 # Case: sampling training data or model optimization using fake recurrence
                 h, recurrent_cell = self.recurrent_layer(h.unsqueeze(1), recurrent_cell)
@@ -214,7 +214,7 @@ class ResLSTM(Module):
         h = self.preprocessing_layer(h)
         h_identity = h
         # (batch_size, num_layers, hidden_size) => (num_layers, batch_size, hidden_size) 
-        recurrent_cell = (recurrent_cell[0].swapaxes(0, 1), recurrent_cell[1].swapaxes(0, 1))
+        recurrent_cell = (recurrent_cell[0].swapaxes(0, 1).contiguous(), recurrent_cell[1].swapaxes(0, 1).contiguous())
         if sequence_length == 1:
                 # Case: sampling training data or model optimization using fake recurrence
                 h, recurrent_cell = self.recurrent_layer(h.unsqueeze(1), recurrent_cell)
