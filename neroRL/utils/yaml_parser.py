@@ -232,6 +232,8 @@ class YamlParser:
             if "recurrence" in self._config["model"]:
                 if "layer_type" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["layer_type"] = "gru"
+                if "num_layers" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["num_layers"] = 1
                 if "sequence_length" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["sequence_length"] = 32
                 if "hidden_state_size" not in self._config["model"]["recurrence"]:
