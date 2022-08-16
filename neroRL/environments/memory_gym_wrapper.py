@@ -64,7 +64,10 @@ class MemoryGymWrapper(Env):
     @property
     def action_names(self):
         """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
-        return [["no-op", "left", "right"], ["no-op", "up", "down"]]
+        if isinstance(self.action_space, spaces.MultiDiscrete):
+            return [["no-op", "left", "right"], ["no-op", "up", "down"]]
+        else:
+            return ["no-op", "rotate left", "rotate right", "move forward"]
 
     @property
     def get_episode_trajectory(self):
