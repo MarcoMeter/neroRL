@@ -2,8 +2,10 @@
 Runs the training program using the provided config and arguments.
 """
 import random
+import sys
 
 from docopt import docopt
+from pathlib import Path
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
@@ -30,6 +32,14 @@ def main():
     run_id = options["--run-id"]
     out_path = options["--out"]
     seed = int(options["--seed"])
+
+    # If a run-id was not assigned, use the config's name
+    for i, arg in enumerate(sys.argv):
+        if "--run-id" in arg:
+            run_id = options["--run-id"]
+            break
+        else:
+            run_id = Path(config_path).stem
 
     # Sampled seed if a value smaller than 0 was submitted
     if seed < 0:

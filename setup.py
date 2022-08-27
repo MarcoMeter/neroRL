@@ -9,12 +9,12 @@ cwd = os.getcwd()
 
 # Get install requirements from requirements.txt
 install_requires = None
-with open(cwd + "\\requirements.txt") as file:
+with open(cwd + "/requirements.txt") as file:
     install_requires = [module_name.rstrip() for module_name in file.readlines()]
 
 # Get long description from README.md
 long_description = ""
-with open(cwd + "\\README.md", "r", encoding="utf-8") as fh:
+with open(cwd + "/README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 # Set up package
