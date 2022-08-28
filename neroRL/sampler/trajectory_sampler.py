@@ -31,7 +31,7 @@ class TrajectorySampler():
 
         # Create Buffer
         self.buffer = Buffer(self.n_workers, self.worker_steps, visual_observation_space, vector_observation_space,
-                        action_space_shape, self.recurrence, configs["model"]["use_helm"], self.device, self.model.share_parameters, self)
+                        action_space_shape, self.recurrence, "helm" in configs["model"], self.device, self.model.share_parameters, self)
 
         # Launch workers
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
@@ -57,7 +57,7 @@ class TrajectorySampler():
             self.recurrent_cell = None
 
         # Setup HELM memory
-        if self.configs["model"]["use_helm"]:
+        if "helm" in self.configs["model"]:
             self.helm_memory = [torch.zeros((511, self.n_workers, 1024)) for _ in range(18)]
         else:
             self.helm_memory = None
@@ -111,7 +111,7 @@ class TrajectorySampler():
                 policy, value, self.recurrent_cell, _, h_helm = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
                 if self.helm_memory is not None:
                     self.helm_memory = self.model.helm_encoder.memory
-                if self.configs["model"]["use_helm"]:
+                if "helm" in self.configs["model"]:
                     self.buffer.h_helm[:, t] = h_helm
                 self.buffer.values[:, t] = value.data
 
@@ -158,7 +158,7 @@ class TrajectorySampler():
                                 self.recurrent_cell[0][:, w] = hxs
                                 self.recurrent_cell[1][:, w] = cxs
                     # Reset HELM Memory
-                    if self.configs["model"]["use_helm"]:
+                    if "helm" in self.configs["model"]:
                         for l in range(len(self.helm_memory)):
                             self.helm_memory[l][:, w] = 0.
 

@@ -27,7 +27,9 @@ model:
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
-  use_helm: True
+  helm:
+    memory_length: 128
+    beta: 50             # choices 0.5, 1, 10, 50, 100
 
 evaluation:
   evaluate: False

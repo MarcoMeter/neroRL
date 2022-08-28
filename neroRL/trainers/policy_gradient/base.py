@@ -53,7 +53,7 @@ class BaseTrainer():
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
-        self.use_helm = configs["model"]["use_helm"]
+        self.use_helm = "helm" in configs["model"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
         # Set the seed for conducting the training

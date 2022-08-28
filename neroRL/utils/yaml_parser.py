@@ -65,7 +65,6 @@ class YamlParser:
             "hidden_layer": "default",
             "num_hidden_layers": 2,
             "num_hidden_units": 512,
-            "use_helm": False
         }
 
         eval_dict = {
@@ -242,7 +241,16 @@ class YamlParser:
                 if "reset_hidden_state" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["reset_hidden_state"] = True
                 if "residual" not in self._config["model"]["recurrence"]:
-                    self._config["model"]["recurrence"]["residual"] = False           
+                    self._config["model"]["recurrence"]["residual"] = False
+
+            # Check if the model dict contains a helm dict
+            # If no helm dict is available, it is assumed that a recurrent policy is not used
+            # In the other case check for completeness and apply defaults if necessary
+            if "helm" in self._config["model"]:   
+                if "memory_length" not in self._config["model"]["helm"]:
+                    self._config["model"]["helm"]["memory_length"] = 511
+                if "beta" not in self._config["model"]["helm"]:
+                    self._config["model"]["helm"]["beta"] = 100
 
             # Check DAAC if DecoupledPPO
             if "DAAC" in self._config["trainer"]:
