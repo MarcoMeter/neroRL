@@ -100,9 +100,6 @@ class MemoryGymWrapper(Env):
         options.pop("num-seeds", None)
         options.pop("seed", None)
 
-        # Track rewards of an entire episode
-        self._rewards = []
-
         # Reset the environment to retrieve the initial observation
         obs = self._env.reset(seed=seed, options=options)
         if type(self._env.observation_space) is spaces.Dict:
@@ -146,8 +143,6 @@ class MemoryGymWrapper(Env):
             vis_obs = obs
             vec_obs = None
 
-        self._rewards.append(reward)
-
         if self._realtime_mode or self._record:
             img = self._env.render(mode="debug_rgb_array")
 
@@ -157,13 +152,6 @@ class MemoryGymWrapper(Env):
             self._trajectory["vec_obs"].append(vec_obs)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
-
-        # Wrap up episode information once completed (i.e. done)
-        if done:
-            info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards),}
-        else:
-            info = None
 
         return vis_obs, vec_obs, reward, done, info
 
