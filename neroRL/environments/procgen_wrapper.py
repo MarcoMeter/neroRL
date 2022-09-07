@@ -121,6 +121,7 @@ class ProcgenWrapper(Env):
         # If new reset parameters were specified, Procgen has to be restarted
         # if not self._default_reset_params == reset_params:
         self._env.close()
+        self.seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
         self._env = gym.make(self._env_name,
                         render_mode = "human" if self._realtime_mode else None,
                         start_level = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1),
