@@ -146,9 +146,9 @@ class SpotlightsEnv(Env):
         self.screen.blit(self.spotlight_surface, (0, 0))
         vis_obs = pygame.surfarray.array3d(pygame.display.get_surface()).astype(np.float32) / 255.0 # TODO check vis_obs type and scale
 
-        import matplotlib.pyplot as plt
-        plt.imshow(vis_obs)
-        plt.show()
+        # import matplotlib.pyplot as plt
+        # plt.imshow(vis_obs)
+        # plt.show()
 
         return vis_obs, vec_obs, reward, done, info
 
