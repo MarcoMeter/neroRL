@@ -7,7 +7,6 @@ environment:
   last_action_to_obs: False
   last_reward_to_obs: False
   obs_stacks: 1
-  reward_normalization: 100
   reset_params:
     start-seed: 0
     num-seeds: 100
