@@ -13,6 +13,7 @@ from neroRL.environments.wrappers.spotlights import SpotlightsEnv
 from neroRL.environments.wrappers.pytorch_shape import PyTorchEnv
 from neroRL.environments.wrappers.last_action_to_obs import LastActionToObs
 from neroRL.environments.wrappers.last_reward_to_obs import LastRewardToObs
+from neroRL.environments.wrappers.reward_normalization import RewardNormalizer
 
 def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory = False):
     """This function instantiates an environment and applies wrappers based on the specified config.
@@ -64,4 +65,7 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
     # Stack Observation
     if config["obs_stacks"] > 1:
         env = StackedObservationEnv(env, config["obs_stacks"])
+    if config["reward_normalization"] > 1:
+        env = RewardNormalizer(env, config["reward_normalization"])
+        
     return PyTorchEnv(env)
