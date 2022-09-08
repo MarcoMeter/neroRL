@@ -5,9 +5,9 @@ import pygame
 from pygame.math import Vector2
 
 class Spotlight():
-    def __init__(self, dim, radius, speed, rng) -> None:
+    def __init__(self, dim, radius, speed, rng, t = 0) -> None:
         self.speed = speed
-        self.t = 0
+        self.t = t
         self.done = False
 
         # Center of the screen
