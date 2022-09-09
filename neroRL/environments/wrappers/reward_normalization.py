@@ -56,7 +56,7 @@ class RewardNormalizer(Env):
         return vis_obs, vec_obs
 
     def step(self, action):
-        """Executes steps of the agent in the environment untill the "skip"-th frame is reached.
+        """Executes steps of the agent in the environment and normalizes the reward by dividing through its maximum reward.
         
         Arguments:
             action {List} -- A list of at least one discrete action to be executed by the agent
