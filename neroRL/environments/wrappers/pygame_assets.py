@@ -40,8 +40,16 @@ class Spotlight():
     def draw(self, surface):
         lerp_target = self.target_location.lerp(self.offset_location, self.t)
         self.current_location = self.spawn_location.lerp(lerp_target, self.t)
-        pygame.draw.circle(surface, (0, 0, 0), (int(self.current_location.x), int(self.current_location.y)), self.radius)
+        pygame.draw.circle(surface, (255, 255, 255), (int(self.current_location.x), int(self.current_location.y)), self.radius)
         self.t += self.speed
         if self.t >= 1.0:
             self.t = 1.0
             self.done = True
+
+def get_tiled_background_surface(screen, screen_dim, tile_color, scale):
+    background_surface = pygame.Surface((screen_dim, screen_dim))
+    ts, w, h, c1, c2 = int(50 * scale), *screen.get_size(), (255, 255, 255), tile_color
+    tiles = [((x*ts, y*ts, ts, ts), c1 if (x+y) % 2 == 0 else c2) for x in range((w+ts-1)//ts) for y in range((h+ts-1)//ts)]
+    for rect, color in tiles:
+        pygame.draw.rect(background_surface, color, rect)
+    return background_surface

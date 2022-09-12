@@ -3,7 +3,7 @@ import numpy as np
 import pygame
 import os
 
-from neroRL.environments.wrappers.pygame_assets import Spotlight
+from neroRL.environments.wrappers.pygame_assets import Spotlight, get_tiled_background_surface
 
 from gym import spaces
 from neroRL.environments.env import Env
@@ -42,11 +42,12 @@ class SpotlightsEnv(Env):
         self.clock = pygame.time.Clock()
         pygame.event.set_allowed(None)
         self.spotlight_surface = pygame.Surface((self.screen_dim, self.screen_dim))
-        self.spotlight_surface.fill((255, 255, 255))
-        self.spotlight_surface.set_colorkey((0, 0, 0))
-        self.spotlight_surface.set_alpha(60)
+        self.spotlight_surface.fill((0, 0, 0))
+        self.spotlight_surface.set_colorkey((255, 255, 255))
+        self.spotlight_surface.set_alpha(120)
 
         self.np_random = np.random.Generator(np.random.PCG64(0))
+        self.blue_background_surface = get_tiled_background_surface(self.screen, self.screen_dim, (0, 0, 255), 0.25)
 
     @property
     def unwrapped(self):
@@ -105,6 +106,8 @@ class SpotlightsEnv(Env):
 
         # Use pygame to add the spotlights onto the original observation
         obs_surface = pygame.surfarray.make_surface((vis_obs * 255.0))
+        obs_surface.set_colorkey((0, 0, 0))
+        self.screen.blit(self.blue_background_surface, (0, 0))
         self.screen.blit(obs_surface, (0, 0))
         self.screen.blit(self.spotlight_surface, (0, 0))
         vis_obs = pygame.surfarray.array3d(pygame.display.get_surface()).astype(np.float32) / 255.0 # TODO check vis_obs type and scale
@@ -136,7 +139,7 @@ class SpotlightsEnv(Env):
                 self.spawn_timer = 0
         
         # Draw spotlights
-        self.spotlight_surface.fill((255,255,255))
+        self.spotlight_surface.fill((0, 0, 0))
         for spot in self.spotlights:        
             # Remove spotlights that finished traversal
             if spot.done:
@@ -146,10 +149,19 @@ class SpotlightsEnv(Env):
 
         # Use pygame to add the spotlights onto the original observation
         obs_surface = pygame.surfarray.make_surface((vis_obs * 255.0))
+        obs_surface.set_colorkey((0, 0, 0))
+        self.screen.blit(self.blue_background_surface, (0, 0))
         self.screen.blit(obs_surface, (0, 0))
         self.screen.blit(self.spotlight_surface, (0, 0))
         vis_obs = pygame.surfarray.array3d(pygame.display.get_surface()).astype(np.float32) / 255.0 # TODO check vis_obs type and scale
         self._obs.append((vis_obs * 255).astype(np.uint8))
+
+        # import matplotlib.pyplot as plt
+        # fig = plt.imshow(vis_obs)
+        # fig.axes.get_xaxis().set_visible(False)
+        # fig.axes.get_yaxis().set_visible(False)
+        # plt.savefig('boss_spot_w.png', bbox_inches='tight', pad_inches = 0)
+        # plt.show()
 
         return vis_obs, vec_obs, reward, done, info
 
