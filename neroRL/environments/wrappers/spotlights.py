@@ -42,9 +42,9 @@ class SpotlightsEnv(Env):
         self.clock = pygame.time.Clock()
         pygame.event.set_allowed(None)
         self.spotlight_surface = pygame.Surface((self.screen_dim, self.screen_dim))
-        self.spotlight_surface.fill((255, 0, 0))
-        self.spotlight_surface.set_colorkey((255, 0, 0))
-        self.spotlight_surface.set_alpha(125)
+        self.spotlight_surface.fill((255, 255, 255))
+        self.spotlight_surface.set_colorkey((0, 0, 0))
+        self.spotlight_surface.set_alpha(60)
 
         self.np_random = np.random.Generator(np.random.PCG64(0))
 
@@ -136,7 +136,7 @@ class SpotlightsEnv(Env):
                 self.spawn_timer = 0
         
         # Draw spotlights
-        self.spotlight_surface.fill((255,0,0))
+        self.spotlight_surface.fill((255,255,255))
         for spot in self.spotlights:        
             # Remove spotlights that finished traversal
             if spot.done:

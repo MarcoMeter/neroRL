@@ -40,7 +40,7 @@ class Spotlight():
     def draw(self, surface):
         lerp_target = self.target_location.lerp(self.offset_location, self.t)
         self.current_location = self.spawn_location.lerp(lerp_target, self.t)
-        pygame.draw.circle(surface, (255, 255, 255), (int(self.current_location.x), int(self.current_location.y)), self.radius)
+        pygame.draw.circle(surface, (0, 0, 0), (int(self.current_location.x), int(self.current_location.y)), self.radius)
         self.t += self.speed
         if self.t >= 1.0:
             self.t = 1.0
