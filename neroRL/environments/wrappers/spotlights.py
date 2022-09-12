@@ -77,7 +77,9 @@ class SpotlightsEnv(Env):
     def get_episode_trajectory(self):
         """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
         """
-        return self._env.get_episode_trajectory
+        trajectory = self._env.get_episode_trajectory
+        trajectory["vis_obs"] = self._obs
+        return trajectory
 
     def reset(self, reset_params = None):
         """Reset the environment. The provided config is a dictionary featuring reset parameters of the environment such as the seed.
@@ -90,6 +92,7 @@ class SpotlightsEnv(Env):
             {numpy.ndarray} -- Vector observation
         """
         vis_obs, vec_obs = self._env.reset(reset_params = reset_params)
+        self._obs = []
 
         # Setup spotlights
         self.np_random = np.random.Generator(np.random.PCG64(self._env.unwrapped.seed))
@@ -105,6 +108,7 @@ class SpotlightsEnv(Env):
         self.screen.blit(obs_surface, (0, 0))
         self.screen.blit(self.spotlight_surface, (0, 0))
         vis_obs = pygame.surfarray.array3d(pygame.display.get_surface()).astype(np.float32) / 255.0 # TODO check vis_obs type and scale
+        self._obs.append((vis_obs * 255).astype(np.uint8))
         return vis_obs, vec_obs
 
     def step(self, action):
@@ -145,6 +149,7 @@ class SpotlightsEnv(Env):
         self.screen.blit(obs_surface, (0, 0))
         self.screen.blit(self.spotlight_surface, (0, 0))
         vis_obs = pygame.surfarray.array3d(pygame.display.get_surface()).astype(np.float32) / 255.0 # TODO check vis_obs type and scale
+        self._obs.append((vis_obs * 255).astype(np.uint8))
 
         # import matplotlib.pyplot as plt
         # plt.imshow(vis_obs)
