@@ -180,11 +180,23 @@ class PPOTrainer(BaseTrainer):
 
     def collect_checkpoint_data(self, update):
         checkpoint_data = super().collect_checkpoint_data(update)
-        checkpoint_data["model"] = self.model.state_dict()
+        # Reduce size of the helm model by removing not trainable parameters
+        if "helm" in self.configs["model"]:
+            state_dict = self.model.state_dict()
+            # We assume that transfo_xl_wt103 weights are not trainable
+            pretrained_model_keys = [key for key in state_dict if "transfo_xl_wt103" in key]
+            for key in pretrained_model_keys:
+                del state_dict[key]
+            checkpoint_data["model"] = state_dict
+        else:
+            checkpoint_data["model"] = self.model.state_dict()
         checkpoint_data["optimizer"] = self.optimizer.state_dict()
         return checkpoint_data
 
     def apply_checkpoint_data(self, checkpoint):
         super().apply_checkpoint_data(checkpoint)
-        self.model.load_state_dict(checkpoint["model"])
+        if "helm" in self.configs["model"]:
+            self.model.load_state_dict(checkpoint["model"], strict=False)
+        else:
+            self.model.load_state_dict(checkpoint["model"])
         self.optimizer.load_state_dict(checkpoint["optimizer"])

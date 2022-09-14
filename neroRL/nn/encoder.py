@@ -280,14 +280,14 @@ class HELMEncoder(nn.Module):
         config.mem_len = mem_len
         self.mem_len = config.mem_len
 
-        self.model = TransfoXLModel.from_pretrained('transfo-xl-wt103', config=config)
-        self.model.to(device)
+        self.transfo_xl_wt103 = TransfoXLModel.from_pretrained('transfo-xl-wt103', config=config)
+        self.transfo_xl_wt103.to(device)
         n_tokens = self.model.word_emb.n_token
         word_embs = self.model.word_emb(torch.arange(n_tokens)).to(device)
         hidden_dim = self.model.d_embed
         self.frozen_hopfield = FrozenHopfield(hidden_dim, input_dim, word_embs, beta=beta)
 
-        for p in self.model.parameters():
+        for p in self.transfo_xl_wt103.parameters():
             p.requires_grad_(False)
 
         self.input_dim = input_dim
@@ -298,7 +298,14 @@ class HELMEncoder(nn.Module):
 
     def forward(self, observation):
         vocab_encoding = self.frozen_hopfield.forward(observation)
-        out = self.model(inputs_embeds=vocab_encoding.unsqueeze(1), output_hidden_states=True, mems=self.memory)
+        out = self.transfo_xl_wt103(inputs_embeds=vocab_encoding.unsqueeze(1), output_hidden_states=True, mems=self.memory)
         self.memory = out.mems
         hidden = out.last_hidden_state[:, -1, :]
         return hidden.detach()
+    
+    def yield_trainable_params(self):
+        for n, p in self.named_parameters():
+            if 'transfo_xl_wt103.' in n:
+                continue
+            else:
+                yield 
