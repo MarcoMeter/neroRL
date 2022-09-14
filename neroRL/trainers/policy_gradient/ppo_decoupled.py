@@ -284,7 +284,7 @@ class DecoupledPPOTrainer(BaseTrainer):
 
     def collect_checkpoint_data(self, update) -> dict:
         checkpoint_data = super().collect_checkpoint_data(update)
-        if "helm" in self.configs["model"]:
+        if "helm" in self.configs["model"].keys():
             state_dict = self.model.state_dict()
             # We assume that transfo_xl_wt103 weights are not trainable
             pretrained_model_keys = [key for key in state_dict if "transfo_xl_wt103" in key]
@@ -299,7 +299,7 @@ class DecoupledPPOTrainer(BaseTrainer):
 
     def apply_checkpoint_data(self, checkpoint) -> None:
         super().apply_checkpoint_data(checkpoint)
-        if "helm" in self.configs["model"]:
+        if "helm" in self.configs["model"].keys():
             self.model.load_state_dict(checkpoint["model"], strict=False)
         else:
             self.model.load_state_dict(checkpoint["model"])
