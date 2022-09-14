@@ -302,10 +302,3 @@ class HELMEncoder(nn.Module):
         self.memory = out.mems
         hidden = out.last_hidden_state[:, -1, :]
         return hidden.detach()
-    
-    def yield_trainable_params(self):
-        for n, p in self.named_parameters():
-            if 'transfo_xl_wt103.' in n:
-                continue
-            else:
-                yield 
