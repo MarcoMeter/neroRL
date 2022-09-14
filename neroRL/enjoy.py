@@ -128,8 +128,8 @@ def main():
             recurrent_cell = None
 
         # Setup HELM memory
-            if "helm" in configs["model"]:
-                model.helm_encoder.memory = [torch.zeros((511, 1, 1024)) for _ in range(18)]
+        if "helm" in configs["model"]:
+            model.helm_encoder.memory = [torch.zeros((511, 1, 1024)) for _ in range(18)]
 
         # Play episode
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
