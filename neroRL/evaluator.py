@@ -108,7 +108,7 @@ class Evaluator():
                             # but as we evaluate entire episodes, we feed one worker at a time
                             vis_obs_batch = torch.tensor(np.expand_dims(vis_obs[w], 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                             vec_obs_batch = torch.tensor(np.expand_dims(vec_obs[w], 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                            policy, value, recurrent_cell[w], _ = model(vis_obs_batch, vec_obs_batch, recurrent_cell[w])
+                            policy, value, recurrent_cell[w], _, _ = model(vis_obs_batch, vec_obs_batch, recurrent_cell[w])
 
                             _actions = []
                             _probs = []

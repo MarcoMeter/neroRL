@@ -142,7 +142,7 @@ def main():
                 # Forward the neural net
                 vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                 vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
+                policy, value, recurrent_cell, _, _ = model(vis_obs, vec_obs, recurrent_cell)
 
                 _actions = []
                 _probs = []
