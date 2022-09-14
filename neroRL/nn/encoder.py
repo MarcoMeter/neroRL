@@ -282,9 +282,9 @@ class HELMEncoder(nn.Module):
 
         self.transfo_xl_wt103 = TransfoXLModel.from_pretrained('transfo-xl-wt103', config=config)
         self.transfo_xl_wt103.to(device)
-        n_tokens = self.model.word_emb.n_token
-        word_embs = self.model.word_emb(torch.arange(n_tokens)).to(device)
-        hidden_dim = self.model.d_embed
+        n_tokens = self.transfo_xl_wt103.word_emb.n_token
+        word_embs = self.transfo_xl_wt103.word_emb(torch.arange(n_tokens)).to(device)
+        hidden_dim = self.transfo_xl_wt103.d_embed
         self.frozen_hopfield = FrozenHopfield(hidden_dim, input_dim, word_embs, beta=beta)
 
         for p in self.transfo_xl_wt103.parameters():
