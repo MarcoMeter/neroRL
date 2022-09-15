@@ -84,7 +84,10 @@ def main():
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
         checkpoint = torch.load(configs["model"]["model_path"])
-        model.load_state_dict(checkpoint["model"])
+        if "helm" in configs["model"].keys():
+            model.load_state_dict(checkpoint["model"], strict=False)
+        else:
+            model.load_state_dict(checkpoint["model"])
         if "recurrence" in configs["model"]:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
