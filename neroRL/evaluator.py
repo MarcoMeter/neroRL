@@ -79,6 +79,8 @@ class Evaluator():
             # Setup HELM memory
             if "helm" in self.configs["model"]:
                 helm_memory = [[torch.zeros((511, 1, 1024)) for _ in range(18)] for _ in range(self.n_workers)]
+            else:
+                helm_memory = None
             
             # Reset workers and set evaluation seed
             for worker in self.workers:
