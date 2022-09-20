@@ -104,6 +104,15 @@ class SpotlightsEnv(Env):
             self.spotlights.append(Spotlight(self.screen_dim, self.np_random.integers(int(self.spot_min_radius), int(self.spot_max_radius + 1)),
                                                             self.np_random.uniform(self.spot_min_speed, self.spot_max_speed), self.np_random, t=0.3))
 
+        # Draw spotlights
+        self.spotlight_surface.fill((0, 0, 0))
+        for spot in self.spotlights:        
+            # Remove spotlights that finished traversal
+            if spot.done:
+                self.spotlights.remove(spot)
+            else:
+                spot.draw(self.spotlight_surface)
+
         # Use pygame to add the spotlights onto the original observation
         obs_surface = pygame.surfarray.make_surface((vis_obs * 255.0))
         obs_surface.set_colorkey((0, 0, 0))
