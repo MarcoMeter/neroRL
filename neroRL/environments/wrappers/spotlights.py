@@ -48,6 +48,7 @@ class SpotlightsEnv(Env):
 
         self.np_random = np.random.Generator(np.random.PCG64(0))
         self.blue_background_surface = get_tiled_background_surface(self.screen, self.screen_dim, (0, 0, 255), 0.25)
+        self.blue_background_surface.fill((255, 255, 255))
 
     @property
     def unwrapped(self):
