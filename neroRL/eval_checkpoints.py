@@ -55,6 +55,9 @@ def main():
     print("Step 1: Number of Loaded Checkpoint Paths: " + str(len(checkpoints)))
     
     # Load config, environment, model, evaluation and training parameters
+    if len(checkpoints) == 0:
+        print("No checkpoints found in the given directory. Exiting...")
+        return 0
     loaded_checkpoint = torch.load(checkpoints[0])
     configs = loaded_checkpoint["config"]
 
