@@ -58,8 +58,8 @@ def main():
     if len(checkpoints) == 0:
         print("No checkpoints found in the given directory. Exiting...")
         return 0
-    loaded_checkpoint = torch.load(checkpoints[0])
-    configs = loaded_checkpoint["config"]
+    checkpoint = torch.load(checkpoints[0])
+    configs = checkpoint["configs"]
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     print("Step 2: Creating dummy environment of type " + configs["environment"]["type"])

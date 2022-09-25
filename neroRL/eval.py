@@ -31,13 +31,13 @@ def main():
         neval --help
 
     Options:
-        --config=<path>            Path to the config file [default: ./configs/default.yaml].
+        --checkpoint=<path>        Path to the checkpoint file [default: ./].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
     """
     options = docopt(_USAGE)
-    config_path = options["--config"]
+    checkpoint_path = options["--checkpoint"]
     untrained = options["--untrained"]
     worker_id = int(options["--worker-id"])
     video_path = options["--video"]
@@ -49,16 +49,17 @@ def main():
             record_video = True
             logger.info("Step 0: Video recording enabled. Video will be saved to " + video_path)
             break
-
-    # Load environment, model, evaluation and training parameters
-    configs = YamlParser(config_path).get_config()
-
+    
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
         torch.set_default_tensor_type("torch.cuda.FloatTensor")
     else:
         torch.set_default_tensor_type("torch.FloatTensor")
+
+    # Load config, environment, model, evaluation and training parameters
+    checkpoint = torch.load(checkpoint_path)
+    configs = checkpoint["config"]          
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
@@ -83,7 +84,6 @@ def main():
         model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
-        checkpoint = torch.load(configs["model"]["model_path"])
         model.load_state_dict(checkpoint["model"])
         if "recurrence" in configs["model"]:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
