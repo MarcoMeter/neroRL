@@ -33,7 +33,8 @@ def main():
         nenjoy --help
 
     Options:
-        --config=<path>            Path to the config file [default: ./configs/default.yaml].
+        --config=<path>            Path to the config file [default: "./configs/default.yaml"].
+        --checkpoint=<path>        Path to the checkpoint file [default: "None"].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --seed=<n>                 The to be played seed of an episode [default: 0].
@@ -45,6 +46,7 @@ def main():
     options = docopt(_USAGE)
     untrained = options["--untrained"]
     config_path = options["--config"]
+    checkpoint_path = options["--checkpoint"]
     worker_id = int(options["--worker-id"])
     seed = int(options["--seed"])
     num_episodes = int(options["--num-episodes"])
@@ -66,15 +68,16 @@ def main():
         logger.info("Step 0: Only 1 episode will be played")
         num_episodes = 1
 
-    # Load environment, model, evaluation and training parameters
-    configs = YamlParser(config_path).get_config()
-
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
         torch.set_default_tensor_type("torch.cuda.FloatTensor")
     else:
         torch.set_default_tensor_type("torch.FloatTensor")
+
+    # Load config, environment, model, evaluation and training parameters
+    checkpoint = torch.load(checkpoint_path) if checkpoint_path != "None" else None
+    configs = checkpoint["configs"] if checkpoint_path != "None" else YamlParser(config_path).get_config()
 
     # Launch environment
     logger.info("Step 1: Launching environment")
