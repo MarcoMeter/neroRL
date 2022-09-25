@@ -34,12 +34,12 @@ def main():
 
     Options:
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
-        --path=<path>              Path to the directory containing checkpoints [default: ./].
+        --checkpoints=<path>       Path to the directory containing checkpoints [default: ./].
         --name=<path>              Specifies the full path to save the output file [default: ./results.res].
     """
     options = docopt(_USAGE)
     worker_id = int(options["--worker-id"])
-    path = options["--path"]
+    checkpoints_path = options["--checkpoints"]
     name = options["--name"]
 
     # Determine cuda availability
@@ -51,7 +51,7 @@ def main():
         
     # Load checkpoint paths
     print("Step 1: Load Checkpoint Paths")
-    checkpoints = get_sorted_checkpoints(path)
+    checkpoints = get_sorted_checkpoints(checkpoints_path)
     print("Step 1: Number of Loaded Checkpoint Paths: " + str(len(checkpoints)))
     
     # Load config, environment, model, evaluation and training parameters

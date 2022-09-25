@@ -4,6 +4,7 @@ Additionally each evaluation episode can be rendered as a video.
 """
 
 import logging
+from tabnanny import check
 import torch
 import numpy as np
 import sys
@@ -31,12 +32,14 @@ def main():
         neval --help
 
     Options:
+        --config=<path>            Path to the config file [default: None].
         --checkpoint=<path>        Path to the checkpoint file [default: ./].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
     """
     options = docopt(_USAGE)
+    config_path = options["--config"]
     checkpoint_path = options["--checkpoint"]
     untrained = options["--untrained"]
     worker_id = int(options["--worker-id"])
@@ -59,7 +62,7 @@ def main():
 
     # Load config, environment, model, evaluation and training parameters
     checkpoint = torch.load(checkpoint_path)
-    configs = checkpoint["config"]          
+    configs = checkpoint["configs"] if config_path == "None" else YamlParser(config_path).get_config()
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
