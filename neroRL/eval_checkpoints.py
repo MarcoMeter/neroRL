@@ -54,7 +54,7 @@ def main():
     checkpoints = get_sorted_checkpoints(path)
     print("Step 1: Number of Loaded Checkpoint Paths: " + str(len(checkpoints)))
     
-    # Load environment, model, evaluation and training parameters from the first checkpoint
+    # Load config, environment, model, evaluation and training parameters
     loaded_checkpoint = torch.load(checkpoints[0])
     configs = loaded_checkpoint["config"]
 
