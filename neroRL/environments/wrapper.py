@@ -4,6 +4,7 @@ from neroRL.environments.minigrid_wrapper import MinigridWrapper
 from neroRL.environments.minigrid_vec_wrapper import MinigridVecWrapper
 from neroRL.environments.procgen_wrapper import ProcgenWrapper
 from neroRL.environments.cartpole_wrapper import CartPoleWrapper
+from neroRL.environments.maze_wrapper import MazeWrapper
 from neroRL.environments.ballet_wrapper import BalletWrapper
 from neroRL.environments.wrappers.frame_skip import FrameSkipEnv
 from neroRL.environments.wrappers.stacked_observation import StackedObservationEnv
@@ -12,6 +13,7 @@ from neroRL.environments.wrappers.grayscale_visual_observation import GrayscaleV
 from neroRL.environments.wrappers.pytorch_shape import PyTorchEnv
 from neroRL.environments.wrappers.last_action_to_obs import LastActionToObs
 from neroRL.environments.wrappers.last_reward_to_obs import LastRewardToObs
+
 
 def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory = False):
     """This function instantiates an environment and applies wrappers based on the specified config.
@@ -40,6 +42,9 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
         env = CartPoleWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
     elif config["type"] == "Ballet":
         env = BalletWrapper(config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
+    elif config["type"] == "RandomMaze":
+        env = MazeWrapper(config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
+        
 
     # Wrap environment
     # Frame Skip

@@ -11,27 +11,24 @@ import gym
 from gym.spaces import Box
 from gym.spaces import Discrete
 from neroRL.environments.env import Env
-from neroRL.environments.wrapper import PyTorchEnv
 from gym import error, spaces
 from random import randint
 import time
 
 class MazeWrapper(Env):
-    def __init__(self, reset_params):
-        self._env = gym.make('RandomMaze-v0')
+    def __init__(self, reset_params, realtime_mode, record_trajectory):
+        self._env = Env()# gym.make('RandomMaze-v0')
         # Set default reset parameters if none were provided
         if reset_params is None:
             self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
         else:
             self._default_reset_params = reset_params
         
-        self._env = PyTorchEnv(self._env)
-        
         # Prepare observation space
         self._visual_observation_space = spaces.Box(
                 low = 0,
                 high = 1.0,
-                shape = (3, 9, 9),
+                shape = (84, 84, 3),
                 dtype = np.float32)
         
         self._action_space = self._env.action_space
@@ -44,7 +41,7 @@ class MazeWrapper(Env):
     @property
     def visual_observation_space(self):
         """Returns the shape of the visual component of the observation space as a tuple."""
-        return self._visual_observation_spac
+        return self._visual_observation_space
     
     @property
     def vector_observation_space(self):
@@ -93,15 +90,13 @@ class MazeWrapper(Env):
         vis_obs = obs.astype(np.float32) / 255.
 
         # Render environment?
-        if self._realtime_mode:
-            self._env.render(tile_size = 96, mode = "human")
+        #if self._realtime_mode:
+        #   self._env.render(tile_size = 96, mode = "human")
 
         # Prepare trajectory recording
-        self._trajectory = {
-            "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [None],
-            "rewards": [0.0], "actions": []
-        } if self._record else None # The render function seems to be very very costly, so don't use this even once during training or evaluation
+        self._trajectory = None # The render function seems to be very very costly, so don't use this even once during training or evaluation
 
+        return vis_obs, None
     
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -122,25 +117,25 @@ class MazeWrapper(Env):
         vis_obs = obs.astype(np.float32) / 255.
 
         # Render the environment in realtime
-        if self._realtime_mode:
-            self._env.render(tile_size = 96)
-            time.sleep(0.5)
+        #if self._realtime_mode:
+        #    self._env.render(tile_size = 96)
+        #    time.sleep(0.5)
 
         # Record trajectory data
-        if self._record:
-            self._trajectory["vis_obs"].append(self._env.render(tile_size = 96, mode="rgb_array").astype(np.uint8))
-            self._trajectory["vec_obs"].append(None)
-            self._trajectory["rewards"].append(reward)
-            self._trajectory["actions"].append(action)
+        #if self._record:
+        #    self._trajectory["vis_obs"].append(self._env.render(tile_size = 96, mode="rgb_array").astype(np.uint8))
+        #    self._trajectory["vec_obs"].append(None)
+        #    self._trajectory["rewards"].append(reward)
+        #    self._trajectory["actions"].append(action)
         
         # Wrap up episode information once completed (i.e. done)
-        if done:
+        #if done:
             # success = 1.0 if sum(self._rewards) > 0 else 0.0 TODO: Add success metric
-            info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards)}
-                    # "success": success}
-        else:
-            info = None
+        #    info = {"reward": sum(self._rewards),
+        #            "length": len(self._rewards)}
+        #            # "success": success}
+        #else:
+        info = None
 
         return vis_obs, None, reward, done, info
 
