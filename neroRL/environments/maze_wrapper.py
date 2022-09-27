@@ -135,10 +135,10 @@ class MazeWrapper(Env):
         
         # Wrap up episode information once completed (i.e. done)
         if done:
-            success = 1.0 if sum(self._rewards) > 0 else 0.0
+            # success = 1.0 if sum(self._rewards) > 0 else 0.0 TODO: Add success metric
             info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards),
-                    "success": success}
+                    "length": len(self._rewards)}
+                    # "success": success}
         else:
             info = None
 
