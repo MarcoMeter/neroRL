@@ -16,8 +16,8 @@ from random import randint
 import time
 
 class MazeWrapper(Env):
-    def __init__(self, reset_params, realtime_mode, record_trajectory):
-        self._env = Env()# gym.make('RandomMaze-v0')
+    def __init__(self, reset_params = None, realtime_mode = False, record_trajectory = False):
+        self._env = gym.make('RandomMaze-v0')
         # Set default reset parameters if none were provided
         if reset_params is None:
             self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
@@ -33,6 +33,9 @@ class MazeWrapper(Env):
         
         self._action_space = self._env.action_space
         self._action_names = [[""]] # TODO: Add action names
+        self._realtime_mode = realtime_mode
+        self._record = record_trajectory
+        
     @property
     def unwrapped(self):
         """Return this environment in its vanilla (i.e. unwrapped) state."""
@@ -90,8 +93,8 @@ class MazeWrapper(Env):
         vis_obs = obs.astype(np.float32) / 255.
 
         # Render environment?
-        #if self._realtime_mode:
-        #   self._env.render(tile_size = 96, mode = "human")
+        if self._realtime_mode:
+           self._env.render(tile_size = 96, mode = "human")
 
         # Prepare trajectory recording
         self._trajectory = None # The render function seems to be very very costly, so don't use this even once during training or evaluation
@@ -117,16 +120,16 @@ class MazeWrapper(Env):
         vis_obs = obs.astype(np.float32) / 255.
 
         # Render the environment in realtime
-        #if self._realtime_mode:
-        #    self._env.render(tile_size = 96)
-        #    time.sleep(0.5)
+        if self._realtime_mode:
+            self._env.render(tile_size = 96)
+            time.sleep(0.5)
 
         # Record trajectory data
-        #if self._record:
-        #    self._trajectory["vis_obs"].append(self._env.render(tile_size = 96, mode="rgb_array").astype(np.uint8))
-        #    self._trajectory["vec_obs"].append(None)
-        #    self._trajectory["rewards"].append(reward)
-        #    self._trajectory["actions"].append(action)
+        if self._record:
+            self._trajectory["vis_obs"].append(self._env.render(tile_size = 96, mode="rgb_array").astype(np.uint8))
+            self._trajectory["vec_obs"].append(None)
+            self._trajectory["rewards"].append(reward)
+            self._trajectory["actions"].append(action)
         
         # Wrap up episode information once completed (i.e. done)
         #if done:
