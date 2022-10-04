@@ -118,7 +118,7 @@ class MinigridVecWrapper(Env):
 
         # Render environment?
         if self._realtime_mode:
-            self._env.render(tile_size = 96)
+            self._env.render(mode = "human")
 
         # Prepare trajectory recording
         self._trajectory = {
@@ -149,7 +149,7 @@ class MinigridVecWrapper(Env):
 
         # Render the environment in realtime
         if self._realtime_mode:
-            self._env.render(tile_size = 96)
+            self._env.render(mode = "human")
             time.sleep(0.5)
 
         # Record trajectory data

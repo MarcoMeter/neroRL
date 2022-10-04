@@ -32,9 +32,13 @@ class MazeWrapper(Env):
                 dtype = np.float32)
         
         self._action_space = self._env.action_space
-        self._action_names = [[""]] # TODO: Add action names
+        self._action_names = None # TODO: Add action names
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
+        self._trajectory = {
+            "vis_obs": [], "vec_obs": [None],
+            "rewards": [0.0], "actions": []
+        }
         
     @property
     def unwrapped(self):
@@ -94,10 +98,9 @@ class MazeWrapper(Env):
 
         # Render environment?
         if self._realtime_mode:
-           self._env.render(tile_size = 96, mode = "human")
-
+           self._env.render(mode = "human")
         # Prepare trajectory recording
-        self._trajectory = None # The render function seems to be very very costly, so don't use this even once during training or evaluation
+        #self._trajectory = None # The render function seems to be very very costly, so don't use this even once during training or evaluation
 
         return vis_obs, None
     
@@ -121,12 +124,12 @@ class MazeWrapper(Env):
 
         # Render the environment in realtime
         if self._realtime_mode:
-            self._env.render(tile_size = 96)
+            self._env.render(mode = "human")
             time.sleep(0.5)
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(self._env.render(tile_size = 96, mode="rgb_array").astype(np.uint8))
+            self._trajectory["vis_obs"].append(self._env.get_image().astype(np.uint8))
             self._trajectory["vec_obs"].append(None)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
@@ -138,7 +141,7 @@ class MazeWrapper(Env):
         #            "length": len(self._rewards)}
         #            # "success": success}
         #else:
-        info = None
+        info = {"reward": sum(self._rewards), "length": len(self._rewards)}
 
         return vis_obs, None, reward, done, info
 
