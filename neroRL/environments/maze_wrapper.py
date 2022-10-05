@@ -135,13 +135,13 @@ class MazeWrapper(Env):
             self._trajectory["actions"].append(action)
         
         # Wrap up episode information once completed (i.e. done)
-        #if done:
-            # success = 1.0 if sum(self._rewards) > 0 else 0.0 TODO: Add success metric
-        #    info = {"reward": sum(self._rewards),
-        #            "length": len(self._rewards)}
-        #            # "success": success}
-        #else:
-        info = {"reward": sum(self._rewards), "length": len(self._rewards)}
+        if done:
+            success = 1.0 if reward == 1 else 0.0
+            info = {"reward": sum(self._rewards),
+                    "length": len(self._rewards),
+                    "success": success}
+        else:
+            info = {"reward": sum(self._rewards), "length": len(self._rewards)}
 
         return vis_obs, None, reward, done, info
 
