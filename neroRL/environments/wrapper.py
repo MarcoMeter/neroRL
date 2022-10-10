@@ -19,7 +19,10 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
         {Env} -- The wrapped environment
     """
     # Instantiate environment
-    if config["type"] == "Unity":
+    if config["type"] == "MemoryGym":
+        from neroRL.environments.memory_gym_wrapper import MemoryGymWrapper
+        env = MemoryGymWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
+    elif config["type"] == "Unity":
         from neroRL.environments.unity_wrapper import UnityWrapper
         env = UnityWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode, record_trajectory=record_trajectory)
     elif config["type"] == "ObstacleTower":

@@ -1,27 +1,23 @@
 environment:
   type: "MemoryGym"
-  name: "MortarMayhem-v0"
+  name: "MysteryPath-v0"
   frame_skip: 1
-  last_action_to_obs: False
-  last_reward_to_obs: False
+  last_action_to_obs: True
+  last_reward_to_obs: True
   obs_stacks: 1
   grayscale: False
   resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
-    num-seeds: 1000
+    num-seeds: 100
     agent_scale: 0.25
     agent_speed: 2.5
-    arena_size: 5
-    allowed_commands: 9
-    command_count: [5]
-    command_show_duration: 3
-    command_show_delay: 1
-    explosion_duration: 6
-    explosion_delay: 18
-    reward_command_failure: -0.1
-    reward_command_success: 0.1
-    reward_episode_success: 0.0
+    cardinal_origin_choice: [0, 1, 2, 3]
+    show_origin: True
+    show_goal: True
+    reward_goal: 1.0
+    reward_fall_off: 0.0
+    reward_path_progress: 0.0
 
 model:
   load_model: False
@@ -36,7 +32,7 @@ model:
   num_hidden_units: 512
   recurrence:
     layer_type: "gru"
-    sequence_length: -1
+    sequence_length: 128
     hidden_state_size: 512
     hidden_state_init: "zero"
     reset_hidden_state: True
@@ -66,13 +62,13 @@ trainer:
   max_grad_norm: 0.5
   share_parameters: True
   learning_rate_schedule:
-    initial: 3.0e-4
-    final: 3.0e-4
+    initial: 2.5e-4
+    final: 2.5e-4
     power: 1.0
     max_decay_steps: 10000
   beta_schedule:
     initial: 0.0001
-    final: 0.0001
+    final: 0.00001
     power: 1.0
     max_decay_steps: 10000
   clip_range_schedule:
