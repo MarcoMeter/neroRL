@@ -34,12 +34,14 @@ def main():
 
     Options:
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
-        --checkpoints=<path>       Path to the directory containing checkpoints [default: ./].
+        --checkpoints=<path>       Path to the directory containing checkpoints [default: "None"].
+        --config=<path>            Path to the config file [default: "None"].
         --name=<path>              Specifies the full path to save the output file [default: ./results.res].
     """
     options = docopt(_USAGE)
     worker_id = int(options["--worker-id"])
     checkpoints_path = options["--checkpoints"]
+    config_path = options["--config"]
     name = options["--name"]
 
     # Determine cuda availability
@@ -59,7 +61,7 @@ def main():
         print("No checkpoints found in the given directory. Exiting...")
         return 0
     checkpoint = torch.load(checkpoints[0])
-    configs = checkpoint["configs"]
+    configs = checkpoint["configs"] if config_path != "None" else YamlParser(config_path).get_config()
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     print("Step 2: Creating dummy environment of type " + configs["environment"]["type"])

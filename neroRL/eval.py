@@ -32,8 +32,8 @@ def main():
         neval --help
 
     Options:
-        --config=<path>            Path to the config file [default: None].
-        --checkpoint=<path>        Path to the checkpoint file [default: ./].
+        --config=<path>            Path to the config file [default: "None"].
+        --checkpoint=<path>        Path to the checkpoint file [default: "None"].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
@@ -60,9 +60,10 @@ def main():
     else:
         torch.set_default_tensor_type("torch.FloatTensor")
 
-    # Load config, environment, model, evaluation and training parameters
-    checkpoint = torch.load(checkpoint_path)
-    configs = checkpoint["configs"] if config_path == "None" else YamlParser(config_path).get_config()
+    if config_path == "None" and checkpoint_path == "None":
+        raise ValueError("Either a config or a checkpoint must be provided")
+    checkpoint = torch.load(checkpoint_path) if checkpoint_path != "None" else None
+    configs = checkpoint["configs"] if config_path != "None" else YamlParser(config_path).get_config()
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])

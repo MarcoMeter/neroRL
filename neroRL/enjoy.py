@@ -33,7 +33,7 @@ def main():
         nenjoy --help
 
     Options:
-        --config=<path>            Path to the config file [default: "./configs/default.yaml"].
+        --config=<path>            Path to the config file [default: "None"].
         --checkpoint=<path>        Path to the checkpoint file [default: "None"].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
@@ -76,8 +76,10 @@ def main():
         torch.set_default_tensor_type("torch.FloatTensor")
 
     # Load config, environment, model, evaluation and training parameters
+    if config_path == "None" and checkpoint_path == "None":
+        raise ValueError("Either a config or a checkpoint must be provided")
     checkpoint = torch.load(checkpoint_path) if checkpoint_path != "None" else None
-    configs = checkpoint["configs"] if checkpoint_path != "None" else YamlParser(config_path).get_config()
+    configs = checkpoint["configs"] if config_path != "None" else YamlParser(config_path).get_config()
 
     # Launch environment
     logger.info("Step 1: Launching environment")
