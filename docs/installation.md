@@ -12,15 +12,15 @@ neroRL is tested with PyTorch version 1.8.1 and CUDA 11.1
 
 ## Install neroRL
 
-If the source code is not needed, simply install the PyPi package and specify the desired training environment (memory-gym, procgen, minigrid, ml-agents, obstacle-tower, ballet). This specification is due to the various gym versions that are utilized by those envionments.
+If the source code is not needed, simply install the PyPi package and specify the desired training environment (memory-gym, gym, procgen, minigrid, ml-agents, obstacle-tower, ballet). This specification is due to the various gym versions that are utilized by those envionments.
 
-`pip install neroRL[minigrid]`
+`pip install neroRL[gym]`
 
 Otherwise clone this repository and use the setup.py
 
 `git clone https://github.com/MarcoMeter/neroRL.git`
 
-`pip install -e .[minigrid]`
+`pip install -e .[gym]`
 
 ## Obstacle Tower Environment
 

@@ -48,6 +48,7 @@ setup(
         ':"linux" in sys_platform': [ # Extra linux install requirements
             ''  
         ],
+        "gym":              ["gym==0.26.2"],
         "procgen":          ["gym==0.15.3", "procgen"],
         "obstacle-tower":   ["gym==0.18.3", "mlagents-envs==0.17.0"],
         "minigrid":         ["gym==0.18.3", "gym-minigrid==1.0.2"],
