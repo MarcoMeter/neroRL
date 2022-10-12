@@ -1,13 +1,7 @@
-dm-env==1.5
 docopt
-gym==0.18.3
-gym-minigrid==1.0.2
 jinja2
 matplotlib
 opencv-python
-pandas
-procgen
-pycolab==1.2
 pygame
 pyglet
 ruamel.yaml
