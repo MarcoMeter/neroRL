@@ -82,7 +82,7 @@ def main():
     for k, v in configs["evaluation"].items():
         print("Step 3: " + str(k) + ": " + str(v))
     print("Step 3: Init Evaluator")
-    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
+    evaluator = Evaluator(configs, configs["model"], worker_id, visual_observation_space, vector_observation_space)
 
     # Init model
     print("Step 3: Initialize model")

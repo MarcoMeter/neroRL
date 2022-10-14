@@ -1,6 +1,8 @@
 """
 Evaluates an agent based on a configured environment and evaluation.
-Additionally each evaluation episode can be rendered as a video. 
+Additionally each evaluation episode can be rendered as a video.
+Either a checkpoint or a config have to be provided. Whenever a checkpoint is provided, its model config is used to
+instantiate the model. A checkpoint can be also provided via the config.
 """
 
 import logging
@@ -32,18 +34,18 @@ def main():
         neval --help
 
     Options:
-        --config=<path>            Path to the config file [default: "None"].
-        --checkpoint=<path>        Path to the checkpoint file [default: "None"].
+        --config=<path>            Path to the config file [default: ].
+        --checkpoint=<path>        Path to the checkpoint file [default: ].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
     """
     options = docopt(_USAGE)
-    config_path = options["--config"]
-    checkpoint_path = options["--checkpoint"]
-    untrained = options["--untrained"]
-    worker_id = int(options["--worker-id"])
-    video_path = options["--video"]
+    config_path = options["--config"]           # defaults to ""
+    checkpoint_path = options["--checkpoint"]   # defaults to ""
+    untrained = options["--untrained"]  	    # defaults to False
+    worker_id = int(options["--worker-id"])     # defaults to 2
+    video_path = options["--video"]             # Defaults to "./video"
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -60,10 +62,11 @@ def main():
     else:
         torch.set_default_tensor_type("torch.FloatTensor")
 
-    if config_path == "None" and checkpoint_path == "None":
+    if not config_path and not checkpoint_path:
         raise ValueError("Either a config or a checkpoint must be provided")
-    checkpoint = torch.load(checkpoint_path) if checkpoint_path != "None" else None
-    configs = checkpoint["configs"] if config_path != "None" else YamlParser(config_path).get_config()
+    checkpoint = torch.load(checkpoint_path) if checkpoint_path else None
+    configs = YamlParser(config_path).get_config() if config_path else checkpoint["config"]
+    model_config = checkpoint["config"]["model"] if checkpoint else configs["model"]
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
@@ -81,15 +84,15 @@ def main():
     share_parameters = False
     if configs["trainer"]["algorithm"] == "PPO":
         share_parameters = configs["trainer"]["algorithm"]
-    model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
+    model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
-                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
+                            model_config["recurrence"] if "recurrence" in model_config else None, device)
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
-        logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
+        logger.info("Step 2: Loading model from " + model_config["model_path"])
         model.load_state_dict(checkpoint["model"])
-        if "recurrence" in configs["model"]:
+        if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
 
@@ -98,7 +101,8 @@ def main():
     logger.info("Step 3: Number of Workers: " + str(configs["evaluation"]["n_workers"]))
     logger.info("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
     logger.info("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
-    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space, video_path, record_video)
+    evaluator = Evaluator(configs, model_config, worker_id, visual_observation_space, vector_observation_space,
+                            video_path, record_video)
 
     # Evaluate
     logger.info("Step 4: Run evaluation . . .")
