@@ -33,19 +33,16 @@ def main():
         neval-checkpoints --help
 
     Options:
-        --config=<path>            Path to the config file [default: ./configs/default.yaml].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
-        --path=<path>              Path to the directory containing checkpoints [default: ./].
+        --checkpoints=<path>       Path to the directory containing checkpoints [default: ].
+        --config=<path>            Path to the config file [default: ].
         --name=<path>              Specifies the full path to save the output file [default: ./results.res].
     """
     options = docopt(_USAGE)
-    config_path = options["--config"]
-    worker_id = int(options["--worker-id"])
-    path = options["--path"]
-    name = options["--name"]
-
-    # Load environment, model, evaluation and training parameters
-    configs = YamlParser(config_path).get_config()
+    worker_id = int(options["--worker-id"])         # defaults to 2.
+    checkpoints_path = options["--checkpoints"]     # defaults to ""
+    config_path = options["--config"]               # defaults to ""
+    name = options["--name"]                        # defaults to "result.res"
 
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -53,9 +50,22 @@ def main():
         torch.set_default_tensor_type("torch.cuda.FloatTensor")
     else:
         torch.set_default_tensor_type("torch.FloatTensor")
+        
+    # Load checkpoint paths
+    print("Step 1: Load Checkpoint Paths")
+    checkpoints = get_sorted_checkpoints(checkpoints_path)
+    print("Step 1: Number of Loaded Checkpoint Paths: " + str(len(checkpoints)))
+    
+    # Load config, environment, model, evaluation and training parameters
+    if len(checkpoints) == 0:
+        print("No checkpoints found in the given directory. Exiting...")
+        return 0
+    checkpoint = torch.load(checkpoints[0])
+    model_config = checkpoint["config"]["model"]
+    configs = YamlParser(config_path).get_config() if config_path else checkpoint["config"]
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
-    print("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
+    print("Step 2: Creating dummy environment of type " + configs["environment"]["type"])
     dummy_env = wrap_environment(configs["environment"], worker_id)
     visual_observation_space = dummy_env.visual_observation_space
     vector_observation_space = dummy_env.vector_observation_space
@@ -64,25 +74,25 @@ def main():
     else:
         action_space_shape = tuple(dummy_env.action_space.nvec)
     dummy_env.close()
-
+    
     # Init evaluator
-    print("Step 1: Environment Config")
+    print("Step 2: Environment Config")
     for k, v in configs["environment"].items():
-        print("Step 1: " + str(k) + ": " + str(v))
-    print("Step 2: Evaluation Config")
-    for k, v in configs["evaluation"].items():
         print("Step 2: " + str(k) + ": " + str(v))
-    print("Step 2: Init Evaluator")
-    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
+    print("Step 3: Evaluation Config")
+    for k, v in configs["evaluation"].items():
+        print("Step 3: " + str(k) + ": " + str(v))
+    print("Step 3: Init Evaluator")
+    evaluator = Evaluator(configs, model_config, worker_id, visual_observation_space, vector_observation_space)
 
     # Init model
-    print("Step 2: Initialize model")
+    print("Step 3: Initialize model")
     share_parameters = False
     if configs["trainer"]["algorithm"] == "PPO":
         share_parameters = configs["trainer"]["share_parameters"]
-    model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
+    model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
-                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
+                            model_config["recurrence"] if "recurrence" in model_config else None, device)
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     model.eval()
@@ -94,11 +104,6 @@ def main():
         torch.set_default_tensor_type("torch.FloatTensor")
         model.cpu()
 
-    # Load checkpoint paths
-    print("Step 3: Load Checkpoint Paths")
-    checkpoints = get_sorted_checkpoints(path)
-    print("Step 3: Number of Loaded Checkpoint Paths: " + str(len(checkpoints)))
-
     # Evaluate checkpoints
     print("Step 4: Start Evaluation . . .")
     print("Progress:")
@@ -107,7 +112,7 @@ def main():
     for checkpoint in checkpoints:
         loaded_checkpoint = torch.load(checkpoint)
         model.load_state_dict(loaded_checkpoint["model"])
-        if "recurrence" in configs["model"]:
+        if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(loaded_checkpoint["hxs"], loaded_checkpoint["cxs"])
         _, res = evaluator.evaluate(model, device)
         results.append(res)

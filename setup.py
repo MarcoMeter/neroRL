@@ -38,7 +38,7 @@ setup(
     author="Marco Pleines",
     package_dir={'': '.'},
     packages=find_packages(where='.', include="neroRL*"),
-    python_requires=">=3.6",
+    python_requires=">=3.6<3.10",
     include_package_data=True,
     install_requires=install_requires,
     extras_require={
@@ -46,8 +46,15 @@ setup(
             'windows-curses'
         ],
         ':"linux" in sys_platform': [ # Extra linux install requirements
-            ''
-        ]
+            ''  
+        ],
+        "gym":              ["gym==0.26.2"],
+        "procgen":          ["gym==0.15.3", "procgen"],
+        "obstacle-tower":   ["gym==0.18.3", "mlagents-envs==0.17.0"],
+        "minigrid":         ["gym==0.18.3", "gym-minigrid==1.0.2"],
+        "ml-agents":        ["gym==0.18.3", "mlagents-envs==0.28.0"],
+        "ballet":           ["gym==0.18.3", "dm-env==1.5", "pycolab==1.2"],
+        "memory-gym":       ["gym==0.26.2", "memory-gym"]
     },
     entry_points={
         "console_scripts": [

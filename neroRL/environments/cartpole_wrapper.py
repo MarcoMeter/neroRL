@@ -3,6 +3,7 @@ import gym
 import time
 import random
 from gym import error, spaces
+from random import randint
 from neroRL.environments.env import Env
 
 class CartPoleWrapper(Env):
@@ -30,10 +31,15 @@ class CartPoleWrapper(Env):
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
+        render_mode = None
+        if realtime_mode:
+            render_mode = "human"
+        if record_trajectory:
+            render_mode = "rgb_array"
 
         # Initialize environment
         self._env_name = env_name
-        self._env = gym.make(self._env_name)
+        self._env = gym.make(self._env_name, render_mode = render_mode)
 
         # Prepare observation space
         self._vector_observation_space = self._env.observation_space.shape
@@ -86,8 +92,8 @@ class CartPoleWrapper(Env):
         if reset_params is None:
             reset_params = self._default_reset_params
 
-        # Set seed
-        self._env.seed(random.randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1))
+        # Sample seed
+        seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
 
         # Create mask to hide the velocity of the cart and the pole if requested by the reset params
         self._obs_mask = np.ones(4, dtype=np.float32) if not self._default_reset_params["mask-velocity"] else np.asarray([1,0,1,0], dtype=np.float32)
@@ -97,16 +103,16 @@ class CartPoleWrapper(Env):
 
         # Retrieve the agent's initial observation
         vis_obs = None
-        vec_obs = self._env.reset()
+        vec_obs, _ = self._env.reset(seed=seed)
 
         # Render environment?
         if self._realtime_mode:
-            self._env.render(mode="human")
+            self._env.render()
 
         # Prepare trajectory recording
         if self._record:
             self._trajectory = {
-                "vis_obs": [self._env.render(mode="rgb_array")], "vec_obs": [vec_obs],
+                "vis_obs": [self._env.render()], "vec_obs": [vec_obs],
                 "rewards": [0.0], "actions": [], "frame_rate": 20
             }
 
@@ -126,7 +132,7 @@ class CartPoleWrapper(Env):
             {dict} -- Further information (e.g. episode length) retrieved from the environment once an episode completed
         """
         # Execute action
-        obs, reward, done, info = self._env.step(action[0])
+        obs, reward, done, truncation, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the agent's current observation
         vis_obs = None
@@ -134,12 +140,12 @@ class CartPoleWrapper(Env):
 
         # Render environment?
         if self._realtime_mode:
-            self._env.render(mode="human")
+            self._env.render()
             time.sleep(0.033)
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(self._env.render(mode="rgb_array"))
+            self._trajectory["vis_obs"].append(self._env.render())
             self._trajectory["vec_obs"].append(vec_obs)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
