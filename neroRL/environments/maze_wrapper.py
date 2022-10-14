@@ -125,7 +125,7 @@ class MazeWrapper(Env):
         # Render the environment in realtime
         if self._realtime_mode:
             self._env.render(mode = "human")
-            time.sleep(0.5)
+            time.sleep(0.1)
 
         # Record trajectory data
         if self._record:
@@ -253,4 +253,4 @@ class Env(BaseEnv):
         return self.maze.to_rgb()
 
 
-gym.envs.register(id='RandomMaze-v0', entry_point=Env, max_episode_steps=100)
+gym.envs.register(id="RandomMaze-v0", entry_point=Env, max_episode_steps=100)

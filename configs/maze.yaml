@@ -14,7 +14,7 @@ environment:
 
 model:
   load_model: False
-  model_path: "./checkpoints/mg_17r/20220112-065616_2/mg_17r-208.pt"
+  model_path: ""
   checkpoint_interval: 100
   activation: "relu"
   vis_encoder: "cnn"
@@ -47,7 +47,7 @@ trainer:
   resume_at: 0
   gamma: 0.99
   lamda: 0.95
-  updates: 500
+  updates: 1000
   epochs: 4
   refresh_buffer_epoch: -1
   n_mini_batches: 8
