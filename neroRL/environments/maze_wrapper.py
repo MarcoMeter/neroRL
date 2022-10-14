@@ -29,7 +29,7 @@ class MazeWrapper(Env):
         self._visual_observation_space = spaces.Box(
                 low = 0,
                 high = 1.0,
-                shape = (84, 84, 3),
+                shape = (9, 9, 3),
                 dtype = np.float32)
         
         self._action_space = self._env.action_space
