@@ -1,23 +1,24 @@
-
 # https://github.com/ml-jku/helm/
-from mazelab.generators import random_maze
 import numpy as np
+import gym
+import time
+
+from mazelab.generators import random_maze
 from mazelab import BaseMaze
 from mazelab import Object
 from mazelab import DeepMindColor as color
 from mazelab import BaseEnv
 from mazelab import VonNeumannMotion
-import gym
-from gym.spaces import Box
-from gym.spaces import Discrete
+
 from neroRL.environments.env import Env
 from gym import error, spaces
+from gym.spaces import Box
+from gym.spaces import Discrete
 from random import randint
-import time
 
 class MazeWrapper(Env):
     def __init__(self, reset_params = None, realtime_mode = False, record_trajectory = False):
-        self._env = gym.make('RandomMaze-v0')
+        self._env = gym.make("RandomMaze-v0")
         # Set default reset parameters if none were provided
         if reset_params is None:
             self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
@@ -32,7 +33,7 @@ class MazeWrapper(Env):
                 dtype = np.float32)
         
         self._action_space = self._env.action_space
-        self._action_names = None # TODO: Add action names
+        self._action_names = ["North", "South", "West", "East"]
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
         self._trajectory = {
