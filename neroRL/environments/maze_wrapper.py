@@ -144,7 +144,7 @@ class MazeWrapper(Env):
                     "length": len(self._rewards),
                     "success": success}
         else:
-            info = {"reward": sum(self._rewards), "length": len(self._rewards)}
+            info = None
 
         return vis_obs, None, reward, done, info
 
@@ -229,6 +229,7 @@ class Env(BaseEnv):
         else:
             reward = -0.01
             done = False
+
         return self._get_pomdp_view(), reward, done, {}
 
     def reset(self):

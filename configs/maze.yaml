@@ -7,17 +7,17 @@ environment:
   last_reward_to_obs: False
   obs_stacks: 1
   grayscale: False
-  resize_vis_obs: [84, 84]
+  resize_vis_obs: [9, 9]
   reset_params:
     start-seed: 0
-    num-seeds: 200
+    num-seeds: 100000
 
 model:
   load_model: False
   model_path: ""
   checkpoint_interval: 100
   activation: "relu"
-  vis_encoder: "cnn"
+  vis_encoder: "smallimpala"
   vec_encoder_layer: "linear"
   num_vec_encoder_units: 128
   hidden_layer: "default"
@@ -25,7 +25,7 @@ model:
   num_hidden_units: 512
   recurrence:
     layer_type: "gru"
-    sequence_length: 16
+    sequence_length: -1
     hidden_state_size: 256
     hidden_state_init: "zero"
     reset_hidden_state: True
@@ -34,7 +34,7 @@ model:
 evaluation:
   evaluate: False
   n_workers: 3
-  seeds: [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]
+  seeds: [200000, 200001, 200002, 200003, 200004, 200005, 200006, 200007, 200008, 200009]
   interval: 100
 
 sampler:
