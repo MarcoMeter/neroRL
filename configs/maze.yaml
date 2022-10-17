@@ -15,16 +15,16 @@ environment:
 model:
   load_model: False
   model_path: ""
-  checkpoint_interval: 100
+  checkpoint_interval: 50
   activation: "relu"
   vis_encoder: "smallimpala"
   vec_encoder_layer: "linear"
   num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
-  num_hidden_units: 512
+  num_hidden_units: 256
   recurrence:
-    layer_type: "gru"
+    layer_type: "lstm"
     sequence_length: -1
     hidden_state_size: 256
     hidden_state_init: "zero"
@@ -40,14 +40,14 @@ evaluation:
 sampler:
   type: "TrajectorySampler"
   n_workers: 16
-  worker_steps: 256
+  worker_steps: 512
 
 trainer:
   algorithm: "PPO"
   resume_at: 0
   gamma: 0.99
   lamda: 0.95
-  updates: 1000
+  updates: 250
   epochs: 4
   refresh_buffer_epoch: -1
   n_mini_batches: 8
@@ -58,14 +58,14 @@ trainer:
     initial: 2.5e-4
     final: 2.5e-4
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 250
   beta_schedule:
-    initial: 0.001
+    initial: 0.01
     final: 0.0001
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 250
   clip_range_schedule:
     initial: 0.2
     final: 0.2
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 250
