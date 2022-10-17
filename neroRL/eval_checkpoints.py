@@ -61,8 +61,8 @@ def main():
         print("No checkpoints found in the given directory. Exiting...")
         return 0
     checkpoint = torch.load(checkpoints[0])
-    model_config = checkpoint["config"]["model"]
-    configs = YamlParser(config_path).get_config() if config_path else checkpoint["config"]
+    model_config = checkpoint["configs"]["model"]
+    configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     print("Step 2: Creating dummy environment of type " + configs["environment"]["type"])

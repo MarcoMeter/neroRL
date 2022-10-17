@@ -65,8 +65,8 @@ def main():
     if not config_path and not checkpoint_path:
         raise ValueError("Either a config or a checkpoint must be provided")
     checkpoint = torch.load(checkpoint_path) if checkpoint_path else None
-    configs = YamlParser(config_path).get_config() if config_path else checkpoint["config"]
-    model_config = checkpoint["config"]["model"] if checkpoint else configs["model"]
+    configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
+    model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
