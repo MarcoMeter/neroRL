@@ -121,6 +121,11 @@ class UnityWrapper(Env):
         return self._action_space
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
     def action_names(self):
         return None
 
@@ -166,11 +171,11 @@ class UnityWrapper(Env):
 
         # Sample the to be used seed
         if reset_params["start-seed"] > -1:
-            seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+            self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
         else:
             # Use unlimited seeds
-            seed = -1
-        self.reset_parameters.set_float_parameter("seed", seed)
+            self._seed = -1
+        self.reset_parameters.set_float_parameter("seed", self._seed)
 
         # Reset and verify the environment
         self._env.reset()

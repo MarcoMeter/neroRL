@@ -10,6 +10,7 @@ environment:
   spotlight_perturbation:
     start-seed: 0
     num-seeds: 100000
+    use-environment-seed: True
     initial_spawns: 4
     num_spawns: 30
     initial_spawn_interval: 30
@@ -20,8 +21,8 @@ environment:
     spot_min_speed: 0.0025
     spot_max_speed: 0.0075
     spotlight_opacity: 120
-    black_to_white_filter: False
-    shadow_theme: False
+    black_to_white_filter: True
+    shadow_theme: True
   reset_params:
     start-seed: 1
     num-seeds: 1

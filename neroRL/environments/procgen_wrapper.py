@@ -93,6 +93,11 @@ class ProcgenWrapper(Env):
         return self._env.action_space
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
     def action_names(self):
         """Returns a list of action names."""
         return [["left down", "left", "left up", "down", "No-op", "up", "right down", "right", "right up", "D", "A", "W", "S", "Q", "E"]]
@@ -121,9 +126,10 @@ class ProcgenWrapper(Env):
         # If new reset parameters were specified, Procgen has to be restarted
         # if not self._default_reset_params == reset_params:
         self._env.close()
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
         self._env = gym.make(self._env_name,
                         render_mode = "human" if self._realtime_mode else None,
-                        start_level = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1),
+                        start_level = self._seed,
                         num_levels = 1,
                         paint_vel_info = reset_params["paint_vel_info"],
                         use_generated_assets = reset_params["use_generated_assets"],

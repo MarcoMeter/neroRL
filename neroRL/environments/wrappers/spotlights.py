@@ -15,6 +15,7 @@ class SpotlightsEnv(Env):
     default_config = {
         "start-seed": 0,
         "num-seeds": 100000,
+        "use-environment-seed": False,
         "initial_spawns": 4,
         "num_spawns": 30,
         "initial_spawn_interval": 30,
@@ -102,6 +103,11 @@ class SpotlightsEnv(Env):
         return self._env.action_space
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._env._seed
+
+    @property
     def action_names(self):
         """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
         return self._env.action_names
@@ -129,7 +135,10 @@ class SpotlightsEnv(Env):
 
         # Setup spotlights
         # This seed is independent from the unwrapped environment
-        seed = randint(self.config["start-seed"], self.config["start-seed"] + self.config["num-seeds"] - 1)
+        if not self.config["use-environment-seed"]:
+            seed = randint(self.config["start-seed"], self.config["start-seed"] + self.config["num-seeds"] - 1)
+        else:
+            seed = self.seed
         self.np_random = np.random.Generator(np.random.PCG64(seed))
         self.spawn_intervals = self._compute_spawn_intervals()
         self.spotlights = []

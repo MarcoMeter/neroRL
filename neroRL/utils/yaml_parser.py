@@ -51,7 +51,6 @@ class YamlParser:
             "obs_stacks": 1,
             "grayscale": False,
             "resize_vis_obs": [84, 84],
-            "spotlight_perturbation": False,
             "reset_params": {"start-seed": 0, "num-seeds": 100},
             "reward_normalization": 0
         }
