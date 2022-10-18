@@ -1,5 +1,7 @@
 """
-Instantiates an environment and loads a trained model based on the provided config.
+Instantiates an environment and loads a trained model based on the provided config and checkpoint.
+Either a checkpoint or a config have to be provided. Whenever a checkpoint is provided, its model config is used to
+instantiate the model. A checkpoint can be also provided via the config.
 The agent environment interaction is then shown in realtime for one episode on a specified seed.
 Additionally a video can be rendered. Alternatively a website visualizing more properties, such as the value function,
 can be generated.
@@ -33,7 +35,8 @@ def main():
         nenjoy --help
 
     Options:
-        --config=<path>            Path to the config file [default: ./configs/default.yaml].
+        --config=<path>            Path to the config file [default: ].
+        --checkpoint=<path>        Path to the checkpoint file [default: ].
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --seed=<n>                 The to be played seed of an episode [default: 0].
@@ -43,14 +46,15 @@ def main():
         --generate_website         Specifies wether a website shall be generated. [default: False]
     """
     options = docopt(_USAGE)
-    untrained = options["--untrained"]
-    config_path = options["--config"]
-    worker_id = int(options["--worker-id"])
-    seed = int(options["--seed"])
-    num_episodes = int(options["--num-episodes"])
-    video_path = options["--video"]
-    frame_rate = options["--framerate"]
-    generate_website = options["--generate_website"]
+    untrained = options["--untrained"]                  # defaults to False
+    config_path = options["--config"]                   # defaults to an empty string
+    checkpoint_path = options["--checkpoint"]           # defaults to an empty string
+    worker_id = int(options["--worker-id"])             # defaults to 2
+    seed = int(options["--seed"])                       # defaults to 0
+    num_episodes = int(options["--num-episodes"])       # defauults to 1
+    video_path = options["--video"]                     # defaults to "video"
+    frame_rate = options["--framerate"]                 # defaults to 6
+    generate_website = options["--generate_website"]    # defaults to False
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -66,15 +70,19 @@ def main():
         logger.info("Step 0: Only 1 episode will be played")
         num_episodes = 1
 
-    # Load environment, model, evaluation and training parameters
-    configs = YamlParser(config_path).get_config()
-
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
         torch.set_default_tensor_type("torch.cuda.FloatTensor")
     else:
         torch.set_default_tensor_type("torch.FloatTensor")
+
+    # Load config, environment, model, evaluation and training parameters
+    if not config_path and not checkpoint_path:
+        raise ValueError("Either a config or a checkpoint must be provided")
+    checkpoint = torch.load(checkpoint_path) if checkpoint_path else None
+    configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
+    model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
 
     # Launch environment
     logger.info("Step 1: Launching environment")
@@ -95,16 +103,18 @@ def main():
     share_parameters = False
     if configs["trainer"]["algorithm"] == "PPO":
         share_parameters = configs["trainer"]["share_parameters"]
-    model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
+    model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
-                            configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
+                            model_config["recurrence"] if "recurrence" in model_config else None, device)
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
-        logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
-        checkpoint = torch.load(configs["model"]["model_path"])
+        if not checkpoint:
+            # If a checkpoint is not provided as an argument, it shall be retrieved from the config
+            logger.info("Step 2: Loading model from " + model_config["model_path"])
+            checkpoint = torch.load(model_config["model_path"])
         model.load_state_dict(checkpoint["model"])
-        if "recurrence" in configs["model"]:
+        if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
 
@@ -118,11 +128,11 @@ def main():
         done = False
         
         # Init hidden state (None if not available)
-        if "recurrence" in configs["model"]:
+        if "recurrence" in model_config:
             hxs, cxs = model.init_recurrent_cell_states(1, device)
-            if configs["model"]["recurrence"]["layer_type"] == "gru":
+            if model_config["recurrence"]["layer_type"] == "gru":
                 recurrent_cell = hxs
-            elif configs["model"]["recurrence"]["layer_type"] == "lstm":
+            elif model_config["recurrence"]["layer_type"] == "lstm":
                 recurrent_cell = (hxs, cxs)
         else:
             recurrent_cell = None

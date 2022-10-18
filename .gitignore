@@ -13,3 +13,4 @@ csharp_timers.json
 .vscode/.ropeproject/objectdb
 .vscode/
 *.egg-info*
+test.py

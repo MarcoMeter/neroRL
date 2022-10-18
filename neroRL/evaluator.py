@@ -7,7 +7,8 @@ from neroRL.utils.video_recorder import VideoRecorder
 
 class Evaluator():
     """Evaluates a model based on the initially provided config."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, video_path = "video", record_video = False, frame_rate = 1, generate_website = False):
+    def __init__(self, configs, model_config, worker_id, visual_observation_space, vector_observation_space,
+                video_path = "video", record_video = False, frame_rate = 1, generate_website = False):
         """Initializes the evaluator and its environments
         
         Arguments:
@@ -20,7 +21,11 @@ class Evaluator():
         # Set members
         self.configs = configs
         self.n_workers = configs["evaluation"]["n_workers"]
-        self.seeds = configs["evaluation"]["seeds"]
+        if "explicit-seeds" in configs["evaluation"]["seeds"]:
+            self.seeds = configs["evaluation"]["seeds"]["explicit-seeds"]
+        else:
+            start = configs["evaluation"]["seeds"]["start-seed"]
+            self.seeds = list(range(start, start + configs["evaluation"]["seeds"]["num-seeds"]))
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
         self.video_path = video_path
@@ -35,7 +40,7 @@ class Evaluator():
             self.workers.append(Worker(configs["environment"], id, record_video = record_video))
 
         # Check for recurrent policy
-        self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
+        self.recurrence = None if not "recurrence" in model_config else model_config["recurrence"]
 
     def evaluate(self, model, device):
         """Evaluates a provided model on the already initialized evaluation environments.
