@@ -10,18 +10,31 @@ environment:
   spotlight_perturbation:
     start-seed: 0
     num-seeds: 100000
+    # Whether to use the same seed as the environment
     use-environment-seed: False
+    # Number of to be spawned spotlights initially
     initial_spawns: 4
+    # Number of spotlights that are spawned throughout the episode at a decayed interval
     num_spawns: 30
+    # Number of steps before spawning one spotlight
     initial_spawn_interval: 30
+    # Lower threshold for the spotlights spawn interval
     spawn_interval_threshold: 10
+    # Decay rate of the spawn interval
     spawn_interval_decay: 0.95
+    # Minimum radius of the spotlights
     spot_min_radius: 7.5
+    # Maximum radius of the spotlights
     spot_max_radius: 13.75
+    # Minimum speed of the spotlights
     spot_min_speed: 0.0025
+    # Maximum speed of the spotlights
     spot_max_speed: 0.0075
+    # Opacity of the spotlights perturbation surface (0 refers to completely transparent)
     spotlight_opacity: 120
+    # Whether to apply a color key to replace black with white
     black_to_white_filter: True
+    # Whether to render the spotlight surface as dark shadow or as white fog
     shadow_theme: True
   reset_params:
     start-seed: 1
