@@ -1,5 +1,3 @@
-# https://github.com/maximecb/gym-minigrid
-
 environment:
   type: "RandomMaze"
   frame_skip: 1
