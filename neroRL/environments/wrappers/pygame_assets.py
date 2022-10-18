@@ -46,9 +46,9 @@ class Spotlight():
             self.t = 1.0
             self.done = True
 
-def get_tiled_background_surface(screen, screen_dim, tile_color, scale):
-    background_surface = pygame.Surface((screen_dim, screen_dim))
-    ts, w, h, c1, c2 = int(50 * scale), *screen.get_size(), (255, 255, 255), tile_color
+def get_tiled_background_surface(screen_dim, tile_color, scale):
+    background_surface = pygame.Surface(screen_dim)
+    ts, w, h, c1, c2 = int(50 * scale), *screen_dim, (255, 255, 255), tile_color
     tiles = [((x*ts, y*ts, ts, ts), c1 if (x+y) % 2 == 0 else c2) for x in range((w+ts-1)//ts) for y in range((h+ts-1)//ts)]
     for rect, color in tiles:
         pygame.draw.rect(background_surface, color, rect)

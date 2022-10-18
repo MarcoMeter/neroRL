@@ -20,34 +20,36 @@ class SpotlightsEnv(Env):
         """
         self._env = env
 
-        # Check if visual observations are available
+        # Check if visual observations are available and determine the screen dim
         assert (self._env.visual_observation_space is not None), "Visual observations of the environment have to be available."
-        
+        self.screen_dim = self._env.visual_observation_space.shape[:2]
+        self.max_dim = max(self.screen_dim)
+        self.scale = self.max_dim / 84.0
+
         # Spotlights members
         self.initial_spawns = 4
         self.num_spawns = 30
         self.initial_spawn_interval = 30
         self.spawn_interval_threshold = 10
         self.spawn_interval_decay = 0.95
-        self.spot_min_radius = 7.5
-        self.spot_max_radius = 13.75
+        self.spot_min_radius = 7.5 * self.scale
+        self.spot_max_radius = 13.75 * self.scale
         self.spot_min_speed = 0.0025
         self.spot_max_speed = 0.0075
 
         # PyGame Setup
-        os.putenv('SDL_VIDEODRIVER', 'fbcon')
+        os.putenv("SDL_VIDEODRIVER", "fbcon")
         os.environ["SDL_VIDEODRIVER"] = "dummy"
-        self.screen_dim = 84
-        self.screen = pygame.display.set_mode((self.screen_dim, self.screen_dim), pygame.NOFRAME)
+        self.screen = pygame.display.set_mode(self.screen_dim, pygame.NOFRAME)
         self.clock = pygame.time.Clock()
         pygame.event.set_allowed(None)
-        self.spotlight_surface = pygame.Surface((self.screen_dim, self.screen_dim))
+        self.spotlight_surface = pygame.Surface(self.screen_dim)
         self.spotlight_surface.fill((0, 0, 0))
         self.spotlight_surface.set_colorkey((255, 255, 255))
         self.spotlight_surface.set_alpha(120)
 
         self.np_random = np.random.Generator(np.random.PCG64(0))
-        self.blue_background_surface = get_tiled_background_surface(self.screen, self.screen_dim, (0, 0, 255), 0.25)
+        self.blue_background_surface = get_tiled_background_surface(self.screen_dim, (0, 0, 255), 0.25 * self.scale)
         self.blue_background_surface.fill((255, 255, 255))
 
     @property
@@ -102,7 +104,7 @@ class SpotlightsEnv(Env):
         self.spotlights = []
         self.spawn_timer = 0
         for _ in range(self.initial_spawns):
-            self.spotlights.append(Spotlight(self.screen_dim, self.np_random.integers(int(self.spot_min_radius), int(self.spot_max_radius + 1)),
+            self.spotlights.append(Spotlight(self.max_dim, self.np_random.integers(int(self.spot_min_radius), int(self.spot_max_radius + 1)),
                                                             self.np_random.uniform(self.spot_min_speed, self.spot_max_speed), self.np_random, t=0.3))
 
         # Draw spotlights
@@ -143,7 +145,7 @@ class SpotlightsEnv(Env):
         self.spawn_timer += 1
         if self.spawn_intervals:
             if self.spawn_timer >= self.spawn_intervals[0]:
-                self.spotlights.append(Spotlight(self.screen_dim, self.np_random.integers(self.spot_min_radius, self.spot_max_radius + 1),
+                self.spotlights.append(Spotlight(self.max_dim, self.np_random.integers(self.spot_min_radius, self.spot_max_radius + 1),
                                                             self.np_random.uniform(self.spot_min_speed, self.spot_max_speed), self.np_random))
                 self.spawn_intervals.pop()
                 self.spawn_timer = 0
