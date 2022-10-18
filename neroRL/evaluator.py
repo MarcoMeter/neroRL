@@ -21,7 +21,11 @@ class Evaluator():
         # Set members
         self.configs = configs
         self.n_workers = configs["evaluation"]["n_workers"]
-        self.seeds = configs["evaluation"]["seeds"]
+        if "explicit-seeds" in configs["evaluation"]["seeds"]:
+            self.seeds = configs["evaluation"]["seeds"]["explicit-seeds"]
+        else:
+            start = configs["evaluation"]["seeds"]["start-seed"]
+            self.seeds = list(range(start, start + configs["evaluation"]["seeds"]["num-seeds"]))
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
         self.video_path = video_path

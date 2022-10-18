@@ -41,7 +41,9 @@ model:
 evaluation:
   evaluate: False
   n_workers: 3
-  seeds: [1001, 1002, 1003, 1004, 1005]
+  seeds:
+    start-seed: 100000
+    num-seeds: 10
   interval: 200
 
 sampler:

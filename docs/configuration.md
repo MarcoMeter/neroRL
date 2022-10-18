@@ -91,8 +91,12 @@ evaluation:
   evaluate: False
   # Number of environments that are used
   n_workers: 3
-  # Evaluation seeds (each worker performs on every seed: in this case, overall 15 episodes are used for evaluation (n_workers * seeds))
-  seeds: [1001, 1002, 1003, 1004, 1005]
+  # Evaluation seeds (each worker performs on every seed: in this case, overall 30 episodes are used for evaluation (n_workers * seeds))
+  seeds:
+    start-seed: 100000
+    num-seeds: 10
+    # Use the explicit-seeds key to override the range of seeds in case of evaluating specific seeds
+    # explicit-seeds: [1001, 1002, 1003, 1004, 1005]
   # Evaluate the model after every n-th update during training
   interval: 50
 ```
