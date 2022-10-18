@@ -1,23 +1,24 @@
-
 # https://github.com/ml-jku/helm/
-from mazelab.generators import random_maze
 import numpy as np
+import gym
+import time
+
+from mazelab.generators import random_maze
 from mazelab import BaseMaze
 from mazelab import Object
 from mazelab import DeepMindColor as color
 from mazelab import BaseEnv
 from mazelab import VonNeumannMotion
-import gym
-from gym.spaces import Box
-from gym.spaces import Discrete
+
 from neroRL.environments.env import Env
 from gym import error, spaces
+from gym.spaces import Box
+from gym.spaces import Discrete
 from random import randint
-import time
 
 class MazeWrapper(Env):
     def __init__(self, reset_params = None, realtime_mode = False, record_trajectory = False):
-        self._env = gym.make('RandomMaze-v0')
+        self._env = gym.make("RandomMaze-v0")
         # Set default reset parameters if none were provided
         if reset_params is None:
             self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
@@ -28,11 +29,11 @@ class MazeWrapper(Env):
         self._visual_observation_space = spaces.Box(
                 low = 0,
                 high = 1.0,
-                shape = (84, 84, 3),
+                shape = (9, 9, 3),
                 dtype = np.float32)
         
         self._action_space = self._env.action_space
-        self._action_names = None # TODO: Add action names
+        self._action_names = ["North", "South", "West", "East"]
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
         self._trajectory = {
@@ -95,6 +96,7 @@ class MazeWrapper(Env):
         # Set seed
         self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
         self._env.seed(self._seed)
+        np.random.seed(seed)
         # Track rewards of an entire episode
         self._rewards = []
         # Reset the environment and retrieve the initial observation
@@ -131,7 +133,7 @@ class MazeWrapper(Env):
         # Render the environment in realtime
         if self._realtime_mode:
             self._env.render(mode = "human")
-            time.sleep(0.5)
+            time.sleep(0.1)
 
         # Record trajectory data
         if self._record:
@@ -147,7 +149,7 @@ class MazeWrapper(Env):
                     "length": len(self._rewards),
                     "success": success}
         else:
-            info = {"reward": sum(self._rewards), "length": len(self._rewards)}
+            info = None
 
         return vis_obs, None, reward, done, info
 
@@ -232,6 +234,7 @@ class Env(BaseEnv):
         else:
             reward = -0.01
             done = False
+
         return self._get_pomdp_view(), reward, done, {}
 
     def reset(self):
@@ -259,4 +262,4 @@ class Env(BaseEnv):
         return self.maze.to_rgb()
 
 
-gym.envs.register(id='RandomMaze-v0', entry_point=Env, max_episode_steps=100)
+gym.envs.register(id="RandomMaze-v0", entry_point=Env, max_episode_steps=100)

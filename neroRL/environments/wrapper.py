@@ -8,7 +8,6 @@ from neroRL.environments.wrappers.last_action_to_obs import LastActionToObs
 from neroRL.environments.wrappers.last_reward_to_obs import LastRewardToObs
 from neroRL.environments.wrappers.reward_normalization import RewardNormalizer
 
-
 def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory = False):
     """This function instantiates an environment and applies wrappers based on the specified config.
 
