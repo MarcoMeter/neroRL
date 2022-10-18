@@ -7,11 +7,12 @@ from neroRL.environments.wrappers.pygame_assets import Spotlight, get_tiled_back
 
 from gym import spaces
 from neroRL.environments.env import Env
+from random import randint
 
 class SpotlightsEnv(Env):
     """This wrapper adds wandering spotlights to render on top of a visual observation as noise perturbation."""
 
-    default_reset_parameters = {
+    default_config = {
         "start-seed": 0,
         "num-seeds": 100000,
         "initial_spawns": 4,
@@ -25,7 +26,7 @@ class SpotlightsEnv(Env):
         "spot_max_speed": 0.0075
     }
 
-    def process_reset_params(reset_params):
+    def process_config(reset_params):
         """Compares the provided reset parameters to the default ones. It asserts whether false reset parameters were provided.
         Missing reset parameters are filled with the default ones.
 
@@ -35,7 +36,7 @@ class SpotlightsEnv(Env):
         Returns:
             dict -- Returns a complete and valid dictionary comprising the to be used reset parameters.
         """
-        cloned_params = SpotlightsEnv.default_reset_parameters.copy()
+        cloned_params = SpotlightsEnv.default_config.copy()
         if reset_params is not None:
             for k, v in reset_params.items():
                 assert k in cloned_params.keys(), "Provided reset parameter (" + str(k) + ") is not valid. Check spelling."
@@ -59,7 +60,7 @@ class SpotlightsEnv(Env):
         self.scale = self.max_dim / 84.0
 
         # Process the spotlight perturbation config
-        self.config = SpotlightsEnv.process_reset_params(config)
+        self.config = SpotlightsEnv.process_config(config)
         self.config["spot_min_radius"] = self.config["spot_min_radius"] * self.scale
         self.config["spot_max_radius"] = self.config["spot_max_radius"] * self.scale
 
@@ -125,7 +126,9 @@ class SpotlightsEnv(Env):
         self._obs = []
 
         # Setup spotlights
-        self.np_random = np.random.Generator(np.random.PCG64(self._env.unwrapped.seed))
+        # This seed is independent from the unwrapped environment
+        seed = randint(self.config["start-seed"], self.config["start-seed"] + self.config["num-seeds"] - 1)
+        self.np_random = np.random.Generator(np.random.PCG64(seed))
         self.spawn_intervals = self._compute_spawn_intervals()
         self.spotlights = []
         self.spawn_timer = 0
