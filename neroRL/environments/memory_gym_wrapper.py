@@ -67,6 +67,11 @@ class MemoryGymWrapper(Env):
         return self._env.action_space
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
     def action_names(self):
         """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
         if isinstance(self.action_space, spaces.MultiDiscrete):
@@ -97,7 +102,7 @@ class MemoryGymWrapper(Env):
             reset_params = reset_params
 
         # Sample seed
-        seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
 
         # Remove reset params that are not processed directly by the environment
         options = reset_params.copy()
@@ -106,7 +111,7 @@ class MemoryGymWrapper(Env):
         options.pop("seed", None)
 
         # Reset the environment to retrieve the initial observation
-        obs, _ = self._env.reset(seed=seed, options=options)
+        obs, _ = self._env.reset(seed=self._seed, options=options)
         if type(self._env.observation_space) is spaces.Dict:
             vis_obs = obs["visual_observation"]
             vec_obs = obs["vector_observation"]

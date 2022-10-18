@@ -67,6 +67,11 @@ class CartPoleWrapper(Env):
         return self._env.action_space
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
     def action_names(self):
         """Returns a list of action names."""
         return ["move right", "move left"]
@@ -93,7 +98,7 @@ class CartPoleWrapper(Env):
             reset_params = self._default_reset_params
 
         # Sample seed
-        seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
 
         # Create mask to hide the velocity of the cart and the pole if requested by the reset params
         self._obs_mask = np.ones(4, dtype=np.float32) if not self._default_reset_params["mask-velocity"] else np.asarray([1,0,1,0], dtype=np.float32)
@@ -103,7 +108,7 @@ class CartPoleWrapper(Env):
 
         # Retrieve the agent's initial observation
         vis_obs = None
-        vec_obs, _ = self._env.reset(seed=seed)
+        vec_obs, _ = self._env.reset(seed=self._seed)
 
         # Render environment?
         if self._realtime_mode:

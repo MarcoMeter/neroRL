@@ -60,7 +60,12 @@ class MazeWrapper(Env):
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return self._action_space
-    
+
+    @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
     @property
     def get_episode_trajectory(self):
         """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
@@ -89,8 +94,8 @@ class MazeWrapper(Env):
         else:
             reset_params = reset_params
         # Set seed
-        seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
-        self._env.seed(seed)
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+        self._env.seed(self._seed)
         np.random.seed(seed)
         # Track rewards of an entire episode
         self._rewards = []
