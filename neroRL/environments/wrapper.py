@@ -65,8 +65,8 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
     if config["grayscale"] and env.visual_observation_space is not None:
         env = GrayscaleVisualObsEnv(env)
     # Spotlight perturbation
-    if config["spotlight_perturbation"]:
-        env = SpotlightsEnv(env)
+    if "spotlight_perturbation" in config:
+        env = SpotlightsEnv(env, config["spotlight_perturbation"])
     # Rescale Visual Observation
     if env.visual_observation_space is not None:
         env = ScaledVisualObsEnv(env, config["resize_vis_obs"][0], config["resize_vis_obs"][1])

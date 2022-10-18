@@ -11,12 +11,44 @@ from neroRL.environments.env import Env
 class SpotlightsEnv(Env):
     """This wrapper adds wandering spotlights to render on top of a visual observation as noise perturbation."""
 
-    def __init__(self, env):
+    default_reset_parameters = {
+        "start-seed": 0,
+        "num-seeds": 100000,
+        "initial_spawns": 4,
+        "num_spawns": 30,
+        "initial_spawn_interval": 30,
+        "spawn_interval_threshold": 10,
+        "spawn_interval_decay": 0.95,
+        "spot_min_radius": 7.5,
+        "spot_max_radius": 13.75,
+        "spot_min_speed": 0.0025,
+        "spot_max_speed": 0.0075
+    }
+
+    def process_reset_params(reset_params):
+        """Compares the provided reset parameters to the default ones. It asserts whether false reset parameters were provided.
+        Missing reset parameters are filled with the default ones.
+
+        Arguments:
+            reset_params {dict} -- Provided reset parameters that are to be validated and completed
+
+        Returns:
+            dict -- Returns a complete and valid dictionary comprising the to be used reset parameters.
+        """
+        cloned_params = SpotlightsEnv.default_reset_parameters.copy()
+        if reset_params is not None:
+            for k, v in reset_params.items():
+                assert k in cloned_params.keys(), "Provided reset parameter (" + str(k) + ") is not valid. Check spelling."
+                cloned_params[k] = v
+        return cloned_params
+
+    def __init__(self, env, config):
         """Initializes the wrapper by settting up everything for the spotlights and the PyGame surfaces.
         PyGame blits the spotlight surface onto the visual observation.
         
         Arguments:
-            env {Env} -- The to be wrapped environment, which is derived from the Env class
+            env {Env}       -- The to be wrapped environment, which is derived from the Env class
+            config {dict}   -- The config determines the behavior of the spotlight perturbation
         """
         self._env = env
 
@@ -26,16 +58,10 @@ class SpotlightsEnv(Env):
         self.max_dim = max(self.screen_dim)
         self.scale = self.max_dim / 84.0
 
-        # Spotlights members
-        self.initial_spawns = 4
-        self.num_spawns = 30
-        self.initial_spawn_interval = 30
-        self.spawn_interval_threshold = 10
-        self.spawn_interval_decay = 0.95
-        self.spot_min_radius = 7.5 * self.scale
-        self.spot_max_radius = 13.75 * self.scale
-        self.spot_min_speed = 0.0025
-        self.spot_max_speed = 0.0075
+        # Process the spotlight perturbation config
+        self.config = SpotlightsEnv.process_reset_params(config)
+        self.config["spot_min_radius"] = self.config["spot_min_radius"] * self.scale
+        self.config["spot_max_radius"] = self.config["spot_max_radius"] * self.scale
 
         # PyGame Setup
         os.putenv("SDL_VIDEODRIVER", "fbcon")
@@ -103,9 +129,9 @@ class SpotlightsEnv(Env):
         self.spawn_intervals = self._compute_spawn_intervals()
         self.spotlights = []
         self.spawn_timer = 0
-        for _ in range(self.initial_spawns):
-            self.spotlights.append(Spotlight(self.max_dim, self.np_random.integers(int(self.spot_min_radius), int(self.spot_max_radius + 1)),
-                                                            self.np_random.uniform(self.spot_min_speed, self.spot_max_speed), self.np_random, t=0.3))
+        for _ in range(self.config["initial_spawns"]):
+            self.spotlights.append(Spotlight(self.max_dim, self.np_random.integers(int(self.config["spot_min_radius"]), int(self.config["spot_max_radius"] + 1)),
+                                                            self.np_random.uniform(self.config["spot_min_speed"], self.config["spot_max_speed"]), self.np_random, t=0.3))
 
         # Draw spotlights
         self.spotlight_surface.fill((0, 0, 0))
@@ -145,8 +171,8 @@ class SpotlightsEnv(Env):
         self.spawn_timer += 1
         if self.spawn_intervals:
             if self.spawn_timer >= self.spawn_intervals[0]:
-                self.spotlights.append(Spotlight(self.max_dim, self.np_random.integers(self.spot_min_radius, self.spot_max_radius + 1),
-                                                            self.np_random.uniform(self.spot_min_speed, self.spot_max_speed), self.np_random))
+                self.spotlights.append(Spotlight(self.max_dim, self.np_random.integers(int(self.config["spot_min_radius"]), int(self.config["spot_max_radius"] + 1)),
+                                                            self.np_random.uniform(self.config["spot_min_speed"], self.config["spot_max_speed"]), self.np_random))
                 self.spawn_intervals.pop()
                 self.spawn_timer = 0
         
@@ -183,8 +209,8 @@ class SpotlightsEnv(Env):
 
     def _compute_spawn_intervals(self) -> list:
         intervals = []
-        initial =self.initial_spawn_interval
-        for i in range(self.num_spawns):
-            intervals.append(int(initial + self.spawn_interval_threshold))
-            initial = initial * math.pow(self.spawn_interval_decay, 1)
+        initial = self.config["initial_spawn_interval"]
+        for i in range(self.config["num_spawns"]):
+            intervals.append(int(initial + self.config["spawn_interval_threshold"]))
+            initial = initial * math.pow(self.config["spawn_interval_decay"], 1)
         return intervals
