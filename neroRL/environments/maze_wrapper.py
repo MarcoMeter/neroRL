@@ -96,7 +96,7 @@ class MazeWrapper(Env):
         # Set seed
         self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
         self._env.seed(self._seed)
-        np.random.seed(seed)
+        np.random.seed(self._seed)
         # Track rewards of an entire episode
         self._rewards = []
         # Reset the environment and retrieve the initial observation
