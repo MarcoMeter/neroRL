@@ -10,7 +10,7 @@ environment:
   spotlight_perturbation:
     start-seed: 0
     num-seeds: 100000
-    use-environment-seed: True
+    use-environment-seed: False
     initial_spawns: 4
     num_spawns: 30
     initial_spawn_interval: 30
