@@ -3,7 +3,7 @@ import numpy as np
 import pygame
 import os
 
-from neroRL.environments.wrappers.pygame_assets import Spotlight, get_tiled_background_surface
+from neroRL.environments.wrappers.pygame_assets import Spotlight
 
 from gym import spaces
 from neroRL.environments.env import Env
@@ -23,7 +23,10 @@ class SpotlightsEnv(Env):
         "spot_min_radius": 7.5,
         "spot_max_radius": 13.75,
         "spot_min_speed": 0.0025,
-        "spot_max_speed": 0.0075
+        "spot_max_speed": 0.0075,
+        "spotlight_opacity": 120,
+        "black_to_white_filter": False,
+        "shadow_theme": False
     }
 
     def process_config(reset_params):
@@ -71,13 +74,12 @@ class SpotlightsEnv(Env):
         self.clock = pygame.time.Clock()
         pygame.event.set_allowed(None)
         self.spotlight_surface = pygame.Surface(self.screen_dim)
-        self.spotlight_surface.fill((0, 0, 0))
-        self.spotlight_surface.set_colorkey((255, 255, 255))
-        self.spotlight_surface.set_alpha(120)
-
-        self.np_random = np.random.Generator(np.random.PCG64(0))
-        self.blue_background_surface = get_tiled_background_surface(self.screen_dim, (0, 0, 255), 0.25 * self.scale)
-        self.blue_background_surface.fill((255, 255, 255))
+        if self.config["shadow_theme"]:
+            self.spotlight_surface.fill((0, 0, 0))
+        else:
+            self.spotlight_surface.fill((255, 255, 255))
+        self.spotlight_surface.set_colorkey((255, 0, 0))
+        self.spotlight_surface.set_alpha(self.config["spotlight_opacity"])
 
     @property
     def unwrapped(self):
@@ -137,7 +139,10 @@ class SpotlightsEnv(Env):
                                                             self.np_random.uniform(self.config["spot_min_speed"], self.config["spot_max_speed"]), self.np_random, t=0.3))
 
         # Draw spotlights
-        self.spotlight_surface.fill((0, 0, 0))
+        if self.config["shadow_theme"]:
+            self.spotlight_surface.fill((0, 0, 0))
+        else:
+            self.spotlight_surface.fill((255, 255, 255))
         for spot in self.spotlights:        
             # Remove spotlights that finished traversal
             if spot.done:
@@ -147,11 +152,12 @@ class SpotlightsEnv(Env):
 
         # Use pygame to add the spotlights onto the original observation
         obs_surface = pygame.surfarray.make_surface((vis_obs * 255.0))
-        obs_surface.set_colorkey((0, 0, 0))
-        self.screen.blit(self.blue_background_surface, (0, 0))
+        if self.config["black_to_white_filter"]:
+            obs_surface.set_colorkey((0, 0, 0))
+            self.screen.fill((255, 255, 255))
         self.screen.blit(obs_surface, (0, 0))
         self.screen.blit(self.spotlight_surface, (0, 0))
-        vis_obs = pygame.surfarray.array3d(pygame.display.get_surface()).astype(np.float32) / 255.0 # TODO check vis_obs type and scale
+        vis_obs = pygame.surfarray.array3d(pygame.display.get_surface()).astype(np.float32) / 255.0
         self._obs.append((vis_obs * 255).astype(np.uint8))
         return vis_obs, vec_obs
 
@@ -180,7 +186,10 @@ class SpotlightsEnv(Env):
                 self.spawn_timer = 0
         
         # Draw spotlights
-        self.spotlight_surface.fill((0, 0, 0))
+        if self.config["shadow_theme"]:
+            self.spotlight_surface.fill((0, 0, 0))
+        else:
+            self.spotlight_surface.fill((255, 255, 255))
         for spot in self.spotlights:        
             # Remove spotlights that finished traversal
             if spot.done:
@@ -190,11 +199,12 @@ class SpotlightsEnv(Env):
 
         # Use pygame to add the spotlights onto the original observation
         obs_surface = pygame.surfarray.make_surface((vis_obs * 255.0))
-        obs_surface.set_colorkey((0, 0, 0))
-        self.screen.blit(self.blue_background_surface, (0, 0))
+        if self.config["black_to_white_filter"]:
+            obs_surface.set_colorkey((0, 0, 0))
+            self.screen.fill((255, 255, 255))
         self.screen.blit(obs_surface, (0, 0))
         self.screen.blit(self.spotlight_surface, (0, 0))
-        vis_obs = pygame.surfarray.array3d(pygame.display.get_surface()).astype(np.float32) / 255.0 # TODO check vis_obs type and scale
+        vis_obs = pygame.surfarray.array3d(pygame.display.get_surface()).astype(np.float32) / 255.0
         self._obs.append((vis_obs * 255).astype(np.uint8))
 
         # import matplotlib.pyplot as plt
