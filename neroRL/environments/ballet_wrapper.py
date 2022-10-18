@@ -75,6 +75,11 @@ class BalletWrapper(Env):
         return spaces.Discrete(8)
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
     def action_names(self):
         """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
         [["", "", "", "", "", "", "", ""]]
@@ -102,8 +107,8 @@ class BalletWrapper(Env):
                 if k not in reset_params:
                     reset_params[k] = v
 
-        seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
-        timestep = self._env.reset(reset_params, seed)
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+        timestep = self._env.reset(reset_params, self._seed)
         vis_obs, command = timestep.observation
         vec_obs = self._command_to_one_hot(command)
         # Track rewards of an entire episode

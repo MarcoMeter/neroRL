@@ -29,6 +29,11 @@ class Env(ABC):
         raise NotImplementedError("This abstract property has to be implemented by a child.")
 
     @abstractproperty
+    def seed(self):
+        """Returns the seed of the current episode."""
+        raise NotImplementedError("This abstract property has to be implemented by a child.")
+
+    @abstractproperty
     def action_names(self):
         """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
         raise NotImplementedError("This abstract property has to be implemented by a child.")

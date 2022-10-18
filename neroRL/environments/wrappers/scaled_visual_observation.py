@@ -55,6 +55,11 @@ class ScaledVisualObsEnv(Env):
         return self._env.action_space
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._env._seed
+
+    @property
     def action_names(self):
         """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
         return self._env.action_names
