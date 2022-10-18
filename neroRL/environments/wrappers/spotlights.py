@@ -100,7 +100,7 @@ class SpotlightsEnv(Env):
         self.np_random = np.random.Generator(np.random.PCG64(self._env.unwrapped.seed))
         self.spawn_intervals = self._compute_spawn_intervals()
         self.spotlights = []
-        self.spawn_timer = self.spawn_intervals[0] if self.spawn_intervals else 0 # ensure that the first spotlight is spawned right away
+        self.spawn_timer = 0
         for _ in range(self.initial_spawns):
             self.spotlights.append(Spotlight(self.screen_dim, self.np_random.integers(int(self.spot_min_radius), int(self.spot_max_radius + 1)),
                                                             self.np_random.uniform(self.spot_min_speed, self.spot_max_speed), self.np_random, t=0.3))
