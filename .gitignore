@@ -14,3 +14,4 @@ csharp_timers.json
 .vscode/
 *.egg-info*
 test.py
+neroRL/test.py

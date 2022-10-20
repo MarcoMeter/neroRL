@@ -93,9 +93,9 @@ class PPOTrainer(BaseTrainer):
         recurrent_cell = None
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
-                recurrent_cell = samples["hxs"].unsqueeze(0)
+                recurrent_cell = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
-                recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+                recurrent_cell = (samples["hxs"], samples["cxs"])
         
         policy, value, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,

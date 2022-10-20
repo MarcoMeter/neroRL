@@ -150,9 +150,9 @@ class DecoupledPPOTrainer(BaseTrainer):
         recurrent_cell = None
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
-                recurrent_cell = samples["hxs"].unsqueeze(0)
+                recurrent_cell = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
-                recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+                recurrent_cell = (samples["hxs"], samples["cxs"])
             (actor_recurrent_cell, _) = self.model.unpack_recurrent_cell(recurrent_cell)
         else:
             actor_recurrent_cell = None
@@ -230,9 +230,9 @@ class DecoupledPPOTrainer(BaseTrainer):
         recurrent_cell = None
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
-                recurrent_cell = samples["hxs"].unsqueeze(0)
+                recurrent_cell = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
-                recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
+                recurrent_cell = (samples["hxs"], samples["cxs"])
             (_, critic_recurrent_cell) = self.model.unpack_recurrent_cell(recurrent_cell)
         else:
             critic_recurrent_cell = None
