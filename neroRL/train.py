@@ -56,8 +56,14 @@ def main():
     else:
         assert(False), "Unsupported algorithm specified"
 
+    # import cProfile, pstats
+    # profiler = cProfile.Profile()
+    # profiler.enable()
     # Start training
     trainer.run_training()
+    # profiler.disable()
+    # stats = pstats.Stats(profiler).sort_stats('cumtime')
+    # stats.print_stats()
 
     # Clean up after training
     trainer.close()

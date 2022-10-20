@@ -80,6 +80,11 @@ class MinigridVecWrapper(Env):
         return self._action_space
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
     def action_names(self):
         """Returns a list of action names."""
         return self._action_names
@@ -107,7 +112,8 @@ class MinigridVecWrapper(Env):
         else:
             reset_params = reset_params
         # Set seed
-        self._env.seed(randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1))
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+        self._env.seed(self._seed)
         # Track rewards of an entire episode
         self._rewards = []
         # Reset the environment and retrieve the initial observation
@@ -118,7 +124,7 @@ class MinigridVecWrapper(Env):
 
         # Render environment?
         if self._realtime_mode:
-            self._env.render(tile_size = 96)
+            self._env.render(mode = "human")
 
         # Prepare trajectory recording
         self._trajectory = {
@@ -149,7 +155,7 @@ class MinigridVecWrapper(Env):
 
         # Render the environment in realtime
         if self._realtime_mode:
-            self._env.render(tile_size = 96)
+            self._env.render(mode = "human")
             time.sleep(0.5)
 
         # Record trajectory data

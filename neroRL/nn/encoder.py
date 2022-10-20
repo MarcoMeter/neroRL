@@ -181,6 +181,48 @@ class ResCNN(Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
+class SmallImpalaCNN(Module):
+    """https://github.com/ml-jku/helm/blob/main/model.py#L42"""
+    def __init__(self, vis_obs_space, config, activ_fn, channel_scale=1, hidden_dim=256):
+        super(SmallImpalaCNN, self).__init__()
+        vis_obs_shape = vis_obs_space.shape
+        self.obs_size = vis_obs_shape
+        in_channels = self.obs_size[0]
+        kernel1 = 8 if self.obs_size[1] > 9 else 4
+        kernel2 = 4 if self.obs_size[2] > 9 else 2
+        stride1 = 4 if self.obs_size[1] > 9 else 2
+        stride2 = 2 if self.obs_size[2] > 9 else 1
+        self.block1 = nn.Sequential(nn.Conv2d(in_channels=in_channels, out_channels=16*channel_scale, kernel_size=kernel1, stride=stride1),
+                                    nn.ReLU())
+        self.block2 = nn.Sequential(nn.Conv2d(in_channels=16*channel_scale, out_channels=32*channel_scale, kernel_size=kernel2, stride=stride2),
+                                    nn.ReLU())
+
+        in_features = self._get_feature_size(self.obs_size)
+        self.fc = nn.Linear(in_features=in_features, out_features=hidden_dim)
+
+        self.hidden_dim = hidden_dim
+        self.apply(xavier_uniform_init)
+
+    def forward(self, x):
+        x = self.block1(x)
+        x = self.block2(x)
+        x = x.reshape(x.size(0), -1)
+        x = self.fc(x)
+        x = nn.ReLU()(x)
+        return x
+
+    def _get_feature_size(self, shape):
+        dummy_input = torch.zeros((shape[0], *shape[1:])).unsqueeze(0)
+        x = self.block2(self.block1(dummy_input))
+        return np.prod(x.shape[1:])
+
+def xavier_uniform_init(module):
+    if isinstance(module, nn.Linear) or isinstance(module, nn.Conv2d):
+        gain = nn.init.calculate_gain('relu')
+        nn.init.xavier_uniform_(module.weight.data, gain)
+        nn.init.constant_(module.bias.data, 0.)
+    return module
+
 class BasicConvBlock(Module):
     """
     Residual Network Block:

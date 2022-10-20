@@ -12,8 +12,12 @@ class MemoryGymWrapper(Env):
     https://github.com/MarcoMeter/drl-memory-gym
     Available Environments:
         SearingSpotlights-v0
-        soon MortarMayhem-v0
-        soon MysteryMaze-v0
+        MortarMayhem-v0
+        MortarMayhem-Grid-v0
+        MortarMayhemB-v0
+        MortarMayhemB-Grid-v0
+        MysteryPath-v0
+        MysteryPath-Grid-v0
     """
     def __init__(self, env_name, reset_params = None, realtime_mode = False, record_trajectory = False) -> None:
         """Instantiates the memory-gym environment.
@@ -29,7 +33,8 @@ class MemoryGymWrapper(Env):
         else:
             self._default_reset_params = reset_params
 
-        self._env = gym.make(env_name, disable_env_checker = True, headless = not realtime_mode)
+        render_mode = None if not realtime_mode else "debug_rgb_array"
+        self._env = gym.make(env_name, disable_env_checker = True, render_mode = render_mode)
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
@@ -62,6 +67,11 @@ class MemoryGymWrapper(Env):
         return self._env.action_space
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
     def action_names(self):
         """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
         if isinstance(self.action_space, spaces.MultiDiscrete):
@@ -92,7 +102,7 @@ class MemoryGymWrapper(Env):
             reset_params = reset_params
 
         # Sample seed
-        seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
 
         # Remove reset params that are not processed directly by the environment
         options = reset_params.copy()
@@ -100,11 +110,8 @@ class MemoryGymWrapper(Env):
         options.pop("num-seeds", None)
         options.pop("seed", None)
 
-        # Track rewards of an entire episode
-        self._rewards = []
-
         # Reset the environment to retrieve the initial observation
-        obs = self._env.reset(seed=seed, options=options)
+        obs, _ = self._env.reset(seed=self._seed, options=options)
         if type(self._env.observation_space) is spaces.Dict:
             vis_obs = obs["visual_observation"]
             vec_obs = obs["vector_observation"]
@@ -114,11 +121,11 @@ class MemoryGymWrapper(Env):
 
 
         if self._realtime_mode:
-            self._env.render(mode="debug_rgb_array")
+            self._env.render()
 
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [self._env.render(mode="debug_rgb_array")], "vec_obs": [vec_obs],
+            "vis_obs": [self._env.render()], "vec_obs": [vec_obs],
             "rewards": [0.0], "actions": []
         } if self._record else None
 
@@ -137,7 +144,7 @@ class MemoryGymWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
-        obs, reward, done, info = self._env.step(action)
+        obs, reward, done, truncation, info = self._env.step(action)
 
         if type(self._env.observation_space) is spaces.Dict:
             vis_obs = obs["visual_observation"]
@@ -146,10 +153,8 @@ class MemoryGymWrapper(Env):
             vis_obs = obs
             vec_obs = None
 
-        self._rewards.append(reward)
-
         if self._realtime_mode or self._record:
-            img = self._env.render(mode="debug_rgb_array")
+            img = self._env.render()
 
         # Record trajectory data
         if self._record:
@@ -157,13 +162,6 @@ class MemoryGymWrapper(Env):
             self._trajectory["vec_obs"].append(vec_obs)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
-
-        # Wrap up episode information once completed (i.e. done)
-        if done:
-            info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards),}
-        else:
-            info = None
 
         return vis_obs, vec_obs, reward, done, info
 

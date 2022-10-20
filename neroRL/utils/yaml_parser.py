@@ -51,7 +51,8 @@ class YamlParser:
             "obs_stacks": 1,
             "grayscale": False,
             "resize_vis_obs": [84, 84],
-            "reset_params": {"start-seed": 0, "num-seeds": 100}
+            "reset_params": {"start-seed": 0, "num-seeds": 100},
+            "reward_normalization": 0
         }
 
         model_dict = {
@@ -70,7 +71,7 @@ class YamlParser:
         eval_dict = {
             "evaluate": False,
             "n_workers": 3,
-            "seeds": [1001, 1002, 1003, 1004, 1005],
+            "seeds": {"start-seed": 100000, "num-seeds": 10},
             "interval": 50
         }
 
