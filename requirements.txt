@@ -7,4 +7,3 @@ pyglet
 ruamel.yaml
 scipy
 tensorboard
-transformers

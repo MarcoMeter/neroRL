@@ -90,14 +90,8 @@ def main():
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
-        if not checkpoint:
-            # If a checkpoint is not provided as an argument, it shall be retrieved from the config
-            logger.info("Step 2: Loading model from " + model_config["model_path"])
-            checkpoint = torch.load(model_config["model_path"])
-        if "helm" in configs["model"].keys():
-            model.load_state_dict(checkpoint["model"], strict=False)
-        else:
-            model.load_state_dict(checkpoint["model"])
+        logger.info("Step 2: Loading model from " + model_config["model_path"])
+        model.load_state_dict(checkpoint["model"])
         if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
