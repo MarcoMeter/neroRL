@@ -113,10 +113,7 @@ def main():
             # If a checkpoint is not provided as an argument, it shall be retrieved from the config
             logger.info("Step 2: Loading model from " + model_config["model_path"])
             checkpoint = torch.load(model_config["model_path"])
-        if "helm" in configs["model"].keys():
-            model.load_state_dict(checkpoint["model"], strict=False)
-        else:
-            model.load_state_dict(checkpoint["model"])
+        model.load_state_dict(checkpoint["model"])
         if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
@@ -140,10 +137,6 @@ def main():
         else:
             recurrent_cell = None
 
-        # Setup HELM memory
-        if "helm" in configs["model"]:
-            model.helm_encoder.memory = [torch.zeros((511, 1, 1024)) for _ in range(18)]
-
         # Play episode
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
 
@@ -159,7 +152,7 @@ def main():
                 # Forward the neural net
                 vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                 vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                policy, value, recurrent_cell, _, h_helm = model(vis_obs, vec_obs, recurrent_cell)
+                policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
 
                 _actions = []
                 _probs = []

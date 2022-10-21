@@ -80,12 +80,6 @@ class Evaluator():
                         recurrent_cell.append((hxs, cxs))
                 else:
                     recurrent_cell.append(None)
-
-            # Setup HELM memory
-            if "helm" in self.configs["model"]:
-                helm_memory = [[torch.zeros((511, 1, 1024)) for _ in range(18)] for _ in range(self.n_workers)]
-            else:
-                helm_memory = None
             
             # Reset workers and set evaluation seed
             for worker in self.workers:
@@ -119,11 +113,7 @@ class Evaluator():
                             # but as we evaluate entire episodes, we feed one worker at a time
                             vis_obs_batch = torch.tensor(np.expand_dims(vis_obs[w], 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                             vec_obs_batch = torch.tensor(np.expand_dims(vec_obs[w], 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                            if helm_memory is not None:
-                                model.helm_encoder.memory = helm_memory[w]
-                            policy, value, recurrent_cell[w], _, h_helm = model(vis_obs_batch, vec_obs_batch, recurrent_cell[w])
-                            if helm_memory is not None:
-                                helm_memory[w] = model.helm_encoder.memory
+                            policy, value, recurrent_cell[w], _ = model(vis_obs_batch, vec_obs_batch, recurrent_cell[w])
 
                             _actions = []
                             _probs = []
