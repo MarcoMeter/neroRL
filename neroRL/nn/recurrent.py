@@ -5,7 +5,7 @@ from neroRL.nn.module import Module
 
 class GRU(Module):
     """
-    A single-layer gated recurrent unit (GRU) module.
+    A gated recurrent unit (GRU) module.
     """
     def __init__(self, input_shape, hidden_state_size, num_layers):
         """
@@ -14,6 +14,7 @@ class GRU(Module):
         Arguments:
             input_shape {int} -- Input size
             hidden_state_size {int} -- The number of features in the hidden state
+            num_layers {int} -- The number of GRU layers
         """
         super().__init__()
         self.recurrent_layer = nn.GRU(input_shape, hidden_state_size, num_layers, batch_first=True)
@@ -61,7 +62,7 @@ class GRU(Module):
 
 class ResGRU(Module):
     """
-    A single-layer residual based gated recurrent unit (GRU) module.
+    A gated recurrent unit (GRU) module with a residual connection around it.
     """
     def __init__(self, input_shape, hidden_state_size, num_layers):
         """
@@ -70,6 +71,7 @@ class ResGRU(Module):
         Arguments:
             input_shape {int} -- Input size
             hidden_state_size {int} -- The number of features in the hidden state
+            num_layers {int} -- The number of GRU layers
         """
         super().__init__()
         self.preprocessing_layer = nn.Linear(input_shape, hidden_state_size)
@@ -123,7 +125,7 @@ class ResGRU(Module):
 
 class LSTM(Module):
     """
-    A single-layer long short-term memory (LSTM) module.
+    A long short-term memory (LSTM) module.
     """
     def __init__(self, input_shape, hidden_state_size, num_layers):
         """
@@ -132,6 +134,7 @@ class LSTM(Module):
         Arguments:
             input_shape {int} -- Size of input
             hidden_state_size {int} -- The number of features in the hidden state
+            num_layers {int} -- The number of GRU layers
         """
         super().__init__()
         self.recurrent_layer = nn.LSTM(input_shape, hidden_state_size, num_layers, batch_first=True)
@@ -178,7 +181,7 @@ class LSTM(Module):
 
 class ResLSTM(Module):
     """
-    A single-layer residual based long short-term memory (LSTM) module.
+    A long short-term memory (LSTM) module with a residual connection around it
     """
     def __init__(self, input_shape, hidden_state_size, num_layers):
         """
@@ -186,6 +189,8 @@ class ResLSTM(Module):
 
         Arguments:
             input_shape {int} -- Size of input
+            hidden_state_size {int} -- The number of features in the hidden state
+            num_layers {int} -- The number of GRU layers
         """
         super().__init__()
         self.preprocessing_layer = nn.Linear(input_shape, hidden_state_size)
