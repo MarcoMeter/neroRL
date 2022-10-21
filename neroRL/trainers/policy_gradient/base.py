@@ -89,7 +89,7 @@ class BaseTrainer():
         self.eval_interval = configs["evaluation"]["interval"]
         if self.eval and self.eval_interval > 0:
             self.monitor.log("Step 2b: Initializing evaluator")
-            self.evaluator = Evaluator(configs, worker_id, self.visual_observation_space, self.vector_observation_space)
+            self.evaluator = Evaluator(configs, configs["model"], worker_id, self.visual_observation_space, self.vector_observation_space)
 
         # Init model
         self.monitor.log("Step 3: Creating model")
@@ -233,7 +233,7 @@ class BaseTrainer():
             {dict} -- Checkpoint data
         """
         checkpoint_data = {}
-        checkpoint_data["config"] = self.configs
+        checkpoint_data["configs"] = self.configs
         checkpoint_data["update"] = update
         checkpoint_data["hxs"] = self.model.mean_hxs if self.recurrence is not None else None
         checkpoint_data["cxs"] = self.model.mean_cxs if self.recurrence is not None else None

@@ -97,10 +97,10 @@ class TrajectorySampler():
                 # Store recurrent cell states inside the buffer
                 if self.recurrence is not None:
                     if self.recurrence["layer_type"] == "gru":
-                        self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0)
+                        self.buffer.hxs[:, t] = self.recurrent_cell
                     elif self.recurrence["layer_type"] == "lstm":
-                        self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0)
-                        self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0)
+                        self.buffer.hxs[:, t] = self.recurrent_cell[0]
+                        self.buffer.cxs[:, t] = self.recurrent_cell[1]
 
                 # Forward the model to retrieve the policy (making decisions), 
                 # the states' value of the value function and the recurrent hidden states (if available)
@@ -153,10 +153,10 @@ class TrajectorySampler():
                         if self.recurrence["reset_hidden_state"]:
                             hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
                             if self.recurrence["layer_type"] == "gru":
-                                self.recurrent_cell[:, w] = hxs
+                                self.recurrent_cell[w] = hxs
                             elif self.recurrence["layer_type"] == "lstm":
-                                self.recurrent_cell[0][:, w] = hxs
-                                self.recurrent_cell[1][:, w] = cxs
+                                self.recurrent_cell[0][w] = hxs
+                                self.recurrent_cell[1][w] = cxs
                     # Reset HELM Memory
                     if "helm" in self.configs["model"]:
                         for l in range(len(self.helm_memory)):

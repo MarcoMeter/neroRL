@@ -42,14 +42,14 @@ class ProcgenWrapper(Env):
         # Set default reset parameters if none were provided
         self._default_reset_params = {"start-seed": 0, "num-seeds": 200, "paint_vel_info": False,
                                         "use_generated_assets": False, "center_agent": False, "use_sequential_levels": False,
-                                        "distribution_mode": "easy", "use_backgrounds": True, "restrict_themes": False,
+                                        "distribution_mode": "easy", "use_backgrounds": False, "restrict_themes": False,
                                         "use_monochrome_assets": False}
 
         # Set default reset parameters if none were provided
         if reset_params is None:
             reset_params = self._default_reset_params
         else:
-            reset_params = reset_params
+            self._default_reset_params = reset_params
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
@@ -93,6 +93,11 @@ class ProcgenWrapper(Env):
         return self._env.action_space
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
     def action_names(self):
         """Returns a list of action names."""
         return [["left down", "left", "left up", "down", "No-op", "up", "right down", "right", "right up", "D", "A", "W", "S", "Q", "E"]]
@@ -121,18 +126,20 @@ class ProcgenWrapper(Env):
         # If new reset parameters were specified, Procgen has to be restarted
         # if not self._default_reset_params == reset_params:
         self._env.close()
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
         self._env = gym.make(self._env_name,
                         render_mode = "human" if self._realtime_mode else None,
-                        start_level = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1),
+                        start_level = self._seed,
                         num_levels = 1,
-                        paint_vel_info = self._default_reset_params["paint_vel_info"],
-                        use_generated_assets = self._default_reset_params["use_generated_assets"],
-                        center_agent = self._default_reset_params["center_agent"],
-                        use_sequential_levels = self._default_reset_params["use_sequential_levels"],
-                        distribution_mode = self._default_reset_params["distribution_mode"],
-                        use_backgrounds = self._default_reset_params["use_backgrounds"],
-                        restrict_themes = self._default_reset_params["restrict_themes"],
-                        use_monochrome_assets = self._default_reset_params["use_monochrome_assets"])
+                        paint_vel_info = reset_params["paint_vel_info"],
+                        use_generated_assets = reset_params["use_generated_assets"],
+                        center_agent = reset_params["center_agent"],
+                        use_sequential_levels = reset_params["use_sequential_levels"],
+                        distribution_mode = reset_params["distribution_mode"],
+                        use_backgrounds = reset_params["use_backgrounds"],
+                        restrict_themes = reset_params["restrict_themes"],
+                        use_monochrome_assets = reset_params["use_monochrome_assets"])
+
         # Track rewards of an entire episode
         self._rewards = []
         # Reset the environment and retrieve the initial observation
@@ -182,7 +189,7 @@ class ProcgenWrapper(Env):
         else:
             info = None
 
-        return vis_obs, None, reward, done, info
+        return vis_obs, None, reward / 13.0, done, info
 
     def close(self):
         """Shuts down the environment."""

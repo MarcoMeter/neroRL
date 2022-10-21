@@ -25,6 +25,7 @@ model:
   num_hidden_units: 512
   recurrence:
     layer_type: "gru"
+    num_layers: 1
     sequence_length: -1
     hidden_state_size: 512
     hidden_state_init: "zero"
@@ -34,7 +35,9 @@ model:
 evaluation:
   evaluate: False
   n_workers: 3
-  seeds: [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]
+  seeds:
+    start-seed: 100000
+    num-seeds: 10
   interval: 150
 
 sampler:

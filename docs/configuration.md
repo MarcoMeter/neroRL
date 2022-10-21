@@ -30,6 +30,36 @@ environment:
   grayscale: False
   # Whether to rescale visual observations to the specified dimensions
   resize_vis_obs: [84, 84]
+  # Only add the spotlight_perturbation dictionary if an environment with visual observations shall be perturbed by randomly moving spotlights.
+  spotlight_perturbation:
+    start-seed: 0
+    num-seeds: 100000
+    # Whether to use the same seed as the environment
+    use-environment-seed: False
+    # Number of to be spawned spotlights initially
+    initial_spawns: 4
+    # Number of spotlights that are spawned throughout the episode at a decayed interval
+    num_spawns: 30
+    # Number of steps before spawning one spotlight
+    initial_spawn_interval: 30
+    # Lower threshold for the spotlights spawn interval
+    spawn_interval_threshold: 10
+    # Decay rate of the spawn interval
+    spawn_interval_decay: 0.95
+    # Minimum radius of the spotlights
+    spot_min_radius: 7.5
+    # Maximum radius of the spotlights
+    spot_max_radius: 13.75
+    # Minimum speed of the spotlights
+    spot_min_speed: 0.0025
+    # Maximum speed of the spotlights
+    spot_max_speed: 0.0075
+    # Opacity of the spotlights perturbation surface (0 refers to completely transparent)
+    spotlight_opacity: 120
+    # Whether to apply a color key to replace black with white
+    black_to_white_filter: True
+    # Whether to render the spotlight surface as dark shadow or as white fog
+    shadow_theme: True
   # Reset parameters for the environment
   # At minimum, these parameters set the range of training seeds
   # Environments, like Obstacle Tower, provide more parameters to alter the environment
@@ -59,6 +89,8 @@ model:
   recurrence:
     # Supported recurrent layers: gru, lstm
     layer_type: "lstm"
+    # Number of sequential gru or lstm layers
+    num_layers: 1
     # Length of the trained sequences, if set to 0 or smaller the sequence length is dynamically fit to episode lengths
     sequence_length: 32
     # Size of the recurrent layer's hidden state
@@ -91,8 +123,12 @@ evaluation:
   evaluate: False
   # Number of environments that are used
   n_workers: 3
-  # Evaluation seeds (each worker performs on every seed: in this case, overall 15 episodes are used for evaluation (n_workers * seeds))
-  seeds: [1001, 1002, 1003, 1004, 1005]
+  # Evaluation seeds (each worker performs on every seed: in this case, overall 30 episodes are used for evaluation (n_workers * seeds))
+  seeds:
+    start-seed: 100000
+    num-seeds: 10
+    # Use the explicit-seeds key to override the range of seeds in case of evaluating specific seeds
+    # explicit-seeds: [1001, 1002, 1003, 1004, 1005]
   # Evaluate the model after every n-th update during training
   interval: 50
 ```

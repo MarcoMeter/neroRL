@@ -42,11 +42,11 @@ class Buffer():
             self.vec_obs = None
         
         if share_parameters:
-            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"])) if recurrence is not None else None
-            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"])) if recurrence is not None else None
+            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"])) if recurrence is not None else None
+            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"])) if recurrence is not None else None
         else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
-            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2)) if recurrence is not None else None
-            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2)) if recurrence is not None else None
+            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"], 2)) if recurrence is not None else None
+            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"], 2)) if recurrence is not None else None
 
         self.h_helm = torch.zeros((num_workers, worker_steps, 1024)) if use_helm else None
 
