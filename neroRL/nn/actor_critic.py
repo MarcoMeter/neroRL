@@ -28,8 +28,8 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
         # Create the base models
-        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
-        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_helm_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_helm_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape, activ_fn = self.activ_fn)
@@ -279,7 +279,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.share_parameters = True
 
         # Create the base model
-        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.vis_encoder, self.vec_encoder, self.helm_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(self.out_features_body, action_space_shape, self.activ_fn)
@@ -298,7 +298,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             "critic_head": self.critic
         }
 
-    def forward(self, vis_obs, vec_obs, recurrent_cell, sequence_length = 1):
+    def forward(self, vis_obs, vec_obs, recurrent_cell, h_helm = None, sequence_length = 1):
         """Forward pass of the model
 
         Arguments:
@@ -312,6 +312,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             {torch.tensor} -- Value Function: Value
             {tuple} -- Recurrent cell
         """
+
         # Forward observation encoder
         if vis_obs is not None:
             h = self.vis_encoder(vis_obs)
@@ -326,6 +327,12 @@ class ActorCriticSharedWeights(ActorCriticBase):
         if self.recurrence is not None:
             h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
 
+        # Forward HELM encoder
+        if self.helm_encoder is not None:
+            if h_helm is None:
+                h_helm = self.helm_encoder(vis_obs)
+            h = torch.cat((h, h_helm), dim=-1)
+
         # Feed network body
         h = self.body(h)
 
@@ -334,7 +341,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Head: Policy branches
         pi = self.actor_policy(h)
 
-        return pi, value, recurrent_cell, None
+        return pi, value, recurrent_cell, None, h_helm
 
 def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
     """Creates a shared or non-shared weights actor critic model.

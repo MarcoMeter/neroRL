@@ -31,7 +31,7 @@ class TrajectorySampler():
 
         # Create Buffer
         self.buffer = Buffer(self.n_workers, self.worker_steps, visual_observation_space, vector_observation_space,
-                        action_space_shape, self.recurrence, self.device, self.model.share_parameters, self)
+                        action_space_shape, self.recurrence, "helm" in configs["model"], self.device, self.model.share_parameters, self)
 
         # Launch workers
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
@@ -55,6 +55,12 @@ class TrajectorySampler():
                 self.recurrent_cell = (hxs, cxs)
         else:
             self.recurrent_cell = None
+
+        # Setup HELM memory
+        if "helm" in self.configs["model"]:
+            self.helm_memory = [torch.zeros((511, self.n_workers, 1024)) for _ in range(18)]
+        else:
+            self.helm_memory = None
 
         # Reset workers
         for worker in self.workers:
@@ -100,7 +106,13 @@ class TrajectorySampler():
                 # the states' value of the value function and the recurrent hidden states (if available)
                 vis_obs_batch = torch.tensor(self.vis_obs) if self.vis_obs is not None else None
                 vec_obs_batch = torch.tensor(self.vec_obs) if self.vec_obs is not None else None
-                policy, value, self.recurrent_cell, _ = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
+                if self.helm_memory is not None:
+                    self.model.helm_encoder.memory = self.helm_memory
+                policy, value, self.recurrent_cell, _, h_helm = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
+                if self.helm_memory is not None:
+                    self.helm_memory = self.model.helm_encoder.memory
+                if "helm" in self.configs["model"]:
+                    self.buffer.h_helm[:, t] = h_helm
                 self.buffer.values[:, t] = value.data
 
                 # Sample actions from each individual policy branch
@@ -145,6 +157,10 @@ class TrajectorySampler():
                             elif self.recurrence["layer_type"] == "lstm":
                                 self.recurrent_cell[0][w] = hxs
                                 self.recurrent_cell[1][w] = cxs
+                    # Reset HELM Memory
+                    if "helm" in self.configs["model"]:
+                        for l in range(len(self.helm_memory)):
+                            self.helm_memory[l][:, w] = 0.
 
         return episode_infos
 

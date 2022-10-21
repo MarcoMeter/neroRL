@@ -111,8 +111,11 @@ def main():
     current_checkpoint = 0
     for checkpoint in checkpoints:
         loaded_checkpoint = torch.load(checkpoint)
-        model.load_state_dict(loaded_checkpoint["model"])
-        if "recurrence" in model_config:
+        if "helm" in configs["model"].keys():
+            model.load_state_dict(loaded_checkpoint["model"], strict=False)
+        else:
+            model.load_state_dict(loaded_checkpoint["model"])
+        if "recurrence" in configs["model"]:
             model.set_mean_recurrent_cell_states(loaded_checkpoint["hxs"], loaded_checkpoint["cxs"])
         _, res = evaluator.evaluate(model, device)
         results.append(res)

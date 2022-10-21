@@ -6,7 +6,7 @@ class Buffer():
     The buffer stores and prepares the training data. It supports recurrent policies.
     """
     def __init__(self, num_workers, worker_steps, visual_observation_space, vector_observation_space,
-                    action_space_shape, recurrence, device, share_parameters, sampler):
+                    action_space_shape, recurrence, use_helm, device, share_parameters, sampler):
         """
         Arguments:
             num_workers {int} -- Number of environments/agents to sample training data
@@ -17,12 +17,14 @@ class Buffer():
             action_space_shape {tuple} -- Shape of the action space
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
                 - layer_type {str}, sequence_length {int}, hidden_state_size {int}, hiddens_state_init {str}, reset_hidden_state {bool}
+            use_helm ...
             device {torch.device} -- The device that will be used for training/storing single mini batches
             sampler {TrajectorySampler} -- The current sampler
         """
         self.device = device
         self.sampler = sampler
         self.recurrence = recurrence
+        self.use_helm = use_helm
         self.sequence_length = recurrence["sequence_length"] if recurrence is not None else None
         self.num_workers = num_workers
         self.worker_steps = worker_steps
@@ -45,6 +47,8 @@ class Buffer():
         else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
             self.hxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"], 2)) if recurrence is not None else None
             self.cxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"], 2)) if recurrence is not None else None
+
+        self.h_helm = torch.zeros((num_workers, worker_steps, 1024)) if use_helm else None
 
         self.log_probs = torch.zeros((num_workers, worker_steps, len(action_space_shape)))
         self.values = torch.zeros((num_workers, worker_steps))
@@ -93,6 +97,8 @@ class Buffer():
             samples["vis_obs"] = self.vis_obs
         if self.vec_obs is not None:
             samples["vec_obs"] = self.vec_obs
+        if self.use_helm:
+            samples["h_helm"] = self.h_helm
 
         max_sequence_length = 1
         if self.recurrence is not None:
