@@ -1,7 +1,9 @@
 import math
 import numpy as np
-import pygame
+
 import os
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
+import pygame
 
 from gym import spaces
 from neroRL.environments.env import Env
