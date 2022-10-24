@@ -1,0 +1,12 @@
+categorical:
+  sequence_length: [-1, 32, 64]
+  layer_type: ["gru", "lstm"]
+
+uniform:
+  value_coefficient: [0.1, 1.0]
+  max_grad_norm: [0.1, 1.0]
+  clip_range: [0.1, 0.35]
+
+loguniform:
+  learning_rate: [1.0e-4, 3.0e-3]
+  beta: [0.00001, 0.01]

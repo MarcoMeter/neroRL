@@ -291,3 +291,50 @@ class GridSearchYamlParser:
             {dict} -- Dictionary that contains the config for the grid search.
         """
         return self._config
+
+class OptunaYamlParser:
+    """The OptunaYamlParser parses a yaml file containing parameters for tuning hyperparameters.
+    The data is parsed during initialization. Retrieve the parameters using the get_config function.
+
+    The data can be accessed like:
+    parser.get_config()["search_type"]["search_parameter"]
+    """
+
+    def __init__(self, path = "./configs/tune/optuna.yaml"):
+        """Loads and prepares the specified config file.
+        
+        Arguments:
+            path {str} -- Yaml file path to the to be loaded config (default: {"./configs/tune/search.yaml"})
+        """
+        # Load the config file
+        stream = open(path, "r")
+        yaml = YAML()
+        yaml_args = yaml.load_all(stream)
+        
+        # Final contents of the config file will be added to a dictionary
+        self._config = {}
+
+        # Prepare data
+        for data in yaml_args:
+            self._config = dict(data)
+
+        # Allowed keys
+        for key in self._config.keys():
+            assert key in ["categorical", "uniform", "loguniform"], "Unsupported search type (" + key + ") identified in config."
+
+        # Check for duplicate keys
+        # Gather all sub keys
+        all_keys = []
+        for k, v in self._config.items():
+            self._config[k] = dict(v)
+            all_keys.append(list(self._config[k].keys()))
+        # Flatten key list
+        all_keys = [item for sublist in all_keys for item in sublist]
+        assert len(all_keys) == len(set(all_keys)), "The provided tune config has duplicate entries."
+
+    def get_config(self):
+        """ 
+        Returns:
+            {dict} -- Dictionary that contains the config for the grid search.
+        """
+        return self._config

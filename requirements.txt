@@ -2,6 +2,7 @@ docopt
 jinja2
 matplotlib
 opencv-python
+optuna
 pygame
 pyglet
 ruamel.yaml
