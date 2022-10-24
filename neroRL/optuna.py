@@ -1,10 +1,14 @@
 from unicodedata import name
 import optuna
 import os
+import random
 import sys
 
 from docopt import docopt
 from ruamel.yaml.comments import CommentedMap
+
+from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
+from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
 from neroRL.utils.yaml_parser import OptunaYamlParser, YamlParser
 
 def main():
@@ -18,14 +22,16 @@ def main():
         --config=<path>             Path to the config file [default: ./configs/default.yaml].
         --tune=<path>               Path to the config file that features the hyperparameter search space for tuning [default: ./configs/tune/optuna.yaml]
         --num-trials=<n>            Number of trials [default: 1]
+        --num-seeds=<n>             Number of seeds [default: 1]
         --worker-id=<n>             Sets the port for each environment instance [default: 2].
         --run-id=<path>             Specifies the tag of the tensorboard summaries [default: default].
-        --out=<path>                Where to output the generated config files [default: ./grid_search/]
+        --out=<path>                Where to output the generated config files [default: ./tpe_search/]
     """
     options = docopt(_USAGE)
     config_path = options["--config"]
     tune_config_path = options["--tune"]
     num_trials = int(options["--num-trials"])
+    num_seeds = int(options["--num-seeds"])
     worker_id = int(options["--worker-id"])
     run_id = options["--run-id"]
     out_path = options["--out"]
@@ -72,11 +78,25 @@ def main():
                     if k in suggestions:
                         trial_config[key][k] = suggestions[k]
 
-        return 0.0
+        # Run training
+        for _ in range(num_seeds):
+            seed = random.randint(0, 2 ** 31 - 1)
+            if trial_config["trainer"]["algorithm"] == "PPO":
+                trainer = PPOTrainer(trial_config, worker_id, run_id, out_path, seed)
+            elif trial_config["trainer"]["algorithm"] == "DecoupledPPO":
+                trainer = DecoupledPPOTrainer(trial_config, worker_id, run_id, out_path, seed)
+            else:
+                assert(False), "Unsupported algorithm specified"
 
-    study = optuna.create_study(study_name=run_id)
-    study.optimize(objective, n_trials=num_trials)
-    # print(study.best_params)
+            result = trainer.run_training()
+            trainer.close()
+            del trainer
+
+        return result
+
+    study = optuna.create_study(study_name=run_id, sampler=optuna.samplers.TPESampler(), direction="maximize")
+    study.optimize(objective, n_trials=num_trials, n_jobs=1)
+    print(study.best_params)
 
 if __name__ == "__main__":
     main()

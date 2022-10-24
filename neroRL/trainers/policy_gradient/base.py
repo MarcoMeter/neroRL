@@ -112,6 +112,8 @@ class BaseTrainer():
             6. Optimize policy and value function
             7. Processes training statistics and results
             8. Evaluates model every n-th update if configured
+
+            Returns the mean return of the latest 100 episodes
         """
         # Load checkpoint and apply data
         if self.configs["model"]["load_model"]:
@@ -199,6 +201,8 @@ class BaseTrainer():
 
             # Write training statistics to tensorboard
             self.monitor.write_training_summary(update, training_stats, episode_result)
+
+        return episode_result["reward_mean"]
     
     ### BEGIN:  Methods that need to be overriden/extended ###
     def create_model(self) -> None:
