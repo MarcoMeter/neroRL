@@ -23,6 +23,7 @@ def main():
         --tune=<path>               Path to the config file that features the hyperparameter search space for tuning [default: ./configs/tune/optuna.yaml]
         --num-trials=<n>            Number of trials [default: 1]
         --num-seeds=<n>             Number of seeds [default: 1]
+        --db=<path>     	        MySQL URL [default: mysql://root@localhost/optuna]
         --worker-id=<n>             Sets the port for each environment instance [default: 2].
         --run-id=<path>             Specifies the tag of the tensorboard summaries [default: default].
         --out=<path>                Where to output the generated config files [default: ./tpe_search/]
@@ -32,9 +33,19 @@ def main():
     tune_config_path = options["--tune"]
     num_trials = int(options["--num-trials"])
     num_seeds = int(options["--num-seeds"])
+    storage = options["--db"]
     worker_id = int(options["--worker-id"])
     run_id = options["--run-id"]
     out_path = options["--out"]
+
+    # If the db flag is not set, create the study in memory only
+    use_storage = False
+    for i, arg in enumerate(sys.argv):
+        if "--db" in arg:
+            use_storage = True
+            break
+    if not use_storage:
+        storage = None
 
     # Load the original config file
     config = YamlParser(config_path).get_config()
@@ -94,7 +105,8 @@ def main():
 
         return result
 
-    study = optuna.create_study(study_name=run_id, sampler=optuna.samplers.TPESampler(), direction="maximize")
+    study = optuna.create_study(study_name=run_id, sampler=optuna.samplers.TPESampler(), direction="maximize",
+                                storage=storage, load_if_exists=True)
     study.optimize(objective, n_trials=num_trials, n_jobs=1)
     print(study.best_params)
 
