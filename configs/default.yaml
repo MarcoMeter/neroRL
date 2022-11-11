@@ -21,6 +21,8 @@ environment:
   grayscale: False
   # Whether to rescale visual observations to the specified dimensions
   resize_vis_obs: [84, 84]
+  # Whether to add or concatenate positional encodings to the agent's observation
+  positional_endocing: False
   # Reset parameters for the environment
   # At minimum, these parameters set the range of training seeds
   # Environments, like Obstacle Tower, provide more parameters to alter the environment
@@ -104,7 +106,7 @@ trainer:
   # Regularization parameter used when calculating the Generalized Advantage Estimation (GAE)
   lamda: 0.95
   # Number of PPO update cycles that shall be done (one whole cycle comprises n epochs of m mini_batch updates)
-  updates: 1000
+  updates: 10
   # Number of times that the whole batch of data is used for optimization using PPO
   # Each epoch trains on a random permutation of the sampled training batch
   epochs: 4
