@@ -141,4 +141,4 @@ class PositionalEncodingEnv(Env):
         Returns:
             {numpy.ndarray} -- The vector observation with the positional encoding
         """
-        return np.concatenate(vec_obs, self.pos_encoding[t])
+        return np.concatenate((vec_obs, self.pos_encoding[t]))
