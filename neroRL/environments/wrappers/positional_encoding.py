@@ -13,16 +13,16 @@ class PositionalEncodingEnv(Env):
         self._env = env
 
         # Prepare positional encoding
-        self._vector_observation_space = self._env.vector_observation_space
+        # self._vector_observation_space = self._env.vector_observation_space
         sequence_length = 512
         n = 10000
-        if self._env.visual_observation_space is not None:
-            d = self._env.visual_observation_space.shape[0] * self._env.visual_observation_space.shape[0]
-        else:
-            d = 32
+        # if self._env.visual_observation_space is not None:
+            # d = self._env.visual_observation_space.shape[0] * self._env.visual_observation_space.shape[0]
+        # else:
+        d = 32
             # Udate the shape of the vector observation space
-            self._vector_observation_space = (self._env.vector_observation_space[0] + d,)
-        self.pos_encoding = np.zeros((512, d))
+        self._vector_observation_space = (self._env.vector_observation_space[0] + d,)
+        self.pos_encoding = np.zeros((512, d), dtype=np.float32)
         for k in range(sequence_length):
             for i in np.arange(int(d/2)):
                 denominator = np.power(n, 2*i/d)
@@ -80,10 +80,10 @@ class PositionalEncodingEnv(Env):
         vis_obs, vec_obs = self._env.reset(reset_params = reset_params)
 
         # Apply positional encoding
-        if self._env.visual_observation_space is not None:
-            vis_obs = self._add_visual_positional_encoding(vis_obs, self.t)
-        else:
-            vec_obs = self._cat_positional_encoding(vec_obs, self.t)
+        # if self._env.visual_observation_space is not None:
+        #     vis_obs = self._add_visual_positional_encoding(vis_obs, self.t)
+        # else:
+        vec_obs = self._cat_positional_encoding(vec_obs, self.t)
 
         return vis_obs, vec_obs
 
@@ -106,10 +106,10 @@ class PositionalEncodingEnv(Env):
         self.t += 1
 
         # Apply positional encoding
-        if self._env.visual_observation_space is not None:
-            vis_obs = self._add_visual_positional_encoding(vis_obs, self.t)
-        else:
-            vec_obs = self._cat_positional_encoding(vec_obs, self.t)
+        # if self._env.visual_observation_space is not None:
+        #     vis_obs = self._add_visual_positional_encoding(vis_obs, self.t)
+        # else:
+        vec_obs = self._cat_positional_encoding(vec_obs, self.t)
 
         return vis_obs, vec_obs, reward, done, info
 
