@@ -19,7 +19,7 @@ class PositionalEncodingEnv(Env):
         # if self._env.visual_observation_space is not None:
             # d = self._env.visual_observation_space.shape[0] * self._env.visual_observation_space.shape[0]
         # else:
-        d = 32
+        d = 16
             # Udate the shape of the vector observation space
         self._vector_observation_space = (self._env.vector_observation_space[0] + d,)
         self.pos_encoding = np.zeros((512, d), dtype=np.float32)
