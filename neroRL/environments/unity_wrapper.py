@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym import error, spaces
+from gymnasium import error, spaces
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.base_env import ActionTuple
 from mlagents_envs.side_channel.environment_parameters_channel import (EnvironmentParametersChannel,)

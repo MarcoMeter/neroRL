@@ -1,12 +1,12 @@
 import time
 import numpy as np
-import gym_minigrid
-import gym
-from gym import error, spaces
+import minigrid
+import gymnasium as gym
+from gymnasium import error, spaces
 from random import randint
 from neroRL.environments.env import Env
-from gym_minigrid.wrappers import *
-from gym_minigrid.minigrid import OBJECT_TO_IDX
+from minigrid.wrappers import *
+from minigrid import OBJECT_TO_IDX
 
 class MinigridVecWrapper(Env):
     """This class wraps Gym Minigrid environments.

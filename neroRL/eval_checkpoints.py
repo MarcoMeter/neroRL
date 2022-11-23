@@ -18,7 +18,7 @@ import os
 import pickle
 import numpy as np
 from docopt import docopt
-from gym import spaces
+from gymnasium import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator

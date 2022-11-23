@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from gym import spaces
+from gymnasium import spaces
 from random import randint
 
 from neroRL.environments.env import Env

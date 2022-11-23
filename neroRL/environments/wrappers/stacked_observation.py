@@ -1,6 +1,6 @@
 import numpy as np
 from collections import deque
-from gym import spaces
+from gymnasium import spaces
 from neroRL.environments.env import Env
 
 class StackedObservationEnv(Env):

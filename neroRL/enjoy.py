@@ -13,7 +13,7 @@ import numpy as np
 import sys
 
 from docopt import docopt
-from gym import spaces
+from gymnasium import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.environments.wrapper import wrap_environment

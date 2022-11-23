@@ -3,7 +3,7 @@ import numpy as np
 import time
 from collections import deque
 
-from gym import spaces
+from gymnasium import spaces
 from sys import exit
 from signal import signal, SIGINT
 

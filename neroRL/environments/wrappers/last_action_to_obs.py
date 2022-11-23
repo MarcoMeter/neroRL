@@ -1,6 +1,6 @@
 import numpy as np
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 from neroRL.environments.env import Env
 
 class LastActionToObs(Env):

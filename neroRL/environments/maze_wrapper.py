@@ -1,6 +1,6 @@
 # https://github.com/ml-jku/helm/
 import numpy as np
-import gym
+import gymnasium as gym
 import time
 
 from mazelab.generators import random_maze
@@ -11,9 +11,9 @@ from mazelab import BaseEnv
 from mazelab import VonNeumannMotion
 
 from neroRL.environments.env import Env
-from gym import error, spaces
-from gym.spaces import Box
-from gym.spaces import Discrete
+from gymnasium import error, spaces
+from gymnasium.spaces import Box
+from gymnasium.spaces import Discrete
 from random import randint
 
 class MazeWrapper(Env):
