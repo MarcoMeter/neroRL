@@ -166,7 +166,7 @@ def main():
 
                 # Store data for video recording
                 actions.append(_actions)
-                probs.append(torch.stack(_probs))
+                probs.append(_probs)
                 entropies.append(entropy)
                 values.append(value.cpu().numpy())
 
