@@ -119,12 +119,15 @@ class MinigridWrapper(Env):
         else:
             self._default_reset_params = reset_params
 
+        render_mode = None
+        if realtime_mode:
+            render_mode = "human"
+        if record_trajectory:
+            render_mode = "rgb_array"
+
         # Instantiate the environment and apply various wrappers
-        self._env = gym.make(env_name)
-        if "Mortar" in env_name:
-            # In Mortar, we want to see the entire environment
-            self._env = RGBImgObsWrapper(self._env, tile_size=9)
-        elif "Memory" in env_name:
+        self._env = gym.make(env_name, render_mode=render_mode)
+        if "Memory" in env_name:
             # In Memory, we want to limit the field of view and thereas use parial observability
             self._env = ViewSizeWrapper(self._env, self._default_reset_params["view-size"])
             self._env = RGBImgPartialObsWrapper(self._env)
@@ -143,7 +146,7 @@ class MinigridWrapper(Env):
                 dtype = np.float32)
 
         # Set action space
-        if "Mortar" in env_name or "Memory" in env_name:
+        if "Memory" in env_name:
             self._action_space = spaces.Discrete(4)
             self._action_names = [["left", "right", "forward", "no-ops"]] # pickup is used as a no-ops action
         else:
@@ -201,23 +204,24 @@ class MinigridWrapper(Env):
             reset_params = self._default_reset_params
         else:
             reset_params = reset_params
+            
         # Set seed
         self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
-        self._env.seed(self._seed)
+        
         # Track rewards of an entire episode
         self._rewards = []
         # Reset the environment and retrieve the initial observation
-        obs = self._env.reset()
+        obs, _ = self._env.reset(seed=self._seed)
         # Retrieve the RGB frame of the agent's vision
         vis_obs = obs.astype(np.float32) / 255.
 
         # Render environment?
         if self._realtime_mode:
-            self._env.render(tile_size = 96, mode = "human")
+            self._env.render()
 
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [None],
+            "vis_obs": [self._env.render().astype(np.uint8)], "vec_obs": [None],
             "rewards": [0.0], "actions": []
         } if self._record else None # The render function seems to be very very costly, so don't use this even once during training or evaluation
 
@@ -236,19 +240,19 @@ class MinigridWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
-        obs, reward, done, info = self._env.step(action[0])
+        obs, reward, done, truncation, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
         vis_obs = obs.astype(np.float32) / 255.
 
         # Render the environment in realtime
         if self._realtime_mode:
-            self._env.render(tile_size = 96)
+            self._env.render()
             time.sleep(0.5)
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(self._env.render(tile_size = 96, mode="rgb_array").astype(np.uint8))
+            self._trajectory["vis_obs"].append(self._env.render().astype(np.uint8))
             self._trajectory["vec_obs"].append(None)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
