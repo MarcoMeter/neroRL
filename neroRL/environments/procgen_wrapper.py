@@ -1,8 +1,9 @@
 import numpy as np
 import procgen
-import gymnasium as gym
+import gym
 import time
 from random import randint
+from gymnasium import spaces
 from neroRL.environments.env import Env
 
 class ProcgenWrapper(Env):
@@ -89,7 +90,7 @@ class ProcgenWrapper(Env):
     @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
-        return self._env.action_space
+        return spaces.Discrete(15) # we need to use the gymnasium version of spaces
 
     @property
     def seed(self):

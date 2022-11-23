@@ -48,14 +48,10 @@ setup(
         ':"linux" in sys_platform': [ # Extra linux install requirements
             ''  
         ],
-        "gym":              ["gymasium==0.26.3"],
         "procgen":          ["gym==0.15.3", "procgen"],
         "obstacle-tower":   ["gym==0.18.3", "mlagents-envs==0.17.0"],
-        "minigrid":         ["gymnasium==0.26.3", "minigrid==2.1.0"],
         "ml-agents":        ["gym==0.18.3", "mlagents-envs==0.28.0"],
-        "ballet":           ["gym==0.18.3", "dm-env==1.5", "pycolab==1.2"],
         "random-maze":      ["gym==0.21.0", "mazelab @ git+https://github.com/zuoxingdong/mazelab@master", "scikit-image==0.18.0"],
-        "memory-gym":       ["gymnasium==0.26.3", "memory-gym"]
     },
     entry_points={
         "console_scripts": [

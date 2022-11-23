@@ -1,6 +1,6 @@
 # https://github.com/ml-jku/helm/
 import numpy as np
-import gymnasium as gym
+import gym
 import time
 
 from mazelab.generators import random_maze
@@ -185,7 +185,6 @@ class Maze(BaseMaze):
             rows.append(' '.join(str))
         print('\n'.join(rows))
 
-
 class Env(BaseEnv):
     def __init__(self, complexity=.75, density=.75, agent_view_size=4):
         super().__init__()
@@ -260,6 +259,5 @@ class Env(BaseEnv):
 
     def get_image(self):
         return self.maze.to_rgb()
-
 
 gym.envs.register(id="RandomMaze-v0", entry_point=Env, max_episode_steps=100)
