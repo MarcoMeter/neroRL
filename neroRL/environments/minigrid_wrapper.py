@@ -126,13 +126,8 @@ class MinigridWrapper(Env):
             render_mode = "rgb_array"
 
         # Instantiate the environment and apply various wrappers
-        self._env = gym.make(env_name, render_mode=render_mode)
-        if "Memory" in env_name:
-            # In Memory, we want to limit the field of view and thereas use parial observability
-            self._env = ViewSizeWrapper(self._env, self._default_reset_params["view-size"])
-            self._env = RGBImgPartialObsWrapper(self._env)
-        else:
-            self._env = RGBImgPartialObsWrapper(self._env)
+        self._env = gym.make(env_name, render_mode=render_mode, agent_view_size=self._default_reset_params["view-size"], tile_size=28)
+        self._env = RGBImgPartialObsWrapper(self._env, tile_size=28)
         self._env = ImgObsWrapper(self._env)
 
         self._realtime_mode = realtime_mode
