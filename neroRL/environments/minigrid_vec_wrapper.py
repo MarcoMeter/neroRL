@@ -138,7 +138,7 @@ class MinigridVecWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
-        obs, reward, done, truncation, info = self._env.step(action[0])
+        obs, reward, done, truncated, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
         # vis_obs = self._env.get_obs_render(obs["image"], tile_size=12)  / 255.
@@ -166,7 +166,7 @@ class MinigridVecWrapper(Env):
         else:
             info = None
 
-        return None, vec_obs, reward, done, info
+        return None, vec_obs, reward, done or truncated, info
 
     def close(self):
         """Shuts down the environment."""
