@@ -85,7 +85,7 @@ class Buffer():
             "advantages": self.advantages,
             # The loss mask is used for masking the padding while computing the loss function.
             # This is only of significance while using recurrence.
-            "loss_mask": torch.ones((self.num_workers, self.worker_steps))
+            "loss_mask": torch.ones((self.num_workers, self.worker_steps), dtype=torch.bool)
         }
 
     	# Add available observations to the dictionary
