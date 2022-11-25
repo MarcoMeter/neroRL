@@ -110,7 +110,8 @@ class PPOTrainer(BaseTrainer):
         log_probs = torch.stack(log_probs, dim=1)
 
         # Compute surrogates
-        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        advantages = torch.masked_select(samples["advantages"], samples["loss_mask"])
+        normalized_advantage = (samples["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)
         # Repeat is necessary for multi-discrete action spaces
         normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
         log_ratio = log_probs - samples["log_probs"]
