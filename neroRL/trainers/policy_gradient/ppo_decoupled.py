@@ -76,6 +76,9 @@ class DecoupledPPOTrainer(BaseTrainer):
     def train(self):
         self.train_info = {}
 
+        # Add dummy key to the samples dict to avoid threading issues if the advantage should be normalized batch-wise
+        self.sampler.buffer.samples_flat["normalized_advantages"] = None
+
         if self.run_threaded:
             # Launch threads for training the actor and critic model simultaenously
             threads = [Thread(target = self.train_policy, daemon = True), Thread(target = self.train_value, daemon = True)]
@@ -108,6 +111,12 @@ class DecoupledPPOTrainer(BaseTrainer):
             # Refreshes buffer with current model every refresh_buffer_epoch
             if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
                 self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
+
+            if self.configs["trainer"]["advantage_normalization"] == "batch":
+                mask = self.sampler.buffer.samples_flat["loss_mask"]
+                advantages = torch.masked_select(self.sampler.buffer.samples_flat["advantages"], mask)
+                self.sampler.buffer.samples_flat["normalized_advantages"] = (self.sampler.buffer.samples_flat["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)  
+
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
             if self.recurrence is not None:
@@ -171,7 +180,11 @@ class DecoupledPPOTrainer(BaseTrainer):
         log_probs = torch.stack(log_probs, dim=1)
 
         # Compute surrogates
-        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        if self.configs["trainer"]["advantage_normalization"] == "minibatch":
+            advantages = torch.masked_select(samples["advantages"], samples["loss_mask"])
+            normalized_advantage = (samples["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)
+        else:
+            normalized_advantage = samples["normalized_advantages"]
         # Repeat is necessary for multi-discrete action spaces
         advs = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
         log_ratio = log_probs - samples["log_probs"]

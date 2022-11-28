@@ -55,6 +55,7 @@ trainer:
   updates: 500
   policy_epochs: 4
   n_policy_mini_batches: 8
+  advantage_normalization: "minibatch"
   value_epochs: 4
   n_value_mini_batches: 8
   refresh_buffer_epoch: -1
