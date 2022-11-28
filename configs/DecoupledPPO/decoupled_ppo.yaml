@@ -115,6 +115,8 @@ trainer:
   # Number of mini batches that are trained throughout one policy epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
   n_policy_mini_batches: 4
+  # Wether to normalize the advantages on minibatch or batch level.
+  advantage_normalization: "minibatch"
   # Number of times that the whole batch of data is used for optimizing the value function
   # In contrast to policy epochs, the value function is updated once using the whole data set instead of mini batches.
   value_epochs: 9

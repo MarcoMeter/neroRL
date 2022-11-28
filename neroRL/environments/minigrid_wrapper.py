@@ -253,7 +253,7 @@ class MinigridWrapper(Env):
             self._trajectory["actions"].append(action)
         
         # Wrap up episode information once completed (i.e. done)
-        if done:
+        if done or truncated:
             success = 1.0 if sum(self._rewards) > 0 else 0.0
             info = {"reward": sum(self._rewards),
                     "length": len(self._rewards),
