@@ -130,7 +130,13 @@ class VideoRecorder:
         self._render_environment_episode(trajectory_data, video_path, str(id))
         
         # Prepare the data for the website
-        actions_probs = torch.stack(trajectory_data["probs"]).squeeze(dim=2).tolist()
+        actions_probs = []
+        for probs in trajectory_data["probs"]:
+            action_prob = []
+            for action_branch in probs:
+                action_prob.append(action_branch.squeeze(dim=0).tolist())
+            actions_probs.append(action_prob)
+        
         action_names, actions = trajectory_data["action_names"], trajectory_data["actions"]
         values, entropies = np.array(trajectory_data["values"]).tolist(), trajectory_data["entropies"]
         
