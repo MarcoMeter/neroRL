@@ -130,12 +130,9 @@ class VideoRecorder:
         self._render_environment_episode(trajectory_data, video_path, str(id))
         
         # Prepare the data for the website
-        actions_probs = []
+        action_probs = []
         for probs in trajectory_data["probs"]:
-            action_prob = []
-            for action_branch in probs:
-                action_prob.append(action_branch.squeeze(dim=0).tolist())
-            actions_probs.append(action_prob)
+            action_probs.append([action_branch.squeeze(dim=0).tolist() for action_branch in probs])
         
         action_names, actions = trajectory_data["action_names"], trajectory_data["actions"]
         values, entropies = np.array(trajectory_data["values"]).tolist(), trajectory_data["entropies"]
@@ -156,7 +153,7 @@ class VideoRecorder:
                                             videoPath = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm",
                                             yValues=str(values),
                                             yEntropy=str(entropies),
-                                            yAction=str(actions_probs),
+                                            yAction=str(action_probs),
                                             action=str(actions),
                                             actionNames=str(action_names) if action_names is not None else "null",
                                             frameRate=str(self.frame_rate)))
