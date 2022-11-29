@@ -10,6 +10,7 @@ from signal import signal, SIGINT
 import neroRL
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
+from neroRL.sampler.recurrent_sampler import RecurrentSampler
 from neroRL.evaluator import Evaluator
 from neroRL.utils.monitor import Monitor
 from neroRL.utils.monitor import Tag
@@ -99,7 +100,11 @@ class BaseTrainer():
 
         # Setup Sampler
         self.monitor.log("Step 4: Launching training environments of type " + configs["environment"]["type"])
-        self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
+        if self.recurrence is None:
+            self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
+                                        self.action_space_shape, self.model, self.device)
+        elif self.recurrence is not None:
+            self.sampler = RecurrentSampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
                                         self.action_space_shape, self.model, self.device)
 
     def run_training(self):
@@ -136,7 +141,7 @@ class BaseTrainer():
             sample_episode_info = self.sampler.sample(self.device)
 
             # 3.: Calculate advantages
-            _, last_value, _, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
+            last_value = self.sampler.get_last_value()
             self.sampler.buffer.calc_advantages(last_value, self.gamma, self.lamda)
             
             # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
