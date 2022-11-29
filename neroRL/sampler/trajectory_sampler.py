@@ -33,6 +33,8 @@ class TrajectorySampler():
 
         # Launch workers
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
+        # Setup timestep placeholder
+        self.worker_current_episode_step = torch.zeros((self.n_workers, ), dtype=torch.long)
         
         # Setup initial observations
         if visual_observation_space is not None:
@@ -107,7 +109,10 @@ class TrajectorySampler():
                 if info:
                     # Store the information of the completed episode (e.g. total reward, episode length)
                     episode_infos.append(info)
-                    self.reset_worker(worker, w)
+                    self.reset_worker(worker, w, t)
+                else:
+                    # Increment worker timestep
+                    self.worker_current_episode_step[w] +=1
 
         return episode_infos
 
@@ -122,7 +127,9 @@ class TrajectorySampler():
         policy, value, _, _ = self.model(vis_obs, vec_obs, None)
         return policy, value
 
-    def reset_worker(self, worker, id):
+    def reset_worker(self, worker, id, t):
+        # Reset the worker's current timestep
+        self.worker_current_episode_step[id] = 0
         # Reset agent (potential interface for providing reset parameters)
         worker.child.send(("reset", None))
         # Get data from reset

@@ -3,7 +3,7 @@ import torch
 
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
 
-class RecurrentSampler(TrajectorySampler):
+class TransformerSampler(TrajectorySampler):
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones."""
     def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, device) -> None:
@@ -22,39 +22,56 @@ class RecurrentSampler(TrajectorySampler):
         # Set member variables
         self.layer_type = configs["model"]["recurrence"]["layer_type"]
         self.reset_hidden_state = configs["model"]["recurrence"]["reset_hidden_state"]
-        self.buffer.init_recurrent_buffer_fields()
+        self.buffer.init_transformer_buffer_fields()
 
-        # Setup initial recurrent cell
-        hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.device)
-        if self.layer_type == "gru":
-            self.recurrent_cell = hxs
-        elif self.layer_type == "lstm":
-            self.recurrent_cell = (hxs, cxs)
+        # TODO
+        self.max_episode_length = 512
+        self.num_mem_layers = configs["model"]["transformer_memory"]["num_layers"]
+        self.mem_layer_size = configs["model"]["transformer_memory"]["layer_size"]
+
+        # Setup memory placeholder
+        self.memory = torch.zeros((self.n_workers, self.max_episode_length, self.num_mem_layers, self.mem_layer_size), dtype=torch.float32)
+        # Generate episodic memory mask
+        self.memory_mask = torch.tril(torch.ones((self.max_episode_length, self.max_episode_length)))
+        # Shift mask by one to account for the fact that for the first timestep the memory is empty
+        self.memory_mask = torch.cat((torch.zeros((1, self.max_episode_length)), self.memory_mask))[:-1]       
+        # Worker ids
+        self.worker_ids = range(self.n_workers)
+
+    def sample(self, device) -> list:
+        # Init memory buffer
+        self.buffer.memories = [self.memory[w] for w in range(self.n_workers)]
+        for w in range(self.n_workers):
+            self.buffer.memory_index[w] = w
+        super().sample(device)
 
     def previous_model_input_to_buffer(self, t):
         super().previous_model_input_to_buffer(t)
-        # Store recurrent cell states inside the buffer
-        if self.layer_type == "gru":
-            self.buffer.hxs[:, t] = self.recurrent_cell
-        elif self.layer_type == "lstm":
-            self.buffer.hxs[:, t] = self.recurrent_cell[0]
-            self.buffer.cxs[:, t] = self.recurrent_cell[1]
+        # Save mask
+        self.buffer.memory_mask[:, t] = self.memory_mask[self.worker_current_episode_step]
 
     def forward_model(self, vis_obs, vec_obs):
+        # TODO
         policy, value, self.recurrent_cell, _ = self.model(vis_obs, vec_obs, self.recurrent_cell)
+        # Set memory 
+        self.memory[self.worker_ids, self.worker_current_episode_step] = memory
         return policy, value
 
     def reset_worker(self, worker, id, t):
-        super().reset_worker(worker, id, t)
-        if self.reset_hidden_state:
-            hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
-            if self.layer_type == "gru":
-                self.recurrent_cell[id] = hxs
-            elif self.layer_type == "lstm":
-                self.recurrent_cell[0][id] = hxs
-                self.recurrent_cell[1][id] = cxs
+        super().reset_worker(worker, id)
+        # Break the reference to the worker's memory
+        mem_index = self.buffer.memory_index[id, t]
+        self.buffer.memories[mem_index] = self.buffer.memories[mem_index].clone()
+        # Reset episodic memory
+        self.memory[id] = torch.zeros((self.max_episode_length, self.num_mem_layers, self.mem_layer_size), dtype=torch.float32)
+        if t < self.configs["sampler"]["worker_steps"] - 1:
+            # Save memorie
+            self.buffer.memories.append(self.memory[id])
+            # Save the reference index to the current memory
+            self.buffer.memory_index[id, t + 1:] = len(self.buffer.memories) - 1
 
     def get_last_value(self):
+        # TODO
         _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
                                         self.recurrent_cell)

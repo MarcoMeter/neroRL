@@ -23,7 +23,7 @@ class Buffer():
         self.device = device
         self.sampler = sampler
         self.configs = configs
-        self.recurrence, self.episodic_memory = None, None
+        self.recurrence, self.transformer_memory = None, None
         self.num_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.batch_size = self.num_workers * self.worker_steps
@@ -68,9 +68,9 @@ class Buffer():
 
     def init_transformer_buffer_fields(self, max_episode_length, ):
         self.max_episode_length = max_episode_length
-        self.episodic_memory = self.configs["episodic_memory"]
-        self.num_mem_layers = self.episodic_memory["num_layers"]
-        self.mem_layer_size = self.episodic_memory["layer_size"]
+        self.transformer_memory = self.configs["model"]["transformer_memory"]
+        self.num_mem_layers = self.transformer_memory["num_layers"]
+        self.mem_layer_size = self.transformer_memory["layer_size"]
         # Episodic memory index buffer
         self.memories = []
         self.memory_mask = torch.zeros((self.num_workers, self.worker_steps, self.max_episode_length), dtype=torch.bool)
@@ -119,7 +119,7 @@ class Buffer():
             samples["vec_obs"] = self.vec_obs
 
         # Add data concerned with the episodic memory
-        if self.episodic_memory is not None:
+        if self.transformer_memory is not None:
             samples["memory_index"] = self.memory_index
             samples["memory_mask"] = self.memory_mask
             # Convert the memories to a tensor
