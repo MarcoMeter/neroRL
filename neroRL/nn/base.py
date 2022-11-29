@@ -4,6 +4,7 @@ from torch import nn
 
 from neroRL.nn.encoder import CNNEncoder, ResCNN, SmallImpalaCNN, LinVecEncoder
 from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU
+from neroRL.nn.transformer import Transformer
 from neroRL.nn.body import HiddenLayer
 from neroRL.nn.module import Module, Sequential
 
@@ -201,7 +202,7 @@ class ActorCriticBase(Module):
         if config["hidden_layer"] == "default":
             return HiddenLayer(self.activ_fn, config["num_hidden_layers"], in_features, out_features)
     
-    def create_recurrent_layer(self, recurrence, input_shape, hidden_state_size):
+    def create_recurrent_layer(self, config, input_shape, hidden_state_size):
         """Creates and returns a new instance of the recurrent layer based on the recurrence config.
 
         Arguments:
@@ -212,14 +213,17 @@ class ActorCriticBase(Module):
         Returns:
             {Module} -- The created recurrent layer
         """
-        if recurrence["layer_type"] == "gru":
-            if recurrence["residual"]:
-                return ResGRU(input_shape, hidden_state_size, recurrence["num_layers"])
-            return GRU(input_shape, hidden_state_size, recurrence["num_layers"])
-        elif recurrence["layer_type"] == "lstm":
-            if recurrence["residual"]:
-                return ResLSTM(input_shape, hidden_state_size, recurrence["num_layers"])
-            return LSTM(input_shape, hidden_state_size, recurrence["num_layers"])
+        if config["layer_type"] == "gru":
+            if config["residual"]:
+                return ResGRU(input_shape, hidden_state_size, config["num_layers"])
+            return GRU(input_shape, hidden_state_size, config["num_layers"])
+        elif config["layer_type"] == "lstm":
+            if config["residual"]:
+                return ResLSTM(input_shape, hidden_state_size, config["num_layers"])
+            return LSTM(input_shape, hidden_state_size, config["num_layers"])
+
+    def create_transformer_layer(self, config, input_shape):
+        return Transformer(config, input_shape, self.activ_fn)
 
     def get_vis_enc_output(self, vis_encoder, shape):
         """Computes the output size of the visual encoder by feeding a dummy tensor.

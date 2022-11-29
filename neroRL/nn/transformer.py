@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch import QInt32Storage, nn
 from einops import rearrange, repeat
@@ -84,7 +85,6 @@ class SelfAttention(nn.Module):
         plt.pause(0.0001)
         plt.clf()
         
-
 class TransformerBlock(Module):
     def __init__(self, embed_size, num_heads, forward_expansion = 1, visualize_coef=False):
         super(TransformerBlock, self).__init__()
@@ -125,3 +125,43 @@ class SinusoidalPosition(nn.Module):
         sinusoidal_inp = rearrange(seq, 'n -> n ()') * rearrange(self.inv_freqs, 'd -> () d')
         pos_emb = torch.cat((sinusoidal_inp.sin(), sinusoidal_inp.cos()), dim = -1)
         return pos_emb
+
+class Transformer(nn.Module):
+    def __init__(self, config, input_shape, activation) -> None:
+        super().__init__()
+        self.config = config
+        self.num_layers = config["num_layers"]
+        self.layer_size = config["layer_size"]
+        self.num_heads = config["num_heads"]
+        self.activation = activation
+
+        # Embedding layer
+        self.linear_embedding = nn.Linear(input_shape, config["layer_size"])
+        nn.init.orthogonal_(self.linear_embedding, np.sqrt(2))
+
+        # Transformer Blocks
+        self.pos_emb = SinusoidalPosition(dim = self.layer_size)
+        self.transformer_blocks = nn.ModuleList([
+            TransformerBlock(config["layer_size"], config["num_heads"]) 
+            for _ in range(self.num_layers)])
+        # TODO init weights
+
+    def forward(self, h, memories, mask):
+        # Feed embedding layer
+        h = self.activation(self.linear_embedding(h))
+
+        # Transformer positional encoding
+        # TODO: do we need to add positional encoding to every layer?
+        pos_embedding = self.pos_emb(memories)
+        pos_embedding = torch.repeat_interleave(pos_embedding.unsqueeze(1), self.num_mem_layers, dim = 1)
+        memories = memories + pos_embedding
+        
+        # Forward transformer blocks
+        out_memories = []
+        for i, block in enumerate(self.transformer_blocks):
+            out_memories.append(h.detach())
+            h = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask).squeeze() # args: value, key, query, mask
+            if len(h.shape) == 1:
+                h = h.unsqueeze(0)
+
+        return h, torch.stack(out_memories, dim=1)
