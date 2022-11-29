@@ -40,7 +40,7 @@ class TransformerSampler(TrajectorySampler):
         self.buffer.memories = [self.memory[w] for w in range(self.n_workers)]
         for w in range(self.n_workers):
             self.buffer.memory_index[w] = w
-        super().sample(device)
+        return super().sample(device)
 
     def previous_model_input_to_buffer(self, t):
         super().previous_model_input_to_buffer(t)

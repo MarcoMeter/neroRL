@@ -96,16 +96,19 @@ class PPOTrainer(BaseTrainer):
             training_stats {dict} -- Losses, entropy, kl-divergence and clip fraction
         """
         # Retrieve sampled recurrent cell states to feed the model
-        recurrent_cell = None
+        memory, mask = None, None
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
-                recurrent_cell = samples["hxs"]
+                memory = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
-                recurrent_cell = (samples["hxs"], samples["cxs"])
+                memory = (samples["hxs"], samples["cxs"])
+        if self.transformer is not None:
+            memory = samples["memories"]
+            mask = samples["memory_mask"]
         
         policy, value, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
-                                    memory = recurrent_cell,
+                                    memory = memory, mask = mask,
                                     sequence_length = self.sampler.buffer.actual_sequence_length)
         
         # Policy Loss
