@@ -23,7 +23,7 @@ class Buffer():
         self.device = device
         self.sampler = sampler
         self.configs = configs
-        self.recurrence = None
+        self.recurrence, self.episodic_memory = None, None
         self.num_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.batch_size = self.num_workers * self.worker_steps
@@ -66,8 +66,15 @@ class Buffer():
             if layer_type == "lstm":
                 self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
 
-    def init_transformer_buffer_fields(self):
-        pass
+    def init_transformer_buffer_fields(self, max_episode_length, ):
+        self.max_episode_length = max_episode_length
+        self.episodic_memory = self.configs["episodic_memory"]
+        self.num_mem_layers = self.episodic_memory["num_layers"]
+        self.mem_layer_size = self.episodic_memory["layer_size"]
+        # Episodic memory index buffer
+        self.memories = []
+        self.memory_mask = torch.zeros((self.num_workers, self.worker_steps, self.max_episode_length), dtype=torch.bool)
+        self.memory_index = torch.zeros((self.num_workers, self.worker_steps), dtype=torch.long)
 
     def calc_advantages(self, last_value, gamma, lamda):
         """Generalized advantage estimation (GAE)
@@ -110,6 +117,13 @@ class Buffer():
             samples["vis_obs"] = self.vis_obs
         if self.vec_obs is not None:
             samples["vec_obs"] = self.vec_obs
+
+        # Add data concerned with the episodic memory
+        if self.episodic_memory is not None:
+            samples["memory_index"] = self.memory_index
+            samples["memory_mask"] = self.memory_mask
+            # Convert the memories to a tensor
+            self.memories = torch.stack(self.memories, dim=0)
 
         max_sequence_length = 1
         if self.recurrence is not None:
@@ -215,7 +229,10 @@ class Buffer():
             mini_batch_indices = indices[start: end]
             mini_batch = {}
             for key, value in self.samples_flat.items():
-                mini_batch[key] = value[mini_batch_indices].to(self.device)
+                if key == "memory_index":
+                    mini_batch["memories"] = self.memories[value[mini_batch_indices]]
+                else:
+                    mini_batch[key] = value[mini_batch_indices].to(self.device)
             yield mini_batch
 
     def recurrent_mini_batch_generator(self, num_mini_batches):
