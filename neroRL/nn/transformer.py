@@ -137,7 +137,7 @@ class Transformer(nn.Module):
 
         # Embedding layer
         self.linear_embedding = nn.Linear(input_shape, config["layer_size"])
-        nn.init.orthogonal_(self.linear_embedding, np.sqrt(2))
+        nn.init.orthogonal_(self.linear_embedding.weight, np.sqrt(2))
 
         # Transformer Blocks
         self.pos_emb = SinusoidalPosition(dim = self.layer_size)
@@ -153,7 +153,7 @@ class Transformer(nn.Module):
         # Transformer positional encoding
         # TODO: do we need to add positional encoding to every layer?
         pos_embedding = self.pos_emb(memories)
-        pos_embedding = torch.repeat_interleave(pos_embedding.unsqueeze(1), self.num_mem_layers, dim = 1)
+        pos_embedding = torch.repeat_interleave(pos_embedding.unsqueeze(1), self.num_layers, dim = 1)
         memories = memories + pos_embedding
         
         # Forward transformer blocks

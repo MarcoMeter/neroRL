@@ -68,7 +68,7 @@ class Buffer():
 
     def init_transformer_buffer_fields(self, max_episode_length, ):
         self.max_episode_length = max_episode_length
-        self.transformer_memory = self.configs["model"]["transformer_memory"]
+        self.transformer_memory = self.configs["model"]["transformer"]
         self.num_mem_layers = self.transformer_memory["num_layers"]
         self.mem_layer_size = self.transformer_memory["layer_size"]
         # Episodic memory index buffer

@@ -20,13 +20,11 @@ class TransformerSampler(TrajectorySampler):
         """
         super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, device)
         # Set member variables
-        self.layer_type = configs["model"]["recurrence"]["layer_type"]
-        self.reset_hidden_state = configs["model"]["recurrence"]["reset_hidden_state"]
-        self.buffer.init_transformer_buffer_fields()
-
         self.max_episode_length = configs["model"]["transformer"]["memory_length"]        # TODO
-        self.num_mem_layers = configs["model"]["transformer_memory"]["num_layers"]
-        self.mem_layer_size = configs["model"]["transformer_memory"]["layer_size"]
+        self.num_mem_layers = configs["model"]["transformer"]["num_layers"]
+        self.mem_layer_size = configs["model"]["transformer"]["layer_size"]
+
+        self.buffer.init_transformer_buffer_fields(self.max_episode_length)
 
         # Setup memory placeholder
         self.memory = torch.zeros((self.n_workers, self.max_episode_length, self.num_mem_layers, self.mem_layer_size), dtype=torch.float32)
@@ -56,13 +54,13 @@ class TransformerSampler(TrajectorySampler):
         return policy, value
 
     def reset_worker(self, worker, id, t):
-        super().reset_worker(worker, id)
+        super().reset_worker(worker, id, t)
         # Break the reference to the worker's memory
         mem_index = self.buffer.memory_index[id, t]
         self.buffer.memories[mem_index] = self.buffer.memories[mem_index].clone()
         # Reset episodic memory
         self.memory[id] = torch.zeros((self.max_episode_length, self.num_mem_layers, self.mem_layer_size), dtype=torch.float32)
-        if t < self.configs["sampler"]["worker_steps"] - 1:
+        if t < self.worker_steps - 1:
             # Save memorie
             self.buffer.memories.append(self.memory[id])
             # Save the reference index to the current memory
