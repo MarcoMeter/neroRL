@@ -246,7 +246,20 @@ class YamlParser:
                 if "reset_hidden_state" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["reset_hidden_state"] = True
                 if "residual" not in self._config["model"]["recurrence"]:
-                    self._config["model"]["recurrence"]["residual"] = False           
+                    self._config["model"]["recurrence"]["residual"] = False 
+
+            # Check if the model dict contains a transformer dict
+            # If no transformer dict is available, it is assumed that a transformer-based policy is not used
+            # In the other case check for completeness and apply defaults if necessary
+            if "transformer" in self._config["model"]:
+                if "num_layers" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["num_layers"] = 1
+                if "layer_size" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["layer_size"] = 512
+                if "num_heads" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["num_heads"] = 8
+                if "memory_length" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["memory_length"] = 512
 
             # Check DAAC if DecoupledPPO
             if "DAAC" in self._config["trainer"]:
