@@ -24,6 +24,7 @@ class RecurrentSampler(TrajectorySampler):
         # Set member variables
         self.layer_type = configs["model"]["recurrence"]["layer_type"]
         self.reset_hidden_state = configs["model"]["recurrence"]["reset_hidden_state"]
+        self.buffer.init_recurrent_buffer_fields()
 
         # Setup initial recurrent cell
         hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.device)

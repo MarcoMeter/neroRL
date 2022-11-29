@@ -5,8 +5,8 @@ class Buffer():
     """
     The buffer stores and prepares the training data. It supports recurrent policies.
     """
-    def __init__(self, num_workers, worker_steps, visual_observation_space, vector_observation_space,
-                    action_space_shape, recurrence, device, share_parameters, sampler):
+    def __init__(self, configs, visual_observation_space, vector_observation_space,
+                    action_space_shape, device, share_parameters, sampler):
         """
         Arguments:
             num_workers {int} -- Number of environments/agents to sample training data
@@ -22,35 +22,52 @@ class Buffer():
         """
         self.device = device
         self.sampler = sampler
-        self.recurrence = recurrence
-        self.sequence_length = recurrence["sequence_length"] if recurrence is not None else None
-        self.num_workers = num_workers
-        self.worker_steps = worker_steps
+        self.configs = configs
+        self.recurrence = None
+        self.num_workers = configs["sampler"]["n_workers"]
+        self.worker_steps = configs["sampler"]["worker_steps"]
         self.batch_size = self.num_workers * self.worker_steps
-        self.rewards = np.zeros((num_workers, worker_steps), dtype=np.float32)
-        self.actions = torch.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=torch.long)
-        self.dones = np.zeros((num_workers, worker_steps), dtype=np.bool)
-        if visual_observation_space is not None:
-            self.vis_obs = torch.zeros((num_workers, worker_steps) + visual_observation_space.shape)
+        self.action_space_shape = action_space_shape
+        self.visual_observation_space = visual_observation_space
+        self.vector_observation_space = vector_observation_space
+        self.share_parameters = share_parameters
+        self.init_default_buffer_fields()
+
+    def init_default_buffer_fields(self):
+        if self.visual_observation_space is not None:
+            self.vis_obs = torch.zeros((self.num_workers, self.worker_steps) + self.visual_observation_space.shape)
         else:
             self.vis_obs = None
-        if vector_observation_space is not None:
-            self.vec_obs = torch.zeros((num_workers, worker_steps,) + vector_observation_space)
+        if self.vector_observation_space is not None:
+            self.vec_obs = torch.zeros((self.num_workers, self.worker_steps,) + self.vector_observation_space)
         else:
             self.vec_obs = None
-        
-        if share_parameters:
-            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"])) if recurrence is not None else None
-            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"])) if recurrence is not None else None
-        else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
-            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"], 2)) if recurrence is not None else None
-            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"], 2)) if recurrence is not None else None
+        self.rewards = np.zeros((self.num_workers, self.worker_steps), dtype=np.float32)
+        self.actions = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)), dtype=torch.long)
+        self.dones = np.zeros((self.num_workers, self.worker_steps), dtype=np.bool)
+        self.log_probs = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)))
+        self.values = torch.zeros((self.num_workers, self.worker_steps))
+        self.advantages = torch.zeros((self.num_workers, self.worker_steps))
 
-        self.log_probs = torch.zeros((num_workers, worker_steps, len(action_space_shape)))
-        self.values = torch.zeros((num_workers, worker_steps))
-        self.advantages = torch.zeros((num_workers, worker_steps))
+    def init_recurrent_buffer_fields(self):
         self.num_sequences = 0
         self.actual_sequence_length = 0
+        self.recurrence = self.configs["model"]["recurrence"]
+        self.sequence_length = self.recurrence["sequence_length"]
+        num_layers = self.recurrence["num_layers"]
+        hidden_state_size = self.recurrence["hidden_state_size"]
+        layer_type = self.recurrence["layer_type"]
+        if self.share_parameters:
+            self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
+            if layer_type == "lstm":
+                self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
+        else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
+            self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
+            if layer_type == "lstm":
+                self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
+
+    def init_transformer_buffer_fields(self):
+        pass
 
     def calc_advantages(self, last_value, gamma, lamda):
         """Generalized advantage estimation (GAE)

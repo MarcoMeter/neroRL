@@ -146,9 +146,13 @@ class BaseTrainer():
             
             # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
             if self.recurrence:
-                self.model.set_mean_recurrent_cell_states(
-                        torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0),
-                        torch.mean(self.sampler.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.cxs.shape[2:]), axis=0))
+                if self.recurrence["layer_type"] == "lstm":
+                    self.model.set_mean_recurrent_cell_states(
+                            torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0),
+                            torch.mean(self.sampler.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.cxs.shape[2:]), axis=0))
+                else:
+                    self.model.set_mean_recurrent_cell_states(
+                            torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0), None)
 
             # 5.: Prepare the sampled data inside the buffer
             self.sampler.buffer.prepare_batch_dict()
