@@ -105,8 +105,8 @@ class PPOTrainer(BaseTrainer):
         
         policy, value, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
-                                    recurrent_cell,
-                                    self.sampler.buffer.actual_sequence_length)
+                                    memory = recurrent_cell,
+                                    sequence_length = self.sampler.buffer.actual_sequence_length)
         
         # Policy Loss
         # Retrieve and process log_probs from each policy branch

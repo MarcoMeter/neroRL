@@ -40,7 +40,7 @@ class RecurrentSampler(TrajectorySampler):
             self.buffer.hxs[:, t] = self.recurrent_cell[0]
             self.buffer.cxs[:, t] = self.recurrent_cell[1]
 
-    def forward_model(self, vis_obs, vec_obs):
+    def forward_model(self, vis_obs, vec_obs, t):
         policy, value, self.recurrent_cell, _ = self.model(vis_obs, vec_obs, self.recurrent_cell)
         return policy, value
 

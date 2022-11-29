@@ -279,7 +279,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.share_parameters = True
 
         # Create the base model
-        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.transformer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(self.out_features_body, action_space_shape, self.activ_fn)
@@ -293,18 +293,20 @@ class ActorCriticSharedWeights(ActorCriticBase):
             "vis_encoder": self.vis_encoder,
             "vec_encoder": self.vec_encoder,
             "recurrent_layer": self.recurrent_layer,
+            "transformer": self.transformer,
             "body": self.body,
             "actor_head": self.actor_policy,
             "critic_head": self.critic
         }
 
-    def forward(self, vis_obs, vec_obs, recurrent_cell, sequence_length = 1):
+    def forward(self, vis_obs, vec_obs, memory = None, mask = None, sequence_length = 1):
         """Forward pass of the model
 
         Arguments:
             vis_obs {numpy.ndarray/torch,tensor} -- Visual observation (None if not available)
             vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
-            recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer (None if not available)
+            memory {torch.tensor} -- Memory cell of the recurrent layer or transformer memory (None if not available)
+            mask {torch.tensor} -- Memory mask
             sequence_length {int} -- Length of the fed sequences
 
         Returns:
@@ -324,7 +326,11 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
-            h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
+            h, memory = self.recurrent_layer(h, memory, sequence_length)
+
+        # Forward transformer if available
+        if self.transformer is not None:
+            h, memory = self.transformer(h, memory, mask)
 
         # Feed network body
         h = self.body(h)
@@ -334,7 +340,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Head: Policy branches
         pi = self.actor_policy(h)
 
-        return pi, value, recurrent_cell, None
+        return pi, value, memory, None
 
 def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
     """Creates a shared or non-shared weights actor critic model.

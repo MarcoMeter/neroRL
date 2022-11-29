@@ -80,7 +80,7 @@ class TrajectorySampler():
                 # the states' value of the value function and the recurrent hidden states (if available)
                 vis_obs_batch = torch.tensor(self.vis_obs) if self.vis_obs is not None else None
                 vec_obs_batch = torch.tensor(self.vec_obs) if self.vec_obs is not None else None
-                policy, value = self.forward_model(vis_obs_batch, vec_obs_batch)      
+                policy, value = self.forward_model(vis_obs_batch, vec_obs_batch, t)      
 
                 # Sample actions from each individual policy branch
                 actions = []
@@ -123,8 +123,8 @@ class TrajectorySampler():
         if self.vec_obs is not None:
             self.buffer.vec_obs[:, t] = torch.tensor(self.vec_obs)
 
-    def forward_model(self, vis_obs, vec_obs):
-        policy, value, _, _ = self.model(vis_obs, vec_obs, None)
+    def forward_model(self, vis_obs, vec_obs, t):
+        policy, value, _, _ = self.model(vis_obs, vec_obs)
         return policy, value
 
     def reset_worker(self, worker, id, t):

@@ -24,8 +24,7 @@ class TransformerSampler(TrajectorySampler):
         self.reset_hidden_state = configs["model"]["recurrence"]["reset_hidden_state"]
         self.buffer.init_transformer_buffer_fields()
 
-        # TODO
-        self.max_episode_length = 512
+        self.max_episode_length = configs["model"]["transformer"]["memory_length"]        # TODO
         self.num_mem_layers = configs["model"]["transformer_memory"]["num_layers"]
         self.mem_layer_size = configs["model"]["transformer_memory"]["layer_size"]
 
@@ -50,9 +49,8 @@ class TransformerSampler(TrajectorySampler):
         # Save mask
         self.buffer.memory_mask[:, t] = self.memory_mask[self.worker_current_episode_step]
 
-    def forward_model(self, vis_obs, vec_obs):
-        # TODO
-        policy, value, self.recurrent_cell, _ = self.model(vis_obs, vec_obs, self.recurrent_cell)
+    def forward_model(self, vis_obs, vec_obs, t):
+        policy, value, memory, _ = self.model(vis_obs, vec_obs, memory = self.memory, mask = self.buffer.memory_mask[:, t])
         # Set memory 
         self.memory[self.worker_ids, self.worker_current_episode_step] = memory
         return policy, value
@@ -71,8 +69,7 @@ class TransformerSampler(TrajectorySampler):
             self.buffer.memory_index[id, t + 1:] = len(self.buffer.memories) - 1
 
     def get_last_value(self):
-        # TODO
         _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
-                                        self.recurrent_cell)
+                                        memory = self.memory, mask = self.memory_mask[self.worker_current_episode_step])
         return last_value

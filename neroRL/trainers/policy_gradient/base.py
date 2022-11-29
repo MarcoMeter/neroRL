@@ -11,6 +11,7 @@ import neroRL
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
 from neroRL.sampler.recurrent_sampler import RecurrentSampler
+from neroRL.sampler.transformer_sampler import TransformerSampler
 from neroRL.evaluator import Evaluator
 from neroRL.utils.monitor import Monitor
 from neroRL.utils.monitor import Tag
@@ -54,6 +55,7 @@ class BaseTrainer():
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
+        self.transformer = None if not "transformer" in configs["model"] else configs["model"]["transformer"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
         # Set the seed for conducting the training
@@ -100,11 +102,14 @@ class BaseTrainer():
 
         # Setup Sampler
         self.monitor.log("Step 4: Launching training environments of type " + configs["environment"]["type"])
-        if self.recurrence is None:
+        if self.recurrence is None and self.transformer is None:
             self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
                                         self.action_space_shape, self.model, self.device)
         elif self.recurrence is not None:
             self.sampler = RecurrentSampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
+                                        self.action_space_shape, self.model, self.device)
+        elif self.transformer is not None:
+            self.sampler = TransformerSampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
                                         self.action_space_shape, self.model, self.device)
 
     def run_training(self):

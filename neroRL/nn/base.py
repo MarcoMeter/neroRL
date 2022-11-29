@@ -31,6 +31,9 @@ class ActorCriticBase(Module):
         self.mean_hxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
 
+        # Members for using a transformer-based policy
+        self.transformer_config = config["transformer"] if "transformer" in config else None
+
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
@@ -51,7 +54,7 @@ class ActorCriticBase(Module):
         Returns:
             {tuple} -- visual encoder, vector encoder, recurrent layer, body
         """
-        vis_encoder, vec_encoder, recurrent_layer, body = None, None, None, None
+        vis_encoder, vec_encoder, recurrent_layer, transformer, body = None, None, None, None, None
 
         # Observation encoder
         if vis_obs_space is not None:
@@ -81,12 +84,18 @@ class ActorCriticBase(Module):
             out_features = self.recurrence["hidden_state_size"]
             recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer, out_features)
             in_features_next_layer = out_features
-        
+
+        # Transformer
+        if self.transformer_config is not None:
+            out_features = self.transformer_config["layer_size"]
+            transformer = self.create_transformer_layer(self.transformer_config, in_features_next_layer)
+            in_features_next_layer = out_features
+
         # Network body
         out_features = config["num_hidden_units"]
         body = self.create_body(config, in_features_next_layer, out_features)
 
-        return vis_encoder, vec_encoder, recurrent_layer, body
+        return vis_encoder, vec_encoder, recurrent_layer, transformer, body
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
