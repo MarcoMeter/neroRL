@@ -1,8 +1,6 @@
 import numpy as np
-import gym
+import gymnasium as gym
 import time
-import random
-from gym import error, spaces
 from random import randint
 from neroRL.environments.env import Env
 

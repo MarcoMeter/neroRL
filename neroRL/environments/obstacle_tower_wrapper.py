@@ -1,6 +1,5 @@
 import numpy as np
-import gym
-from gym import error, spaces
+from gymnasium import spaces
 from random import randint
 
 from neroRL.environments.obstacle_tower_env import ObstacleTowerEnv

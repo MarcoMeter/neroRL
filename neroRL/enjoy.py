@@ -13,7 +13,7 @@ import numpy as np
 import sys
 
 from docopt import docopt
-from gym import spaces
+from gymnasium import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.environments.wrapper import wrap_environment
@@ -83,6 +83,8 @@ def main():
     checkpoint = torch.load(checkpoint_path) if checkpoint_path else None
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
     model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
+    # Determine whether frame skipping is desired (important for video recording)
+    frame_skip = configs["environment"]["frame_skip"]
 
     # Launch environment
     logger.info("Step 1: Launching environment")
@@ -166,7 +168,7 @@ def main():
 
                 # Store data for video recording
                 actions.append(_actions)
-                probs.append(torch.stack(_probs))
+                probs.append(_probs)
                 entropies.append(entropy)
                 values.append(value.cpu().numpy())
 
@@ -180,12 +182,19 @@ def main():
         if record_video or generate_website:
             trajectory_data = env.get_episode_trajectory
             trajectory_data["action_names"] = env.action_names
-            trajectory_data["actions"] = actions
-            trajectory_data["probs"] = probs
-            trajectory_data["entropies"] = entropies
-            trajectory_data["values"] = values
+            trajectory_data["actions"] = [items for items in actions for _ in range(frame_skip)]
+            trajectory_data["probs"] = [items for items in probs for _ in range(frame_skip)]
+            trajectory_data["entropies"] = [items for items in entropies for _ in range(frame_skip)]
+            trajectory_data["values"] = [items for items in values for _ in range(frame_skip)]
             trajectory_data["episode_reward"] = info["reward"]
             trajectory_data["seed"] = seed
+            # if frame_skip > 1:
+            #     # remainder = info["length"] % frame_skip
+            #     remainder = len(trajectory_data["probs"]) % frame_skip
+            #     if remainder > 0:
+            #         for key in ["actions", "probs", "entropies", "values"]:
+            #             trajectory_data[key] = trajectory_data[key][:-remainder]
+
             # Init video recorder
             video_recorder = VideoRecorder(video_path, frame_rate)
             # Render and serialize video

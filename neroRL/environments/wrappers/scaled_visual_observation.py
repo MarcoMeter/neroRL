@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from gym import spaces
+from gymnasium import spaces
 from neroRL.environments.env import Env
 
 class ScaledVisualObsEnv(Env):

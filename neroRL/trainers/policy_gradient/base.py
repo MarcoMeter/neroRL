@@ -3,7 +3,7 @@ import numpy as np
 import time
 from collections import deque
 
-from gym import spaces
+from gymnasium import spaces
 from sys import exit
 from signal import signal, SIGINT
 
@@ -159,6 +159,11 @@ class BaseTrainer():
             # Measure seconds needed for a whole update
             time_end = time.time()
             update_duration = int(time_end - time_start)
+
+            # Allocated memory
+            # mem = torch.cuda.mem_get_info(device=None)
+            # mem = (mem[1] - mem[0]) / 1024 / 1024
+            # print(menm)
 
             # Save checkpoint (update, model, optimizer, configs)
             if update % self.checkpoint_interval == 0 or update == (self.updates - 1):

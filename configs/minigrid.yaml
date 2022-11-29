@@ -2,7 +2,7 @@
 
 environment:
   type: "Minigrid"
-  name: "MiniGrid-MemoryS17Random-v0"
+  name: "MiniGrid-MemoryS13-v0"
   frame_skip: 1
   last_action_to_obs: False
   last_reward_to_obs: False
@@ -58,6 +58,7 @@ trainer:
   epochs: 4
   refresh_buffer_epoch: -1
   n_mini_batches: 8
+  advantage_normalization: "batch"
   value_coefficient: 0.25
   max_grad_norm: 0.5
   share_parameters: True

@@ -18,7 +18,7 @@ import os
 import pickle
 import numpy as np
 from docopt import docopt
-from gym import spaces
+from gymnasium import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
@@ -130,7 +130,11 @@ def main():
 
     # Save results to file
     print("\nStep 5: Save to File: " + name)
-    results = np.asarray(results).reshape(len(checkpoints), len(configs["evaluation"]["seeds"]), configs["evaluation"]["n_workers"])
+    if "explicit-seeds" in configs["evaluation"]["seeds"]:
+        num_seeds = len(configs["evaluation"]["seeds"]["explicit-seeds"])
+    else:
+        num_seeds = configs["evaluation"]["seeds"]["num-seeds"]
+    results = np.asarray(results).reshape(len(checkpoints), num_seeds, configs["evaluation"]["n_workers"])
     os.makedirs(os.path.dirname(name), exist_ok=True)
     outfile = open(name, "wb")
     pickle.dump(results, outfile)

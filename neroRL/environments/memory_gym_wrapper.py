@@ -1,10 +1,10 @@
-import gym
+import gymnasium as gym
 import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import memory_gym
 
 from random import randint
-from gym import spaces
+from gymnasium import spaces
 
 from neroRL.environments.env import Env
 

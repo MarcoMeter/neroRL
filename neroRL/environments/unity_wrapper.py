@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym import error, spaces
+from gymnasium import error, spaces
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.base_env import ActionTuple
 from mlagents_envs.side_channel.environment_parameters_channel import (EnvironmentParametersChannel,)
@@ -187,7 +187,8 @@ class UnityWrapper(Env):
 
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [vis_obs * 255], "vec_obs": [vec_obs],
+            "vis_obs": [vis_obs * 255] if vis_obs is not None else [vis_obs],
+            "vec_obs": [vec_obs],
             "rewards": [0.0], "actions": []
         }
 
@@ -220,7 +221,10 @@ class UnityWrapper(Env):
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(vis_obs * 255)
+            if vis_obs is not None:
+                self._trajectory["vis_obs"].append(vis_obs * 255)
+            else:
+                self._trajectory["vis_obs"].append(vis_obs)
             self._trajectory["vec_obs"].append(vec_obs)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)

@@ -5,7 +5,7 @@ import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import pygame
 
-from gym import spaces
+from gymnasium import spaces
 from neroRL.environments.env import Env
 from pygame.math import Vector2
 from random import randint

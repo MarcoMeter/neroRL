@@ -11,9 +11,9 @@ from mazelab import BaseEnv
 from mazelab import VonNeumannMotion
 
 from neroRL.environments.env import Env
-from gym import error, spaces
-from gym.spaces import Box
-from gym.spaces import Discrete
+from gymnasium import error, spaces
+from gymnasium.spaces import Box
+from gymnasium.spaces import Discrete
 from random import randint
 
 class MazeWrapper(Env):
@@ -185,7 +185,6 @@ class Maze(BaseMaze):
             rows.append(' '.join(str))
         print('\n'.join(rows))
 
-
 class Env(BaseEnv):
     def __init__(self, complexity=.75, density=.75, agent_view_size=4):
         super().__init__()
@@ -260,6 +259,5 @@ class Env(BaseEnv):
 
     def get_image(self):
         return self.maze.to_rgb()
-
 
 gym.envs.register(id="RandomMaze-v0", entry_point=Env, max_episode_steps=100)

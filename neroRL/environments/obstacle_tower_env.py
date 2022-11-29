@@ -6,11 +6,11 @@ from collections import deque
 
 from PIL import Image
 import itertools
-import gym
+import gymnasium as gym
 import numpy as np
 import time
 from collections import deque
-from gym import error, spaces
+from gymnasium import error, spaces
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.registry import UnityEnvRegistry
 from mlagents_envs.side_channel.environment_parameters_channel import (
@@ -450,121 +450,3 @@ class ActionFlattener:
         :return: The List containing the branched actions.
         """
         return self.action_lookup[action]
-
-
-class EpisodeResults:
-    def __init__(self, seed, reset_params):
-        self.seed = seed
-        self.start_time = time.time()
-        self.time_elapsed = None
-        self.total_steps = 0
-        self.reward = 0.0
-        self.max_floor_reached = 0
-        self.reset_params = reset_params
-
-    def complete(self, reward, floor, total_steps):
-        curr_time = time.time()
-        self.time_elapsed = curr_time - self.start_time
-        self.reward = reward
-        self.max_floor_reached = floor
-        self.total_steps = total_steps
-
-    def as_dict(self):
-        return {
-            "seed": self.seed,
-            "time_elapsed": self.time_elapsed,
-            "episode_reward": self.reward,
-            "max_floor_reached": self.max_floor_reached,
-            "total_steps": self.total_steps,
-            "reset_params": self.reset_params,
-        }
-
-
-class ObstacleTowerEvaluation(gym.Wrapper):
-    """
-    Environment wrapper for performing evaluation. Accepts an ObstacleTowerEnv and a list 
-    of seeds and will collect resulting rewards and floors reached for each seed.  This wrapper 
-    automatically resets the environment, so an external environment reset is not necessary.
-    """
-
-    def __init__(self, env, seeds):
-        """
-        Arguments:
-        env: ObstacleTowerEnv object created externally.
-        """
-        super().__init__(env)
-
-        if not isinstance(seeds, list):
-            raise UnityGymException("Invalid seeds list for evaluation.")
-        if len(seeds) < 1:
-            raise UnityGymException("No seeds provided for evaluation.")
-        self.episode_results = {}
-        self.episodic_return = 0.0
-        self.episodic_steps = 0
-        self.current_floor = 0
-        self.seeds = deque(seeds)
-        self.current_seed = self.seeds.popleft()
-        self.env.seed(self.current_seed)
-        self.reset()
-
-    def reset(self):
-        if self.current_seed is None:
-            raise UnityGymException("Attempting to reset but evaluation has completed.")
-
-        obs = self.env.reset()
-        self.episodic_return = 0.0
-        self.episodic_steps = 0
-        self.current_floor = 0
-        self.episode_results[self.current_seed] = EpisodeResults(
-            self.current_seed, self.env.reset_params
-        )
-        return obs
-
-    def step(self, action):
-        if self.current_seed is None:
-            raise UnityGymException("Attempting to step but evaluation has completed.")
-
-        observation, reward, done, info = self.env.step(action)
-        self.episodic_return += reward
-        self.episodic_steps += 1
-        if info["current_floor"] > self.current_floor:
-            self.current_floor = info["current_floor"]
-        if done:
-            self.episode_results[self.current_seed].complete(
-                self.episodic_return, self.current_floor, self.episodic_steps
-            )
-            if len(self.seeds) > 0:
-                self.current_seed = self.seeds.popleft()
-                self.env.seed(self.current_seed)
-                self.reset()
-            else:
-                self.current_seed = None
-        return observation, reward, done, info
-
-    @property
-    def evaluation_complete(self):
-        return self.current_seed is None
-
-    @property
-    def results(self):
-        """
-        Returns the evaluation results in a dictionary.  Results include the average reward and floor 
-        reached for each seed and the list of rewards / floors reached for each seed.
-        """
-        total_reward = 0.0
-        total_floors = 0.0
-        total_steps = 0.0
-        num_episodes = len(self.episode_results.values())
-        for result in self.episode_results.values():
-            total_reward += result.reward
-            total_floors += result.max_floor_reached
-            total_steps += result.total_steps
-        return {
-            "average_reward": total_reward / num_episodes,
-            "average_floor_reached": total_floors / num_episodes,
-            "average_episode_steps": total_steps / num_episodes,
-            "episode_count": num_episodes,
-            "episodes": list(
-                map(lambda es: es.as_dict(), self.episode_results.values())
-            ),
-        }
