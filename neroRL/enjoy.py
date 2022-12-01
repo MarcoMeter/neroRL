@@ -123,20 +123,34 @@ def main():
     # Note: Only one episode is run upon generating a result website or rendering a video
     for _ in range(num_episodes):
         # Reset environment
+        t = 0
         logger.info("Step 3: Resetting the environment")
         logger.info("Step 3: Using seed " + str(seed))
         vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
         done = False
         
         # Init hidden state (None if not available)
+        recurrence_config = None
         if "recurrence" in model_config:
+            recurrence_config = model_config["recurrence"]
             hxs, cxs = model.init_recurrent_cell_states(1, device)
-            if model_config["recurrence"]["layer_type"] == "gru":
-                recurrent_cell = hxs
-            elif model_config["recurrence"]["layer_type"] == "lstm":
-                recurrent_cell = (hxs, cxs)
+            if recurrence_config["layer_type"] == "gru":
+                memory = hxs
+            elif recurrence_config["layer_type"] == "lstm":
+                memory = (hxs, cxs)
         else:
-            recurrent_cell = None
+            memory = None
+
+        # Init transformer memory
+        transformer_config = None
+        memory_mask = None
+        if "transformer" in model_config:
+            transformer_config = model_config["transformer"]
+            memory_mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])))
+            # Shift mask by one to account for the fact that for the first timestep the memory is empty
+            memory_mask = torch.cat((torch.zeros((1, transformer_config["memory_length"])), memory_mask))[:-1]  
+            memory = torch.zeros((1, transformer_config["memory_length"], transformer_config["num_layers"], transformer_config["layer_size"]), dtype=torch.float32)
+            new_memory = torch.zeros((1, 1, transformer_config["num_layers"], transformer_config["layer_size"]), dtype=torch.float32)
 
         # Play episode
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
@@ -153,7 +167,12 @@ def main():
                 # Forward the neural net
                 vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                 vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
+                policy, value, new_memory, _ = model(vis_obs, vec_obs, memory, memory_mask[t].unsqueeze(0) if memory_mask is not None else None)
+                # Set memory if used
+                if transformer_config is not None:
+                    memory[:, t] = new_memory
+                if recurrence_config is not None:
+                    memory = new_memory
 
                 _actions = []
                 _probs = []
@@ -173,6 +192,7 @@ def main():
 
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
+                t += 1
 
         logger.info("Episode Reward: " + str(info["reward"]))
         logger.info("Episode Length: " + str(info["length"]))
