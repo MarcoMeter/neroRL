@@ -46,7 +46,7 @@ class PPOTrainer(BaseTrainer):
 
     def create_model(self) -> None:
         return create_actor_critic_model(self.configs["model"], self.configs["trainer"]["share_parameters"],
-        self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
+        self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.device)
 
     def train(self):
         train_info = {}

@@ -67,7 +67,7 @@ class DecoupledPPOTrainer(BaseTrainer):
 
     def create_model(self):
         model =  create_actor_critic_model(self.configs["model"], False,
-        self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
+        self.visual_observation_space, self.vector_observation_space, self.action_space_shape,self.device)
         # Optionally, add the advantage estimator head to the model
         if self.use_daac:
             model.add_gae_estimator_head(self.action_space_shape, self.device)

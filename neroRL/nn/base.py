@@ -13,7 +13,7 @@ class ActorCriticBase(Module):
             - Components: Visual encoder, vector encoder, recurrent layer, body, heads (value, policy, gae)
             - Functionality: Initialization of the recurrent cells and basic model
     """
-    def __init__(self, recurrence, config):
+    def __init__(self, config):
         """Model setup
 
         Arguments:
@@ -27,9 +27,9 @@ class ActorCriticBase(Module):
         self.share_parameters = False
 
         # Members for using a recurrent policy
-        self.recurrence = recurrence
-        self.mean_hxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
-        self.mean_cxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
+        self.recurrence_config = config["recurrence"]
+        self.mean_hxs = np.zeros(self.recurrence_config["hidden_state_size"], dtype=np.float32) if self.recurrence_config is not None else None
+        self.mean_cxs = np.zeros(self.recurrence_config["hidden_state_size"], dtype=np.float32) if self.recurrence_config is not None else None
 
         # Members for using a transformer-based policy
         self.transformer_config = config["transformer"] if "transformer" in config else None
@@ -80,9 +80,9 @@ class ActorCriticBase(Module):
             in_features_next_layer = out_features
 
         # Recurrent layer (GRU or LSTM)
-        if self.recurrence is not None:
-            out_features = self.recurrence["hidden_state_size"]
-            recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer, out_features)
+        if self.recurrence_config is not None:
+            out_features = self.recurrence_config["hidden_state_size"]
+            recurrent_layer = self.create_recurrent_layer(self.recurrence_config, in_features_next_layer, out_features)
             in_features_next_layer = out_features
 
         # Transformer
@@ -113,26 +113,26 @@ class ActorCriticBase(Module):
             {tuple} -- Depending on the used recurrent layer type, just hidden states (gru) or both hidden states and cell states are returned using initial values.
         """
         hxs, cxs = None, None
-        if self.recurrence["hidden_state_init"] == "zero":
-            hxs = torch.zeros((num_sequences), self.recurrence["num_layers"], self.recurrence["hidden_state_size"])
-            if self.recurrence["layer_type"] == "lstm":
-                cxs = torch.zeros((num_sequences), self.recurrence["num_layers"], self.recurrence["hidden_state_size"])
-        elif self.recurrence["hidden_state_init"] == "one":
-            hxs = torch.ones((num_sequences), self.recurrence["num_layers"], self.recurrence["hidden_state_size"])
-            if self.recurrence["layer_type"] == "lstm":
-                cxs = torch.ones((num_sequences), self.recurrence["num_layers"], self.recurrence["hidden_state_size"])
-        elif self.recurrence["hidden_state_init"] == "mean":
+        if self.recurrence_config["hidden_state_init"] == "zero":
+            hxs = torch.zeros((num_sequences), self.recurrence_config["num_layers"], self.recurrence_config["hidden_state_size"])
+            if self.recurrence_config["layer_type"] == "lstm":
+                cxs = torch.zeros((num_sequences), self.recurrence_config["num_layers"], self.recurrence_config["hidden_state_size"])
+        elif self.recurrence_config["hidden_state_init"] == "one":
+            hxs = torch.ones((num_sequences), self.recurrence_config["num_layers"], self.recurrence_config["hidden_state_size"])
+            if self.recurrence_config["layer_type"] == "lstm":
+                cxs = torch.ones((num_sequences), self.recurrence_config["num_layers"], self.recurrence_config["hidden_state_size"])
+        elif self.recurrence_config["hidden_state_init"] == "mean":
             mean = [self.mean_hxs for i in range(num_sequences)]
             hxs = torch.tensor(mean).unsqueeze(0)
-            if self.recurrence["layer_type"] == "lstm":
+            if self.recurrence_config["layer_type"] == "lstm":
                 mean = [self.mean_cxs for i in range(num_sequences)]
                 cxs = torch.tensor(mean).unsqueeze(0)
-        elif self.recurrence["hidden_state_init"] == "sample":
+        elif self.recurrence_config["hidden_state_init"] == "sample":
             mean = [self.mean_hxs for i in range(num_sequences)]
-            hxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["num_layers"], self.recurrence["hidden_state_size"]))
-            if self.recurrence["layer_type"] == "lstm":
+            hxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence_config["num_layers"], self.recurrence_config["hidden_state_size"]))
+            if self.recurrence_config["layer_type"] == "lstm":
                 mean = [self.mean_cxs for i in range(num_sequences)]
-                cxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence["num_layers"], self.recurrence["hidden_state_size"]))
+                cxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence_config["num_layers"], self.recurrence_config["hidden_state_size"]))
         return hxs, cxs
 
     def set_mean_recurrent_cell_states(self, mean_hxs, mean_cxs):
