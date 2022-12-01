@@ -27,7 +27,7 @@ class ActorCriticBase(Module):
         self.share_parameters = False
 
         # Members for using a recurrent policy
-        self.recurrence_config = config["recurrence"]
+        self.recurrence_config = config["recurrence"] if "recurrence" in config else None
         self.mean_hxs = np.zeros(self.recurrence_config["hidden_state_size"], dtype=np.float32) if self.recurrence_config is not None else None
         self.mean_cxs = np.zeros(self.recurrence_config["hidden_state_size"], dtype=np.float32) if self.recurrence_config is not None else None
 
