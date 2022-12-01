@@ -27,6 +27,21 @@ console = logging.StreamHandler()
 console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
 logger.addHandler(console)
 
+def init_recurrent_cell(recurrence_config, model, device):
+    hxs, cxs = model.init_recurrent_cell_states(1, device)
+    if recurrence_config["layer_type"] == "gru":
+        recurrent_cell = hxs
+    elif recurrence_config["layer_type"] == "lstm":
+        recurrent_cell = (hxs, cxs)
+    return recurrent_cell
+
+def init_transformer_memory(transformer_config):
+    memory_mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])))
+    # Shift mask by one to account for the fact that for the first timestep the memory is empty
+    memory_mask = torch.cat((torch.zeros((1, transformer_config["memory_length"])), memory_mask))[:-1]  
+    memory = torch.zeros((1, transformer_config["memory_length"], transformer_config["num_layers"], transformer_config["layer_size"]), dtype=torch.float32)
+    return memory, memory_mask
+
 def main():
     # Docopt command line arguments
     _USAGE = """
@@ -129,28 +144,17 @@ def main():
         vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
         done = False
         
+        # Init memory if applicable
+        memory = None
+        memory_mask = None
         # Init hidden state (None if not available)
-        recurrence_config = None
         if "recurrence" in model_config:
-            recurrence_config = model_config["recurrence"]
-            hxs, cxs = model.init_recurrent_cell_states(1, device)
-            if recurrence_config["layer_type"] == "gru":
-                memory = hxs
-            elif recurrence_config["layer_type"] == "lstm":
-                memory = (hxs, cxs)
-        else:
-            memory = None
+            memory = init_recurrent_cell(model_config["recurrence"], model, device)
 
         # Init transformer memory
-        transformer_config = None
-        memory_mask = None
         if "transformer" in model_config:
-            transformer_config = model_config["transformer"]
-            memory_mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])))
-            # Shift mask by one to account for the fact that for the first timestep the memory is empty
-            memory_mask = torch.cat((torch.zeros((1, transformer_config["memory_length"])), memory_mask))[:-1]  
-            memory = torch.zeros((1, transformer_config["memory_length"], transformer_config["num_layers"], transformer_config["layer_size"]), dtype=torch.float32)
-            new_memory = torch.zeros((1, 1, transformer_config["num_layers"], transformer_config["layer_size"]), dtype=torch.float32)
+            memory, memory_mask = init_transformer_memory(model_config["transformer"])
+            
 
         # Play episode
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
@@ -169,10 +173,10 @@ def main():
                 vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
                 policy, value, new_memory, _ = model(vis_obs, vec_obs, memory, memory_mask[t].unsqueeze(0) if memory_mask is not None else None)
                 # Set memory if used
-                if transformer_config is not None:
-                    memory[:, t] = new_memory
-                if recurrence_config is not None:
+                if "recurrence" in model_config:
                     memory = new_memory
+                if "transformer" in model_config:
+                    memory[:, t] = new_memory
 
                 _actions = []
                 _probs = []
