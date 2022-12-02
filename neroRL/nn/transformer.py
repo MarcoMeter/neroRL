@@ -85,7 +85,7 @@ class SelfAttention(nn.Module):
         plt.pause(0.0001)
         plt.clf()
         
-class TransformerBlock(nn.Module):
+class TransformerBlock(Module):
     def __init__(self, embed_size, num_heads, forward_expansion = 1, visualize_coef=False):
         super(TransformerBlock, self).__init__()
         self.attention = SelfAttention(embed_size, num_heads, visualize_coef)
@@ -126,7 +126,7 @@ class SinusoidalPosition(nn.Module):
         pos_emb = torch.cat((sinusoidal_inp.sin(), sinusoidal_inp.cos()), dim = -1)
         return pos_emb
 
-class Transformer(Module):
+class Transformer(nn.Module):
     def __init__(self, config, input_shape, activation) -> None:
         super().__init__()
         self.config = config

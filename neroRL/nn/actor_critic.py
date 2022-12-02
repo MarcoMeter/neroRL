@@ -44,19 +44,25 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             "actor_vis_encoder": self.actor_vis_encoder,
             "actor_vec_encoder": self.actor_vec_encoder,
             "actor_recurrent_layer": self.actor_recurrent_layer,
-            # TODO transformer
             "actor_body": self.actor_body,
             "actor_head": self.actor_policy
         }
+
+        if self.actor_transformer is not None:
+            for b, block in enumerate(self.actor_transformer.transformer_blocks):
+                self.actor_modules["transformer_" + str(b)] = block
 
         self.critic_modules = {
             "critic_vis_encoder": self.critic_vis_encoder,
             "critic_vec_encoder": self.critic_vec_encoder,
             "critic_recurrent_layer": self.critic_recurrent_layer,
-            # TODO transformer
             "critic_body": self.critic_body,
             "critic_head": self.critic
         }
+
+        if self.critic_transformer is not None:
+            for b, block in enumerate(self.critic_transformer.transformer_blocks):
+                self.critic_modules["transformer_" + str(b)] = block
 
     def forward(self, vis_obs, vec_obs, memory, mask = None, sequence_length = 1, actions = None):
         """Forward pass of the model
@@ -312,11 +318,14 @@ class ActorCriticSharedWeights(ActorCriticBase):
             "vis_encoder": self.vis_encoder,
             "vec_encoder": self.vec_encoder,
             "recurrent_layer": self.recurrent_layer,
-            # "transformer": self.transformer,
             "body": self.body,
             "actor_head": self.actor_policy,
             "critic_head": self.critic
         }
+
+        if self.transformer is not None:
+            for b, block in enumerate(self.transformer.transformer_blocks):
+                self.actor_critic_modules["transformer_" + str(b)] = block
 
     def forward(self, vis_obs, vec_obs, memory = None, mask = None, sequence_length = 1):
         """Forward pass of the model
