@@ -59,7 +59,7 @@ class TransformerSampler(TrajectorySampler):
         mem_index = self.buffer.memory_index[id, t]
         self.buffer.memories[mem_index] = self.buffer.memories[mem_index].clone()
         # Reset episodic memory
-        self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_length, self.num_mem_layers, self.mem_layer_size, self.device).squeeze()
+        self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_length, self.num_mem_layers, self.mem_layer_size, self.device).squeeze(0)
         if t < self.worker_steps - 1:
             # Save memorie
             self.buffer.memories.append(self.memory[id])
