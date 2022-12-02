@@ -38,7 +38,7 @@ def init_recurrent_cell(recurrence_config, model, device):
 def init_transformer_memory(transformer_config):
     memory_mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])))
     # Shift mask by one to account for the fact that for the first timestep the memory is empty
-    memory_mask = torch.cat((torch.zeros((1, transformer_config["memory_length"])), memory_mask))[:-1]  
+    memory_mask = torch.cat((torch.zeros((1, transformer_config["memory_length"])), memory_mask))[:-1]
     memory = torch.zeros((1, transformer_config["memory_length"], transformer_config["num_layers"], transformer_config["layer_size"]), dtype=torch.float32)
     return memory, memory_mask
 
@@ -150,11 +150,9 @@ def main():
         # Init hidden state (None if not available)
         if "recurrence" in model_config:
             memory = init_recurrent_cell(model_config["recurrence"], model, device)
-
         # Init transformer memory
         if "transformer" in model_config:
             memory, memory_mask = init_transformer_memory(model_config["transformer"])
-            
 
         # Play episode
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
