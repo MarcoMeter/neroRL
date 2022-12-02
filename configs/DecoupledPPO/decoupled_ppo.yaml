@@ -27,6 +27,8 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
+    view-size: 3
+    max-episode-steps: 96
 
 ### MODEL CONFIG ###
 model:

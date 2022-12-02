@@ -10,7 +10,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape):
         """Model setup
         
         Arguments:
@@ -21,15 +21,16 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
                 - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
         """
-        ActorCriticBase.__init__(self, recurrence, config)
+        ActorCriticBase.__init__(self, config)
+        recurrence = config["recurrence"] if "recurrence" in config else None
 
         # Members for using a recurrent policy
         self.mean_hxs = np.zeros((self.recurrence_config["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros((self.recurrence_config["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
         # Create the base models
-        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
-        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_transformer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_transformer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape, activ_fn = self.activ_fn)
@@ -43,6 +44,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             "actor_vis_encoder": self.actor_vis_encoder,
             "actor_vec_encoder": self.actor_vec_encoder,
             "actor_recurrent_layer": self.actor_recurrent_layer,
+            # TODO transformer
             "actor_body": self.actor_body,
             "actor_head": self.actor_policy
         }
@@ -51,11 +53,12 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             "critic_vis_encoder": self.critic_vis_encoder,
             "critic_vec_encoder": self.critic_vec_encoder,
             "critic_recurrent_layer": self.critic_recurrent_layer,
+            # TODO transformer
             "critic_body": self.critic_body,
             "critic_head": self.critic
         }
 
-    def forward(self, vis_obs, vec_obs, recurrent_cell, sequence_length = 1, actions = None):
+    def forward(self, vis_obs, vec_obs, memory, mask = None, sequence_length = 1, actions = None):
         """Forward pass of the model
 
         Arguments:
@@ -71,25 +74,29 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             {tuple} -- Recurrent cell
             {torch.tensor} -- Advantage function: Advantage
         """
+        # Process memory
+        actor_memory, actor_memory_mask, critic_memory, critic_memory_mask = None, None, None, None
         # Unpack recurrent cell        
         if self.recurrence_config is not None:
-            (actor_recurrent_cell, critic_recurrent_cell) = self.unpack_recurrent_cell(recurrent_cell)
-        else:
-            actor_recurrent_cell, critic_recurrent_cell = None, None
+            (actor_memory, critic_memory) = self.unpack_recurrent_cell(memory)
+        if self.transformer_config is not None:
+            pass # TODO
 
         # Feed actor model
-        pi, actor_recurrent_cell, gae = self.forward_actor(vis_obs, vec_obs, actor_recurrent_cell, sequence_length, actions)
+        pi, actor_memory, gae = self.forward_actor(vis_obs, vec_obs, actor_memory, actor_memory_mask, sequence_length, actions)
 
         # Feed critic model
-        value, critic_recurrent_cell = self.forward_critic(vis_obs, vec_obs, critic_recurrent_cell, sequence_length, actions)
+        value, critic_memory = self.forward_critic(vis_obs, vec_obs, critic_memory, critic_memory_mask, sequence_length, actions)
 
         # Pack recurrent cell
         if self.recurrence_config is not None:
-            recurrent_cell = self.pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell)
+            memory = self.pack_recurrent_cell(actor_memory, critic_memory)
+        if self.transformer_config is not None:
+            pass # TODO
 
-        return pi, value, recurrent_cell, gae
+        return pi, value, memory, gae
 
-    def forward_actor(self, vis_obs, vec_obs, actor_recurrent_cell, sequence_length = 1, actions = None):
+    def forward_actor(self, vis_obs, vec_obs, actor_memory, actor_memory_mask = None, sequence_length = 1, actions = None):
         # Forward observation encoder
         if vis_obs is not None:
             h_actor = self.actor_vis_encoder(vis_obs)
@@ -102,7 +109,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence_config is not None:
-            h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, actor_recurrent_cell, sequence_length)
+            h_actor, actor_memory = self.actor_recurrent_layer(h_actor, actor_memory, sequence_length)
 
         # Feed network body
         h_actor = self.actor_body(h_actor)
@@ -115,9 +122,9 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Head: Policy branches
         pi = self.actor_policy(h_actor)
 
-        return pi, actor_recurrent_cell, gae
+        return pi, actor_memory, gae
 
-    def forward_critic(self, vis_obs, vec_obs, critic_recurrent_cell, sequence_length = 1, actions = None):
+    def forward_critic(self, vis_obs, vec_obs, critic_memory, ciritc_memory_mask = None, sequence_length = 1, actions = None):
         # Forward observation encoder
         if vis_obs is not None:
             h_critic = self.critic_vis_encoder(vis_obs)
@@ -130,7 +137,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence_config is not None:
-            h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
+            h_critic, critic_memory = self.critic_recurrent_layer(h_critic, critic_memory, sequence_length)
 
         # Feed network body
         h_critic = self.critic_body(h_critic)
@@ -138,7 +145,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Head: Value function
         value = self.critic(h_critic)
 
-        return value, critic_recurrent_cell
+        return value, critic_memory
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
@@ -293,7 +300,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             "vis_encoder": self.vis_encoder,
             "vec_encoder": self.vec_encoder,
             "recurrent_layer": self.recurrent_layer,
-            "transformer": self.transformer,
+            # "transformer": self.transformer,
             "body": self.body,
             "actor_head": self.actor_policy,
             "critic_head": self.critic

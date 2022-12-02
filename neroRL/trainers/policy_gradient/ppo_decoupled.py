@@ -77,7 +77,8 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.train_info = {}
 
         # Add dummy key to the samples dict to avoid threading issues if the advantage should be normalized batch-wise
-        self.sampler.buffer.samples_flat["normalized_advantages"] = None
+        if self.configs["trainer"]["advantage_normalization"] == "batch":
+            self.sampler.buffer.samples_flat["normalized_advantages"] = None
 
         if self.run_threaded:
             # Launch threads for training the actor and critic model simultaenously
@@ -155,20 +156,21 @@ class DecoupledPPOTrainer(BaseTrainer):
         Returns:
             training_stats {dict} -- Losses, entropy, kl-divergence and clip fraction
         """
-        # Retrieve sampled recurrent cell states to feed the model
-        recurrent_cell = None
+        # Retrieve sampled recurrent cell states or transformer memory to feed the model
+        actor_memory, actor_memory_mask = None, None
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
                 recurrent_cell = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"], samples["cxs"])
-            (actor_recurrent_cell, _) = self.model.unpack_recurrent_cell(recurrent_cell)
-        else:
-            actor_recurrent_cell = None
+            (actor_memory, _) = self.model.unpack_recurrent_cell(recurrent_cell)
+        if self.transformer is not None:
+            actor_memory = samples["memories"]          # TODO unpack
+            actor_memory_mask = samples["memory_mask"]  # TODO unpack
         
         policy, _, gae = self.model.forward_actor(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
-                                    actor_recurrent_cell,
+                                    actor_memory, actor_memory_mask,
                                     self.sampler.buffer.actual_sequence_length,
                                     samples["actions"])
 
@@ -239,21 +241,23 @@ class DecoupledPPOTrainer(BaseTrainer):
         Returns:
             training_stats {dict} -- Value loss
         """
-        # Retrieve sampled recurrent cell states to feed the model
-        recurrent_cell = None
+        # Retrieve sampled recurrent cell states or transformer memory to feed the model
+        critic_memory, critic_memory_mask = None, None
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
                 recurrent_cell = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"], samples["cxs"])
-            (_, critic_recurrent_cell) = self.model.unpack_recurrent_cell(recurrent_cell)
-        else:
-            critic_recurrent_cell = None
+            (critic_memory, _) = self.model.unpack_recurrent_cell(recurrent_cell)
+        if self.transformer is not None:
+            critic_memory = samples["memories"]             # TODO unpack
+            critic_memory_mask = samples["memory_mask"]     # TODO unpack
         
         value, _ = self.model.forward_critic(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
-                                    critic_recurrent_cell,
-                                    self.sampler.buffer.actual_sequence_length)
+                                    critic_memory, critic_memory_mask,
+                                    self.sampler.buffer.actual_sequence_length,
+                                    samples["actions"])
 
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.value_clip_range, max=self.value_clip_range)
