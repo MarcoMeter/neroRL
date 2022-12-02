@@ -57,14 +57,14 @@ class Evaluator():
                 recurrent_cell.append((hxs, cxs))
         return recurrent_cell
 
-    def init_transformer_memory(self, transformer_config):
+    def init_transformer_memory(self, transformer_config, model, device):
         memory = []
         memory_mask = []
         for _ in range(self.n_workers):
             mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])))
             # Shift mask by one to account for the fact that for the first timestep the memory is empty
             memory_mask.append(torch.cat((torch.zeros((1, transformer_config["memory_length"])), mask))[:-1])
-            memory.append(torch.zeros((1, transformer_config["memory_length"], transformer_config["num_layers"], transformer_config["layer_size"]), dtype=torch.float32))
+            memory.append(model.init_transformer_memory(1, transformer_config["memory_length"], transformer_config["num_layers"], transformer_config["layer_size"], device))
         return memory, memory_mask
 
     def evaluate(self, model, device):
@@ -100,7 +100,7 @@ class Evaluator():
                 memory = self.init_recurrent_cell(self.recurrence_config, model, device)
             # Initialize the transformer memory
             if self.transformer_config is not None:
-                memory, memory_mask = self.init_transformer_memory(self.transformer_config)
+                memory, memory_mask = self.init_transformer_memory(self.transformer_config, model, device)
             
             # Reset workers and set evaluation seed
             for worker in self.workers:
