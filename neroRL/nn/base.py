@@ -135,6 +135,9 @@ class ActorCriticBase(Module):
                 cxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence_config["num_layers"], self.recurrence_config["hidden_state_size"]))
         return hxs, cxs
 
+    def init_transformer_memory(self, num_sequences, memory_length, num_layers, layer_size, deivce):
+        return torch.zeros((num_sequences, memory_length, num_layers, layer_size), dtype=torch.float32)
+
     def set_mean_recurrent_cell_states(self, mean_hxs, mean_cxs):
         """Sets the mean values (hidden state size) for recurrent cell states.
 

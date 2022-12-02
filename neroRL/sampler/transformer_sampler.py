@@ -27,7 +27,7 @@ class TransformerSampler(TrajectorySampler):
         self.buffer.init_transformer_buffer_fields(self.max_episode_length)
 
         # Setup memory placeholder
-        self.memory = torch.zeros((self.n_workers, self.max_episode_length, self.num_mem_layers, self.mem_layer_size), dtype=torch.float32)
+        self.memory = self.model.init_transformer_memory(self.n_workers, self.max_episode_length, self.num_mem_layers, self.mem_layer_size, device)
         # Generate episodic memory mask
         self.memory_mask = torch.tril(torch.ones((self.max_episode_length, self.max_episode_length)))
         # Shift mask by one to account for the fact that for the first timestep the memory is empty
@@ -59,7 +59,7 @@ class TransformerSampler(TrajectorySampler):
         mem_index = self.buffer.memory_index[id, t]
         self.buffer.memories[mem_index] = self.buffer.memories[mem_index].clone()
         # Reset episodic memory
-        self.memory[id] = torch.zeros((self.max_episode_length, self.num_mem_layers, self.mem_layer_size), dtype=torch.float32)
+        self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_length, self.num_mem_layers, self.mem_layer_size, self.device).squeeze()
         if t < self.worker_steps - 1:
             # Save memorie
             self.buffer.memories.append(self.memory[id])

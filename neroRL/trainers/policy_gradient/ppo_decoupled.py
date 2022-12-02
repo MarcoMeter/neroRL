@@ -165,8 +165,8 @@ class DecoupledPPOTrainer(BaseTrainer):
                 recurrent_cell = (samples["hxs"], samples["cxs"])
             (actor_memory, _) = self.model.unpack_recurrent_cell(recurrent_cell)
         if self.transformer is not None:
-            actor_memory = samples["memories"]          # TODO unpack
-            actor_memory_mask = samples["memory_mask"]  # TODO unpack
+            actor_memory = samples["memories"][..., 0]
+            actor_memory_mask = samples["memory_mask"]
         
         policy, _, gae = self.model.forward_actor(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
@@ -250,8 +250,8 @@ class DecoupledPPOTrainer(BaseTrainer):
                 recurrent_cell = (samples["hxs"], samples["cxs"])
             (critic_memory, _) = self.model.unpack_recurrent_cell(recurrent_cell)
         if self.transformer is not None:
-            critic_memory = samples["memories"]             # TODO unpack
-            critic_memory_mask = samples["memory_mask"]     # TODO unpack
+            critic_memory = samples["memories"][..., 0]
+            critic_memory_mask = samples["memory_mask"]
         
         value, _ = self.model.forward_critic(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,

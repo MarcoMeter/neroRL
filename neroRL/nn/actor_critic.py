@@ -75,28 +75,29 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             {torch.tensor} -- Advantage function: Advantage
         """
         # Process memory
-        actor_memory, actor_memory_mask, critic_memory, critic_memory_mask = None, None, None, None
+        actor_memory, critic_memory = None, None
         # Unpack recurrent cell        
         if self.recurrence_config is not None:
             (actor_memory, critic_memory) = self.unpack_recurrent_cell(memory)
         if self.transformer_config is not None:
-            pass # TODO
+            actor_memory = memory[..., 0]
+            critic_memory = memory[..., 1]
 
         # Feed actor model
-        pi, actor_memory, gae = self.forward_actor(vis_obs, vec_obs, actor_memory, actor_memory_mask, sequence_length, actions)
+        pi, actor_memory, gae = self.forward_actor(vis_obs, vec_obs, actor_memory, mask, sequence_length, actions)
 
         # Feed critic model
-        value, critic_memory = self.forward_critic(vis_obs, vec_obs, critic_memory, critic_memory_mask, sequence_length, actions)
+        value, critic_memory = self.forward_critic(vis_obs, vec_obs, critic_memory, mask, sequence_length, actions)
 
         # Pack recurrent cell
         if self.recurrence_config is not None:
             memory = self.pack_recurrent_cell(actor_memory, critic_memory)
         if self.transformer_config is not None:
-            pass # TODO
+            memory = torch.stack((actor_memory, critic_memory),  axis=-1)
 
         return pi, value, memory, gae
 
-    def forward_actor(self, vis_obs, vec_obs, actor_memory, actor_memory_mask = None, sequence_length = 1, actions = None):
+    def forward_actor(self, vis_obs, vec_obs, actor_memory, mask = None, sequence_length = 1, actions = None):
         # Forward observation encoder
         if vis_obs is not None:
             h_actor = self.actor_vis_encoder(vis_obs)
@@ -111,6 +112,10 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         if self.recurrence_config is not None:
             h_actor, actor_memory = self.actor_recurrent_layer(h_actor, actor_memory, sequence_length)
 
+        # Forward transformer if available
+        if self.transformer_config is not None:
+            h_actor, actor_memory = self.actor_transformer(h_actor, actor_memory, mask)
+
         # Feed network body
         h_actor = self.actor_body(h_actor)
 
@@ -124,7 +129,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         return pi, actor_memory, gae
 
-    def forward_critic(self, vis_obs, vec_obs, critic_memory, ciritc_memory_mask = None, sequence_length = 1, actions = None):
+    def forward_critic(self, vis_obs, vec_obs, critic_memory, mask = None, sequence_length = 1, actions = None):
         # Forward observation encoder
         if vis_obs is not None:
             h_critic = self.critic_vis_encoder(vis_obs)
@@ -138,6 +143,10 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence_config is not None:
             h_critic, critic_memory = self.critic_recurrent_layer(h_critic, critic_memory, sequence_length)
+
+        # Forward transformer if available
+        if self.transformer_config is not None:
+            h_critic, critic_memory = self.critic_transformer(h_critic, critic_memory, mask)
 
         # Feed network body
         h_critic = self.critic_body(h_critic)
@@ -225,6 +234,9 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # return (actor_hxs, actor_cxs), (critic_hxs, critic_cxs)
         return actor_recurrent_cell, critic_recurrent_cell
+
+    def init_transformer_memory(self, num_sequences, memory_length, num_layers, layer_size, deivce):
+        return torch.zeros((num_sequences, memory_length, num_layers, layer_size, 2), dtype=torch.float32)
 
     def add_gae_estimator_head(self, action_space_shape, device) -> None:
         """Adds the generalized advantage estimation head to the model
