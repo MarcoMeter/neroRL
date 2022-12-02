@@ -114,7 +114,7 @@ trainer:
   # Number of mini batches that are trained throughout one epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
   n_mini_batches: 4
-  # Wether to normalize the advantages on minibatch or batch level.
+  # Wether to normalize the advantages on "minibatch" level, "batch" level or not at all ("no").
   advantage_normalization: "minibatch"
   # Coefficient of the loss of the value function (i.e. critic)
   # It is only of use if model parameters are shared among the actor and the critic

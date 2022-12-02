@@ -122,6 +122,8 @@ class PPOTrainer(BaseTrainer):
         if self.configs["trainer"]["advantage_normalization"] == "minibatch":
             advantages = torch.masked_select(samples["advantages"], samples["loss_mask"])
             normalized_advantage = (samples["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)
+        elif self.configs["trainer"]["advantage_normalization"] == "no":
+            normalized_advantage = samples["advantages"]
         else:
             normalized_advantage = samples["normalized_advantages"]
         # Repeat is necessary for multi-discrete action spaces
