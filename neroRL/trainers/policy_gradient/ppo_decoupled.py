@@ -5,7 +5,7 @@ from threading import Thread
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
-from neroRL.utils.utils import masked_mean, compute_gradient_stats
+from neroRL.utils.utils import compute_gradient_stats
 from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.monitor import Tag
 
@@ -203,17 +203,32 @@ class DecoupledPPOTrainer(BaseTrainer):
         surr1 = ratio * advs
         surr2 = torch.clamp(ratio, 1.0 - self.policy_clip_range, 1.0 + self.policy_clip_range) * advs
         policy_loss = torch.min(surr1, surr2)
-        policy_loss = masked_mean(policy_loss, samples["loss_mask"])
+        # Mean reduction of policy loss
+        if self.recurrence is not None:
+            policy_loss = torch.masked_select(policy_loss, samples["loss_mask"]).mean() # remove paddings
+        else:
+            policy_loss = policy_loss.mean()
 
         # Entropy Bonus
         entropies = []
         for policy_branch in policy:
             entropies.append(policy_branch.entropy())
-        entropy_bonus = masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
+        entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)
+        # Mean reduction of entropy bonus
+        if self.recurrence is not None:
+            entropy_bonus = torch.masked_select(entropies, samples["loss_mask"]).mean() # remove paddings
+        else:
+            entropy_bonus = entropies.mean()
+
 
         # Advantage estimation as part of the DAAC algorithm (Raileanu & Fergus, 2021)
         if self.use_daac:
-            adv_loss = masked_mean((normalized_advantage - gae)**2, samples["loss_mask"])
+            adv_loss = (normalized_advantage - gae)**2
+            # Mean reduction of advantage loss
+            if self.recurrence is not None:
+                adv_loss = torch.masked_select(adv_loss, samples["loss_mask"]).mean() # remove paddings
+            else:
+                adv_loss = adv_loss.mean()
 
         # Complete loss
         if self.use_daac:
@@ -228,8 +243,12 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.policy_optimizer.step()
 
         # Monitor additional training statistics
-        approx_kl = masked_mean((ratio - 1.0) - log_ratio, samples["loss_mask"]) # http://joschu.net/blog/kl-approx.html
-        clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).float().mean()
+        if self.recurrence is not None:
+            approx_kl = torch.masked_select((ratio - 1.0) - log_ratio, samples["loss_mask"]).mean() # http://joschu.net/blog/kl-approx.html
+            clip_fraction = torch.masked_select((abs((ratio - 1.0)) > self.policy_clip_range).float(), samples["loss_mask"]).mean()
+        else:
+            approx_kl = ((ratio - 1.0) - log_ratio).mean()  # http://joschu.net/blog/kl-approx.html
+            clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).float().mean()
 
         out = {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
@@ -274,7 +293,11 @@ class DecoupledPPOTrainer(BaseTrainer):
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.value_clip_range, max=self.value_clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
-        vf_loss = masked_mean(vf_loss, samples["loss_mask"])
+        # Mean reduction of value loss
+        if self.recurrence is not None:
+            vf_loss = torch.masked_select(vf_loss, samples["loss_mask"]).mean() # remove paddings
+        else:
+            vf_loss = vf_loss.mean()
 
         # Compute gradients
         self.value_optimizer.zero_grad()
