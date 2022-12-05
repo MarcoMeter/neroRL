@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import torch
 import random
 from neroRL.utils.monitor import Tag
@@ -14,6 +15,8 @@ def set_library_seeds(seed:int) -> None:
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    os.environ['PYTHONHASHSEED'] = str(seed)
 
 def masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
     """
