@@ -2,28 +2,23 @@ import torch
 import numpy as np
 
 class Buffer():
-    """
-    The buffer stores and prepares the training data. It supports recurrent policies.
-    """
+    """The buffer stores and prepares the training data. It supports recurrent and transformer policies."""
     def __init__(self, configs, visual_observation_space, vector_observation_space,
                     action_space_shape, device, share_parameters, sampler):
         """
         Arguments:
-            num_workers {int} -- Number of environments/agents to sample training data
-            worker_steps {int} -- Number of steps per environment/agent to sample training data
-            num_mini_batches {int} -- Number of mini batches that are used for each training epoch
+            configs {dict} -- The whole set of configurations (e.g. model, training, environment, ... configs)
             visual_observation_space {Box} -- Visual observation if available, else None
             vector_observation_space {tuple} -- Vector observation space if available, else None
             action_space_shape {tuple} -- Shape of the action space
-            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
-                - layer_type {str}, sequence_length {int}, hidden_state_size {int}, hiddens_state_init {str}, reset_hidden_state {bool}
             device {torch.device} -- The device that will be used for training/storing single mini batches
-            sampler {TrajectorySampler} -- The current sampler
+            share_parameters {bool} -- Whether the policy and the value function share parameters or not
+            sampler {TrajectorySampler} -- The used sampler
         """
         self.device = device
         self.sampler = sampler
         self.configs = configs
-        self.recurrence, self.transformer_memory = None, None
+        self.recurrence, self.transformer_memory = None, None       # place holder for recurrence and transformer config
         self.num_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.batch_size = self.num_workers * self.worker_steps
@@ -34,6 +29,7 @@ class Buffer():
         self.init_default_buffer_fields()
 
     def init_default_buffer_fields(self):
+        """Initializes buffer fields that every training run depends on."""
         if self.visual_observation_space is not None:
             self.vis_obs = torch.zeros((self.num_workers, self.worker_steps) + self.visual_observation_space.shape)
         else:
@@ -50,6 +46,7 @@ class Buffer():
         self.advantages = torch.zeros((self.num_workers, self.worker_steps))
 
     def init_recurrent_buffer_fields(self):
+        """Initializes the buffer fields and members that are needed for training recurrent policies."""
         self.num_sequences = 0
         self.actual_sequence_length = 0
         self.recurrence = self.configs["model"]["recurrence"]
@@ -66,7 +63,8 @@ class Buffer():
             if layer_type == "lstm":
                 self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
 
-    def init_transformer_buffer_fields(self, max_episode_length, ):
+    def init_transformer_buffer_fields(self, max_episode_length):
+        """Initializes the buffer fields and members that are needed for training transformer-based policies."""
         self.max_episode_length = max_episode_length
         self.transformer_memory = self.configs["model"]["transformer"]
         self.num_mem_layers = self.transformer_memory["num_layers"]
@@ -118,13 +116,14 @@ class Buffer():
         if self.vec_obs is not None:
             samples["vec_obs"] = self.vec_obs
 
-        # Add data concerned with the episodic memory
+        # Add data concerned with the episodic memory (i.e. transformer-based policy)
         if self.transformer_memory is not None:
             samples["memory_index"] = self.memory_index
             samples["memory_mask"] = self.memory_mask
             # Convert the memories to a tensor
             self.memories = torch.stack(self.memories, dim=0)
 
+        # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
         max_sequence_length = 1
         if self.recurrence is not None:
             # Add collected recurrent cell states to the dictionary
@@ -177,7 +176,7 @@ class Buffer():
         self.num_sequences = len(samples["values"])
         self.actual_sequence_length = max_sequence_length
         
-        # Flatten all samples
+        # Flatten samples
         self.samples_flat = {}
         for key, value in samples.items():
             if not key == "hxs" and not key == "cxs":

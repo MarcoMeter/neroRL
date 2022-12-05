@@ -113,7 +113,10 @@ class DecoupledPPOTrainer(BaseTrainer):
             if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
                 self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
 
+            # Normalize advantages batch-wise if desired
+            # This is done during every epoch just in case refreshing the buffer is used
             if self.configs["trainer"]["advantage_normalization"] == "batch":
+                # In the case of recurrent polices, the paddings have to be masked
                 mask = self.sampler.buffer.samples_flat["loss_mask"]
                 advantages = torch.masked_select(self.sampler.buffer.samples_flat["advantages"], mask)
                 self.sampler.buffer.samples_flat["normalized_advantages"] = (self.sampler.buffer.samples_flat["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)  
@@ -156,18 +159,21 @@ class DecoupledPPOTrainer(BaseTrainer):
         Returns:
             training_stats {dict} -- Losses, entropy, kl-divergence and clip fraction
         """
-        # Retrieve sampled recurrent cell states or transformer memory to feed the model
+        # Retrieve the agent's memory to feed the model
         actor_memory, actor_memory_mask = None, None
+        # Case Recurrence: the recurrent cell state is treated as the memory. Only the initial hidden states are selected.
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
                 recurrent_cell = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"], samples["cxs"])
             (actor_memory, _) = self.model.unpack_recurrent_cell(recurrent_cell)
+        # Case Transformer: the episodic memory is based on activations that were previously gathered throughout an episode
         if self.transformer is not None:
             actor_memory = samples["memories"][..., 0]
             actor_memory_mask = samples["memory_mask"]
         
+        # Forward model -> policy, value, memory, gae
         policy, _, gae = self.model.forward_actor(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     actor_memory, actor_memory_mask,
@@ -182,6 +188,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         log_probs = torch.stack(log_probs, dim=1)
 
         # Compute surrogates
+        # Determine advantage normalization
         if self.configs["trainer"]["advantage_normalization"] == "minibatch":
             advantages = torch.masked_select(samples["advantages"], samples["loss_mask"])
             normalized_advantage = (samples["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)
@@ -243,14 +250,16 @@ class DecoupledPPOTrainer(BaseTrainer):
         Returns:
             training_stats {dict} -- Value loss
         """
-        # Retrieve sampled recurrent cell states or transformer memory to feed the model
+        # Retrieve the agent's memory to feed the model
         critic_memory, critic_memory_mask = None, None
+        # Case Recurrence: the recurrent cell state is treated as the memory. Only the initial hidden states are selected.
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
                 recurrent_cell = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"], samples["cxs"])
             (critic_memory, _) = self.model.unpack_recurrent_cell(recurrent_cell)
+        # Case Transformer: the episodic memory is based on activations that were previously gathered throughout an episode
         if self.transformer is not None:
             critic_memory = samples["memories"][..., 0]
             critic_memory_mask = samples["memory_mask"]
@@ -261,6 +270,7 @@ class DecoupledPPOTrainer(BaseTrainer):
                                     self.sampler.buffer.actual_sequence_length,
                                     samples["actions"])
 
+        # Value loss
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.value_clip_range, max=self.value_clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)

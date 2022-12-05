@@ -57,7 +57,10 @@ class PPOTrainer(BaseTrainer):
             if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
                 self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
 
+            # Normalize advantages batch-wise if desired
+            # This is done during every epoch just in case refreshing the buffer is used
             if self.configs["trainer"]["advantage_normalization"] == "batch":
+                # In the case of recurrent polices, the paddings have to be masked
                 mask = self.sampler.buffer.samples_flat["loss_mask"]
                 advantages = torch.masked_select(self.sampler.buffer.samples_flat["advantages"], mask)
                 self.sampler.buffer.samples_flat["normalized_advantages"] = (self.sampler.buffer.samples_flat["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)
@@ -95,17 +98,20 @@ class PPOTrainer(BaseTrainer):
         Returns:
             training_stats {dict} -- Losses, entropy, kl-divergence and clip fraction
         """
-        # Retrieve sampled recurrent cell states to feed the model
+        # Retrieve the agent's memory to feed the model
         memory, mask = None, None
+        # Case Recurrence: the recurrent cell state is treated as the memory. Only the initial hidden states are selected.
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
                 memory = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
                 memory = (samples["hxs"], samples["cxs"])
+        # Case Transformer: the episodic memory is based on activations that were previously gathered throughout an episode
         if self.transformer is not None:
             memory = samples["memories"]
             mask = samples["memory_mask"]
         
+        # Forward model -> policy, value, memory, gae
         policy, value, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     memory = memory, mask = mask,
@@ -119,6 +125,7 @@ class PPOTrainer(BaseTrainer):
         log_probs = torch.stack(log_probs, dim=1)
 
         # Compute surrogates
+        # Determine advantage normalization
         if self.configs["trainer"]["advantage_normalization"] == "minibatch":
             advantages = torch.masked_select(samples["advantages"], samples["loss_mask"])
             normalized_advantage = (samples["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)
@@ -135,7 +142,7 @@ class PPOTrainer(BaseTrainer):
         policy_loss = torch.min(surr1, surr2)
         policy_loss = masked_mean(policy_loss, samples["loss_mask"])
 
-        # Value
+        # Value loss
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.clip_range, max=self.clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
@@ -160,6 +167,7 @@ class PPOTrainer(BaseTrainer):
         approx_kl = masked_mean((ratio - 1.0) - log_ratio, samples["loss_mask"]) # http://joschu.net/blog/kl-approx.html
         clip_fraction = (abs((ratio - 1.0)) > self.clip_range).float().mean()
 
+        # Retrieve modules for monitoring the gradient norm
         if self.model.share_parameters:
             modules = self.model.actor_critic_modules
         else:

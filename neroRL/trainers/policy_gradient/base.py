@@ -102,12 +102,15 @@ class BaseTrainer():
 
         # Setup Sampler
         self.monitor.log("Step 4: Launching training environments of type " + configs["environment"]["type"])
+        # Instantiate sampler for memory-less / markvoivan policies
         if self.recurrence is None and self.transformer is None:
             self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
                                         self.action_space_shape, self.model, self.device)
+        # Instantiate sampler for recurrent policies
         elif self.recurrence is not None:
             self.sampler = RecurrentSampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
                                         self.action_space_shape, self.model, self.device)
+        # Instantiate sampler for transformer policoes
         elif self.transformer is not None:
             self.sampler = TransformerSampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
                                         self.action_space_shape, self.model, self.device)

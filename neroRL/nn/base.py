@@ -10,15 +10,13 @@ from neroRL.nn.module import Module, Sequential
 
 class ActorCriticBase(Module):
     """An actor-critic base model which defines the basic components and functionality of the final model:
-            - Components: Visual encoder, vector encoder, recurrent layer, body, heads (value, policy, gae)
+            - Components: Visual encoder, vector encoder, recurrent layer, transformer, body, heads (value, policy, gae)
             - Functionality: Initialization of the recurrent cells and basic model
     """
     def __init__(self, config):
         """Model setup
 
         Arguments:
-            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
             config {dict} -- Model config
         """
         super().__init__()
@@ -27,6 +25,7 @@ class ActorCriticBase(Module):
         self.share_parameters = False
 
         # Members for using a recurrent policy
+        # The mean hxs and cxs can be used to sample a recurrent cell state upon initialization
         self.recurrence_config = config["recurrence"] if "recurrence" in config else None
         self.mean_hxs = np.zeros(self.recurrence_config["hidden_state_size"], dtype=np.float32) if self.recurrence_config is not None else None
         self.mean_cxs = np.zeros(self.recurrence_config["hidden_state_size"], dtype=np.float32) if self.recurrence_config is not None else None
@@ -43,6 +42,7 @@ class ActorCriticBase(Module):
             - a visual encoder,
             - a vector encoder
             - a recurrent layer (optional)
+            - a transformer architecture (optinal)
             - and a body
         specified by the model config.
 
@@ -52,7 +52,7 @@ class ActorCriticBase(Module):
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
         
         Returns:
-            {tuple} -- visual encoder, vector encoder, recurrent layer, body
+            {tuple} -- visual encoder, vector encoder, recurrent layer, transformer, body
         """
         vis_encoder, vec_encoder, recurrent_layer, transformer, body = None, None, None, None, None
 
@@ -136,6 +136,18 @@ class ActorCriticBase(Module):
         return hxs, cxs
 
     def init_transformer_memory(self, num_sequences, memory_length, num_layers, layer_size, deivce):
+        """Initializes the transformer-based episodic memory as zeros.
+
+        Arguments:
+            num_sequences {int} -- Number of batches / sequences
+            memory_length {int} -- Sequence / memory length of the transformer
+            num_layers {int} -- Number of transformer blocks
+            layer_size {int} -- Dimension of the transformber layers
+            deivce {torch.device} -- Tensor device
+
+        Returns:
+            {torch.tensor} -- Transformer-based episodic memory as zeros
+        """
         return torch.zeros((num_sequences, memory_length, num_layers, layer_size), dtype=torch.float32)
 
     def set_mean_recurrent_cell_states(self, mean_hxs, mean_cxs):
@@ -165,6 +177,8 @@ class ActorCriticBase(Module):
             return nn.ReLU()
         elif config["activation"] == "swish":
             return nn.SiLU()
+        elif config["activation"] == "gelu":
+            return nn.GELU()
 
     def create_vis_encoder(self, config, vis_obs_space):
         """Creates and returns a new instance of the visual encoder based on the model config.
@@ -235,6 +249,15 @@ class ActorCriticBase(Module):
             return LSTM(input_shape, hidden_state_size, config["num_layers"])
 
     def create_transformer_layer(self, config, input_shape):
+        """Creates and returns a transformer module based on the provided config.
+
+        Arguments:
+            config {dict} -- Transformer config
+            input_shape {int} -- Size of the input (i.e. output size of the preceding layer)
+
+        Returns:
+            {nn.Module} -- The entire transformer
+        """
         return Transformer(config, input_shape, self.activ_fn)
 
     def get_vis_enc_output(self, vis_encoder, shape):

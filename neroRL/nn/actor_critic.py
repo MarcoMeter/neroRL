@@ -18,15 +18,13 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
-            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
-                - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
         """
         ActorCriticBase.__init__(self, config)
-        recurrence = config["recurrence"] if "recurrence" in config else None
 
         # Members for using a recurrent policy
-        self.mean_hxs = np.zeros((self.recurrence_config["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
-        self.mean_cxs = np.zeros((self.recurrence_config["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
+        # The mean hxs and cxs can be used to sample a recurrent cell state upon initialization
+        self.mean_hxs = np.zeros((self.recurrence_config["hidden_state_size"], 2), dtype=np.float32) if self.recurrence_config is not None else None
+        self.mean_cxs = np.zeros((self.recurrence_config["hidden_state_size"], 2), dtype=np.float32) if self.recurrence_config is not None else None
 
         # Create the base models
         self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_transformer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
@@ -47,7 +45,6 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             "actor_body": self.actor_body,
             "actor_head": self.actor_policy
         }
-
         if self.actor_transformer is not None:
             for b, block in enumerate(self.actor_transformer.transformer_blocks):
                 self.actor_modules["transformer_" + str(b)] = block
@@ -59,30 +56,30 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             "critic_body": self.critic_body,
             "critic_head": self.critic
         }
-
         if self.critic_transformer is not None:
             for b, block in enumerate(self.critic_transformer.transformer_blocks):
                 self.critic_modules["transformer_" + str(b)] = block
 
-    def forward(self, vis_obs, vec_obs, memory, mask = None, sequence_length = 1, actions = None):
+    def forward(self, vis_obs, vec_obs, memory = None, mask = None, sequence_length = 1, actions = None):
         """Forward pass of the model
 
         Arguments:
             vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
             vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
-            recurrent_cell {torch.tensor} -- Memory cell of the recurrent layer (None if not available)
+            memory {torch.tensor} -- Reucrrent cell state or episodic memory (None if not available)
+            mask {torch.tensor} -- Memory mask (None if the model is not transformer-based)
             sequence_length {int} -- Length of the fed sequences
-            actions {torch.tensor} -- The actions of the agent
+            actions {torch.tensor} -- The agent's actions (None if DAAC is not used)
 
         Returns:
             {list} -- Policy: List featuring categorical distributions respectively for each policy branch
             {torch.tensor} -- Value function: Value
-            {tuple} -- Recurrent cell
-            {torch.tensor} -- Advantage function: Advantage
+            {torch.tensor or tuple} -- Current memory representation or recurrent cell state (None if memory is not used)
+            {torch.tensor} -- Advantage function: Advantage (None if DAAC is not used)
         """
         # Process memory
         actor_memory, critic_memory = None, None
-        # Unpack recurrent cell        
+        # Unpack recurrent cell or episodic memory if applicable
         if self.recurrence_config is not None:
             (actor_memory, critic_memory) = self.unpack_recurrent_cell(memory)
         if self.transformer_config is not None:
@@ -90,7 +87,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             critic_memory = memory[..., 1]
 
         # Feed actor model
-        pi, actor_memory, gae = self.forward_actor(vis_obs, vec_obs, actor_memory, mask, sequence_length, actions)
+        policy, actor_memory, gae = self.forward_actor(vis_obs, vec_obs, actor_memory, mask, sequence_length, actions)
 
         # Feed critic model
         value, critic_memory = self.forward_critic(vis_obs, vec_obs, critic_memory, mask, sequence_length, actions)
@@ -101,7 +98,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         if self.transformer_config is not None:
             memory = torch.stack((actor_memory, critic_memory),  axis=-1)
 
-        return pi, value, memory, gae
+        return policy, value, memory, gae
 
     def forward_actor(self, vis_obs, vec_obs, actor_memory, mask = None, sequence_length = 1, actions = None):
         # Forward observation encoder
@@ -242,6 +239,18 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         return actor_recurrent_cell, critic_recurrent_cell
 
     def init_transformer_memory(self, num_sequences, memory_length, num_layers, layer_size, deivce):
+        """Initializes the transformer-based episodic memory as zeros.
+
+        Arguments:
+            num_sequences {int} -- Number of batches / sequences
+            memory_length {int} -- Sequence / memory length of the transformer
+            num_layers {int} -- Number of transformer blocks
+            layer_size {int} -- Dimension of the transformber layers
+            deivce {torch.device} -- Tensor device
+
+        Returns:
+            {torch.tensor} -- Transformer-based episodic memory as zeros for actor and critic
+        """
         return torch.zeros((num_sequences, memory_length, num_layers, layer_size, 2), dtype=torch.float32)
 
     def add_gae_estimator_head(self, action_space_shape, device) -> None:
@@ -330,17 +339,16 @@ class ActorCriticSharedWeights(ActorCriticBase):
     def forward(self, vis_obs, vec_obs, memory = None, mask = None, sequence_length = 1):
         """Forward pass of the model
 
-        Arguments:
-            vis_obs {numpy.ndarray/torch,tensor} -- Visual observation (None if not available)
+            vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
             vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
-            memory {torch.tensor} -- Memory cell of the recurrent layer or transformer memory (None if not available)
-            mask {torch.tensor} -- Memory mask
+            memory {torch.tensor} -- Reucrrent cell state or episodic memory (None if not available)
+            mask {torch.tensor} -- Memory mask (None if the model is not transformer-based)
             sequence_length {int} -- Length of the fed sequences
 
         Returns:
             {list} -- Policy: List featuring categorical distributions respectively for each policy branch
-            {torch.tensor} -- Value Function: Value
-            {tuple} -- Recurrent cell
+            {torch.tensor} -- Value function: Value
+            {torch.tensor or tuple} -- Current memory representation or recurrent cell state (None if memory is not used)
         """
         # Forward observation encoder
         if vis_obs is not None:
@@ -376,11 +384,9 @@ def create_actor_critic_model(model_config, share_parameters, visual_observation
     Arguments:
         model_config {dict} -- Model config
         share_parameters {bool} -- Whether a model with shared parameters or none-shared parameters shall be created
-        vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
-        vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
+        visual_observation_space {box} -- Dimensions of the visual observation space (None if not available)
+        vector_observation_space {tuple} -- Dimensions of the vector observation space (None if not available)
         action_space_shape {tuple} -- Dimensions of the action space
-        recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
-                - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
         device {torch.device} -- Current device
 
     Returns:

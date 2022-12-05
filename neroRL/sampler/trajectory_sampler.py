@@ -117,17 +117,38 @@ class TrajectorySampler():
         return episode_infos
 
     def previous_model_input_to_buffer(self, t):
-        # Save the initial observations and hidden states
+        """Add the model's previous input to the buffer.
+
+        Arguments:
+            t {int} -- Current step of sampling
+        """
         if self.vis_obs is not None:
             self.buffer.vis_obs[:, t] = torch.tensor(self.vis_obs)
         if self.vec_obs is not None:
             self.buffer.vec_obs[:, t] = torch.tensor(self.vec_obs)
 
     def forward_model(self, vis_obs, vec_obs, t):
+        """Forwards the model to retrieve the policy and the value of the to be fed observations.
+
+        Arguments:
+            vis_obs {torch.tensor} -- Visual observations batched across workers
+            vec_obs {torch.tensor} -- Vector observations batched across workers
+            t {int} -- Current step of sampling
+
+        Returns:
+            {tuple} -- policy {list of categorical distributions}, value {torch.tensor}
+        """
         policy, value, _, _ = self.model(vis_obs, vec_obs)
         return policy, value
 
     def reset_worker(self, worker, id, t):
+        """Resets the specified worker.
+
+        Arguments:
+            worker {remote} -- The to be reset worker
+            id {int} -- The ID of the to be reset worker
+            t {int} -- Current step of sampling data
+        """
         # Reset the worker's current timestep
         self.worker_current_episode_step[id] = 0
         # Reset agent (potential interface for providing reset parameters)
@@ -140,6 +161,11 @@ class TrajectorySampler():
             self.vec_obs[id] = vec_obs
 
     def get_last_value(self):
+        """Returns the last value of the current observation to compute GAE.
+
+        Returns:
+            {torch.tensor} -- Last value
+        """
         _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
                                         None)

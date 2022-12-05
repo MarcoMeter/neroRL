@@ -38,7 +38,7 @@ model:
   model_path: "path/to/model.pt"
   # Save the model after every n-th update
   checkpoint_interval: 50
-  # Set the to be used activation function (elu, leaky_relu, relu, swish)
+  # Set the to be used activation function (elu, leaky_relu, relu, swish, gelu)
   activation: "relu"
   # Set the to be used visual encoder
   vis_encoder: "cnn"

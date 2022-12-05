@@ -5,7 +5,8 @@ from neroRL.sampler.trajectory_sampler import TrajectorySampler
 
 class TransformerSampler(TrajectorySampler):
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
-    Hence, the collected trajectories may contain multiple episodes or incomplete ones."""
+    Hence, the collected trajectories may contain multiple episodes or incomplete ones. The TransformerSampler takes care of
+    resetting and adding the agents' episodic memroies and memory masks to the buffer."""
     def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, device) -> None:
         """Initializes the TrajectorSampler and launches its environment workers.
 
@@ -36,24 +37,26 @@ class TransformerSampler(TrajectorySampler):
         self.worker_ids = range(self.n_workers)
 
     def sample(self, device) -> list:
-        # Init memory buffer
+        """Samples training data (i.e. experience tuples) using n workers for t worker steps. Before, the memory buffer is initialized."""
         self.buffer.memories = [self.memory[w] for w in range(self.n_workers)]
         for w in range(self.n_workers):
             self.buffer.memory_index[w] = w
         return super().sample(device)
 
     def previous_model_input_to_buffer(self, t):
+        """Add the model's previous input, as well as the current memory mask, to the buffer."""
         super().previous_model_input_to_buffer(t)
-        # Save mask
         self.buffer.memory_mask[:, t] = self.memory_mask[self.worker_current_episode_step]
 
     def forward_model(self, vis_obs, vec_obs, t):
+        """Forwards the model to retrieve the policy and the value of the to be fed observations and memory."""
         policy, value, memory, _ = self.model(vis_obs, vec_obs, memory = self.memory, mask = self.buffer.memory_mask[:, t])
         # Set memory 
         self.memory[self.worker_ids, self.worker_current_episode_step] = memory
         return policy, value
 
     def reset_worker(self, worker, id, t):
+        """Resets the specified worker and resets the agent's episodic memory."""
         super().reset_worker(worker, id, t)
         # Break the reference to the worker's memory
         mem_index = self.buffer.memory_index[id, t]
@@ -67,6 +70,7 @@ class TransformerSampler(TrajectorySampler):
             self.buffer.memory_index[id, t + 1:] = len(self.buffer.memories) - 1
 
     def get_last_value(self):
+        """Returns the last value of the current observation and episodic memory to compute GAE."""
         _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
                                         memory = self.memory, mask = self.memory_mask[self.worker_current_episode_step])
