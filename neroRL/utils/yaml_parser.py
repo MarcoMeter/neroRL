@@ -76,7 +76,6 @@ class YamlParser:
         }
 
         sampler_dict = {
-            "type": "TrajectorySampler",
             "n_workers": 16,
             "worker_steps": 256
         }

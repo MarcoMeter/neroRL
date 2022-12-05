@@ -87,8 +87,6 @@ evaluation:
 # The sampler is in charge of collecting training data
 # These hyperparameters determine the amount of data and the sampler's behavior
 sampler:
-  # The TrajectorySampler gathers monte carlo rollouts that may contain truncated episodes
-  type: "TrajectorySampler"
   # Number of environments that are used for sampling data
   n_workers: 16
   # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)

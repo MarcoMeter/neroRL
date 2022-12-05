@@ -140,8 +140,6 @@ Evaluation can be configured to be run during training or as stand-alone process
 
 ```
 sampler:
-  # The TrajectorySampler gathers monte carlo rollouts that may contain truncated episodes
-  type: "TrajectorySampler"
   # Number of environments that are used for sampling data
   n_workers: 16
   # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
@@ -149,7 +147,6 @@ sampler:
 ```
 
 The sampler config describes the behavior of sampling data by executing agent-environment interactions.
-Right now, only the TrajectorySampler is available that collects for s steps experience tuples across n workers.
 Multiplying both parameters determines the batch size.
 
 ## Trainer Config
