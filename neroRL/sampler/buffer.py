@@ -140,25 +140,32 @@ class Buffer():
                 if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
                     episode_done_indices[w].append(self.worker_steps - 1)
             
-            # Split vis_obs, vec_obs, values, advantages, recurrent cell states, actions and log_probs into episodes and then into sequences
+            # Split vis_obs, vec_obs, recurrent cell states and actions into episodes and then into sequences
             for key, value in samples.items():
+                # Don't process log_probs, advantages and values
+                if key == "log_probs" or key == "advantages" or key == "values":
+                    continue
                 sequences = []
+                flat_sequence_indices = []
                 for w in range(self.num_workers):
                     start_index = 0
                     for done_index in episode_done_indices[w]:
                         # Split trajectory into episodes
                         episode = value[w, start_index:done_index + 1]
-                        start_index = done_index + 1
                         # Split episodes into sequences
                         if self.sequence_length > 0:
                             for start in range(0, len(episode), self.sequence_length):
                                 end = start + self.sequence_length
-                                sequences.append(episode[start:end])
+                                seq = episode[start:end]
+                                sequences.append(seq)
+                                flat_start = start + w * self.worker_steps + start_index
+                                flat_sequence_indices.append(list(range(flat_start, flat_start + len(seq))))
                             max_sequence_length = self.sequence_length
                         else:
                             # If the sequence length is not set to a proper value, sequences will be based on episodes
                             sequences.append(episode)
                             max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
+                        start_index = done_index + 1
                 
                 # Apply zero-padding to ensure that each episode has the same length
                 # Therfore we can train batches of episodes in parallel instead of one episode at a time
@@ -173,8 +180,9 @@ class Buffer():
                     samples[key] = samples[key][:, 0]
 
         # Store important information
-        self.num_sequences = len(samples["values"])
+        self.num_sequences = len(samples["actions"])
         self.actual_sequence_length = max_sequence_length
+        self.flat_sequence_indices = np.asarray(flat_sequence_indices)
         
         # Flatten samples
         self.samples_flat = {}
@@ -260,13 +268,17 @@ class Buffer():
         for num_sequences in num_sequences_per_batch:
             end = start + num_sequences
             mini_batch_indices = indices[sequence_indices[start:end]].reshape(-1)
+            mini_batch_flat_indices = self.flat_sequence_indices[sequence_indices[start:end].tolist()]
+            mini_batch_flat_indices = [item for sublist in mini_batch_flat_indices for item in sublist]
             mini_batch = {}
             for key, value in self.samples_flat.items():
-                if key != "hxs" and key != "cxs":
-                    mini_batch[key] = value[mini_batch_indices].to(self.device)
-                else:
+                if key == "hxs" or key == "cxs":
                     # Collect recurrent cell states
                     mini_batch[key] = value[sequence_indices[start:end]].to(self.device)
+                elif key == "log_probs" or key == "advantages" or key == "values":
+                    mini_batch[key] = value[mini_batch_flat_indices].to(self.device)
+                else:
+                    mini_batch[key] = value[mini_batch_indices].to(self.device)
             start = end
             yield mini_batch
 
