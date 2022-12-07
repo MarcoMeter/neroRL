@@ -140,41 +140,48 @@ class Buffer():
                 if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
                     episode_done_indices[w].append(self.worker_steps - 1)
             
-            # Split vis_obs, vec_obs, values, advantages, recurrent cell states, actions and log_probs into episodes and then into sequences
+            # Split vis_obs, vec_obs, recurrent cell states and actions into episodes and then into sequences
             for key, value in samples.items():
-                sequences = []
-                for w in range(self.num_workers):
-                    start_index = 0
-                    for done_index in episode_done_indices[w]:
-                        # Split trajectory into episodes
-                        episode = value[w, start_index:done_index + 1]
-                        start_index = done_index + 1
-                        # Split episodes into sequences
-                        if self.sequence_length > 0:
-                            for start in range(0, len(episode), self.sequence_length):
-                                end = start + self.sequence_length
-                                sequences.append(episode[start:end])
-                            max_sequence_length = self.sequence_length
-                        else:
-                            # If the sequence length is not set to a proper value, sequences will be based on episodes
-                            sequences.append(episode)
-                            max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
-                
-                # Apply zero-padding to ensure that each episode has the same length
-                # Therfore we can train batches of episodes in parallel instead of one episode at a time
-                for i, sequence in enumerate(sequences):
-                    sequences[i] = self._pad_sequence(sequence, max_sequence_length)
+                # Don't process (i.e. don't pad) log_probs, advantages and values
+                if not (key == "log_probs" or key == "advantages" or key == "values"):
+                    sequences = []
+                    flat_sequence_indices = []  # we collect the indices of every unpadded sequence to correctly sample unpadded data
+                    for w in range(self.num_workers):
+                        start_index = 0
+                        for done_index in episode_done_indices[w]:
+                            # Split trajectory into episodes
+                            episode = value[w, start_index:done_index + 1]
+                            # Split episodes into sequences
+                            if self.sequence_length > 0:
+                                for start in range(0, len(episode), self.sequence_length):
+                                    end = start + self.sequence_length
+                                    seq = episode[start:end]
+                                    sequences.append(seq)
+                                    flat_start = start + w * self.worker_steps + start_index
+                                    flat_sequence_indices.append(list(range(flat_start, flat_start + len(seq))))
+                                max_sequence_length = self.sequence_length
+                            else:
+                                # If the sequence length is not set to a proper value, sequences will be based on episodes
+                                sequences.append(episode)
+                                max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
+                            start_index = done_index + 1
+                    
+                    # Apply zero-padding to ensure that each episode has the same length
+                    # Therfore we can train batches of episodes in parallel instead of one episode at a time
+                    for i, sequence in enumerate(sequences):
+                        sequences[i] = self._pad_sequence(sequence, max_sequence_length)
 
-                # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
-                samples[key] = torch.stack(sequences, axis=0)
+                    # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
+                    samples[key] = torch.stack(sequences, axis=0)
 
-                if (key == "hxs" or key == "cxs"):
-                    # Select the very first recurrent cell state of a sequence and add it to the samples
-                    samples[key] = samples[key][:, 0]
+                    if (key == "hxs" or key == "cxs"):
+                        # Select the very first recurrent cell state of a sequence and add it to the samples
+                        samples[key] = samples[key][:, 0]
 
         # Store important information
-        self.num_sequences = len(samples["values"])
+        self.num_sequences = len(samples["actions"])
         self.actual_sequence_length = max_sequence_length
+        self.flat_sequence_indices = np.asarray(flat_sequence_indices, dtype=object)
         
         # Flatten samples
         self.samples_flat = {}
@@ -253,20 +260,26 @@ class Buffer():
         # Prepare indices, but only shuffle the sequence indices and not the entire batch to ensure that sequences are maintained as a whole.
         indices = torch.arange(0, self.num_sequences * self.actual_sequence_length).reshape(self.num_sequences, self.actual_sequence_length)
         sequence_indices = torch.randperm(self.num_sequences)
-        # At this point it is assumed that all of the available training data (values, observations, actions, ...) is padded.
 
         # Compose mini batches
         start = 0
         for num_sequences in num_sequences_per_batch:
             end = start + num_sequences
-            mini_batch_indices = indices[sequence_indices[start:end]].reshape(-1)
+            mini_batch_padded_indices = indices[sequence_indices[start:end]].reshape(-1)
+            # Unpadded and flat indices are used to sample unpadded training data
+            mini_batch_unpadded_indices = self.flat_sequence_indices[sequence_indices[start:end].tolist()]
+            mini_batch_unpadded_indices = [item for sublist in mini_batch_unpadded_indices for item in sublist]
             mini_batch = {}
             for key, value in self.samples_flat.items():
-                if key != "hxs" and key != "cxs":
-                    mini_batch[key] = value[mini_batch_indices].to(self.device)
-                else:
-                    # Collect recurrent cell states
+                if key == "hxs" or key == "cxs":
+                    # Select recurrent cell states of sequence starts
                     mini_batch[key] = value[sequence_indices[start:end]].to(self.device)
+                elif key == "log_probs" or key == "advantages" or key == "values":
+                    # Select unpadded data
+                    mini_batch[key] = value[mini_batch_unpadded_indices].to(self.device)
+                else:
+                    # Select padded data
+                    mini_batch[key] = value[mini_batch_padded_indices].to(self.device)
             start = end
             yield mini_batch
 
