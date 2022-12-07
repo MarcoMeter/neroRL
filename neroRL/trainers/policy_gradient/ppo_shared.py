@@ -60,9 +60,6 @@ class PPOTrainer(BaseTrainer):
             # Normalize advantages batch-wise if desired
             # This is done during every epoch just in case refreshing the buffer is used
             if self.configs["trainer"]["advantage_normalization"] == "batch":
-                # In the case of recurrent polices, the paddings have to be masked
-                mask = self.sampler.buffer.samples_flat["loss_mask"]
-                # advantages = torch.masked_select(self.sampler.buffer.samples_flat["advantages"], mask)
                 advantages = self.sampler.buffer.samples_flat["advantages"]
                 self.sampler.buffer.samples_flat["normalized_advantages"] = (self.sampler.buffer.samples_flat["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)
 
@@ -117,7 +114,7 @@ class PPOTrainer(BaseTrainer):
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     memory = memory, mask = mask,
                                     sequence_length = self.sampler.buffer.actual_sequence_length)
-        value = torch.masked_select(value, samples["loss_mask"])
+        value = value[samples["loss_mask"]]  # remove paddings from value
         
         # Policy Loss
         # Retrieve and process log_probs from each policy branch
@@ -125,29 +122,23 @@ class PPOTrainer(BaseTrainer):
         for i, policy_branch in enumerate(policy):
             log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
             entropies.append(policy_branch.entropy())
-        log_probs = torch.masked_select(torch.stack(log_probs, dim=1), samples["loss_mask"])
-        entropies = torch.masked_select(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
-
+        
         # Compute surrogates
         # Determine advantage normalization
         if self.configs["trainer"]["advantage_normalization"] == "minibatch":
-            advantages = torch.masked_select(samples["advantages"], samples["loss_mask"])
-            normalized_advantage = (samples["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)
+            normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
         elif self.configs["trainer"]["advantage_normalization"] == "no":
             normalized_advantage = samples["advantages"]
         else:
             normalized_advantage = samples["normalized_advantages"]
         # Repeat is necessary for multi-discrete action spaces
         normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
+        log_probs = torch.stack(log_probs, dim=1)[samples["loss_mask"]]  # remove paddings from log probs
         log_ratio = log_probs - samples["log_probs"]
         ratio = torch.exp(log_ratio)
         surr1 = ratio * normalized_advantage
         surr2 = torch.clamp(ratio, 1.0 - self.clip_range, 1.0 + self.clip_range) * normalized_advantage
         policy_loss = torch.min(surr1, surr2)
-        # Mean reduction of policy loss
-        # if self.recurrence is not None:
-        #     policy_loss = torch.masked_select(policy_loss, samples["loss_mask"]).mean() # remove paddings
-        # else:
         policy_loss = policy_loss.mean()
 
         # Value loss
@@ -157,6 +148,7 @@ class PPOTrainer(BaseTrainer):
         vf_loss = vf_loss.mean()
 
         # Entropy Bonus
+        entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)[samples["loss_mask"]]   # remove paddings from entropies
         entropy_bonus = entropies.mean()
 
         # Complete loss

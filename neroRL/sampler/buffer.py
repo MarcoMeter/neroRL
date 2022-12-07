@@ -142,10 +142,10 @@ class Buffer():
             
             # Split vis_obs, vec_obs, recurrent cell states and actions into episodes and then into sequences
             for key, value in samples.items():
-                # Don't process log_probs, advantages and values
+                # Don't process (i.e. don't pad) log_probs, advantages and values
                 if not (key == "log_probs" or key == "advantages" or key == "values"):
                     sequences = []
-                    flat_sequence_indices = []
+                    flat_sequence_indices = []  # we collect the indices of every unpadded sequence to correctly sample unpadded data
                     for w in range(self.num_workers):
                         start_index = 0
                         for done_index in episode_done_indices[w]:
@@ -260,24 +260,26 @@ class Buffer():
         # Prepare indices, but only shuffle the sequence indices and not the entire batch to ensure that sequences are maintained as a whole.
         indices = torch.arange(0, self.num_sequences * self.actual_sequence_length).reshape(self.num_sequences, self.actual_sequence_length)
         sequence_indices = torch.randperm(self.num_sequences)
-        # At this point it is assumed that all of the available training data (values, observations, actions, ...) is padded.
 
         # Compose mini batches
         start = 0
         for num_sequences in num_sequences_per_batch:
             end = start + num_sequences
-            mini_batch_indices = indices[sequence_indices[start:end]].reshape(-1)
-            mini_batch_flat_indices = self.flat_sequence_indices[sequence_indices[start:end].tolist()]
-            mini_batch_flat_indices = [item for sublist in mini_batch_flat_indices for item in sublist]
+            mini_batch_padded_indices = indices[sequence_indices[start:end]].reshape(-1)
+            # Unpadded and flat indices are used to sample unpadded training data
+            mini_batch_unpadded_indices = self.flat_sequence_indices[sequence_indices[start:end].tolist()]
+            mini_batch_unpadded_indices = [item for sublist in mini_batch_unpadded_indices for item in sublist]
             mini_batch = {}
             for key, value in self.samples_flat.items():
                 if key == "hxs" or key == "cxs":
-                    # Collect recurrent cell states
+                    # Select recurrent cell states of sequence starts
                     mini_batch[key] = value[sequence_indices[start:end]].to(self.device)
                 elif key == "log_probs" or key == "advantages" or key == "values":
-                    mini_batch[key] = value[mini_batch_flat_indices].to(self.device)
+                    # Select unpadded data
+                    mini_batch[key] = value[mini_batch_unpadded_indices].to(self.device)
                 else:
-                    mini_batch[key] = value[mini_batch_indices].to(self.device)
+                    # Select padded data
+                    mini_batch[key] = value[mini_batch_padded_indices].to(self.device)
             start = end
             yield mini_batch
 
