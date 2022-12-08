@@ -164,6 +164,8 @@ class Buffer():
                                 # If the sequence length is not set to a proper value, sequences will be based on episodes
                                 sequences.append(episode)
                                 max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
+                                flat_start = w * self.worker_steps + start_index
+                                flat_sequence_indices.append(list(range(flat_start, flat_start + len(episode))))
                             start_index = done_index + 1
                     
                     # Apply zero-padding to ensure that each episode has the same length
