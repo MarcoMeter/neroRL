@@ -277,7 +277,7 @@ class Buffer():
                 if key == "hxs" or key == "cxs":
                     # Select recurrent cell states of sequence starts
                     mini_batch[key] = value[sequence_indices[start:end]].to(self.device)
-                elif key == "log_probs" or key == "advantages" or key == "values":
+                elif key == "log_probs" or "advantages" in key or key == "values":
                     # Select unpadded data
                     mini_batch[key] = value[mini_batch_unpadded_indices].to(self.device)
                 else:
