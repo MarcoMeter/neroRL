@@ -137,48 +137,32 @@ class Buffer():
                 # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
                 if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
                     episode_done_indices[w].append(self.worker_steps - 1)
+
+            # Retrieve unpadded sequence indices
+            self.flat_sequence_indices = np.asarray(self._arange_sequences(
+                        np.arange(0, self.num_workers * self.worker_steps).reshape(
+                            (self.num_workers, self.worker_steps)), episode_done_indices)[0], dtype=object)
             
             # Split vis_obs, vec_obs, recurrent cell states and actions into episodes and then into sequences
             for key, value in samples.items():
-                sequences = []
-                flat_sequence_indices = []  # we collect the indices of every unpadded sequence to correctly sample unpadded data
-                for w in range(self.num_workers):
-                    start_index = 0
-                    for done_index in episode_done_indices[w]:
-                        # Split trajectory into episodes
-                        episode = value[w, start_index:done_index + 1]
-                        # Split episodes into sequences
-                        if self.sequence_length > 0:
-                            for start in range(0, len(episode), self.sequence_length):
-                                end = start + self.sequence_length
-                                seq = episode[start:end]
-                                sequences.append(seq)
-                                flat_start = start + w * self.worker_steps + start_index
-                                flat_sequence_indices.append(list(range(flat_start, flat_start + len(seq))))
-                            max_sequence_length = self.sequence_length
-                        else:
-                            # If the sequence length is not set to a proper value, sequences will be based on episodes
-                            sequences.append(episode)
-                            max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
-                            flat_start = w * self.worker_steps + start_index
-                            flat_sequence_indices.append(list(range(flat_start, flat_start + len(episode))))
-                        start_index = done_index + 1
-                    
-                    # Apply zero-padding to ensure that each episode has the same length
-                    # Therfore we can train batches of episodes in parallel instead of one episode at a time
-                    for i, sequence in enumerate(sequences):
-                        sequences[i] = self._pad_sequence(sequence, max_sequence_length)
+                # Split data into episodes or sequences
+                sequences, max_sequence_length = self._arange_sequences(value, episode_done_indices)
 
-                    # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
-                    samples[key] = torch.stack(sequences, axis=0)
+                # Apply zero-padding to ensure that each episode has the same length
+                # Therfore we can train batches of episodes in parallel instead of one episode at a time
+                for i, sequence in enumerate(sequences):
+                    sequences[i] = self._pad_sequence(sequence, max_sequence_length)
 
-                    if (key == "hxs" or key == "cxs"):
-                        # Select the very first recurrent cell state of a sequence and add it to the samples
-                        samples[key] = samples[key][:, 0]
+                # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
+                samples[key] = torch.stack(sequences, axis=0)
+
+                if (key == "hxs" or key == "cxs"):
+                    # Select the very first recurrent cell state of a sequence and add it to the samples
+                    samples[key] = samples[key][:, 0]
 
             # Store important information
             self.num_sequences = len(sequences)
-            self.flat_sequence_indices = np.asarray(flat_sequence_indices, dtype=object)
+            
         self.actual_sequence_length = max_sequence_length
         
         # Add remaining data samples
@@ -192,6 +176,38 @@ class Buffer():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
             self.samples_flat[key] = value
+
+    def _arange_sequences(self, data, episode_done_indices):
+        """Splits the povided data into episodes and then into sequences.
+        The split points are indicated by the envrinoments' done signals.
+
+        Arguments:
+            data {torch.tensor} -- The to be split data arrange into num_worker, worker_steps
+            episode_done_indices {list} -- Nested list indicating the indices of done signals. Trajectory ends are treated as done
+            max_length {int} -- The maximum length of all sequences
+
+        Returns:
+            {list} -- Data arranged into sequences of variable length as list
+        """
+        sequences = []
+        max_length = 1
+        for w in range(self.num_workers):
+            start_index = 0
+            for done_index in episode_done_indices[w]:
+                # Split trajectory into episodes
+                episode = data[w, start_index:done_index + 1]
+                # Split episodes into sequences
+                if self.sequence_length > 0:
+                    for start in range(0, len(episode), self.sequence_length):
+                        end = start + self.sequence_length
+                        sequences.append(episode[start:end])
+                    max_length = self.sequence_length
+                else:
+                    # If the sequence length is not set to a proper value, sequences will be based on episodes
+                    sequences.append(episode)
+                    max_length = len(episode) if len(episode) > max_length else max_length
+                start_index = done_index + 1
+        return sequences, max_length
 
     def _pad_sequence(self, sequence, target_length):
         """Pads a sequence to the target length using zeros.
