@@ -169,6 +169,14 @@ class BaseTrainer():
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
             training_stats, formatted_string = self.train()
+
+            # Free memory
+            del(self.sampler.buffer.samples_flat)
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+            # mem = torch.cuda.mem_get_info(device=None)
+            # mem = (mem[1] - mem[0]) / 1024 / 1024
+            # print(mem)
             
             # Store recent episode infos
             episode_info.extend(sample_episode_info)
@@ -176,11 +184,6 @@ class BaseTrainer():
             # Measure seconds needed for a whole update
             time_end = time.time()
             update_duration = int(time_end - time_start)
-
-            # Allocated memory
-            # mem = torch.cuda.mem_get_info(device=None)
-            # mem = (mem[1] - mem[0]) / 1024 / 1024
-            # print(menm)
 
             # Save checkpoint (update, model, optimizer, configs)
             if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
