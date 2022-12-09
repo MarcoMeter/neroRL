@@ -97,25 +97,19 @@ class Buffer():
     def prepare_batch_dict(self):
         """
         Flattens the training samples and stores them inside a dictionary.
-        If a recurrent policy is used, the data is split into episodes or sequences beforehand.
+        If a recurrent policy is used, the model's input data and actions are split into episodes or sequences beforehand.
         """
         # Supply training samples
-        samples = {
-            "actions": self.actions,
-            "values": self.values,
-            "log_probs": self.log_probs,
-            "advantages": self.advantages,
-            # The loss mask is used for masking the padding while computing the loss function.
-            # This is only of significance while using recurrence.
-            "loss_mask": torch.ones((self.num_workers, self.worker_steps), dtype=torch.bool)
-        }
+        samples = {"actions": self.actions} # actions are added at this point to ensure that these are padded while using recurrence
 
+        # OBSERVATION SAMPLES
     	# Add available observations to the dictionary
         if self.vis_obs is not None:
             samples["vis_obs"] = self.vis_obs
         if self.vec_obs is not None:
             samples["vec_obs"] = self.vec_obs
 
+        # TRANSFORMER SAMPLES
         # Add data concerned with the episodic memory (i.e. transformer-based policy)
         if self.transformer_memory is not None:
             samples["memory_index"] = self.memory_index
@@ -123,9 +117,13 @@ class Buffer():
             # Convert the memories to a tensor
             self.memories = torch.stack(self.memories, dim=0)
 
+        # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
         max_sequence_length = 1
         if self.recurrence is not None:
+            # The loss mask is used for masking the padding while computing the loss function.
+            samples["loss_mask"] = torch.ones((self.num_workers, self.worker_steps), dtype=torch.bool)
+
             # Add collected recurrent cell states to the dictionary
             samples["hxs"] =  self.hxs
             if self.recurrence["layer_type"] == "lstm":
@@ -142,31 +140,29 @@ class Buffer():
             
             # Split vis_obs, vec_obs, recurrent cell states and actions into episodes and then into sequences
             for key, value in samples.items():
-                # Don't process (i.e. don't pad) log_probs, advantages and values
-                if not (key == "log_probs" or key == "advantages" or key == "values"):
-                    sequences = []
-                    flat_sequence_indices = []  # we collect the indices of every unpadded sequence to correctly sample unpadded data
-                    for w in range(self.num_workers):
-                        start_index = 0
-                        for done_index in episode_done_indices[w]:
-                            # Split trajectory into episodes
-                            episode = value[w, start_index:done_index + 1]
-                            # Split episodes into sequences
-                            if self.sequence_length > 0:
-                                for start in range(0, len(episode), self.sequence_length):
-                                    end = start + self.sequence_length
-                                    seq = episode[start:end]
-                                    sequences.append(seq)
-                                    flat_start = start + w * self.worker_steps + start_index
-                                    flat_sequence_indices.append(list(range(flat_start, flat_start + len(seq))))
-                                max_sequence_length = self.sequence_length
-                            else:
-                                # If the sequence length is not set to a proper value, sequences will be based on episodes
-                                sequences.append(episode)
-                                max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
-                                flat_start = w * self.worker_steps + start_index
-                                flat_sequence_indices.append(list(range(flat_start, flat_start + len(episode))))
-                            start_index = done_index + 1
+                sequences = []
+                flat_sequence_indices = []  # we collect the indices of every unpadded sequence to correctly sample unpadded data
+                for w in range(self.num_workers):
+                    start_index = 0
+                    for done_index in episode_done_indices[w]:
+                        # Split trajectory into episodes
+                        episode = value[w, start_index:done_index + 1]
+                        # Split episodes into sequences
+                        if self.sequence_length > 0:
+                            for start in range(0, len(episode), self.sequence_length):
+                                end = start + self.sequence_length
+                                seq = episode[start:end]
+                                sequences.append(seq)
+                                flat_start = start + w * self.worker_steps + start_index
+                                flat_sequence_indices.append(list(range(flat_start, flat_start + len(seq))))
+                            max_sequence_length = self.sequence_length
+                        else:
+                            # If the sequence length is not set to a proper value, sequences will be based on episodes
+                            sequences.append(episode)
+                            max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
+                            flat_start = w * self.worker_steps + start_index
+                            flat_sequence_indices.append(list(range(flat_start, flat_start + len(episode))))
+                        start_index = done_index + 1
                     
                     # Apply zero-padding to ensure that each episode has the same length
                     # Therfore we can train batches of episodes in parallel instead of one episode at a time
@@ -180,17 +176,22 @@ class Buffer():
                         # Select the very first recurrent cell state of a sequence and add it to the samples
                         samples[key] = samples[key][:, 0]
 
-        # Store important information
-        self.num_sequences = len(samples["actions"])
+            # Store important information
+            self.num_sequences = len(sequences)
+            self.flat_sequence_indices = np.asarray(flat_sequence_indices, dtype=object)
         self.actual_sequence_length = max_sequence_length
-        self.flat_sequence_indices = np.asarray(flat_sequence_indices, dtype=object)
         
+        # Add remaining data samples
+        samples["values"] = self.values
+        samples["log_probs"] = self.log_probs
+        samples["advantages"] = self.advantages
+
         # Flatten samples
         self.samples_flat = {}
         for key, value in samples.items():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
-            self.samples_flat[key] = value        
+            self.samples_flat[key] = value
 
     def _pad_sequence(self, sequence, target_length):
         """Pads a sequence to the target length using zeros.

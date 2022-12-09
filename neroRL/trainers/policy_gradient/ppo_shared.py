@@ -114,7 +114,6 @@ class PPOTrainer(BaseTrainer):
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     memory = memory, mask = mask,
                                     sequence_length = self.sampler.buffer.actual_sequence_length)
-        value = value[samples["loss_mask"]]  # remove paddings from value
         
         # Policy Loss
         # Retrieve and process log_probs from each policy branch
@@ -122,6 +121,14 @@ class PPOTrainer(BaseTrainer):
         for i, policy_branch in enumerate(policy):
             log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
             entropies.append(policy_branch.entropy())
+        log_probs = torch.stack(log_probs, dim=1)
+        entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)
+        
+        # Remove paddings if recurrence is used
+        if self.recurrence is not None:
+            value = value[samples["loss_mask"]]
+            log_probs = log_probs[samples["loss_mask"]]
+            entropies = entropies[samples["loss_mask"]] 
         
         # Compute surrogates
         # Determine advantage normalization
@@ -133,7 +140,6 @@ class PPOTrainer(BaseTrainer):
             normalized_advantage = samples["normalized_advantages"]
         # Repeat is necessary for multi-discrete action spaces
         normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
-        log_probs = torch.stack(log_probs, dim=1)[samples["loss_mask"]]  # remove paddings from log probs
         log_ratio = log_probs - samples["log_probs"]
         ratio = torch.exp(log_ratio)
         surr1 = ratio * normalized_advantage
@@ -148,7 +154,6 @@ class PPOTrainer(BaseTrainer):
         vf_loss = vf_loss.mean()
 
         # Entropy Bonus
-        entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)[samples["loss_mask"]]   # remove paddings from entropies
         entropy_bonus = entropies.mean()
 
         # Complete loss
