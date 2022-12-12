@@ -116,11 +116,9 @@ class DecoupledPPOTrainer(BaseTrainer):
             # Normalize advantages batch-wise if desired
             # This is done during every epoch just in case refreshing the buffer is used
             if self.configs["trainer"]["advantage_normalization"] == "batch":
-                # In the case of recurrent polices, the paddings have to be masked
-                mask = self.sampler.buffer.samples_flat["loss_mask"]
-                advantages = torch.masked_select(self.sampler.buffer.samples_flat["advantages"], mask)
-                self.sampler.buffer.samples_flat["normalized_advantages"] = (self.sampler.buffer.samples_flat["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)  
-
+                advantages = self.sampler.buffer.samples_flat["advantages"]
+                self.sampler.buffer.samples_flat["normalized_advantages"] = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+                
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
             if self.recurrence is not None:
@@ -182,16 +180,22 @@ class DecoupledPPOTrainer(BaseTrainer):
 
         # Policy Loss
         # Retrieve and process log_probs from each policy branch
-        log_probs = []
+        log_probs, entropies = [], []
         for i, policy_branch in enumerate(policy):
             log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
+            entropies.append(policy_branch.entropy())
         log_probs = torch.stack(log_probs, dim=1)
+        entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)
+
+        # Remove paddings if recurrence is used
+        if self.recurrence is not None:
+            log_probs = log_probs[samples["loss_mask"]]
+            entropies = entropies[samples["loss_mask"]] 
 
         # Compute surrogates
         # Determine advantage normalization
         if self.configs["trainer"]["advantage_normalization"] == "minibatch":
-            advantages = torch.masked_select(samples["advantages"], samples["loss_mask"])
-            normalized_advantage = (samples["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)
+            normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
         elif self.configs["trainer"]["advantage_normalization"] == "no":
             normalized_advantage = samples["advantages"]
         else:
@@ -203,11 +207,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         surr1 = ratio * advs
         surr2 = torch.clamp(ratio, 1.0 - self.policy_clip_range, 1.0 + self.policy_clip_range) * advs
         policy_loss = torch.min(surr1, surr2)
-        # Mean reduction of policy loss
-        if self.recurrence is not None:
-            policy_loss = torch.masked_select(policy_loss, samples["loss_mask"]).mean() # remove paddings
-        else:
-            policy_loss = policy_loss.mean()
+        policy_loss = policy_loss.mean()
 
         # Entropy Bonus
         entropies = []
@@ -215,20 +215,12 @@ class DecoupledPPOTrainer(BaseTrainer):
             entropies.append(policy_branch.entropy())
         entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)
         # Mean reduction of entropy bonus
-        if self.recurrence is not None:
-            entropy_bonus = torch.masked_select(entropies, samples["loss_mask"]).mean() # remove paddings
-        else:
-            entropy_bonus = entropies.mean()
-
+        entropy_bonus = entropies.mean()
 
         # Advantage estimation as part of the DAAC algorithm (Raileanu & Fergus, 2021)
         if self.use_daac:
             adv_loss = (normalized_advantage - gae)**2
-            # Mean reduction of advantage loss
-            if self.recurrence is not None:
-                adv_loss = torch.masked_select(adv_loss, samples["loss_mask"]).mean() # remove paddings
-            else:
-                adv_loss = adv_loss.mean()
+            adv_loss = adv_loss.mean()
 
         # Complete loss
         if self.use_daac:
@@ -243,12 +235,8 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.policy_optimizer.step()
 
         # Monitor additional training statistics
-        if self.recurrence is not None:
-            approx_kl = torch.masked_select((ratio - 1.0) - log_ratio, samples["loss_mask"]).mean() # http://joschu.net/blog/kl-approx.html
-            clip_fraction = torch.masked_select((abs((ratio - 1.0)) > self.policy_clip_range).float(), samples["loss_mask"]).mean()
-        else:
-            approx_kl = ((ratio - 1.0) - log_ratio).mean()  # http://joschu.net/blog/kl-approx.html
-            clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).float().mean()
+        approx_kl = ((ratio - 1.0) - log_ratio).mean()  # http://joschu.net/blog/kl-approx.html
+        clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).float().mean()
 
         out = {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
@@ -289,15 +277,15 @@ class DecoupledPPOTrainer(BaseTrainer):
                                     self.sampler.buffer.actual_sequence_length,
                                     samples["actions"])
 
+        # Remove paddings if recurrence is used
+        if self.recurrence is not None:
+            value = value[samples["loss_mask"]]
+
         # Value loss
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.value_clip_range, max=self.value_clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
-        # Mean reduction of value loss
-        if self.recurrence is not None:
-            vf_loss = torch.masked_select(vf_loss, samples["loss_mask"]).mean() # remove paddings
-        else:
-            vf_loss = vf_loss.mean()
+        vf_loss = vf_loss.mean()
 
         # Compute gradients
         self.value_optimizer.zero_grad()
