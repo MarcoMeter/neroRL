@@ -15,7 +15,7 @@ environment:
     # The view size of the agent, which has to be an odd number
     # The default value in minigrid is 7, which is not a good challenge in terms of agent memory
     view-size: 3
-    max-episode-steps: 96
+    max-episode-steps: 64
 
 model:
   load_model: False
@@ -29,10 +29,10 @@ model:
   num_hidden_layers: 1
   num_hidden_units: 384
   transformer:
-    num_layers: 1
+    num_layers: 3
     layer_size: 384
-    num_heads: 4
-    memory_length: 96
+    num_heads: 8
+    memory_length: 64
 
 evaluation:
   evaluate: False
@@ -43,30 +43,30 @@ evaluation:
   interval: 100
 
 sampler:
-  n_workers: 16
+  n_workers: 32
   worker_steps: 512
 
 trainer:
   algorithm: "PPO"
   resume_at: 0
-  gamma: 0.99
+  gamma: 0.995
   lamda: 0.95
-  updates: 2000
-  epochs: 4
+  updates: 200
+  epochs: 5
   refresh_buffer_epoch: -1
   n_mini_batches: 8
   advantage_normalization: "batch"
-  value_coefficient: 0.25
+  value_coefficient: 0.5
   max_grad_norm: 0.5
   share_parameters: True
   learning_rate_schedule:
     initial: 3.5e-4
-    final: 1.5e-4
+    final: 1.0e-4
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 250
   beta_schedule:
     initial: 0.001
-    final: 0.0001
+    final: 0.001
     power: 1.0
     max_decay_steps: 1000
   clip_range_schedule:
