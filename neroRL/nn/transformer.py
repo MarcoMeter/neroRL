@@ -108,12 +108,7 @@ class TransformerBlock(Module):
         return out
 
 class SinusoidalPosition(nn.Module):
-    def __init__(
-        self,
-        dim,
-        min_timescale = 2.,
-        max_timescale = 1e4
-    ):
+    def __init__(self, dim, min_timescale = 2., max_timescale = 1e4):
         super().__init__()
         freqs = torch.arange(0, dim, min_timescale)
         inv_freqs = max_timescale ** (-freqs / dim)
@@ -135,26 +130,34 @@ class Transformer(nn.Module):
         self.num_heads = config["num_heads"]
         self.activation = activation
 
-        # Embedding layer
+        # Input embedding layer
         self.linear_embedding = nn.Linear(input_shape, config["layer_size"])
         nn.init.orthogonal_(self.linear_embedding.weight, np.sqrt(2))
 
-        # Transformer Blocks
-        self.pos_emb = SinusoidalPosition(dim = self.layer_size)
+        # Determine positional encoding
+        if config["positional_encoding"] == "relative":
+            self.pos_embedding = SinusoidalPosition(dim = self.layer_size)
+        elif config["positional_encoding"] == "learned":
+            self.pos_embedding = nn.Parameter(torch.randn(1, config["memory_length"], 1, self.layer_size)) # (batch size, memory length, num layers, layer size)
+        else:
+            pass    # No positional encoding is used
+        
+        # Instantiate transformer blocks
         self.transformer_blocks = nn.ModuleList([
             TransformerBlock(config["layer_size"], config["num_heads"]) 
             for _ in range(self.num_layers)])
-        # TODO init weights
 
     def forward(self, h, memories, mask):
-        # Feed embedding layer
+        # Feed embedding layer and activate
         h = self.activation(self.linear_embedding(h))
 
-        # Transformer positional encoding
-        # TODO: do we need to add positional encoding to every layer?
-        pos_embedding = self.pos_emb(memories)
-        pos_embedding = torch.repeat_interleave(pos_embedding.unsqueeze(1), self.num_layers, dim = 1)
-        memories = memories + pos_embedding
+        # Apply positional encoding
+        if self.config["positional_encoding"] == "relative":
+            pos_embedding = self.pos_embedding(memories)
+            pos_embedding = torch.repeat_interleave(pos_embedding.unsqueeze(1), self.num_layers, dim = 1)
+            memories = memories + pos_embedding
+        elif self.config["positional_encoding"] == "learned":
+            memories = memories + self.pos_embedding
         
         # Forward transformer blocks
         out_memories = []

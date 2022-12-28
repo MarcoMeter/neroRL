@@ -259,6 +259,8 @@ class YamlParser:
                     self._config["model"]["transformer"]["num_heads"] = 8
                 if "memory_length" not in self._config["model"]["transformer"]:
                     self._config["model"]["transformer"]["memory_length"] = 512
+                if "positional_encoding" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["positional_encoding"] = "relative"
 
             # Check DAAC if DecoupledPPO
             if "DAAC" in self._config["trainer"]:

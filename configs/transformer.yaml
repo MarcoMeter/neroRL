@@ -33,6 +33,7 @@ model:
     layer_size: 384
     num_heads: 8
     memory_length: 64
+    positional_encoding: "" # options: "" "relative" "learned"
 
 evaluation:
   evaluate: False
@@ -43,8 +44,8 @@ evaluation:
   interval: 100
 
 sampler:
-  n_workers: 32
-  worker_steps: 512
+  n_workers: 16
+  worker_steps: 256
 
 trainer:
   algorithm: "PPO"
