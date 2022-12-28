@@ -36,9 +36,7 @@ def init_recurrent_cell(recurrence_config, model, device):
     return recurrent_cell
 
 def init_transformer_memory(transformer_config, model, device):
-    memory_mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])))
-    # Shift mask by one to account for the fact that for the first timestep the memory is empty
-    memory_mask = torch.cat((torch.zeros((1, transformer_config["memory_length"])), memory_mask))[:-1]
+    memory_mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])), diagonal=-1)
     memory = model.init_transformer_memory(1, transformer_config["memory_length"], transformer_config["num_layers"], transformer_config["layer_size"], device)
     return memory, memory_mask
 

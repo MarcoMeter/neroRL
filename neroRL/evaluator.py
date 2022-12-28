@@ -61,9 +61,8 @@ class Evaluator():
         memory = []
         memory_mask = []
         for _ in range(self.n_workers):
-            mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])))
-            # Shift mask by one to account for the fact that for the first timestep the memory is empty
-            memory_mask.append(torch.cat((torch.zeros((1, transformer_config["memory_length"])), mask))[:-1])
+            mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])), diagonal=-1)
+            memory_mask.append(mask)
             memory.append(model.init_transformer_memory(1, transformer_config["memory_length"], transformer_config["num_layers"], transformer_config["layer_size"], device))
         return memory, memory_mask
 
