@@ -12,6 +12,8 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 200
+    # Maximum number of steps that an episode can last
+    max-episode-steps: 512
     # More detailed information about reset parameters: https://github.com/openai/procgen#environment-options
     # Paint player velocity info in the top left corner. Only supported by certain games.
     paint_vel_info: False

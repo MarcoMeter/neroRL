@@ -15,6 +15,7 @@ environment:
     # The view size of the agent, which has to be an odd number
     # The default value in minigrid is 7, which is not a good challenge in terms of agent memory
     view-size: 3
+    max-episode-steps: 64
 
 model:
   load_model: False

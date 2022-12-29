@@ -119,7 +119,7 @@ class MinigridWrapper(Env):
         else:
             self._default_reset_params = reset_params
 
-        self.max_episode_steps = self._default_reset_params["max-episode-steps"]
+        self._max_episode_steps = self._default_reset_params["max-episode-steps"]
         render_mode = None
         if realtime_mode:
             render_mode = "human"
@@ -168,6 +168,11 @@ class MinigridWrapper(Env):
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return self._action_space
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return self._max_episode_steps
 
     @property
     def seed(self):
@@ -254,7 +259,7 @@ class MinigridWrapper(Env):
             self._trajectory["actions"].append(action)
         
         # Check time limit
-        if len(self._rewards) == self.max_episode_steps:
+        if len(self._rewards) == self._max_episode_steps:
             done = True
 
         # Wrap up episode information once completed (i.e. done)
