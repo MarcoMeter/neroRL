@@ -71,7 +71,7 @@ class MemoryGymWrapper(Env):
     @property
     def max_episode_steps(self):
         """Returns the maximum number of steps that an episode can last."""
-        return self._env._max_episode_steps
+        return self._env.max_episode_steps
 
     @property
     def seed(self):

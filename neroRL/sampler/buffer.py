@@ -63,15 +63,15 @@ class Buffer():
             if layer_type == "lstm":
                 self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
 
-    def init_transformer_buffer_fields(self, max_episode_length):
+    def init_transformer_buffer_fields(self, max_episode_steps):
         """Initializes the buffer fields and members that are needed for training transformer-based policies."""
-        self.max_episode_length = max_episode_length
+        self.max_episode_steps = max_episode_steps
         self.transformer_memory = self.configs["model"]["transformer"]
         self.num_mem_layers = self.transformer_memory["num_layers"]
         self.mem_layer_size = self.transformer_memory["layer_size"]
         # Episodic memory index buffer
         self.memories = []
-        self.memory_mask = torch.zeros((self.num_workers, self.worker_steps, self.max_episode_length), dtype=torch.bool)
+        self.memory_mask = torch.zeros((self.num_workers, self.worker_steps, self.max_episode_steps), dtype=torch.bool)
         self.memory_index = torch.zeros((self.num_workers, self.worker_steps), dtype=torch.long)
 
     def calc_advantages(self, last_value, gamma, lamda):

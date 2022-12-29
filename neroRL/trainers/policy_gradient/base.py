@@ -73,6 +73,8 @@ class BaseTrainer():
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
         self.monitor.log("Step 2: Creating dummy environment")
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
+        vis_obs, vec_obs = self.dummy_env.reset(configs["environment"]["reset_params"])
+        max_episode_steps = self.dummy_env.max_episode_steps
         self.visual_observation_space = self.dummy_env.visual_observation_space
         self.vector_observation_space = self.dummy_env.vector_observation_space
         if isinstance(self.dummy_env.action_space, spaces.Discrete):
@@ -85,6 +87,7 @@ class BaseTrainer():
         self.monitor.log("\t" + "Vector Observation Space: " + str(self.vector_observation_space))
         self.monitor.log("\t" + "Action Space Shape: " + str(self.action_space_shape))
         self.monitor.log("\t" + "Action Names: " + str(self.dummy_env.action_names))
+        self.monitor.log("\t" + "Max Episode Steps: " + str(max_episode_steps))
 
         # Prepare evaluator if configured
         self.eval = configs["evaluation"]["evaluate"]
@@ -113,7 +116,7 @@ class BaseTrainer():
         # Instantiate sampler for transformer policoes
         elif self.transformer is not None:
             self.sampler = TransformerSampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
-                                        self.action_space_shape, self.model, self.device)
+                                        self.action_space_shape, max_episode_steps, self.model, self.device)
 
     def run_training(self):
         """Orchestrates the policy gradient based training:

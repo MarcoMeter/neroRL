@@ -7,7 +7,7 @@ class TransformerSampler(TrajectorySampler):
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones. The TransformerSampler takes care of
     resetting and adding the agents' episodic memroies and memory masks to the buffer."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, device) -> None:
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps, model, device) -> None:
         """Initializes the TrajectorSampler and launches its environment workers.
 
         Arguments:
@@ -16,21 +16,22 @@ class TransformerSampler(TrajectorySampler):
             visual_observation_space {box} -- Dimensions of the visual observation space (None if not available)
             vector_observation_space {tuple} -- Dimensions of the vector observation space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
+            max_episode_steps {int} -- Maximum number of steps one episode can last
             model {nn.Module} -- The model to retrieve the policy and value from
             device {torch.device} -- The device that is used for retrieving the data from the model
         """
         super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, device)
         # Set member variables
-        self.max_episode_length = configs["model"]["transformer"]["memory_length"]        # TODO
+        self.max_episode_steps = max_episode_steps
         self.num_mem_layers = configs["model"]["transformer"]["num_layers"]
         self.mem_layer_size = configs["model"]["transformer"]["layer_size"]
 
-        self.buffer.init_transformer_buffer_fields(self.max_episode_length)
+        self.buffer.init_transformer_buffer_fields(self.max_episode_steps)
 
         # Setup memory placeholder
-        self.memory = self.model.init_transformer_memory(self.n_workers, self.max_episode_length, self.num_mem_layers, self.mem_layer_size, device)
+        self.memory = self.model.init_transformer_memory(self.n_workers, self.max_episode_steps, self.num_mem_layers, self.mem_layer_size, device)
         # Generate episodic memory mask
-        self.memory_mask = torch.tril(torch.ones((self.max_episode_length, self.max_episode_length)), diagonal=-1)
+        self.memory_mask = torch.tril(torch.ones((self.max_episode_steps, self.max_episode_steps)), diagonal=-1)
         # Worker ids
         self.worker_ids = range(self.n_workers)
 
@@ -60,7 +61,7 @@ class TransformerSampler(TrajectorySampler):
         mem_index = self.buffer.memory_index[id, t]
         self.buffer.memories[mem_index] = self.buffer.memories[mem_index].clone()
         # Reset episodic memory
-        self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_length, self.num_mem_layers, self.mem_layer_size, self.device).squeeze(0)
+        self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_steps, self.num_mem_layers, self.mem_layer_size, self.device).squeeze(0)
         if t < self.worker_steps - 1:
             # Save memorie
             self.buffer.memories.append(self.memory[id])
