@@ -2,6 +2,7 @@ import numpy as np
 import torch
 
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
+from neroRL.utils.utils import batched_index_select
 
 class TransformerSampler(TrajectorySampler):
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
@@ -23,15 +24,17 @@ class TransformerSampler(TrajectorySampler):
         super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, device)
         # Set member variables
         self.max_episode_steps = max_episode_steps
+        self.memory_length = configs["model"]["transformer"]["memory_length"]
         self.num_mem_layers = configs["model"]["transformer"]["num_layers"]
         self.mem_layer_size = configs["model"]["transformer"]["layer_size"]
 
         self.buffer.init_transformer_buffer_fields(self.max_episode_steps)
 
         # Setup memory placeholder
+        # It is designed to store an entire episode of past latent features (i.e. activations of the encoder and the transformer layers).
         self.memory = self.model.init_transformer_memory(self.n_workers, self.max_episode_steps, self.num_mem_layers, self.mem_layer_size, device)
-        # Generate episodic memory mask
-        self.memory_mask = torch.tril(torch.ones((self.max_episode_steps, self.max_episode_steps)), diagonal=-1)
+        # Setup the memory mask that reflects the desired memory (i.e. context) length for the transformer architecture
+        self.memory_mask = torch.tril(torch.ones((self.memory_length, self.memory_length)), diagonal=-1)
         # Worker ids
         self.worker_ids = range(self.n_workers)
 
@@ -45,11 +48,16 @@ class TransformerSampler(TrajectorySampler):
     def previous_model_input_to_buffer(self, t):
         """Add the model's previous input, as well as the current memory mask, to the buffer."""
         super().previous_model_input_to_buffer(t)
-        self.buffer.memory_mask[:, t] = self.memory_mask[self.worker_current_episode_step]
+        self.buffer.memory_mask[:, t] = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)]
+        start = torch.clip(self.worker_current_episode_step - self.memory_length, 0)
+        end = torch.clip(self.worker_current_episode_step, self.memory_length)
+        indices = torch.stack([torch.arange(start[b],end[b]) for b in range(self.n_workers)]).long()
+        self.buffer.memory_indices[:,t] = indices
 
     def forward_model(self, vis_obs, vec_obs, t):
         """Forwards the model to retrieve the policy and the value of the to be fed observations and memory."""
-        policy, value, memory, _ = self.model(vis_obs, vec_obs, memory = self.memory, mask = self.buffer.memory_mask[:, t])
+        sliced_memory = batched_index_select(self.memory, 1, self.buffer.memory_indices[:,t])
+        policy, value, memory, _ = self.model(vis_obs, vec_obs, memory = sliced_memory, mask = self.buffer.memory_mask[:, t])
         # Set memory 
         self.memory[self.worker_ids, self.worker_current_episode_step] = memory
         return policy, value
@@ -70,7 +78,11 @@ class TransformerSampler(TrajectorySampler):
 
     def get_last_value(self):
         """Returns the last value of the current observation and episodic memory to compute GAE."""
+        start = torch.clip(self.worker_current_episode_step - self.memory_length, 0)
+        end = torch.clip(self.worker_current_episode_step, self.memory_length)
+        indices = torch.stack([torch.arange(start[b],end[b]) for b in range(self.n_workers)]).long()
+        sliced_memory = batched_index_select(self.memory, 1, indices)
         _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
-                                        memory = self.memory, mask = self.memory_mask[self.worker_current_episode_step])
+                                        memory = sliced_memory, mask = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)])
         return last_value

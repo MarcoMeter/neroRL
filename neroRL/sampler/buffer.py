@@ -67,12 +67,14 @@ class Buffer():
         """Initializes the buffer fields and members that are needed for training transformer-based policies."""
         self.max_episode_steps = max_episode_steps
         self.transformer_memory = self.configs["model"]["transformer"]
+        self.memory_length = self.configs["model"]["transformer"]["memory_length"]
         self.num_mem_layers = self.transformer_memory["num_layers"]
         self.mem_layer_size = self.transformer_memory["layer_size"]
         # Episodic memory index buffer
         self.memories = []
-        self.memory_mask = torch.zeros((self.num_workers, self.worker_steps, self.max_episode_steps), dtype=torch.bool)
+        self.memory_mask = torch.zeros((self.num_workers, self.worker_steps, self.memory_length), dtype=torch.bool)
         self.memory_index = torch.zeros((self.num_workers, self.worker_steps), dtype=torch.long)
+        self.memory_indices = torch.zeros((self.num_workers, self.worker_steps, self.memory_length), dtype=torch.long)
 
     def calc_advantages(self, last_value, gamma, lamda):
         """Generalized advantage estimation (GAE)
@@ -114,6 +116,7 @@ class Buffer():
         if self.transformer_memory is not None:
             samples["memory_index"] = self.memory_index
             samples["memory_mask"] = self.memory_mask
+            samples["memory_indices"] = self.memory_indices
             # Convert the memories to a tensor
             self.memories = torch.stack(self.memories, dim=0)
 

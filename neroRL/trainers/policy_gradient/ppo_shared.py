@@ -4,7 +4,7 @@ from torch import optim
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
-from neroRL.utils.utils import compute_gradient_stats
+from neroRL.utils.utils import compute_gradient_stats, batched_index_select
 from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.monitor import Tag
 
@@ -107,7 +107,9 @@ class PPOTrainer(BaseTrainer):
         # Case Transformer: the episodic memory is based on activations that were previously gathered throughout an episode
         if self.transformer is not None:
             memory = samples["memories"]
+            memory = batched_index_select(memory, 1, samples["memory_indices"])
             mask = samples["memory_mask"]
+
 
         # Forward model -> policy, value, memory, gae
         policy, value, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
