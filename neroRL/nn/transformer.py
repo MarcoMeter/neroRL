@@ -114,8 +114,7 @@ class SinusoidalPosition(nn.Module):
         inv_freqs = max_timescale ** (-freqs / dim)
         self.register_buffer('inv_freqs', inv_freqs)
 
-    def forward(self, x):
-        seq_len = x.shape[1]
+    def forward(self, seq_len):
         seq = torch.arange(seq_len - 1, -1, -1.)
         sinusoidal_inp = rearrange(seq, 'n -> n ()') * rearrange(self.inv_freqs, 'd -> () d')
         pos_emb = torch.cat((sinusoidal_inp.sin(), sinusoidal_inp.cos()), dim = -1)
@@ -139,7 +138,7 @@ class Transformer(nn.Module):
         if config["positional_encoding"] == "relative":
             self.pos_embedding = SinusoidalPosition(dim = self.layer_size)
         elif config["positional_encoding"] == "learned":
-            self.pos_embedding = nn.Parameter(torch.randn(1, config["memory_length"], 1, self.layer_size)) # (batch size, memory length, num layers, layer size) # TODO max episode steps and not memory length
+            self.pos_embedding = nn.Parameter(torch.randn(self.max_episode_steps, self.layer_size)) # (batch size, max episoded steps, num layers, layer size)
         else:
             pass    # No positional encoding is used
         
@@ -154,11 +153,11 @@ class Transformer(nn.Module):
 
         # Apply positional encoding
         if self.config["positional_encoding"] == "relative":
-            pos_embedding = self.pos_embedding(memories)
-            pos_embedding = torch.repeat_interleave(pos_embedding.unsqueeze(1), self.num_layers, dim = 1)
+            pos_embedding = self.pos_embedding(self.max_episode_steps)[memory_indices]
+            pos_embedding = torch.repeat_interleave(pos_embedding.unsqueeze(2), self.num_layers, dim = 2)
             memories = memories + pos_embedding
         elif self.config["positional_encoding"] == "learned":
-            memories = memories + self.pos_embedding
+            memories = memories + self.pos_embedding[memory_indices].unsqueeze(2)
         
         # Forward transformer blocks
         out_memories = []
