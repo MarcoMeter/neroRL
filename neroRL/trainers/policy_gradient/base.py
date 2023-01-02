@@ -75,6 +75,9 @@ class BaseTrainer():
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
         vis_obs, vec_obs = self.dummy_env.reset(configs["environment"]["reset_params"])
         max_episode_steps = self.dummy_env.max_episode_steps
+        if self.transformer is not None:
+            # Add max episode steps to the transformer config
+            configs["model"]["transformer"]["max_episode_steps"] = max_episode_steps
         self.visual_observation_space = self.dummy_env.visual_observation_space
         self.vector_observation_space = self.dummy_env.vector_observation_space
         if isinstance(self.dummy_env.action_space, spaces.Discrete):

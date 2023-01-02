@@ -58,8 +58,9 @@ class TransformerSampler(TrajectorySampler):
     def forward_model(self, vis_obs, vec_obs, t):
         """Forwards the model to retrieve the policy and the value of the to be fed observations and memory."""
         sliced_memory = batched_index_select(self.memory, 1, self.buffer.memory_indices[:,t])
-        policy, value, memory, _ = self.model(vis_obs, vec_obs, memory = sliced_memory, mask = self.buffer.memory_mask[:, t])
-        # Set memory 
+        policy, value, memory, _ = self.model(vis_obs, vec_obs, memory = sliced_memory, mask = self.buffer.memory_mask[:, t],
+                                                memory_indices = self.buffer.memory_indices[:,t])
+        # Set memory
         self.memory[self.worker_ids, self.worker_current_episode_step] = memory
         return policy, value
 
@@ -85,5 +86,6 @@ class TransformerSampler(TrajectorySampler):
         sliced_memory = batched_index_select(self.memory, 1, indices)
         _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
-                                        memory = sliced_memory, mask = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)])
+                                        memory = sliced_memory, mask = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)],
+                                        memory_indices = self.buffer.memory_indices[:,-1])
         return last_value

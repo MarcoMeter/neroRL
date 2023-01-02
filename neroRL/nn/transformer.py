@@ -128,6 +128,7 @@ class Transformer(nn.Module):
         self.num_layers = config["num_layers"]
         self.layer_size = config["layer_size"]
         self.num_heads = config["num_heads"]
+        self.max_episode_steps = config["max_episode_steps"]
         self.activation = activation
 
         # Input embedding layer
@@ -147,7 +148,7 @@ class Transformer(nn.Module):
             TransformerBlock(config["layer_size"], config["num_heads"]) 
             for _ in range(self.num_layers)])
 
-    def forward(self, h, memories, mask):
+    def forward(self, h, memories, mask, memory_indices):
         # Feed embedding layer and activate
         h = self.activation(self.linear_embedding(h))
 
