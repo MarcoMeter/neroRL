@@ -138,7 +138,7 @@ class Transformer(nn.Module):
         if config["positional_encoding"] == "relative":
             self.pos_embedding = SinusoidalPosition(dim = self.layer_size)
         elif config["positional_encoding"] == "learned":
-            self.pos_embedding = nn.Parameter(torch.randn(1, config["memory_length"], 1, self.layer_size)) # (batch size, memory length, num layers, layer size)
+            self.pos_embedding = nn.Parameter(torch.randn(1, config["memory_length"], 1, self.layer_size)) # (batch size, memory length, num layers, layer size) # TODO max episode steps and not memory length
         else:
             pass    # No positional encoding is used
         

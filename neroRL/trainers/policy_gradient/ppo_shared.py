@@ -106,8 +106,7 @@ class PPOTrainer(BaseTrainer):
                 memory = (samples["hxs"], samples["cxs"])
         # Case Transformer: the episodic memory is based on activations that were previously gathered throughout an episode
         if self.transformer is not None:
-            memory = samples["memories"]
-            memory = batched_index_select(memory, 1, samples["memory_indices"])
+            memory = batched_index_select(samples["memories"], 1, samples["memory_indices"])
             mask = samples["memory_mask"]
 
 
