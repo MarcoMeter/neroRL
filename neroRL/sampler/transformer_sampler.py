@@ -37,6 +37,10 @@ class TransformerSampler(TrajectorySampler):
         self.memory_mask = torch.tril(torch.ones((self.memory_length, self.memory_length)), diagonal=-1)
         # Worker ids
         self.worker_ids = range(self.n_workers)
+        # Setup memory window indices
+        repetitions = torch.repeat_interleave(torch.arange(0, self.memory_length).unsqueeze(0), self.memory_length - 1, dim = 0).long()
+        self.memory_indices = torch.stack([torch.arange(i, i + self.memory_length) for i in range(max_episode_steps - self.memory_length + 1)]).long()
+        self.memory_indices = torch.cat((repetitions, self.memory_indices))
 
     def sample(self, device) -> list:
         """Samples training data (i.e. experience tuples) using n workers for t worker steps. Before, the memory buffer is initialized."""
@@ -49,10 +53,7 @@ class TransformerSampler(TrajectorySampler):
         """Add the model's previous input, as well as the current memory mask, to the buffer."""
         super().previous_model_input_to_buffer(t)
         self.buffer.memory_mask[:, t] = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)]
-        start = torch.clip(self.worker_current_episode_step - self.memory_length, 0)
-        end = torch.clip(self.worker_current_episode_step, self.memory_length)
-        indices = torch.stack([torch.arange(start[b],end[b]) for b in range(self.n_workers)]).long()
-        self.buffer.memory_indices[:,t] = indices
+        self.buffer.memory_indices[:,t] = self.memory_indices[self.worker_current_episode_step]
 
     def forward_model(self, vis_obs, vec_obs, t):
         """Forwards the model to retrieve the policy and the value of the to be fed observations and memory."""
