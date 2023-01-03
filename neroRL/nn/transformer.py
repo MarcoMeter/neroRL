@@ -156,8 +156,10 @@ class Transformer(nn.Module):
             pos_embedding = self.pos_embedding(self.max_episode_steps)[memory_indices]
             pos_embedding = torch.repeat_interleave(pos_embedding.unsqueeze(2), self.num_layers, dim = 2)
             memories = memories + pos_embedding
+            # memories[:,:,0] = memories[:,:,0] + pos_embedding # only first layer
         elif self.config["positional_encoding"] == "learned":
             memories = memories + self.pos_embedding[memory_indices].unsqueeze(2)
+            # memories[:,:,0] = memories[:,:,0] + self.pos_embedding[memory_indices] # only first layer
         
         # Forward transformer blocks
         out_memories = []
