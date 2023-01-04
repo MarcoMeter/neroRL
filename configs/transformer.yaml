@@ -35,7 +35,7 @@ model:
     memory_length: 64
     positional_encoding: "" # options: "" "relative" "learned"
     attention_norm: "post" # options: "", "pre", "pre_qkv", "post"
-    projection_norm: "pre" # options: "", "pre", "post"
+    projection_norm: "post" # options: "", "pre", "post"
 
 evaluation:
   evaluate: False
