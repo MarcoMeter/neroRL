@@ -12,6 +12,9 @@ class FrameSkipEnv(Env):
         """
         self._env = env
         self._skip = skip
+        self._max_episode_steps = self._env.max_episode_steps // skip
+        if self._max_episode_steps % skip > 0:
+            self._max_episode_steps += 1
         # Store skipped frames in the case of video recording (what if the environment does not provide visual obs?)
         self.skipped_frames = deque(maxlen = self._skip)
 
@@ -38,7 +41,7 @@ class FrameSkipEnv(Env):
     @property
     def max_episode_steps(self):
         """Returns the maximum number of steps that an episode can last."""
-        return self._env.max_episode_steps
+        return self._max_episode_steps
 
     @property
     def seed(self):
