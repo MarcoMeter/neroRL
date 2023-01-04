@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch import QInt32Storage, nn
+from torch import nn
 from einops import rearrange, repeat
 import matplotlib.pyplot as plt
 from neroRL.nn.module import Module
@@ -86,11 +86,17 @@ class SelfAttention(nn.Module):
         plt.clf()
         
 class TransformerBlock(Module):
-    def __init__(self, embed_size, num_heads, forward_expansion = 1, visualize_coef=False):
+    def __init__(self, embed_size, num_heads, attention_norm, projection_norm, forward_expansion = 1, visualize_coef=False):
         super(TransformerBlock, self).__init__()
         self.attention = SelfAttention(embed_size, num_heads, visualize_coef)
-        self.norm1 = nn.LayerNorm(embed_size)
-        self.norm2 = nn.LayerNorm(embed_size)
+        self.attention_norm = attention_norm
+        self.projection_norm = projection_norm
+        if "qkv" in attention_norm:
+            self.norm_kv = nn.LayerNorm(embed_size)
+        if attention_norm == "pre" or attention_norm == "post":
+            self.norm1 = nn.LayerNorm(embed_size)
+        if projection_norm == "pre" or projection_norm == "post":
+            self.norm2 = nn.LayerNorm(embed_size)
 
         self.feed_forward = nn.Sequential(
             nn.Linear(embed_size, forward_expansion * embed_size),
@@ -99,12 +105,38 @@ class TransformerBlock(Module):
         )
 
     def forward(self, value, key, query, mask):
-        attention = self.attention(value, key, query, mask)
+        # Apply pre-layer norm across the attention input
+        if "pre" in self.attention_norm:
+            query_ = self.norm1(query)
+            if "qkv" in self.attention_norm:
+                value = self.norm_kv(value)
+                key = value
+        else:
+            query_ = query
+
+        # Forward MultiHeadAttention
+        attention = self.attention(value, key, query_, mask)
 
         # Add skip connection and run through normalization
-        x = self.norm1(attention + query)
-        forward = self.feed_forward(x)
-        out = self.norm2(forward + x)
+        x = attention + query
+        # Apply post-layer norm across the attention output (i.e. attention input)
+        if self.attention_norm == "post":
+            x = self.norm1(x)
+
+        # Apply pre-layer norm across the projection input (i.e. attention output)
+        if self.projection_norm == "pre":
+            x_ = self.norm2(x)
+        else:
+            x_ = x
+
+        # Forward projection
+        forward = self.feed_forward(x_)
+
+        # Add skip connection and run through normalization
+        out = forward + x
+        # Apply post-layer norm across the projection output
+        if self.projection_norm == "post":
+            out = self.norm2(out)
         return out
 
 class SinusoidalPosition(nn.Module):
@@ -144,7 +176,7 @@ class Transformer(nn.Module):
         
         # Instantiate transformer blocks
         self.transformer_blocks = nn.ModuleList([
-            TransformerBlock(config["layer_size"], config["num_heads"]) 
+            TransformerBlock(config["layer_size"], config["num_heads"], config["attention_norm"], config["projection_norm"]) 
             for _ in range(self.num_layers)])
 
     def forward(self, h, memories, mask, memory_indices):
