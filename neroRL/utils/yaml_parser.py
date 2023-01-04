@@ -76,7 +76,6 @@ class YamlParser:
         }
 
         sampler_dict = {
-            "type": "TrajectorySampler",
             "n_workers": 16,
             "worker_steps": 256
         }
@@ -90,6 +89,7 @@ class YamlParser:
             "epochs": 4,
             "refresh_buffer_epoch": -1,
             "n_mini_batches": 4,
+            "advantage_normalization": "minibatch",
             "value_coefficient": 0.25,
             "max_grad_norm": 0.5,
             "share_parameters": True,
@@ -108,6 +108,7 @@ class YamlParser:
             "n_policy_mini_batches": 4,
             "value_epochs": 9,
             "n_value_mini_batches": 1,
+            "advantage_normalization": "minibatch",
             "refresh_buffer_epoch": -1,
             "value_update_interval": 1,
             "max_policy_grad_norm": 0.5,
@@ -244,7 +245,22 @@ class YamlParser:
                 if "reset_hidden_state" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["reset_hidden_state"] = True
                 if "residual" not in self._config["model"]["recurrence"]:
-                    self._config["model"]["recurrence"]["residual"] = False           
+                    self._config["model"]["recurrence"]["residual"] = False 
+
+            # Check if the model dict contains a transformer dict
+            # If no transformer dict is available, it is assumed that a transformer-based policy is not used
+            # In the other case check for completeness and apply defaults if necessary
+            if "transformer" in self._config["model"]:
+                if "num_layers" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["num_layers"] = 1
+                if "layer_size" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["layer_size"] = 512
+                if "num_heads" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["num_heads"] = 8
+                if "memory_length" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["memory_length"] = 512
+                if "positional_encoding" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["positional_encoding"] = "relative"
 
             # Check DAAC if DecoupledPPO
             if "DAAC" in self._config["trainer"]:

@@ -1,6 +1,5 @@
 import numpy as np
-import gym
-from gym import error, spaces
+from gymnasium import spaces
 from random import randint
 
 from neroRL.environments.obstacle_tower_env import ObstacleTowerEnv
@@ -104,6 +103,11 @@ class ObstacleTowerWrapper(Env):
                     "Move Forward + Rotate Right", "Move Forward + Rotate Right + Jump"]
         else:
             return [["No-Op", "Forward"], ["No-Op", "Rotate CC", "Rotate C"], ["No-Op", "Jump"]]
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return 2048
 
     @property
     def get_episode_trajectory(self):

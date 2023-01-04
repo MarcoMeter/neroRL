@@ -4,7 +4,7 @@ from torch import optim
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
-from neroRL.utils.utils import masked_mean, compute_gradient_stats
+from neroRL.utils.utils import compute_gradient_stats, batched_index_select
 from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.monitor import Tag
 
@@ -46,7 +46,7 @@ class PPOTrainer(BaseTrainer):
 
     def create_model(self) -> None:
         return create_actor_critic_model(self.configs["model"], self.configs["trainer"]["share_parameters"],
-        self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
+        self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.device)
 
     def train(self):
         train_info = {}
@@ -56,6 +56,13 @@ class PPOTrainer(BaseTrainer):
             # Refreshes buffer with current model for every refresh_buffer_epoch
             if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
                 self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
+
+            # Normalize advantages batch-wise if desired
+            # This is done during every epoch just in case refreshing the buffer is used
+            if self.configs["trainer"]["advantage_normalization"] == "batch":
+                advantages = self.sampler.buffer.samples_flat["advantages"]
+                self.sampler.buffer.samples_flat["normalized_advantages"] = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
             if self.recurrence is not None:
@@ -89,28 +96,49 @@ class PPOTrainer(BaseTrainer):
         Returns:
             training_stats {dict} -- Losses, entropy, kl-divergence and clip fraction
         """
-        # Retrieve sampled recurrent cell states to feed the model
-        recurrent_cell = None
+        # Retrieve the agent's memory to feed the model
+        memory, mask, memory_indices = None, None, None
+        # Case Recurrence: the recurrent cell state is treated as the memory. Only the initial hidden states are selected.
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
-                recurrent_cell = samples["hxs"]
+                memory = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
-                recurrent_cell = (samples["hxs"], samples["cxs"])
-        
+                memory = (samples["hxs"], samples["cxs"])
+        # Case Transformer: the episodic memory is based on activations that were previously gathered throughout an episode
+        if self.transformer is not None:
+            memory = batched_index_select(samples["memories"], 1, samples["memory_indices"])
+            mask = samples["memory_mask"]
+            memory_indices = samples["memory_indices"]
+
+        # Forward model -> policy, value, memory, gae
         policy, value, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
-                                    recurrent_cell,
-                                    self.sampler.buffer.actual_sequence_length)
+                                    memory = memory, mask = mask, memory_indices = memory_indices,
+                                    sequence_length = self.sampler.buffer.actual_sequence_length)
         
         # Policy Loss
         # Retrieve and process log_probs from each policy branch
-        log_probs = []
+        log_probs, entropies = [], []
         for i, policy_branch in enumerate(policy):
             log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
+            entropies.append(policy_branch.entropy())
         log_probs = torch.stack(log_probs, dim=1)
-
+        entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)
+        
+        # Remove paddings if recurrence is used
+        if self.recurrence is not None:
+            value = value[samples["loss_mask"]]
+            log_probs = log_probs[samples["loss_mask"]]
+            entropies = entropies[samples["loss_mask"]] 
+        
         # Compute surrogates
-        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        # Determine advantage normalization
+        if self.configs["trainer"]["advantage_normalization"] == "minibatch":
+            normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        elif self.configs["trainer"]["advantage_normalization"] == "no":
+            normalized_advantage = samples["advantages"]
+        else:
+            normalized_advantage = samples["normalized_advantages"]
         # Repeat is necessary for multi-discrete action spaces
         normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
         log_ratio = log_probs - samples["log_probs"]
@@ -118,19 +146,16 @@ class PPOTrainer(BaseTrainer):
         surr1 = ratio * normalized_advantage
         surr2 = torch.clamp(ratio, 1.0 - self.clip_range, 1.0 + self.clip_range) * normalized_advantage
         policy_loss = torch.min(surr1, surr2)
-        policy_loss = masked_mean(policy_loss, samples["loss_mask"])
+        policy_loss = policy_loss.mean()
 
-        # Value
+        # Value loss
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.clip_range, max=self.clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
-        vf_loss = masked_mean(vf_loss, samples["loss_mask"])
+        vf_loss = vf_loss.mean()
 
         # Entropy Bonus
-        entropies = []
-        for policy_branch in policy:
-            entropies.append(policy_branch.entropy())
-        entropy_bonus = masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
+        entropy_bonus = entropies.mean()
 
         # Complete loss
         loss = -(policy_loss - self.vf_loss_coef * vf_loss + self.beta * entropy_bonus)
@@ -142,9 +167,10 @@ class PPOTrainer(BaseTrainer):
         self.optimizer.step()
 
         # Monitor additional training statistics
-        approx_kl = masked_mean((ratio - 1.0) - log_ratio, samples["loss_mask"]) # http://joschu.net/blog/kl-approx.html
+        approx_kl = ((ratio - 1.0) - log_ratio).mean()  # http://joschu.net/blog/kl-approx.html
         clip_fraction = (abs((ratio - 1.0)) > self.clip_range).float().mean()
 
+        # Retrieve modules for monitoring the gradient norm
         if self.model.share_parameters:
             modules = self.model.actor_critic_modules
         else:

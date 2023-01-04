@@ -8,9 +8,10 @@ Its focus is set on environments that are procedurally generated, while providin
   - [Obstacle Tower](https://github.com/Unity-Technologies/obstacle-tower-env)
   - [Unity ML-Agents](https://github.com/Unity-Technologies/ml-agents)
   - [Procgen](https://github.com/openai/procgen)
-  - [Gym-Minigrid](https://github.com/maximecb/gym-minigrid) (Vector (one-hot) or Visual Observations (84x84x3))
+  - [Minigrid](https://github.com/Farama-Foundation/Minigrid) (Vector (one-hot) or Visual Observations (84x84x3))
   - [Gym CartPole](https://github.com/openai/gym) using masked velocity
   - [DM Ballet](https://github.com/deepmind/deepmind-research/tree/master/hierarchical_transformer_memory/pycolab_ballet)
+  - [RandomMaze](https://github.com/zuoxingdong/mazelab)
 - Proximal Policy Optimization (PPO)
   - Discrete and Multi-Discrete Action Spaces
   - Vector and Visual Observation Spaces (either alone or simultaneously)

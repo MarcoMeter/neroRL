@@ -1,8 +1,6 @@
 import numpy as np
-import gym
+import gymnasium as gym
 import time
-import random
-from gym import error, spaces
 from random import randint
 from neroRL.environments.env import Env
 
@@ -65,6 +63,11 @@ class CartPoleWrapper(Env):
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return self._env.action_space
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return self._env._max_episode_steps
 
     @property
     def seed(self):
@@ -156,13 +159,13 @@ class CartPoleWrapper(Env):
             self._trajectory["actions"].append(action)
 
         # Wrap up episode information once completed (i.e. done)
-        if done:
+        if done or truncation:
             info = {"reward": sum(self._rewards),
                     "length": len(self._rewards)}
         else:
             info = None
 
-        return vis_obs, vec_obs * self._obs_mask, reward / 100.0, done, info
+        return vis_obs, vec_obs * self._obs_mask, reward / 100.0, done or truncation, info
 
     def close(self):
         """Shuts down the environment."""

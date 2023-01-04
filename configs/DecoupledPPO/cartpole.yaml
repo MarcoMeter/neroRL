@@ -42,7 +42,6 @@ evaluation:
   interval: 50
 
 sampler:
-  type: "TrajectorySampler"
   n_workers: 16
   worker_steps: 256
 
@@ -56,6 +55,7 @@ trainer:
   updates: 200
   policy_epochs: 4
   n_policy_mini_batches: 4
+  advantage_normalization: "minibatch"
   value_epochs: 9
   n_value_mini_batches: 2
   refresh_buffer_epoch: -1

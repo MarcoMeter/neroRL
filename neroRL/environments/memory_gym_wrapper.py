@@ -1,10 +1,10 @@
-import gym
+import gymnasium as gym
 import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import memory_gym
 
 from random import randint
-from gym import spaces
+from gymnasium import spaces
 
 from neroRL.environments.env import Env
 
@@ -67,6 +67,11 @@ class MemoryGymWrapper(Env):
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return self._env.action_space
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return self._env.max_episode_steps
 
     @property
     def seed(self):

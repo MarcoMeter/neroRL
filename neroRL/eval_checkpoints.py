@@ -18,7 +18,7 @@ import os
 import pickle
 import numpy as np
 from docopt import docopt
-from gym import spaces
+from gymnasium import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
@@ -91,8 +91,7 @@ def main():
     if configs["trainer"]["algorithm"] == "PPO":
         share_parameters = configs["trainer"]["share_parameters"]
     model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
-                            vector_observation_space, action_space_shape,
-                            model_config["recurrence"] if "recurrence" in model_config else None, device)
+                            vector_observation_space, action_space_shape, device)
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     model.eval()
@@ -130,7 +129,11 @@ def main():
 
     # Save results to file
     print("\nStep 5: Save to File: " + name)
-    results = np.asarray(results).reshape(len(checkpoints), len(configs["evaluation"]["seeds"]), configs["evaluation"]["n_workers"])
+    if "explicit-seeds" in configs["evaluation"]["seeds"]:
+        num_seeds = len(configs["evaluation"]["seeds"]["explicit-seeds"])
+    else:
+        num_seeds = configs["evaluation"]["seeds"]["num-seeds"]
+    results = np.asarray(results).reshape(len(checkpoints), num_seeds, configs["evaluation"]["n_workers"])
     os.makedirs(os.path.dirname(name), exist_ok=True)
     outfile = open(name, "wb")
     pickle.dump(results, outfile)

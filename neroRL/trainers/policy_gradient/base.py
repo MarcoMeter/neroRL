@@ -3,13 +3,15 @@ import numpy as np
 import time
 from collections import deque
 
-from gym import spaces
+from gymnasium import spaces
 from sys import exit
 from signal import signal, SIGINT
 
 import neroRL
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
+from neroRL.sampler.recurrent_sampler import RecurrentSampler
+from neroRL.sampler.transformer_sampler import TransformerSampler
 from neroRL.evaluator import Evaluator
 from neroRL.utils.monitor import Monitor
 from neroRL.utils.monitor import Tag
@@ -53,6 +55,7 @@ class BaseTrainer():
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
+        self.transformer = None if not "transformer" in configs["model"] else configs["model"]["transformer"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
 
         # Set the seed for conducting the training
@@ -70,6 +73,11 @@ class BaseTrainer():
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
         self.monitor.log("Step 2: Creating dummy environment")
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
+        vis_obs, vec_obs = self.dummy_env.reset(configs["environment"]["reset_params"])
+        max_episode_steps = self.dummy_env.max_episode_steps
+        if self.transformer is not None:
+            # Add max episode steps to the transformer config
+            configs["model"]["transformer"]["max_episode_steps"] = max_episode_steps
         self.visual_observation_space = self.dummy_env.visual_observation_space
         self.vector_observation_space = self.dummy_env.vector_observation_space
         if isinstance(self.dummy_env.action_space, spaces.Discrete):
@@ -82,6 +90,7 @@ class BaseTrainer():
         self.monitor.log("\t" + "Vector Observation Space: " + str(self.vector_observation_space))
         self.monitor.log("\t" + "Action Space Shape: " + str(self.action_space_shape))
         self.monitor.log("\t" + "Action Names: " + str(self.dummy_env.action_names))
+        self.monitor.log("\t" + "Max Episode Steps: " + str(max_episode_steps))
 
         # Prepare evaluator if configured
         self.eval = configs["evaluation"]["evaluate"]
@@ -99,8 +108,18 @@ class BaseTrainer():
 
         # Setup Sampler
         self.monitor.log("Step 4: Launching training environments of type " + configs["environment"]["type"])
-        self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
+        # Instantiate sampler for memory-less / markvoivan policies
+        if self.recurrence is None and self.transformer is None:
+            self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
                                         self.action_space_shape, self.model, self.device)
+        # Instantiate sampler for recurrent policies
+        elif self.recurrence is not None:
+            self.sampler = RecurrentSampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
+                                        self.action_space_shape, self.model, self.device)
+        # Instantiate sampler for transformer policoes
+        elif self.transformer is not None:
+            self.sampler = TransformerSampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
+                                        self.action_space_shape, max_episode_steps, self.model, self.device)
 
     def run_training(self):
         """Orchestrates the policy gradient based training:
@@ -138,14 +157,18 @@ class BaseTrainer():
             sample_episode_info = self.sampler.sample(self.device)
 
             # 3.: Calculate advantages
-            _, last_value, _, _ = self.model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
+            last_value = self.sampler.get_last_value()
             self.sampler.buffer.calc_advantages(last_value, self.gamma, self.lamda)
             
             # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
             if self.recurrence:
-                self.model.set_mean_recurrent_cell_states(
-                        torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0),
-                        torch.mean(self.sampler.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.cxs.shape[2:]), axis=0))
+                if self.recurrence["layer_type"] == "lstm":
+                    self.model.set_mean_recurrent_cell_states(
+                            torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0),
+                            torch.mean(self.sampler.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.cxs.shape[2:]), axis=0))
+                else:
+                    self.model.set_mean_recurrent_cell_states(
+                            torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0), None)
 
             # 5.: Prepare the sampled data inside the buffer
             self.sampler.buffer.prepare_batch_dict()
@@ -154,6 +177,14 @@ class BaseTrainer():
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
             training_stats, formatted_string = self.train()
+
+            # Free memory
+            del(self.sampler.buffer.samples_flat)
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+            # mem = torch.cuda.mem_get_info(device=None)
+            # mem = (mem[1] - mem[0]) / 1024 / 1024
+            # print(mem)
             
             # Store recent episode infos
             episode_info.extend(sample_episode_info)

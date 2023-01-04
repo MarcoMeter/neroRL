@@ -12,7 +12,7 @@ import numpy as np
 import sys
 
 from docopt import docopt
-from gym import spaces
+from gymnasium import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
@@ -85,8 +85,7 @@ def main():
     if configs["trainer"]["algorithm"] == "PPO":
         share_parameters = configs["trainer"]["algorithm"]
     model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
-                            vector_observation_space, action_space_shape,
-                            model_config["recurrence"] if "recurrence" in model_config else None, device)
+                            vector_observation_space, action_space_shape, device)
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:

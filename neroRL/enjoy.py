@@ -13,7 +13,7 @@ import numpy as np
 import sys
 
 from docopt import docopt
-from gym import spaces
+from gymnasium import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.environments.wrapper import wrap_environment
@@ -26,6 +26,19 @@ logger = logging.getLogger("enjoy")
 console = logging.StreamHandler()
 console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
 logger.addHandler(console)
+
+def init_recurrent_cell(recurrence_config, model, device):
+    hxs, cxs = model.init_recurrent_cell_states(1, device)
+    if recurrence_config["layer_type"] == "gru":
+        recurrent_cell = hxs
+    elif recurrence_config["layer_type"] == "lstm":
+        recurrent_cell = (hxs, cxs)
+    return recurrent_cell
+
+def init_transformer_memory(transformer_config, model, device):
+    memory_mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])), diagonal=-1)
+    memory = model.init_transformer_memory(1, transformer_config["memory_length"], transformer_config["num_layers"], transformer_config["layer_size"], device)
+    return memory, memory_mask
 
 def main():
     # Docopt command line arguments
@@ -83,6 +96,8 @@ def main():
     checkpoint = torch.load(checkpoint_path) if checkpoint_path else None
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
     model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
+    # Determine whether frame skipping is desired (important for video recording)
+    frame_skip = configs["environment"]["frame_skip"]
 
     # Launch environment
     logger.info("Step 1: Launching environment")
@@ -104,8 +119,7 @@ def main():
     if configs["trainer"]["algorithm"] == "PPO":
         share_parameters = configs["trainer"]["share_parameters"]
     model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
-                            vector_observation_space, action_space_shape,
-                            model_config["recurrence"] if "recurrence" in model_config else None, device)
+                            vector_observation_space, action_space_shape, device)
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
@@ -122,20 +136,21 @@ def main():
     # Note: Only one episode is run upon generating a result website or rendering a video
     for _ in range(num_episodes):
         # Reset environment
+        t = 0
         logger.info("Step 3: Resetting the environment")
         logger.info("Step 3: Using seed " + str(seed))
         vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
         done = False
         
+        # Init memory if applicable
+        memory = None
+        memory_mask = None
         # Init hidden state (None if not available)
         if "recurrence" in model_config:
-            hxs, cxs = model.init_recurrent_cell_states(1, device)
-            if model_config["recurrence"]["layer_type"] == "gru":
-                recurrent_cell = hxs
-            elif model_config["recurrence"]["layer_type"] == "lstm":
-                recurrent_cell = (hxs, cxs)
-        else:
-            recurrent_cell = None
+            memory = init_recurrent_cell(model_config["recurrence"], model, device)
+        # Init transformer memory
+        if "transformer" in model_config:
+            memory, memory_mask = init_transformer_memory(model_config["transformer"], model, device)
 
         # Play episode
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
@@ -152,7 +167,12 @@ def main():
                 # Forward the neural net
                 vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                 vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
+                policy, value, new_memory, _ = model(vis_obs, vec_obs, memory, memory_mask[t].unsqueeze(0) if memory_mask is not None else None)
+                # Set memory if used
+                if "recurrence" in model_config:
+                    memory = new_memory
+                if "transformer" in model_config:
+                    memory[:, t] = new_memory
 
                 _actions = []
                 _probs = []
@@ -166,12 +186,13 @@ def main():
 
                 # Store data for video recording
                 actions.append(_actions)
-                probs.append(torch.stack(_probs))
+                probs.append(_probs)
                 entropies.append(entropy)
                 values.append(value.cpu().numpy())
 
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
+                t += 1
 
         logger.info("Episode Reward: " + str(info["reward"]))
         logger.info("Episode Length: " + str(info["length"]))
@@ -180,12 +201,19 @@ def main():
         if record_video or generate_website:
             trajectory_data = env.get_episode_trajectory
             trajectory_data["action_names"] = env.action_names
-            trajectory_data["actions"] = actions
-            trajectory_data["probs"] = probs
-            trajectory_data["entropies"] = entropies
-            trajectory_data["values"] = values
+            trajectory_data["actions"] = [items for items in actions for _ in range(frame_skip)]
+            trajectory_data["probs"] = [items for items in probs for _ in range(frame_skip)]
+            trajectory_data["entropies"] = [items for items in entropies for _ in range(frame_skip)]
+            trajectory_data["values"] = [items for items in values for _ in range(frame_skip)]
             trajectory_data["episode_reward"] = info["reward"]
             trajectory_data["seed"] = seed
+            # if frame_skip > 1:
+            #     # remainder = info["length"] % frame_skip
+            #     remainder = len(trajectory_data["probs"]) % frame_skip
+            #     if remainder > 0:
+            #         for key in ["actions", "probs", "entropies", "values"]:
+            #             trajectory_data[key] = trajectory_data[key][:-remainder]
+
             # Init video recorder
             video_recorder = VideoRecorder(video_path, frame_rate)
             # Render and serialize video

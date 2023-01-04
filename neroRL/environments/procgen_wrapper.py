@@ -2,8 +2,8 @@ import numpy as np
 import procgen
 import gym
 import time
-from gym import error, spaces
 from random import randint
+from gymnasium import spaces
 from neroRL.environments.env import Env
 
 class ProcgenWrapper(Env):
@@ -43,7 +43,7 @@ class ProcgenWrapper(Env):
         self._default_reset_params = {"start-seed": 0, "num-seeds": 200, "paint_vel_info": False,
                                         "use_generated_assets": False, "center_agent": False, "use_sequential_levels": False,
                                         "distribution_mode": "easy", "use_backgrounds": False, "restrict_themes": False,
-                                        "use_monochrome_assets": False}
+                                        "use_monochrome_assets": False, "max-episode-steps": 512}
 
         # Set default reset parameters if none were provided
         if reset_params is None:
@@ -53,6 +53,7 @@ class ProcgenWrapper(Env):
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
+        self._max_episode_steps = self._default_reset_params["max-episode-steps"]
 
         # Initialize environment
         self._env_name = env_name
@@ -90,7 +91,12 @@ class ProcgenWrapper(Env):
     @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
-        return self._env.action_space
+        return spaces.Discrete(15) # we need to use the gymnasium version of spaces
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return self._max_episode_steps
 
     @property
     def seed(self):
@@ -174,6 +180,10 @@ class ProcgenWrapper(Env):
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
         vis_obs = obs.astype(np.float32)  / 255.
+
+        # Check time limit
+        if len(self._rewards) == self._max_episode_steps:
+            done = True
 
         # Record trajectory data
         if self._record:

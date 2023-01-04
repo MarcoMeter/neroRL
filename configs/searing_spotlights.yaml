@@ -63,7 +63,6 @@ evaluation:
   interval: 200
 
 sampler:
-  type: "TrajectorySampler"
   n_workers: 16
   worker_steps: 512
 

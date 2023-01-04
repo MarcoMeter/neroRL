@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import torch
 import random
 from neroRL.utils.monitor import Tag
@@ -14,20 +15,8 @@ def set_library_seeds(seed:int) -> None:
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-
-def masked_mean(tensor:torch.Tensor, mask:torch.Tensor) -> torch.Tensor:
-    """
-    Returns the mean of the tensor but ignores the values specified by the mask.
-    This is used for masking out the padding of the loss functions.
-
-    Args:
-        tensor {Tensor} -- The to be masked tensor
-        mask {Tensor} -- The mask that is used to mask out padded values of a loss function
-
-    Returns:
-        {Tensor} -- Returns the mean of the masked tensor.
-    """
-    return (tensor.T * mask).sum() / torch.clamp((torch.ones_like(tensor.T) * mask).float().sum(), min=1.0)
+    torch.backends.cudnn.deterministic = True
+    os.environ['PYTHONHASHSEED'] = str(seed)
 
 def compute_gradient_stats(modules_dict, prefix = ""):
     """Computes the gradient norm and the gradient mean for each parameter of the model and the entire model itself.
@@ -53,3 +42,13 @@ def compute_gradient_stats(modules_dict, prefix = ""):
     results[prefix + "_model_norm"] = (Tag.GRADIENT_NORM, torch.linalg.norm(torch.cat(all_grads)).item())
     # results[prefix + "_model_mean"] = (Tag.GRADIENT_MEAN, torch.mean(torch.cat(all_grads)).item())
     return results
+
+def batched_index_select(input, dim, index):
+    for ii in range(1, len(input.shape)):
+        if ii != dim:
+            index = index.unsqueeze(ii)
+    expanse = list(input.shape)
+    expanse[0] = -1
+    expanse[dim] = -1
+    index = index.expand(expanse)
+    return torch.gather(input, dim, index)

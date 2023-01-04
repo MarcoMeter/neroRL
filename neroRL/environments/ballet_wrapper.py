@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from gym import spaces
+from gymnasium import spaces
 from random import randint
 
 from neroRL.environments.env import Env
@@ -73,6 +73,11 @@ class BalletWrapper(Env):
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return spaces.Discrete(8)
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return 2048
 
     @property
     def seed(self):
