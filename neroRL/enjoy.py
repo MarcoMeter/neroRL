@@ -16,6 +16,7 @@ from docopt import docopt
 from gymnasium import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
+from neroRL.utils.utils import get_environment_specs
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.video_recorder import VideoRecorder
 from neroRL.nn.actor_critic import create_actor_critic_model
@@ -108,16 +109,8 @@ def main():
     configs["environment"]["reset_params"]["start-seed"] = seed
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
+    visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1)
     env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
-    vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"]) # reset is needed to ensure max_episode_steps in some environments
-    max_episode_steps = env.max_episode_steps
-    # Retrieve observation space
-    visual_observation_space = env.visual_observation_space
-    vector_observation_space = env.vector_observation_space
-    if isinstance(env.action_space, spaces.Discrete):
-        action_space_shape = (env.action_space.n,)
-    else:
-        action_space_shape = tuple(env.action_space.nvec)
 
     # Build or load model
     logger.info("Step 2: Creating model")
