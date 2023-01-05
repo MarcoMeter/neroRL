@@ -35,10 +35,14 @@ def init_recurrent_cell(recurrence_config, model, device):
         recurrent_cell = (hxs, cxs)
     return recurrent_cell
 
-def init_transformer_memory(transformer_config, model, device):
-    memory_mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])), diagonal=-1)
-    memory = model.init_transformer_memory(1, transformer_config["memory_length"], transformer_config["num_layers"], transformer_config["layer_size"], device)
-    return memory, memory_mask
+def init_transformer_memory(trxl_conf, model, device):
+    memory_mask = torch.tril(torch.ones((trxl_conf["memory_length"], trxl_conf["memory_length"])), diagonal=-1)
+    memory = model.init_transformer_memory(1, trxl_conf["memory_length"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device)
+    # Setup memory window indices
+    repetitions = torch.repeat_interleave(torch.arange(0, trxl_conf["memory_length"]).unsqueeze(0), trxl_conf["memory_length"] - 1, dim = 0).long()
+    memory_indices = torch.stack([torch.arange(i, i + trxl_conf["memory_length"]) for i in range(trxl_conf["max_episode_steps"] - trxl_conf["memory_length"] + 1)]).long()
+    memory_indices = torch.cat((repetitions, memory_indices))
+    return memory, memory_mask, memory_indices
 
 def main():
     # Docopt command line arguments
@@ -105,6 +109,8 @@ def main():
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
     env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
+    vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"]) # reset is needed to ensure max_episode_steps in some environments
+    max_episode_steps = env.max_episode_steps
     # Retrieve observation space
     visual_observation_space = env.visual_observation_space
     vector_observation_space = env.vector_observation_space
@@ -118,6 +124,8 @@ def main():
     share_parameters = False
     if configs["trainer"]["algorithm"] == "PPO":
         share_parameters = configs["trainer"]["share_parameters"]
+    if "transformer" in model_config:
+        model_config["transformer"]["max_episode_steps"] = max_episode_steps
     model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape, device)
     if "DAAC" in configs["trainer"]:
@@ -143,14 +151,13 @@ def main():
         done = False
         
         # Init memory if applicable
-        memory = None
-        memory_mask = None
+        memory, memory_mask, memory_indices, mask, indices = None, None, None, None, None
         # Init hidden state (None if not available)
         if "recurrence" in model_config:
             memory = init_recurrent_cell(model_config["recurrence"], model, device)
         # Init transformer memory
         if "transformer" in model_config:
-            memory, memory_mask = init_transformer_memory(model_config["transformer"], model, device)
+            memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model, device)
 
         # Play episode
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
@@ -167,7 +174,16 @@ def main():
                 # Forward the neural net
                 vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                 vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                policy, value, new_memory, _ = model(vis_obs, vec_obs, memory, memory_mask[t].unsqueeze(0) if memory_mask is not None else None)
+
+                # Prepare transformer mememory
+                if "transformer" in model_config:
+                    in_memory = memory[0, memory_indices[t].unsqueeze(0)]
+                    mask = memory_mask[t, memory_indices[t]].unsqueeze(0)
+                    indices = memory_indices[t].unsqueeze(0)
+                else:
+                    in_memory = memory
+
+                policy, value, new_memory, _ = model(vis_obs, vec_obs, in_memory, mask, indices)
                 # Set memory if used
                 if "recurrence" in model_config:
                     memory = new_memory

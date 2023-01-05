@@ -212,7 +212,7 @@ class Transformer(nn.Module):
         """
         Arguments:
             h {torch.tensor} -- Input (query)
-            memories {torch.tesnor} -- Whole episoded memories of shape (N, max_episode_steps, num blocks, D)
+            memories {torch.tesnor} -- Whole episoded memories of shape (N, L, num blocks, D)
             mask {torch.tensor} -- Attention mask (dtype: bool) of shape (N, L)
             memory_indices {torch.tensor} -- Memory window indices (dtype: long) of shape (N, L)
 
@@ -238,4 +238,6 @@ class Transformer(nn.Module):
             out_memories.append(h.detach())
             h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask) # args: value, key, query, mask
             h = h.squeeze()
+            if len(h.shape) == 1:
+                h = h.unsqueeze(0)
         return h, torch.stack(out_memories, dim=1)
