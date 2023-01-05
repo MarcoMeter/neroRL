@@ -1,7 +1,5 @@
-from unicodedata import name
+import numpy as np
 import optuna
-import os
-import random
 import sys
 
 from docopt import docopt
@@ -22,7 +20,6 @@ def main():
         --config=<path>             Path to the config file [default: ./configs/default.yaml].
         --tune=<path>               Path to the config file that features the hyperparameter search space for tuning [default: ./configs/tune/optuna.yaml]
         --num-trials=<n>            Number of trials [default: 1]
-        --num-seeds=<n>             Number of seeds [default: 1]
         --db=<path>     	        MySQL URL [default: mysql://root@localhost/optuna]
         --worker-id=<n>             Sets the port for each environment instance [default: 2].
         --run-id=<path>             Specifies the tag of the tensorboard summaries [default: default].
@@ -32,7 +29,6 @@ def main():
     config_path = options["--config"]
     tune_config_path = options["--tune"]
     num_trials = int(options["--num-trials"])
-    num_seeds = int(options["--num-seeds"])
     storage = options["--db"]
     worker_id = int(options["--worker-id"])
     run_id = options["--run-id"]
@@ -52,6 +48,17 @@ def main():
 
     # Load the tuning configuration that features the hyperparameter search space
     tune_config = OptunaYamlParser(tune_config_path).get_config()
+
+    # Setup trial members
+    start_seed = tune_config["start_seed"]
+    num_seeds = tune_config["num_seeds"]
+    upper_threshold = tune_config["upper_threshold"]
+    num_updates = tune_config["num_updates"]
+    use_eval = tune_config["use_eval"]
+    start_eval = tune_config["start_eval"]
+    eval_interval = tune_config["eval_interval"]
+    lower_threshold = tune_config["lower_threshold"]
+    lower_steps = tune_config["lower_steps"]
 
     # Define objective function
     def objective(trial):
@@ -89,9 +96,12 @@ def main():
                     if k in suggestions:
                         trial_config[key][k] = suggestions[k]
 
+        # Result trial members
+        results = []
+        steps = []
+
         # Run training
-        for _ in range(num_seeds):
-            seed = random.randint(0, 2 ** 31 - 1)
+        for seed in range(start_seed, start_seed + num_seeds):
             if trial_config["trainer"]["algorithm"] == "PPO":
                 trainer = PPOTrainer(trial_config, worker_id, run_id, out_path, seed)
             elif trial_config["trainer"]["algorithm"] == "DecoupledPPO":
@@ -99,17 +109,49 @@ def main():
             else:
                 assert(False), "Unsupported algorithm specified"
 
-            result = trainer.run_training()
+            for update in range(num_updates):
+                # step training
+                episode_result = trainer.step(update)
+
+                # eval?
+                if use_eval:
+                    if update >= start_eval:
+                        if update % eval_interval == 0:
+                            episode_result = trainer.evaluate()
+                            # prune upper threshold based on evaluation score
+                            if episode_result["reward_mean"] >= upper_threshold:
+                                results.appendd(episode_result["reward_mean"])
+                                steps.append(update)
+                                break
+                else:
+                    # prune upper threshold based on training score
+                    if episode_result["reward_mean"] >= upper_threshold:
+                        results.appendd(episode_result["reward_mean"])
+                        steps.append(update)
+                        break
+
+                # TODO prune entire trial based on lower threshold
+
+            # Clean up training run
             trainer.close()
             del trainer
 
+        # Process results across all seeds
+        results = np.asarray(results)
+        steps = np.asarray(steps)
+        weights = (1 - steps / num_updates) + 1 # scale up scores that surpassed the upper threshold earlier
+        result = weights * results
+        result = result.mean()
         return result
 
+    print("Create/continue study")
     study = optuna.create_study(study_name=run_id, sampler=optuna.samplers.TPESampler(), direction="maximize",
                                 storage=storage, load_if_exists=True)
+    print("Best params before study")
+    print(study.best_params)
     study.optimize(objective, n_trials=num_trials, n_jobs=1)
+    print("Study done, best params")
     print(study.best_params)
 
 if __name__ == "__main__":
     main()
-    
