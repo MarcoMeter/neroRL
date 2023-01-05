@@ -38,7 +38,7 @@ def init_recurrent_cell(recurrence_config, model, device):
 
 def init_transformer_memory(trxl_conf, model, device):
     memory_mask = torch.tril(torch.ones((trxl_conf["memory_length"], trxl_conf["memory_length"])), diagonal=-1)
-    memory = model.init_transformer_memory(1, trxl_conf["memory_length"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device)
+    memory = model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device)
     # Setup memory window indices
     repetitions = torch.repeat_interleave(torch.arange(0, trxl_conf["memory_length"]).unsqueeze(0), trxl_conf["memory_length"] - 1, dim = 0).long()
     memory_indices = torch.stack([torch.arange(i, i + trxl_conf["memory_length"]) for i in range(trxl_conf["max_episode_steps"] - trxl_conf["memory_length"] + 1)]).long()
@@ -151,6 +151,7 @@ def main():
         # Init transformer memory
         if "transformer" in model_config:
             memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model, device)
+            memory_length = model_config["transformer"]["memory_length"]
 
         # Play episode
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
@@ -167,16 +168,17 @@ def main():
                 # Forward the neural net
                 vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                 vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-
-                # Prepare transformer mememory
+                # Prepare transformer memory
                 if "transformer" in model_config:
                     in_memory = memory[0, memory_indices[t].unsqueeze(0)]
-                    mask = memory_mask[t, memory_indices[t]].unsqueeze(0)
+                    t_ = max(0, min(t, memory_length - 1))
+                    mask = memory_mask[t_].unsqueeze(0)
                     indices = memory_indices[t].unsqueeze(0)
                 else:
                     in_memory = memory
 
                 policy, value, new_memory, _ = model(vis_obs, vec_obs, in_memory, mask, indices)
+                
                 # Set memory if used
                 if "recurrence" in model_config:
                     memory = new_memory
