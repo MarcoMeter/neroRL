@@ -121,6 +121,9 @@ class BaseTrainer():
             self.sampler = TransformerSampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
                                         self.action_space_shape, max_episode_steps, self.model, self.device)
 
+        # List that stores the most recent episodes for training statistics
+        self.episode_info = deque(maxlen=100)
+
     def run_training(self):
         """Orchestrates the policy gradient based training:
             1. Decays training parameters in relation to training progression
@@ -142,98 +145,107 @@ class BaseTrainer():
             self.monitor.log("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
         else:
             self.monitor.log("Step 5: Starting training using " + str(self.device) + " . . .")
-        # List that stores the most recent episodes for training statistics
-        episode_info = deque(maxlen=100)
 
         # Training loop
         for update in range(self.resume_at, self.updates):
-            self.currentUpdate = update
-            time_start = time.time()
-
-            # 1.: Decay hyperparameters polynomially based on the provided config
-            decayed_hyperparameters = self.step_decay_schedules(update)
-
-            # 2.: Sample data from each worker for worker steps
-            sample_episode_info = self.sampler.sample(self.device)
-
-            # 3.: Calculate advantages
-            last_value = self.sampler.get_last_value()
-            self.sampler.buffer.calc_advantages(last_value, self.gamma, self.lamda)
-            
-            # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
-            if self.recurrence:
-                if self.recurrence["layer_type"] == "lstm":
-                    self.model.set_mean_recurrent_cell_states(
-                            torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0),
-                            torch.mean(self.sampler.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.cxs.shape[2:]), axis=0))
-                else:
-                    self.model.set_mean_recurrent_cell_states(
-                            torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0), None)
-
-            # 5.: Prepare the sampled data inside the buffer
-            self.sampler.buffer.prepare_batch_dict()
-
-            # 6.: Train n epochs over the sampled data
-            if torch.cuda.is_available():
-                self.model.cuda() # Train on GPU
-            training_stats, formatted_string = self.train()
-
-            # Free memory
-            del(self.sampler.buffer.samples_flat)
-            if self.device.type == "cuda":
-                torch.cuda.empty_cache()
-            # mem = torch.cuda.mem_get_info(device=None)
-            # mem = (mem[1] - mem[0]) / 1024 / 1024
-            # print(mem)
-            
-            # Store recent episode infos
-            episode_info.extend(sample_episode_info)
-    
-            # Measure seconds needed for a whole update
-            time_end = time.time()
-            update_duration = int(time_end - time_start)
-
-            # Save checkpoint (update, model, optimizer, configs)
-            if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
-                self._save_checkpoint(update)
-
-            # 7.: Write training statistics to console
-            episode_result = self._process_episode_info(episode_info)
-            if episode_result:
-                self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
-                    (" value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}")).format(
-                    update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
-                    episode_result["length_mean"], episode_result["length_std"], torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
-                    torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
-                    " " + formatted_string)
-            else:
-                self.monitor.log("{:4} sec={:2} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
-                    update, update_duration, torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
-                    torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
-                    " " + formatted_string)
-
-            # 8.: Evaluate model
-            if self.eval:
-                if update % self.eval_interval == 0 or update == (self.updates - 1):
-                    eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
-                    evaluation_result = self._process_episode_info(eval_episode_info)
-                    self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
-                        eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
-                    self.monitor.write_eval_summary(update, evaluation_result)
-            
-            # Add some more training statistics which should be monitored
-            training_stats = {
-            **training_stats,
-            **decayed_hyperparameters,
-            "advantage_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.advantages)),
-            "value_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.values)),
-            "sequence_length": (Tag.OTHER, self.sampler.buffer.actual_sequence_length),
-            }
-
-            # Write training statistics to tensorboard
-            self.monitor.write_training_summary(update, training_stats, episode_result)
+            episode_result = self.step(update)
 
         return episode_result["reward_mean"]
+
+    def step(self, update):
+        self.currentUpdate = update
+        time_start = time.time()
+
+        # 1.: Decay hyperparameters polynomially based on the provided config
+        decayed_hyperparameters = self.step_decay_schedules(update)
+
+        # 2.: Sample data from each worker for worker steps
+        sample_episode_info = self.sampler.sample(self.device)
+
+        # 3.: Calculate advantages
+        last_value = self.sampler.get_last_value()
+        self.sampler.buffer.calc_advantages(last_value, self.gamma, self.lamda)
+        
+        # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
+        if self.recurrence:
+            if self.recurrence["layer_type"] == "lstm":
+                self.model.set_mean_recurrent_cell_states(
+                        torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0),
+                        torch.mean(self.sampler.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.cxs.shape[2:]), axis=0))
+            else:
+                self.model.set_mean_recurrent_cell_states(
+                        torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0), None)
+
+        # 5.: Prepare the sampled data inside the buffer
+        self.sampler.buffer.prepare_batch_dict()
+
+        # 6.: Train n epochs over the sampled data
+        if torch.cuda.is_available():
+            self.model.cuda() # Train on GPU
+        training_stats, formatted_string = self.train()
+
+        # Free memory
+        del(self.sampler.buffer.samples_flat)
+        if self.device.type == "cuda":
+            torch.cuda.empty_cache()
+        # mem = torch.cuda.mem_get_info(device=None)
+        # mem = (mem[1] - mem[0]) / 1024 / 1024
+        # print(mem)
+        
+        # Store recent episode infos
+        self.episode_info.extend(sample_episode_info)
+
+        # Measure seconds needed for a whole update
+        time_end = time.time()
+        update_duration = int(time_end - time_start)
+
+        # Save checkpoint (update, model, optimizer, configs)
+        if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
+            self._save_checkpoint(update)
+
+        # 7.: Write training statistics to console
+        episode_result = self._process_episode_info(self.episode_info)
+        if episode_result:
+            self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
+                (" value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}")).format(
+                update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
+                episode_result["length_mean"], episode_result["length_std"], torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
+                torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
+                " " + formatted_string)
+        else:
+            self.monitor.log("{:4} sec={:2} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
+                update, update_duration, torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
+                torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
+                " " + formatted_string)
+
+        # 8.: Evaluate model
+        if self.eval:
+            if update % self.eval_interval == 0 or update == (self.updates - 1):
+                eval_duration, evaluation_result = self.eval()
+                self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
+                    eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
+                self.monitor.write_eval_summary(update, evaluation_result)
+        
+        # Add some more training statistics which should be monitored
+        training_stats = {
+        **training_stats,
+        **decayed_hyperparameters,
+        "advantage_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.advantages)),
+        "value_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.values)),
+        "sequence_length": (Tag.OTHER, self.sampler.buffer.actual_sequence_length),
+        }
+
+        # Write training statistics to tensorboard
+        self.monitor.write_training_summary(update, training_stats, episode_result)
+
+        return episode_result
+
+    def evaluate(self):
+        eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
+        evaluation_result = self._process_episode_info(eval_episode_info)
+        self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
+        eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
+        return eval_duration, evaluation_result
     
     ### BEGIN:  Methods that need to be overriden/extended ###
     def create_model(self) -> None:
