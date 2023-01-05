@@ -8,7 +8,7 @@ from neroRL.utils.video_recorder import VideoRecorder
 class Evaluator():
     """Evaluates a model based on the initially provided config."""
     def __init__(self, configs, model_config, worker_id, visual_observation_space, vector_observation_space,
-                video_path = "video", record_video = False, frame_rate = 1, generate_website = False):
+                max_episode_steps, video_path = "video", record_video = False, frame_rate = 1, generate_website = False):
         """Initializes the evaluator and its environments
         
         Arguments:
@@ -28,6 +28,7 @@ class Evaluator():
             self.seeds = list(range(start, start + configs["evaluation"]["seeds"]["num-seeds"]))
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
+        self.max_episode_steps = max_episode_steps
         self.video_path = video_path
         self.record_video = record_video
         self.frame_rate = frame_rate
@@ -57,14 +58,16 @@ class Evaluator():
                 recurrent_cell.append((hxs, cxs))
         return recurrent_cell
 
-    def init_transformer_memory(self, transformer_config, model, device):
+    def init_transformer_memory(self, trxl_conf, model, device):
+        self.memory_length = trxl_conf["memory_length"]
+        memory_mask = torch.tril(torch.ones((self.memory_length, self.memory_length)), diagonal=-1)
+        repetitions = torch.repeat_interleave(torch.arange(0, self.memory_length).unsqueeze(0), self.memory_length - 1, dim = 0).long()
+        memory_indices = torch.stack([torch.arange(i, i + self.memory_length) for i in range(trxl_conf["max_episode_steps"] - self.memory_length + 1)]).long()
+        memory_indices = torch.cat((repetitions, memory_indices))
         memory = []
-        memory_mask = []
         for _ in range(self.n_workers):
-            mask = torch.tril(torch.ones((transformer_config["memory_length"], transformer_config["memory_length"])), diagonal=-1)
-            memory_mask.append(mask)
-            memory.append(model.init_transformer_memory(1, transformer_config["memory_length"], transformer_config["num_layers"], transformer_config["layer_size"], device))
-        return memory, memory_mask
+            memory.append(model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device))
+        return memory, memory_mask, memory_indices
 
     def evaluate(self, model, device):
         """Evaluates a provided model on the already initialized evaluation environments.
@@ -93,13 +96,13 @@ class Evaluator():
 
             # Init memory if applicable
             memory = [None for _ in range(self.n_workers)]
-            memory_mask = [None for _ in range(self.n_workers)]
+            memory_mask, memory_indices, mask = None, None, None
             # Initialize recurrent cell (hidden/cell state)
             if self.recurrence_config is not None:
                 memory = self.init_recurrent_cell(self.recurrence_config, model, device)
             # Initialize the transformer memory
             if self.transformer_config is not None:
-                memory, memory_mask = self.init_transformer_memory(self.transformer_config, model, device)
+                memory, memory_mask, memory_indices = self.init_transformer_memory(self.transformer_config, model, device)
             
             # Reset workers and set evaluation seed
             for worker in self.workers:
@@ -134,8 +137,19 @@ class Evaluator():
                             # but as we evaluate entire episodes, we feed one worker at a time
                             vis_obs_batch = torch.tensor(np.expand_dims(vis_obs[w], 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                             vec_obs_batch = torch.tensor(np.expand_dims(vec_obs[w], 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                            mask = memory_mask[w][worker_steps[w]].unsqueeze(0) if self.transformer_config is not None else None
-                            policy, value, new_memory, _ = model(vis_obs_batch, vec_obs_batch, memory[w], mask)
+
+                            # Prepare transformer memory
+                            if self.transformer_config is not None:
+                                in_memory = memory[w][0, memory_indices[worker_steps[w]]].unsqueeze(0)
+                                t = max(0, min(worker_steps[w], self.memory_length - 1))
+                                mask = memory_mask[t].unsqueeze(0)
+                                indices = memory_indices[worker_steps[w]].unsqueeze(0)
+                            else:
+                                in_memory = memory[w]
+
+                            # Forward model
+                            policy, value, new_memory, _ = model(vis_obs_batch, vec_obs_batch, in_memory, mask, indices)
+
                             # Set memory if used
                             if self.recurrence_config is not None:
                                 memory[w] = new_memory

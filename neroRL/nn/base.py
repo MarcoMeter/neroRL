@@ -87,7 +87,7 @@ class ActorCriticBase(Module):
 
         # Transformer
         if self.transformer_config is not None:
-            out_features = self.transformer_config["layer_size"]
+            out_features = self.transformer_config["embed_dim"]
             transformer = self.create_transformer_layer(self.transformer_config, in_features_next_layer)
             in_features_next_layer = out_features
 

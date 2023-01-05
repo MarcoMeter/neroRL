@@ -29,11 +29,13 @@ model:
   num_hidden_layers: 1
   num_hidden_units: 384
   transformer:
-    num_layers: 3
-    layer_size: 384
+    num_blocks: 3
+    embed_dim: 384
     num_heads: 8
-    memory_length: 64
+    memory_length: 32
     positional_encoding: "" # options: "" "relative" "learned"
+    attention_norm: "post" # options: "" "pre" "pre_qkv" "post"
+    projection_norm: "post" # options: "" "pre" "post"
 
 evaluation:
   evaluate: False

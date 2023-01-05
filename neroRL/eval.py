@@ -6,17 +6,15 @@ instantiate the model. A checkpoint can be also provided via the config.
 """
 
 import logging
-from tabnanny import check
 import torch
 import numpy as np
 import sys
 
 from docopt import docopt
-from gymnasium import spaces
 
+from neroRL.utils.utils import get_environment_specs
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
-from neroRL.environments.wrapper import wrap_environment
 from neroRL.nn.actor_critic import create_actor_critic_model
 
 # Setup logger
@@ -70,14 +68,7 @@ def main():
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
-    dummy_env = wrap_environment(configs["environment"], worker_id)
-    visual_observation_space = dummy_env.visual_observation_space
-    vector_observation_space = dummy_env.vector_observation_space
-    if isinstance(dummy_env.action_space, spaces.Discrete):
-        action_space_shape = (dummy_env.action_space.n,)
-    else:
-        action_space_shape = tuple(dummy_env.action_space.nvec)
-    dummy_env.close()
+    visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
 
     # Build or load model
     logger.info("Step 2: Creating model")
@@ -104,7 +95,7 @@ def main():
     logger.info("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
     logger.info("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
     evaluator = Evaluator(configs, model_config, worker_id, visual_observation_space, vector_observation_space,
-                            video_path, record_video)
+                            max_episode_steps, video_path, record_video)
 
     # Evaluate
     logger.info("Step 4: Run evaluation . . .")

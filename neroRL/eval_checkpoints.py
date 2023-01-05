@@ -12,14 +12,13 @@ Each data point is a dictionary given the episode information:
 Depending on the environment, more information might be available.
 For example, Obstacle Tower has a floor key inside that dictionary.
 """
-from numpy.core.fromnumeric import mean
 import torch
 import os
 import pickle
 import numpy as np
 from docopt import docopt
-from gymnasium import spaces
 
+from neroRL.utils.utils import get_environment_specs
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
@@ -66,14 +65,7 @@ def main():
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     print("Step 2: Creating dummy environment of type " + configs["environment"]["type"])
-    dummy_env = wrap_environment(configs["environment"], worker_id)
-    visual_observation_space = dummy_env.visual_observation_space
-    vector_observation_space = dummy_env.vector_observation_space
-    if isinstance(dummy_env.action_space, spaces.Discrete):
-        action_space_shape = (dummy_env.action_space.n,)
-    else:
-        action_space_shape = tuple(dummy_env.action_space.nvec)
-    dummy_env.close()
+    visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
     
     # Init evaluator
     print("Step 2: Environment Config")
@@ -83,7 +75,7 @@ def main():
     for k, v in configs["evaluation"].items():
         print("Step 3: " + str(k) + ": " + str(v))
     print("Step 3: Init Evaluator")
-    evaluator = Evaluator(configs, model_config, worker_id, visual_observation_space, vector_observation_space)
+    evaluator = Evaluator(configs, model_config, worker_id, visual_observation_space, vector_observation_space, max_episode_steps)
 
     # Init model
     print("Step 3: Initialize model")

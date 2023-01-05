@@ -2,6 +2,10 @@ import numpy as np
 import os
 import torch
 import random
+
+from gymnasium import spaces
+
+from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.monitor import Tag
 
 def set_library_seeds(seed:int) -> None:
@@ -52,3 +56,25 @@ def batched_index_select(input, dim, index):
     expanse[dim] = -1
     index = index.expand(expanse)
     return torch.gather(input, dim, index)
+
+def get_environment_specs(env_config, worker_id):
+    """_summary_
+
+    Arguments:
+        env_config {_type_} -- _description_
+        worker_id {_type_} -- _description_
+
+    Returns:
+        _type_ -- _description_
+    """
+    dummy_env = wrap_environment(env_config, worker_id)
+    vis_obs, vec_obs = dummy_env.reset(env_config["reset_params"])
+    max_episode_steps = dummy_env.max_episode_steps
+    visual_observation_space = dummy_env.visual_observation_space
+    vector_observation_space = dummy_env.vector_observation_space
+    if isinstance(dummy_env.action_space, spaces.Discrete):
+        action_space_shape = (dummy_env.action_space.n,)
+    else:
+        action_space_shape = tuple(dummy_env.action_space.nvec)
+    dummy_env.close()
+    return visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps
