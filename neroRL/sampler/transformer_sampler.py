@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
@@ -28,39 +27,66 @@ class TransformerSampler(TrajectorySampler):
         self.num_mem_layers = configs["model"]["transformer"]["num_layers"]
         self.mem_layer_size = configs["model"]["transformer"]["layer_size"]
 
+        # The buffer has to store multiple fields for the experience tuples:
+        # - Entire episode memories (episodes can be as long as max_episode_steps)
+        #       - The number of episodes may vary so the outer dimension is based on a list
+        # - Index for each time step to point to the correct episode memory
+        # - Memory mask for each time step
+        # - Memory window indices for each time step (window is as long as memory_length)
         self.buffer.init_transformer_buffer_fields(self.max_episode_steps)
 
         # Setup memory placeholder
         # It is designed to store an entire episode of past latent features (i.e. activations of the encoder and the transformer layers).
+        # Initialization using zeros
+        # Once an episode is completed (max episode steps reached or environment termination), it is added to the buffer.
         self.memory = self.model.init_transformer_memory(self.n_workers, self.max_episode_steps, self.num_mem_layers, self.mem_layer_size, device)
         # Setup the memory mask that reflects the desired memory (i.e. context) length for the transformer architecture
         self.memory_mask = torch.tril(torch.ones((self.memory_length, self.memory_length)), diagonal=-1)
+        """ e.g. memory mask tensor looks like this if memory_length = 6
+        0, 0, 0, 0, 0, 0
+        1, 0, 0, 0, 0, 0
+        1, 1, 0, 0, 0, 0
+        1, 1, 1, 0, 0, 0
+        1, 1, 1, 1, 0, 0
+        1, 1, 1, 1, 1, 0
+        """
         # Worker ids
         self.worker_ids = range(self.n_workers)
         # Setup memory window indices
         repetitions = torch.repeat_interleave(torch.arange(0, self.memory_length).unsqueeze(0), self.memory_length - 1, dim = 0).long()
         self.memory_indices = torch.stack([torch.arange(i, i + self.memory_length) for i in range(max_episode_steps - self.memory_length + 1)]).long()
         self.memory_indices = torch.cat((repetitions, self.memory_indices))
+        """e.g. the memory window indices tensor looks like this if memory_length = 4 and max_episode_steps = 7:
+        0, 1, 2, 3
+        0, 1, 2, 3
+        0, 1, 2, 3
+        0, 1, 2, 3
+        1, 2, 3, 4
+        2, 3, 4, 5
+        3, 4, 5, 6
+        """
 
     def sample(self, device) -> list:
-        """Samples training data (i.e. experience tuples) using n workers for t worker steps. Before, the memory buffer is initialized."""
+        """Samples training data (i.e. experience tuples) using n workers for t worker steps. But before, the memory buffer is initialized."""
         self.buffer.memories = [self.memory[w] for w in range(self.n_workers)]
         for w in range(self.n_workers):
             self.buffer.memory_index[w] = w
         return super().sample(device)
 
     def previous_model_input_to_buffer(self, t):
-        """Add the model's previous input, as well as the current memory mask, to the buffer."""
+        """Add the model's previous input, the memory mask and the memory window incdices to the buffer."""
         super().previous_model_input_to_buffer(t)
         self.buffer.memory_mask[:, t] = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)]
         self.buffer.memory_indices[:,t] = self.memory_indices[self.worker_current_episode_step]
 
     def forward_model(self, vis_obs, vec_obs, t):
-        """Forwards the model to retrieve the policy and the value of the to be fed observations and memory."""
+        """Forwards the model to retrieve the policy and the value of the to be fed observations and memory window."""
+        # Retrieve the memory window from the entire episode
         sliced_memory = batched_index_select(self.memory, 1, self.buffer.memory_indices[:,t])
+        # Forward
         policy, value, memory, _ = self.model(vis_obs, vec_obs, memory = sliced_memory, mask = self.buffer.memory_mask[:, t],
                                                 memory_indices = self.buffer.memory_indices[:,t])
-        # Set memory
+        # Write the new memory item to the placeholder
         self.memory[self.worker_ids, self.worker_current_episode_step] = memory
         return policy, value
 
@@ -73,17 +99,17 @@ class TransformerSampler(TrajectorySampler):
         # Reset episodic memory
         self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_steps, self.num_mem_layers, self.mem_layer_size, self.device).squeeze(0)
         if t < self.worker_steps - 1:
-            # Save memorie
+            # Save memory
             self.buffer.memories.append(self.memory[id])
             # Save the reference index to the current memory
             self.buffer.memory_index[id, t + 1:] = len(self.buffer.memories) - 1
 
     def get_last_value(self):
-        """Returns the last value of the current observation and episodic memory to compute GAE."""
+        """Returns the last value of the current observation and memory window to compute GAE."""
         start = torch.clip(self.worker_current_episode_step - self.memory_length, 0)
         end = torch.clip(self.worker_current_episode_step, self.memory_length)
         indices = torch.stack([torch.arange(start[b],end[b]) for b in range(self.n_workers)]).long()
-        sliced_memory = batched_index_select(self.memory, 1, indices)
+        sliced_memory = batched_index_select(self.memory, 1, indices) # Retrieve the memory window from the entire episode
         _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
                                         memory = sliced_memory, mask = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)],

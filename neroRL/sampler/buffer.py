@@ -71,9 +71,13 @@ class Buffer():
         self.num_mem_layers = self.transformer_memory["num_layers"]
         self.mem_layer_size = self.transformer_memory["layer_size"]
         # Episodic memory index buffer
+        # Whole episode memories
         self.memories = []
+        # Memory mask used during attention
         self.memory_mask = torch.zeros((self.num_workers, self.worker_steps, self.memory_length), dtype=torch.bool)
+        # Index to select the correct episode memory
         self.memory_index = torch.zeros((self.num_workers, self.worker_steps), dtype=torch.long)
+        # Indices to slice the memory window
         self.memory_indices = torch.zeros((self.num_workers, self.worker_steps, self.memory_length), dtype=torch.long)
 
     def calc_advantages(self, last_value, gamma, lamda):
