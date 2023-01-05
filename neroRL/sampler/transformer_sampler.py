@@ -24,8 +24,8 @@ class TransformerSampler(TrajectorySampler):
         # Set member variables
         self.max_episode_steps = max_episode_steps
         self.memory_length = configs["model"]["transformer"]["memory_length"]
-        self.num_mem_layers = configs["model"]["transformer"]["num_layers"]
-        self.mem_layer_size = configs["model"]["transformer"]["layer_size"]
+        self.num_mem_layers = configs["model"]["transformer"]["num_blocks"]
+        self.mem_layer_size = configs["model"]["transformer"]["embed_dim"]
 
         # The buffer has to store multiple fields for the experience tuples:
         # - Entire episode memories (episodes can be as long as max_episode_steps)

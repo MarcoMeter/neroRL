@@ -251,10 +251,10 @@ class YamlParser:
             # If no transformer dict is available, it is assumed that a transformer-based policy is not used
             # In the other case check for completeness and apply defaults if necessary
             if "transformer" in self._config["model"]:
-                if "num_layers" not in self._config["model"]["transformer"]:
-                    self._config["model"]["transformer"]["num_layers"] = 1
-                if "layer_size" not in self._config["model"]["transformer"]:
-                    self._config["model"]["transformer"]["layer_size"] = 512
+                if "num_blocks" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["num_blocks"] = 1
+                if "embed_dim" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["embed_dim"] = 512
                 if "num_heads" not in self._config["model"]["transformer"]:
                     self._config["model"]["transformer"]["num_heads"] = 8
                 if "memory_length" not in self._config["model"]["transformer"]:
