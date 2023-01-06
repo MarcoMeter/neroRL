@@ -148,7 +148,10 @@ def main():
     study = optuna.create_study(study_name=run_id, sampler=optuna.samplers.TPESampler(), direction="maximize",
                                 storage=storage, load_if_exists=True)
     print("Best params before study")
-    print(study.best_params)
+    try:
+        print(study.best_params)
+    except:
+        print("no study results yet")
     study.optimize(objective, n_trials=num_trials, n_jobs=1)
     print("Study done, best params")
     print(study.best_params)

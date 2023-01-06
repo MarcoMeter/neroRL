@@ -54,6 +54,7 @@ class BaseTrainer():
         self.updates = configs["trainer"]["updates"]
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
+        self.worker_id = worker_id
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.transformer = None if not "transformer" in configs["model"] else configs["model"]["transformer"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
@@ -98,6 +99,8 @@ class BaseTrainer():
         if self.eval and self.eval_interval > 0:
             self.monitor.log("Step 2b: Initializing evaluator")
             self.evaluator = Evaluator(configs, configs["model"], worker_id, self.visual_observation_space, self.vector_observation_space)
+        else:
+            self.evaluator = None
 
         # Init model
         self.monitor.log("Step 3: Creating model")
@@ -241,6 +244,8 @@ class BaseTrainer():
         return episode_result
 
     def evaluate(self):
+        if self.evaluator is None:
+            self.evaluator = Evaluator(self.configs, self.configs["model"], self.worker_id, self.visual_observation_space, self.vector_observation_space)
         eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
         evaluation_result = self._process_episode_info(eval_episode_info)
         self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
