@@ -133,22 +133,20 @@ def main():
                 # eval?
                 if use_eval:
                     if update >= start_eval:
-                        if update + 1 % eval_interval == 0:
+                        if update % eval_interval == 0 or update + 1 == num_updates:
                             eval_duration, evaluation_result = trainer.evaluate()
-                            trainer.monitor.log("EVAL: sec={:3} reward={:.2f} length={:.1f}".format(
-                                eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
                             # prune upper threshold based on evaluation score
                             if episode_result["reward_mean"] >= upper_threshold:
                                 results.append(episode_result["reward_mean"])
                                 total_steps.append(update)
                                 break
-            else:
-                # prune upper threshold based on training score
-                if episode_result["reward_mean"] >= upper_threshold:
-                    results.append(episode_result["reward_mean"])
-                    total_steps.append(update)
-                    print("Trial succeeded by reaching the threshold earlier.")
-                    break
+                else:
+                    # prune upper threshold based on training score
+                    if episode_result["reward_mean"] >= upper_threshold:
+                        results.append(episode_result["reward_mean"])
+                        total_steps.append(update)
+                        print("Trial succeeded by reaching the threshold earlier.")
+                        break
 
                 # TODO prune entire trial based on lower threshold
 

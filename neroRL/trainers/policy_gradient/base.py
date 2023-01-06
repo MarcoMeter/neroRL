@@ -75,10 +75,10 @@ class BaseTrainer():
         self.monitor.log("Step 2: Creating dummy environment")
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
         vis_obs, vec_obs = self.dummy_env.reset(configs["environment"]["reset_params"])
-        max_episode_steps = self.dummy_env.max_episode_steps
+        self.max_episode_steps = self.dummy_env.max_episode_steps
         if self.transformer is not None:
             # Add max episode steps to the transformer config
-            configs["model"]["transformer"]["max_episode_steps"] = max_episode_steps
+            configs["model"]["transformer"]["max_episode_steps"] = self.max_episode_steps
         self.visual_observation_space = self.dummy_env.visual_observation_space
         self.vector_observation_space = self.dummy_env.vector_observation_space
         if isinstance(self.dummy_env.action_space, spaces.Discrete):
@@ -91,14 +91,14 @@ class BaseTrainer():
         self.monitor.log("\t" + "Vector Observation Space: " + str(self.vector_observation_space))
         self.monitor.log("\t" + "Action Space Shape: " + str(self.action_space_shape))
         self.monitor.log("\t" + "Action Names: " + str(self.dummy_env.action_names))
-        self.monitor.log("\t" + "Max Episode Steps: " + str(max_episode_steps))
+        self.monitor.log("\t" + "Max Episode Steps: " + str(self.max_episode_steps))
 
         # Prepare evaluator if configured
         self.eval = configs["evaluation"]["evaluate"]
         self.eval_interval = configs["evaluation"]["interval"]
         if self.eval and self.eval_interval > 0:
             self.monitor.log("Step 2b: Initializing evaluator")
-            self.evaluator = Evaluator(configs, configs["model"], worker_id, self.visual_observation_space, self.vector_observation_space)
+            self.evaluator = Evaluator(configs, configs["model"], worker_id, self.visual_observation_space, self.vector_observation_space, self.max_episode_steps)
         else:
             self.evaluator = None
 
@@ -122,7 +122,7 @@ class BaseTrainer():
         # Instantiate sampler for transformer policoes
         elif self.transformer is not None:
             self.sampler = TransformerSampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
-                                        self.action_space_shape, max_episode_steps, self.model, self.device)
+                                        self.action_space_shape, self.max_episode_steps, self.model, self.device)
 
         # List that stores the most recent episodes for training statistics
         self.episode_info = deque(maxlen=100)
@@ -248,7 +248,7 @@ class BaseTrainer():
 
     def evaluate(self):
         if self.evaluator is None:
-            self.evaluator = Evaluator(self.configs, self.configs["model"], self.worker_id, self.visual_observation_space, self.vector_observation_space)
+            self.evaluator = Evaluator(self.configs, self.configs["model"], self.worker_id, self.visual_observation_space, self.vector_observation_space, self.max_episode_steps)
         eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
         evaluation_result = self._process_episode_info(eval_episode_info)
         self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
