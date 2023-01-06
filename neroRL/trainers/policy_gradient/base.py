@@ -354,15 +354,9 @@ class BaseTrainer():
 
     def close(self):
         """Closes the environment and destroys the environment workers"""
-        self.monitor.log("Terminate: Closing dummy ennvironment . . .")
+        self.monitor.log("Terminate: Closing dummy environment . . .")
         try:
             self.dummy_env.close()
-        except:
-            pass
-
-        self.monitor.log("Terminate: Closing Monitor . . .")
-        try:
-            self.monitor.close()
         except:
             pass
 
@@ -373,12 +367,14 @@ class BaseTrainer():
             pass
 
         try:
-            if self.eval:
+            if self.evaluator is not None:
                 self.monitor.log("Terminate: Closing evaluator")
                 try:
                     self.evaluator.close()
+                    self.evaluator = None
                 except:
-                        pass
+                    self.evaluator = None
+                    pass
         except:
             pass
         
@@ -392,6 +388,13 @@ class BaseTrainer():
                     pass
         except:
             pass
+
+        self.monitor.log("Terminate: Closing Monitor . . .")
+        try:
+            self.monitor.close()
+        except:
+            pass
+
 
     def _handler(self, signal_received, frame):
         """Invoked by the Ctrl-C event, the trainer is being closed and the python program is being exited."""

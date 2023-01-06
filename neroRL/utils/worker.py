@@ -60,3 +60,10 @@ class Worker:
         self.child, parent = multiprocessing.Pipe()
         self.process = multiprocessing.Process(target=worker_process, args=(parent, env_seed, env_config, worker_id, record_video))
         self.process.start()
+
+    def close(self):
+        self.child.send(("close", None))
+        self.child.recv()
+        self.process.join()
+        self.process.terminate()
+

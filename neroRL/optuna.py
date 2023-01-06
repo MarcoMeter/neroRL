@@ -125,8 +125,7 @@ def main():
                     **decayed_hyperparameters,
                     "advantage_mean": (Tag.EPISODE, torch.mean(trainer.sampler.buffer.advantages)),
                     "value_mean": (Tag.EPISODE, torch.mean(trainer.sampler.buffer.values)),
-                    "sequence_length": (Tag.OTHER, trainer.sampler.buffer.actual_sequence_length),
-                    }
+                    "sequence_length": (Tag.OTHER, trainer.sampler.buffer.actual_sequence_length),}
                     # write training statistics to tensorboard
                     trainer.monitor.write_training_summary(update, training_stats, episode_result)
 
@@ -139,13 +138,13 @@ def main():
                             if episode_result["reward_mean"] >= upper_threshold:
                                 results.append(episode_result["reward_mean"])
                                 total_steps.append(update)
+                                trainer.monitor.log("Trial succeeded by reaching the threshold earlier.")
                                 break
                 else:
                     # prune upper threshold based on training score
                     if episode_result["reward_mean"] >= upper_threshold:
                         results.append(episode_result["reward_mean"])
                         total_steps.append(update)
-                        print("Trial succeeded by reaching the threshold earlier.")
                         break
 
                 # TODO prune entire trial based on lower threshold
