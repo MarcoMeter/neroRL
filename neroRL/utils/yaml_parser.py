@@ -338,20 +338,6 @@ class OptunaYamlParser:
         for data in yaml_args:
             self._config = dict(data)
 
-        # Allowed keys
-        for key in self._config.keys():
-            assert key in ["categorical", "uniform", "loguniform"], "Unsupported search type (" + key + ") identified in config."
-
-        # Check for duplicate keys
-        # Gather all sub keys
-        all_keys = []
-        for k, v in self._config.items():
-            self._config[k] = dict(v)
-            all_keys.append(list(self._config[k].keys()))
-        # Flatten key list
-        all_keys = [item for sublist in all_keys for item in sublist]
-        assert len(all_keys) == len(set(all_keys)), "The provided tune config has duplicate entries."
-
     def get_config(self):
         """ 
         Returns:
