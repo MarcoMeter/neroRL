@@ -151,7 +151,46 @@ class BaseTrainer():
 
         # Training loop
         for update in range(self.resume_at, self.updates):
-            episode_result = self.step(update)
+            episode_result, training_stats, formatted_string, update_duration, decayed_hyperparameters = self.step(update)
+
+            # Save checkpoint (update, model, optimizer, configs)
+            if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
+                self._save_checkpoint(update)
+
+            # 7.: Write training statistics to console
+            episode_result = self._process_episode_info(self.episode_info)
+            if episode_result:
+                self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
+                    (" value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}")).format(
+                    update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
+                    episode_result["length_mean"], episode_result["length_std"], torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
+                    torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
+                    " " + formatted_string)
+            else:
+                self.monitor.log("{:4} sec={:2} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
+                    update, update_duration, torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
+                    torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
+                    " " + formatted_string)
+
+            # 8.: Evaluate model
+            if self.eval:
+                if update % self.eval_interval == 0 or update == (self.updates - 1):
+                    eval_duration, evaluation_result = self.eval()
+                    self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
+                        eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
+                    self.monitor.write_eval_summary(update, evaluation_result)
+            
+            # Add some more training statistics which should be monitored
+            training_stats = {
+            **training_stats,
+            **decayed_hyperparameters,
+            "advantage_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.advantages)),
+            "value_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.values)),
+            "sequence_length": (Tag.OTHER, self.sampler.buffer.actual_sequence_length),
+            }
+
+            # Write training statistics to tensorboard
+            self.monitor.write_training_summary(update, training_stats, episode_result)
 
         return episode_result["reward_mean"]
 
@@ -202,46 +241,10 @@ class BaseTrainer():
         time_end = time.time()
         update_duration = int(time_end - time_start)
 
-        # Save checkpoint (update, model, optimizer, configs)
-        if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
-            self._save_checkpoint(update)
-
-        # 7.: Write training statistics to console
+        # 7.: Process training stats to print to console and write summaries
         episode_result = self._process_episode_info(self.episode_info)
-        if episode_result:
-            self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
-                (" value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}")).format(
-                update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
-                episode_result["length_mean"], episode_result["length_std"], torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
-                torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
-                " " + formatted_string)
-        else:
-            self.monitor.log("{:4} sec={:2} value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}".format(
-                update, update_duration, torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
-                torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
-                " " + formatted_string)
 
-        # 8.: Evaluate model
-        if self.eval:
-            if update % self.eval_interval == 0 or update == (self.updates - 1):
-                eval_duration, evaluation_result = self.eval()
-                self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
-                    eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
-                self.monitor.write_eval_summary(update, evaluation_result)
-        
-        # Add some more training statistics which should be monitored
-        training_stats = {
-        **training_stats,
-        **decayed_hyperparameters,
-        "advantage_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.advantages)),
-        "value_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.values)),
-        "sequence_length": (Tag.OTHER, self.sampler.buffer.actual_sequence_length),
-        }
-
-        # Write training statistics to tensorboard
-        self.monitor.write_training_summary(update, training_stats, episode_result)
-
-        return episode_result
+        return episode_result, training_stats, formatted_string, update_duration, decayed_hyperparameters
 
     def evaluate(self):
         if self.evaluator is None:
