@@ -45,6 +45,34 @@ def init_transformer_memory(trxl_conf, model, device):
     memory_indices = torch.cat((repetitions, memory_indices))
     return memory, memory_mask, memory_indices
 
+class RefreshModelWrapper:
+    def __init__(self, model, mask, memory_length, trxl_conf, device) -> None:
+        self.vis_obs = []
+        self.vec_obs = []
+        self.memory_length = memory_length
+        self.memory_mask = mask
+        self.trxl_conf = trxl_conf
+        self.model = model
+        self.device = device
+        
+    def add_obs(self, vis_obs, vec_obs):
+        if len(self.vis_obs) == self.memory_length:
+            self.vis_obs.pop(0)
+            self.vec_obs.pop(0)
+        self.vis_obs.append(vis_obs)
+        self.vec_obs.append(vec_obs)
+        
+    def forward(self, vis_obs, vec_obs, in_memory, mask, indices):
+        self.add_obs(vis_obs, vec_obs)
+        in_memory = self.model.init_transformer_memory(1, self.memory_length, self.trxl_conf["num_blocks"], self.trxl_conf["embed_dim"], self.device)
+        n = len(self.vis_obs)
+        for i in range(n):
+            mask = self.memory_mask[i].unsqueeze(0)
+            vis_obs, vec_obs = self.vis_obs[i], self.vec_obs[i]
+            policy, value, new_memory, _ = self.model(vis_obs, vec_obs, in_memory, mask, indices)
+            in_memory[:, i] = new_memory
+        return policy, value, new_memory, None
+
 def main():
     # Docopt command line arguments
     _USAGE = """
@@ -156,6 +184,9 @@ def main():
         # Play episode
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
 
+        # Refresh the memory of the model
+        model = RefreshModelWrapper(model, memory_mask, memory_length, model_config["transformer"], device)
+
         # Store data for video recording
         probs, entropies, values, actions = [], [], [], []
 
@@ -174,7 +205,7 @@ def main():
                 else:
                     in_memory = memory
 
-                policy, value, new_memory, _ = model(vis_obs, vec_obs, in_memory, mask, indices)
+                policy, value, new_memory, _ = model.forward(vis_obs, vec_obs, in_memory, mask, indices)
                 
                 # Set memory if used
                 if "recurrence" in model_config:

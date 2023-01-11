@@ -238,7 +238,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # return (actor_hxs, actor_cxs), (critic_hxs, critic_cxs)
         return actor_recurrent_cell, critic_recurrent_cell
 
-    def init_transformer_memory(self, num_sequences, memory_length, num_layers, layer_size, deivce):
+    def init_transformer_memory(self, num_sequences, memory_length, num_layers, layer_size, device):
         """Initializes the transformer-based episodic memory as zeros.
 
         Arguments:
