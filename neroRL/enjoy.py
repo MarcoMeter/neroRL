@@ -182,9 +182,7 @@ def main():
                 if "transformer" in model_config:
                     memory[:, t] = new_memory
 
-                _actions = []
-                _probs = []
-                entropy = []
+                _actions, _probs, entropy = [], [], []
                 # Sample action
                 for action_branch in policy:
                     action = action_branch.sample()
