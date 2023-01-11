@@ -24,14 +24,14 @@ model:
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
-  recurrence:
-    layer_type: "gru"
-    num_layers: 1
-    sequence_length: 16
-    hidden_state_size: 128
-    hidden_state_init: "zero"
-    reset_hidden_state: False
-    residual: False
+  transformer:
+    num_blocks: 3
+    embed_dim: 384
+    num_heads: 8
+    memory_length: 32
+    positional_encoding: "" # options: "" "relative" "learned"
+    attention_norm: "post" # options: "" "pre" "pre_qkv" "post"
+    projection_norm: "post" # options: "" "pre" "post"
 
 evaluation:
   evaluate: False
