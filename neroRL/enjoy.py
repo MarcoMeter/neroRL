@@ -157,10 +157,7 @@ def main():
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
 
         # Store data for video recording
-        probs = []
-        entropies = []
-        values = []
-        actions = []
+        probs, entropies, values, actions = [], [], [], []
 
         # Play one episode
         with torch.no_grad():
