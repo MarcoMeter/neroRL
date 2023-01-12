@@ -1,5 +1,6 @@
+import torch
 class TruncateMemory:
-    def __init__(self, model, mask, model_config, device):
+    def __init__(self, model, model_config, device):
         """ Truncates the memory of a recurrent or transformer model to the current memory length.
 
         Arguments:
@@ -9,10 +10,10 @@ class TruncateMemory:
             device (_type_): The device to be used.
         """
         self.obs = []
-        self.memory_mask = mask
         if "transformer" in model_config:
             self.trxl_config = model_config["transformer"]
             self.memory_length = self.trxl_config["memory_length"]
+            self.memory_mask = torch.tril(torch.ones((self.trxl_conf["memory_length"], self.trxl_conf["memory_length"])), diagonal=-1)
         else:
             self.trxl_config = None
             self.memory_length = model_config["recurrence"]["sequence_length"]
@@ -20,6 +21,23 @@ class TruncateMemory:
         self.model = model
         self.device = device
         
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)
+    
+    def init_transformer_memory(self, *args, **kwargs):
+        return self.model.init_transformer_memory(*args, **kwargs)
+    
+    def init_recurrent_cell_states(self, *args, **kwargs):
+        return self.model.init_recurrent_cell_states(*args, **kwargs)
+    
+    def init_recurrent_cell(self, recurrence_config, model, device):
+        hxs, cxs = model.init_recurrent_cell_states(1, device)
+        if recurrence_config["layer_type"] == "gru":
+            recurrent_cell = hxs
+        elif recurrence_config["layer_type"] == "lstm":
+            recurrent_cell = (hxs, cxs)
+        return recurrent_cell
+    
     def add_obs(self, vis_obs, vec_obs):
         """ Adds an observation to the memory.
 
@@ -32,16 +50,9 @@ class TruncateMemory:
             self.obs.pop(0)
         self.obs.append((vis_obs, vec_obs))
         
-    def __call__(self, *args, **kwargs):
-        return self.forward(*args, **kwargs)
-    
-    def init_recurrent_cell(self, recurrence_config, model, device):
-        hxs, cxs = model.init_recurrent_cell_states(1, device)
-        if recurrence_config["layer_type"] == "gru":
-            recurrent_cell = hxs
-        elif recurrence_config["layer_type"] == "lstm":
-            recurrent_cell = (hxs, cxs)
-        return recurrent_cell
+    def reset(self):
+        """ Resets the memory. """
+        self.obs = []
         
     def forward(self, vis_obs, vec_obs, _in_memory, _mask, indices):
         """ Truncates the memory to the current memory length.

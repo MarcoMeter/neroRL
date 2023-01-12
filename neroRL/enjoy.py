@@ -63,7 +63,7 @@ def main():
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
         --generate_website         Specifies wether a website shall be generated. [default: False]
-        --truncate_memory=<n>      Specifies wether the memory should be truncated. [default: False]
+        --truncate_memory          Specifies wether the memory should be truncated. [default: False]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                  # defaults to False
@@ -75,7 +75,7 @@ def main():
     video_path = options["--video"]                     # defaults to "video"
     frame_rate = options["--framerate"]                 # defaults to 6
     generate_website = options["--generate_website"]    # defaults to False
-    truncated_memory = options["--truncate_memory"]     # defaults to False
+    truncate_memory = options["--truncate_memory"]     # defaults to False
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -136,6 +136,10 @@ def main():
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
 
+    # Truncates the memory of the model
+    if truncate_memory:
+        model = TruncateMemory(model, model_config, device)
+        
     # Run all desired episodes
     # Note: Only one episode is run upon generating a result website or rendering a video
     for _ in range(num_episodes):
@@ -155,13 +159,11 @@ def main():
         if "transformer" in model_config:
             memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model, device)
             memory_length = model_config["transformer"]["memory_length"]
+        if truncate_memory:
+            model.reset()
 
         # Play episode
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
-
-        # Truncates the memory of the model
-        if truncated_memory:
-            model = TruncateMemory(model, memory_mask, model_config, device)
 
         # Store data for video recording
         probs, entropies, values, actions = [], [], [], []

@@ -16,6 +16,7 @@ from neroRL.utils.utils import get_environment_specs
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
 from neroRL.nn.actor_critic import create_actor_critic_model
+from neroRL.nn.wrapper import TruncateMemory
 
 # Setup logger
 logging.basicConfig(level = logging.INFO, handlers=[])
