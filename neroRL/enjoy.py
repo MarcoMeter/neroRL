@@ -46,15 +46,21 @@ def init_transformer_memory(trxl_conf, model, device):
     return memory, memory_mask, memory_indices
 
 class TruncateMemory:
-    def __init__(self, model, mask, trxl_conf, device) -> None:
+    def __init__(self, model, mask, model_config, device) -> None:
         self.obs = []
         self.memory_mask = mask
-        self.trxl_conf = trxl_conf
+        if "transformer" in model_config:
+            self.trxl_config = model_config["transformer"]
+            self.memory_length = self.trxl_config["memory_length"]
+        else:
+            self.trxl_config = None
+            self.memory_length = model_config["recurrence"]["sequence_length"]
+        self.model_config = model_config
         self.model = model
         self.device = device
         
     def add_obs(self, vis_obs, vec_obs):
-        if len(self.obs) == self.trxl_conf["memory_length"]:
+        if len(self.obs) == self.memory_length:
             self.obs.pop(0)
         self.obs.append((vis_obs, vec_obs))
         
@@ -63,13 +69,20 @@ class TruncateMemory:
         
     def forward(self, vis_obs, vec_obs, _in_memory, _mask, indices):
         self.add_obs(vis_obs, vec_obs)
-        in_memory = self.model.init_transformer_memory(1, self.trxl_conf["memory_length"], self.trxl_conf["num_blocks"], self.trxl_conf["embed_dim"], self.device)
+        if "recurrence" in self.model_config:
+            in_memory = init_recurrent_cell(self.model_config["recurrence"], self.model, self.device)
+        if "transformer" in self.model_config:
+            in_memory = self.model.init_transformer_memory(1, self.trxl_config["memory_length"], self.trxl_config["num_blocks"], self.trxl_config["embed_dim"], self.device)
         n = len(self.obs)
         for i in range(n):
-            mask = self.memory_mask[i].unsqueeze(0)
             vis_obs, vec_obs = self.obs[i]
-            policy, value, new_memory, _ = self.model(vis_obs, vec_obs, in_memory, mask, indices)
-            in_memory[:, i] = new_memory
+            if "recurrence" in self.model_config:
+                policy, value, new_memory, _ = self.model(vis_obs, vec_obs, in_memory, None)
+                in_memory = new_memory
+            if "transformer" in self.model_config:
+                mask = self.memory_mask[i].unsqueeze(0)
+                policy, value, new_memory, _ = self.model(vis_obs, vec_obs, in_memory, mask, indices)
+                in_memory[:, i] = new_memory
         return policy, value, new_memory, None
 
 def main():
@@ -184,7 +197,7 @@ def main():
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
 
         # Truncates the memory of the model
-        model = TruncateMemory(model, memory_mask, model_config["transformer"], device)
+        model = TruncateMemory(model, memory_mask, model_config, device)
 
         # Store data for video recording
         probs, entropies, values, actions = [], [], [], []
