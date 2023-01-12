@@ -338,12 +338,13 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
     def forward(self, vis_obs, vec_obs, memory = None, mask = None, memory_indices = None, sequence_length = 1):
         """Forward pass of the model
-
+        
+        Arguments:
             vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
             vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
             memory {torch.tensor} -- Reucrrent cell state or episodic memory (None if not available)
             mask {torch.tensor} -- Memory mask (None if the model is not transformer-based)
-            memory_indices {torch.tesnor} -- Indices to select the positional encoding that mathes the memory window (None of the model is not transformer-based)
+            memory_indices {torch.tesnor} -- Indices to select the positional encoding that matches the memory window (None of the model is not transformer-based)
             sequence_length {int} -- Length of the fed sequences
 
         Returns:

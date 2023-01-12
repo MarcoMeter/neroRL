@@ -46,7 +46,15 @@ def init_transformer_memory(trxl_conf, model, device):
     return memory, memory_mask, memory_indices
 
 class TruncateMemory:
-    def __init__(self, model, mask, model_config, device) -> None:
+    def __init__(self, model, mask, model_config, device):
+        """ Truncates the memory of a recurrent or transformer model to the current memory length.
+
+        Arguments:
+            model {ActorCriticSharedWeights}: The model to be truncated. 
+            mask {torch.tensor} -- Memory mask (None if the model is not transformer-based)
+            model_config {dict}: Model config
+            device (_type_): The device to be used.
+        """
         self.obs = []
         self.memory_mask = mask
         if "transformer" in model_config:
@@ -60,6 +68,12 @@ class TruncateMemory:
         self.device = device
         
     def add_obs(self, vis_obs, vec_obs):
+        """ Adds an observation to the memory.
+
+        Arguments:
+            vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
+            vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
+        """
         if len(self.obs) == self.memory_length:
             self.obs.pop(0)
         self.obs.append((vis_obs, vec_obs))
@@ -68,6 +82,15 @@ class TruncateMemory:
         return self.forward(*args, **kwargs)
         
     def forward(self, vis_obs, vec_obs, _in_memory, _mask, indices):
+        """ Truncates the memory to the current memory length.
+        
+        Arguments:
+            vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
+            vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
+            _in_memory {torch.tensor} -- Not used
+            _mask {torch.tensor} -- Not used
+            indices {torch.tensor} -- Indices to select the positional encoding that matches the memory window (None of the model is not transformer-based)         
+        """
         self.add_obs(vis_obs, vec_obs)
         if "recurrence" in self.model_config:
             in_memory = init_recurrent_cell(self.model_config["recurrence"], self.model, self.device)
