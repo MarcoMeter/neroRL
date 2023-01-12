@@ -37,13 +37,15 @@ def main():
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
+        --truncate_memory=<n>      Specifies wether the memory should be truncated. [default: False]
     """
     options = docopt(_USAGE)
-    config_path = options["--config"]           # defaults to ""
-    checkpoint_path = options["--checkpoint"]   # defaults to ""
-    untrained = options["--untrained"]  	    # defaults to False
-    worker_id = int(options["--worker-id"])     # defaults to 2
-    video_path = options["--video"]             # Defaults to "./video"
+    config_path = options["--config"]                   # defaults to ""
+    checkpoint_path = options["--checkpoint"]           # defaults to ""
+    untrained = options["--untrained"]  	            # defaults to False
+    worker_id = int(options["--worker-id"])             # defaults to 2
+    video_path = options["--video"]                     # Defaults to "./video"
+    truncated_memory = options["--truncate_memory"]     # defaults to False
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -96,7 +98,7 @@ def main():
     logger.info("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
     evaluator = Evaluator(configs, model_config, worker_id, visual_observation_space, vector_observation_space,
                             max_episode_steps, video_path, record_video)
-
+   
     # Evaluate
     logger.info("Step 4: Run evaluation . . .")
     eval_duration, raw_episode_results = evaluator.evaluate(model, device)
