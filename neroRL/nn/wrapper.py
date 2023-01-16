@@ -1,6 +1,6 @@
 import torch
 class TruncateMemory:
-    def __init__(self, model, model_config, device):
+    def __init__(self, model, model_config, memory_length, device):
         """ Truncates the memory of a recurrent or transformer model to the current memory length.
 
         Arguments:
@@ -12,11 +12,10 @@ class TruncateMemory:
         self.obs = []
         if "transformer" in model_config:
             self.trxl_config = model_config["transformer"]
-            self.memory_length = self.trxl_config["memory_length"]
-            self.memory_mask = torch.tril(torch.ones((self.trxl_conf["memory_length"], self.trxl_conf["memory_length"])), diagonal=-1)
+            self.memory_mask = torch.tril(torch.ones((self.trxl_config["memory_length"], self.trxl_config["memory_length"])), diagonal=-1)
         else:
             self.trxl_config = None
-            self.memory_length = model_config["recurrence"]["sequence_length"]
+        self.memory_length = memory_length
         self.model_config = model_config
         self.model = model
         self.device = device
@@ -75,7 +74,7 @@ class TruncateMemory:
         if "recurrence" in self.model_config:
             in_memory = self.init_recurrent_cell(self.model_config["recurrence"], self.model, self.device)
         if "transformer" in self.model_config:
-            in_memory = self.model.init_transformer_memory(1, self.trxl_config["memory_length"], self.trxl_config["num_blocks"], self.trxl_config["embed_dim"], self.device)
+            in_memory = self.model.init_transformer_memory(1, self.memory_length, self.trxl_config["num_blocks"], self.trxl_config["embed_dim"], self.device)
         # Recompute the policy, value and memory with the truncated episode
         n = len(self.obs)
         for i in range(n):

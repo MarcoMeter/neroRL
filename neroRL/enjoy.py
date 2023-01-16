@@ -64,6 +64,7 @@ def main():
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
         --generate_website         Specifies wether a website shall be generated. [default: False]
         --truncate_memory          Specifies wether the memory should be truncated. [default: False]
+        --memory_length=<n>        Specifies the memory length. [default: 4]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                  # defaults to False
@@ -76,6 +77,7 @@ def main():
     frame_rate = options["--framerate"]                 # defaults to 6
     generate_website = options["--generate_website"]    # defaults to False
     truncate_memory = options["--truncate_memory"]     # defaults to False
+    memory_length = int(options["--memory_length"])     # defaults to 4
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -138,7 +140,7 @@ def main():
 
     # Truncates the memory of the model
     if truncate_memory:
-        model = TruncateMemory(model, model_config, device)
+        model = TruncateMemory(model, model_config, memory_length, device)
         
     # Run all desired episodes
     # Note: Only one episode is run upon generating a result website or rendering a video
