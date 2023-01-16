@@ -74,7 +74,7 @@ class TruncateMemory:
         if "recurrence" in self.model_config:
             in_memory = self.init_recurrent_cell(self.model_config["recurrence"], self.model, self.device)
         if "transformer" in self.model_config:
-            in_memory = self.model.init_transformer_memory(1, self.memory_length, self.trxl_config["num_blocks"], self.trxl_config["embed_dim"], self.device)
+            in_memory = self.model.init_transformer_memory(1, self.trxl_config["memory_length"], self.trxl_config["num_blocks"], self.trxl_config["embed_dim"], self.device)
         # Recompute the policy, value and memory with the truncated episode
         n = len(self.obs)
         for i in range(n):
