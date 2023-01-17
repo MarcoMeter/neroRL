@@ -1,0 +1,23 @@
+start_seed: 0           # start seed
+num_seeds: 3            # number of seeds (i.e. repetitions) to run the training for
+upper_threshold: 0.49   # prune training if threshold is reached (positive outcome, no need to train further)
+num_updates: 1000       # number of training steps (entire PPO cycles)
+use_eval: True          # whether to measure the training or evaluation score
+start_eval: 400         # when to start evaluating
+eval_interval: 100      # time intervals to conduct the evaluation
+lower_threshold: [0.2]  # prune the entire trial of the training is not above the threshold after the specified steps (negative outcome)
+lower_steps: [300]
+summary_frequency: 50   # Intervals for logging and writing the tensorboard summary
+
+categorical:
+  sequence_length: [-1, 32, 64]
+  layer_type: ["gru", "lstm"]
+
+uniform:
+  value_coefficient: [0.1, 1.0]
+  max_grad_norm: [0.1, 1.0]
+  clip_range: [0.1, 0.35]
+
+loguniform:
+  learning_rate: [1.0e-4, 3.0e-3]
+  beta: [0.00001, 0.01]
