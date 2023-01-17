@@ -104,7 +104,7 @@ class TransformerBlock(Module):
             # In the case of just "pre" LayerNorm, only the query is considered
             # Use "pre_qkv" to also apply LayerNorm to keys and values
             self.norm_kv = nn.LayerNorm(embed_dim)
-        if attention_norm == "pre" or attention_norm == "post":
+        if "pre" in attention_norm or attention_norm == "post":
             self.norm1 = nn.LayerNorm(embed_dim)
         if projection_norm == "pre" or projection_norm == "post":
             self.norm2 = nn.LayerNorm(embed_dim)

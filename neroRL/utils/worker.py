@@ -42,8 +42,8 @@ def worker_process(remote: multiprocessing.connection.Connection, env_seed, env_
                 remote.send(env.get_episode_trajectory)
             else:
                 raise NotImplementedError
-        except:
-            break
+        except Exception as e:
+            raise WorkerException(e)
 
 class Worker:
     """A worker that runs one thread and controls its own environment instance."""
@@ -67,3 +67,16 @@ class Worker:
         self.process.join()
         self.process.terminate()
 
+
+import tblib.pickling_support
+tblib.pickling_support.install()
+import sys
+
+class WorkerException(Exception):
+    def __init__(self, ee):
+        self.ee = ee
+        __,  __, self.tb = sys.exc_info()
+        super(WorkerException, self).__init__(str(ee))
+
+    def re_raise(self):
+        raise (self.ee, None, self.tb)
