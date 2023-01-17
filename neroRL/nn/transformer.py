@@ -83,7 +83,7 @@ class MultiHeadAttention(nn.Module):
         return out, attention
         
 class TransformerBlock(Module):
-    def __init__(self, embed_dim, num_heads, attention_norm, projection_norm):
+    def __init__(self, embed_dim, num_heads, layer_norm):
         """Transformer Block made of LayerNorms, Multi Head Attention and one fully connected feed forward projection.
 
         Arguments:
@@ -98,16 +98,11 @@ class TransformerBlock(Module):
         self.attention = MultiHeadAttention(embed_dim, num_heads)
 
         # LayerNorms
-        self.attention_norm = attention_norm
-        self.projection_norm = projection_norm
-        if "qkv" in attention_norm:
-            # In the case of just "pre" LayerNorm, only the query is considered
-            # Use "pre_qkv" to also apply LayerNorm to keys and values
+        self.layer_norm = layer_norm
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.norm2 = nn.LayerNorm(embed_dim)
+        if layer_norm == "pre":
             self.norm_kv = nn.LayerNorm(embed_dim)
-        if "pre" in attention_norm or attention_norm == "post":
-            self.norm1 = nn.LayerNorm(embed_dim)
-        if projection_norm == "pre" or projection_norm == "post":
-            self.norm2 = nn.LayerNorm(embed_dim)
 
         # Feed forward projection
         self.fc = nn.Sequential(nn.Linear(embed_dim, embed_dim), nn.ReLU())
@@ -125,12 +120,10 @@ class TransformerBlock(Module):
             torch.tensor -- Attention weights
         """
         # Apply pre-layer norm across the attention input
-        if "pre" in self.attention_norm:
+        if self.layer_norm == "pre":
             query_ = self.norm1(query)
-            # Apply layer norm to value and key as well?
-            if "qkv" in self.attention_norm:
-                value = self.norm_kv(value)
-                key = value
+            value = self.norm_kv(value)
+            key = value
         else:
             query_ = query
 
@@ -139,12 +132,12 @@ class TransformerBlock(Module):
 
         # Add skip connection and run through normalization
         h = attention + query
-        # Apply post-layer norm across the attention output (i.e. attention input)
-        if self.attention_norm == "post":
+        # Apply post-layer norm across the attention output (i.e. projection input)
+        if self.layer_norm == "post":
             h = self.norm1(h)
 
         # Apply pre-layer norm across the projection input (i.e. attention output)
-        if self.projection_norm == "pre":
+        if self.layer_norm == "pre":
             h_ = self.norm2(h)
         else:
             h_ = h
@@ -155,7 +148,7 @@ class TransformerBlock(Module):
         # Add skip connection and run through normalization
         out = forward + h
         # Apply post-layer norm across the projection output
-        if self.projection_norm == "post":
+        if self.layer_norm == "post":
             out = self.norm2(out)
         return out, attention_weights
 
@@ -205,7 +198,7 @@ class Transformer(nn.Module):
         
         # Instantiate transformer blocks
         self.transformer_blocks = nn.ModuleList([
-            TransformerBlock(self.embed_dim, self.num_heads, config["attention_norm"], config["projection_norm"]) 
+            TransformerBlock(self.embed_dim, self.num_heads, config["layer_norm"]) 
             for _ in range(self.num_blocks)])
 
     def forward(self, h, memories, mask, memory_indices):
