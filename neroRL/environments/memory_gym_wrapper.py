@@ -84,7 +84,7 @@ class MemoryGymWrapper(Env):
         if isinstance(self.action_space, spaces.MultiDiscrete):
             return [["no-op", "left", "right"], ["no-op", "up", "down"]]
         else:
-            return ["no-op", "rotate left", "rotate right", "move forward"]
+            return [["no-op", "rotate left", "rotate right", "move forward"]]
 
     @property
     def get_episode_trajectory(self):
