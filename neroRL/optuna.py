@@ -78,10 +78,6 @@ def main():
                 for k, v in tune_config["loguniform"].items():
                     suggestions[k] = trial.suggest_float(k, *v, log=True)
 
-        print("Launching trial " + str(trial.number))
-        print("Trial params:")
-        print(suggestions)
-
         # Create the training config for this trial using the sampled hyperparameters
         trial_config = build_trial_config(suggestions, train_config)
 
@@ -91,15 +87,18 @@ def main():
 
         # Run all training repetitions using fixed seeds
         for seed in range(start_seed, start_seed + num_seeds):
+            new_run_id = run_id + "_" + str(trial.number) + "_" + str(seed)
             # Setup trainer
             if trial_config["trainer"]["algorithm"] == "PPO":
-                trainer = PPOTrainer(trial_config, worker_id, run_id, out_path, seed)
+                trainer = PPOTrainer(trial_config, worker_id, new_run_id, out_path, seed)
             elif trial_config["trainer"]["algorithm"] == "DecoupledPPO":
                 trainer = DecoupledPPOTrainer(trial_config, worker_id, run_id, out_path, seed)
             else:
                 assert(False), "Unsupported algorithm specified"
 
-            trainer.monitor.log("Run: " + str(seed - start_seed + 1) + "/" + str(num_seeds))
+            trainer.monitor.log("Run trial " + str(trial.number) + ": " + str(seed - start_seed + 1) + "/" + str(num_seeds))
+            trainer.monitor.log("Trial sugestions:")
+            trainer.monitor.log(suggestions)
 
             # Run single training
             for update in range(num_updates):
@@ -140,16 +139,15 @@ def main():
                                 total_steps.append(update)
                                 trainer.monitor.log("Trial succeeded by reaching the threshold earlier.")
                                 break
-                else:
-                    # prune upper threshold based on training score
-                    if episode_result["reward_mean"] >= upper_threshold:
-                        results.append(episode_result["reward_mean"])
-                        total_steps.append(update)
-                        break
 
                 # TODO prune entire trial based on lower threshold
 
-            # Save model and clean up training run
+            # Clean up training run
+            # Add the last result if no results made it to the list yet
+            if not results:
+                results.append(episode_result["reward_mean"])
+                total_steps.append(update)
+            # Save model
             trainer.close()
             del trainer
 
