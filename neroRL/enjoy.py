@@ -140,6 +140,8 @@ def main():
 
     # Truncates the memory of the model
     if truncate_memory:
+        if "transformer" in model_config.keys():
+            model_config["transformer"]["memory_length"] = memory_length
         model = TruncateMemory(model, model_config, memory_length, device)
         
     # Run all desired episodes
