@@ -48,12 +48,12 @@ class Monitor():
         # Setup logger
         logging.basicConfig(level = logging.INFO, handlers=[])
         self.logger = logging.getLogger("train")
-        console = logging.StreamHandler()
-        console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+        self.console = logging.StreamHandler()
+        self.console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
         
-        logfile = logging.FileHandler(log_path, mode="w")
-        self.logger.addHandler(console)
-        self.logger.addHandler(logfile)
+        self.logfile = logging.FileHandler(log_path, mode="w")
+        self.logger.addHandler(self.console)
+        self.logger.addHandler(self.logfile)
 
     def _create_directories(self, out_path, run_id, duplicate_suffix) -> None:
         """Sets up directories for saving logs, tensorboard summaries and checkpoints.
@@ -129,5 +129,7 @@ class Monitor():
         self.logger.info("Terminate: Closing Summary Writer . . .")
         try:
             self.writer.close()
+            self.logger.removeHandler(self.console)
+            self.logger.removeHandler(self.logfile)
         except:
             pass

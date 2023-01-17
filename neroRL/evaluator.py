@@ -106,7 +106,7 @@ class Evaluator():
             
             # Reset workers and set evaluation seed
             for worker in self.workers:
-                reset_params = self.configs["environment"]["reset_params"]
+                reset_params = self.configs["environment"]["reset_params"].copy()
                 reset_params["start-seed"] = seed
                 reset_params["num-seeds"] = 1
                 worker.child.send(("reset", reset_params))
@@ -215,5 +215,8 @@ class Evaluator():
 
     def close(self):
         """Closes the Evaluator and destroys all worker."""
-        for worker in self.workers:
-                worker.child.send(("close", None))
+        try:
+            for worker in self.workers:
+                worker.close()
+        except:
+            pass

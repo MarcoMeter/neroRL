@@ -54,6 +54,7 @@ class BaseTrainer():
         self.updates = configs["trainer"]["updates"]
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
+        self.worker_id = worker_id
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.transformer = None if not "transformer" in configs["model"] else configs["model"]["transformer"]
         self.checkpoint_interval = configs["model"]["checkpoint_interval"]
@@ -74,10 +75,10 @@ class BaseTrainer():
         self.monitor.log("Step 2: Creating dummy environment")
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
         vis_obs, vec_obs = self.dummy_env.reset(configs["environment"]["reset_params"])
-        max_episode_steps = self.dummy_env.max_episode_steps
+        self.max_episode_steps = self.dummy_env.max_episode_steps
         if self.transformer is not None:
             # Add max episode steps to the transformer config
-            configs["model"]["transformer"]["max_episode_steps"] = max_episode_steps
+            configs["model"]["transformer"]["max_episode_steps"] = self.max_episode_steps
         self.visual_observation_space = self.dummy_env.visual_observation_space
         self.vector_observation_space = self.dummy_env.vector_observation_space
         if isinstance(self.dummy_env.action_space, spaces.Discrete):
@@ -90,14 +91,16 @@ class BaseTrainer():
         self.monitor.log("\t" + "Vector Observation Space: " + str(self.vector_observation_space))
         self.monitor.log("\t" + "Action Space Shape: " + str(self.action_space_shape))
         self.monitor.log("\t" + "Action Names: " + str(self.dummy_env.action_names))
-        self.monitor.log("\t" + "Max Episode Steps: " + str(max_episode_steps))
+        self.monitor.log("\t" + "Max Episode Steps: " + str(self.max_episode_steps))
 
         # Prepare evaluator if configured
         self.eval = configs["evaluation"]["evaluate"]
         self.eval_interval = configs["evaluation"]["interval"]
         if self.eval and self.eval_interval > 0:
             self.monitor.log("Step 2b: Initializing evaluator")
-            self.evaluator = Evaluator(configs, configs["model"], worker_id, self.visual_observation_space, self.vector_observation_space)
+            self.evaluator = Evaluator(configs, configs["model"], worker_id, self.visual_observation_space, self.vector_observation_space, self.max_episode_steps)
+        else:
+            self.evaluator = None
 
         # Init model
         self.monitor.log("Step 3: Creating model")
@@ -119,7 +122,10 @@ class BaseTrainer():
         # Instantiate sampler for transformer policoes
         elif self.transformer is not None:
             self.sampler = TransformerSampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
-                                        self.action_space_shape, max_episode_steps, self.model, self.device)
+                                        self.action_space_shape, self.max_episode_steps, self.model, self.device)
+
+        # List that stores the most recent episodes for training statistics
+        self.episode_info = deque(maxlen=100)
 
     def run_training(self):
         """Orchestrates the policy gradient based training:
@@ -131,6 +137,8 @@ class BaseTrainer():
             6. Optimize policy and value function
             7. Processes training statistics and results
             8. Evaluates model every n-th update if configured
+
+            Returns the mean return of the latest 100 episodes
         """
         # Load checkpoint and apply data
         if self.configs["model"]["load_model"]:
@@ -140,63 +148,17 @@ class BaseTrainer():
             self.monitor.log("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
         else:
             self.monitor.log("Step 5: Starting training using " + str(self.device) + " . . .")
-        # List that stores the most recent episodes for training statistics
-        episode_info = deque(maxlen=100)
 
         # Training loop
         for update in range(self.resume_at, self.updates):
-            self.currentUpdate = update
-            time_start = time.time()
-
-            # 1.: Decay hyperparameters polynomially based on the provided config
-            decayed_hyperparameters = self.step_decay_schedules(update)
-
-            # 2.: Sample data from each worker for worker steps
-            sample_episode_info = self.sampler.sample(self.device)
-
-            # 3.: Calculate advantages
-            last_value = self.sampler.get_last_value()
-            self.sampler.buffer.calc_advantages(last_value, self.gamma, self.lamda)
-            
-            # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
-            if self.recurrence:
-                if self.recurrence["layer_type"] == "lstm":
-                    self.model.set_mean_recurrent_cell_states(
-                            torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0),
-                            torch.mean(self.sampler.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.cxs.shape[2:]), axis=0))
-                else:
-                    self.model.set_mean_recurrent_cell_states(
-                            torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0), None)
-
-            # 5.: Prepare the sampled data inside the buffer
-            self.sampler.buffer.prepare_batch_dict()
-
-            # 6.: Train n epochs over the sampled data
-            if torch.cuda.is_available():
-                self.model.cuda() # Train on GPU
-            training_stats, formatted_string = self.train()
-
-            # Free memory
-            del(self.sampler.buffer.samples_flat)
-            if self.device.type == "cuda":
-                torch.cuda.empty_cache()
-            # mem = torch.cuda.mem_get_info(device=None)
-            # mem = (mem[1] - mem[0]) / 1024 / 1024
-            # print(mem)
-            
-            # Store recent episode infos
-            episode_info.extend(sample_episode_info)
-    
-            # Measure seconds needed for a whole update
-            time_end = time.time()
-            update_duration = int(time_end - time_start)
+            episode_result, training_stats, formatted_string, update_duration, decayed_hyperparameters = self.step(update)
 
             # Save checkpoint (update, model, optimizer, configs)
             if update % self.checkpoint_interval == 0 or update == (self.updates - 1):
                 self._save_checkpoint(update)
 
             # 7.: Write training statistics to console
-            episode_result = self._process_episode_info(episode_info)
+            episode_result = self._process_episode_info(self.episode_info)
             if episode_result:
                 self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
                     (" value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}")).format(
@@ -213,8 +175,7 @@ class BaseTrainer():
             # 8.: Evaluate model
             if self.eval:
                 if update % self.eval_interval == 0 or update == (self.updates - 1):
-                    eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
-                    evaluation_result = self._process_episode_info(eval_episode_info)
+                    eval_duration, evaluation_result = self.eval()
                     self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
                         eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
                     self.monitor.write_eval_summary(update, evaluation_result)
@@ -230,6 +191,69 @@ class BaseTrainer():
 
             # Write training statistics to tensorboard
             self.monitor.write_training_summary(update, training_stats, episode_result)
+
+        return episode_result["reward_mean"]
+
+    def step(self, update):
+        self.currentUpdate = update
+        time_start = time.time()
+
+        # 1.: Decay hyperparameters polynomially based on the provided config
+        decayed_hyperparameters = self.step_decay_schedules(update)
+
+        # 2.: Sample data from each worker for worker steps
+        sample_episode_info = self.sampler.sample(self.device)
+
+        # 3.: Calculate advantages
+        last_value = self.sampler.get_last_value()
+        self.sampler.buffer.calc_advantages(last_value, self.gamma, self.lamda)
+        
+        # 4.: If a recurrent policy is used, set the mean of the recurrent cell states for future initializations
+        if self.recurrence:
+            if self.recurrence["layer_type"] == "lstm":
+                self.model.set_mean_recurrent_cell_states(
+                        torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0),
+                        torch.mean(self.sampler.buffer.cxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.cxs.shape[2:]), axis=0))
+            else:
+                self.model.set_mean_recurrent_cell_states(
+                        torch.mean(self.sampler.buffer.hxs.reshape(self.n_workers * self.worker_steps, *self.sampler.buffer.hxs.shape[2:]), axis=0), None)
+
+        # 5.: Prepare the sampled data inside the buffer
+        self.sampler.buffer.prepare_batch_dict()
+
+        # 6.: Train n epochs over the sampled data
+        if torch.cuda.is_available():
+            self.model.cuda() # Train on GPU
+        training_stats, formatted_string = self.train()
+
+        # Free memory
+        del(self.sampler.buffer.samples_flat)
+        if self.device.type == "cuda":
+            torch.cuda.empty_cache()
+        # mem = torch.cuda.mem_get_info(device=None)
+        # mem = (mem[1] - mem[0]) / 1024 / 1024
+        # print(mem)
+        
+        # Store recent episode infos
+        self.episode_info.extend(sample_episode_info)
+
+        # Measure seconds needed for a whole update
+        time_end = time.time()
+        update_duration = int(time_end - time_start)
+
+        # 7.: Process training stats to print to console and write summaries
+        episode_result = self._process_episode_info(self.episode_info)
+
+        return episode_result, training_stats, formatted_string, update_duration, decayed_hyperparameters
+
+    def evaluate(self):
+        if self.evaluator is None:
+            self.evaluator = Evaluator(self.configs, self.configs["model"], self.worker_id, self.visual_observation_space, self.vector_observation_space, self.max_episode_steps)
+        eval_duration, eval_episode_info = self.evaluator.evaluate(self.model, self.device)
+        evaluation_result = self._process_episode_info(eval_episode_info)
+        self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
+        eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
+        return eval_duration, evaluation_result
     
     ### BEGIN:  Methods that need to be overriden/extended ###
     def create_model(self) -> None:
@@ -330,15 +354,9 @@ class BaseTrainer():
 
     def close(self):
         """Closes the environment and destroys the environment workers"""
-        self.monitor.log("Terminate: Closing dummy ennvironment . . .")
+        self.monitor.log("Terminate: Closing dummy environment . . .")
         try:
             self.dummy_env.close()
-        except:
-            pass
-
-        self.monitor.log("Terminate: Closing Monitor . . .")
-        try:
-            self.monitor.close()
         except:
             pass
 
@@ -349,12 +367,14 @@ class BaseTrainer():
             pass
 
         try:
-            if self.eval:
+            if self.evaluator is not None:
                 self.monitor.log("Terminate: Closing evaluator")
                 try:
                     self.evaluator.close()
+                    self.evaluator = None
                 except:
-                        pass
+                    self.evaluator = None
+                    pass
         except:
             pass
         
@@ -368,6 +388,13 @@ class BaseTrainer():
                     pass
         except:
             pass
+
+        self.monitor.log("Terminate: Closing Monitor . . .")
+        try:
+            self.monitor.close()
+        except:
+            pass
+
 
     def _handler(self, signal_received, frame):
         """Invoked by the Ctrl-C event, the trainer is being closed and the python program is being exited."""

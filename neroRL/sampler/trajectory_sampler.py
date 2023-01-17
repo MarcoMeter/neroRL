@@ -175,6 +175,6 @@ class TrajectorySampler():
         """Closes the sampler and shuts down its environment workers."""
         try:
             for worker in self.workers:
-                worker.child.send(("close", None))
+                worker.close()
         except:
             pass
