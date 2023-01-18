@@ -103,6 +103,9 @@ class TransformerBlock(Module):
         self.norm2 = nn.LayerNorm(embed_dim)
         if layer_norm == "pre":
             self.norm_kv = nn.LayerNorm(embed_dim)
+        self.gate1 = GRUGate(embed_dim) # or GRUGatingUnit
+        self.gate2 = GRUGate(embed_dim) # or GRUGatingUnit
+
 
         # Feed forward projection
         self.fc = nn.Sequential(nn.Linear(embed_dim, embed_dim), nn.ReLU())
@@ -131,7 +134,8 @@ class TransformerBlock(Module):
         attention, attention_weights = self.attention(value, key, query_, mask)
 
         # Add skip connection and run through normalization
-        h = attention + query
+        # h = attention + query
+        h = self.gate1((attention, query))
         # Apply post-layer norm across the attention output (i.e. projection input)
         if self.layer_norm == "post":
             h = self.norm1(h)
@@ -146,7 +150,8 @@ class TransformerBlock(Module):
         forward = self.fc(h_)
 
         # Add skip connection and run through normalization
-        out = forward + h
+        # out = forward + h
+        out = self.gate2((forward, h))
         # Apply post-layer norm across the projection output
         if self.layer_norm == "post":
             out = self.norm2(out)
@@ -234,3 +239,107 @@ class Transformer(nn.Module):
             if len(h.shape) == 1:
                 h = h.unsqueeze(0)
         return h, torch.stack(out_memories, dim=1)
+
+class GRUGatingUnit(torch.nn.Module):
+    """
+    Overview:
+        GRU Gating Unit used in GTrXL.
+        https://github.com/opendilab/DI-engine/blob/main/ding/torch_utils/network/gtrxl.py
+    """
+
+    def __init__(self, input_dim: int, bg: float = 2.):
+        """
+        Arguments:
+            - input_dim: (:obj:`int`): dimension of input.
+            - bg (:obj:`bg`): gate bias. By setting bg > 0 we can explicitly initialize the gating mechanism to
+            be close to the identity map. This can greatly improve the learning speed and stability since it
+            initializes the agent close to a Markovian policy (ignore attention at the beginning).
+        """
+        super(GRUGatingUnit, self).__init__()
+        self.Wr = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.Ur = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.Wz = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.Uz = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.Wg = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.Ug = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.bg = nn.Parameter(torch.full([input_dim], bg))  # bias
+        self.sigmoid = torch.nn.Sigmoid()
+        self.tanh = torch.nn.Tanh()
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor):
+        """
+        Overview:
+            Compute output value with gating mechanism
+        Arguments:
+            - x: (:obj:`torch.Tensor`): first input.
+            - y: (:obj:`torch.Tensor`): second input.
+            x and y have same shape and last shape is input_dim.
+        Returns:
+            - g: (:obj:`torch.Tensor`): output of GRU. Same shape of x and y.
+        """
+        r = self.sigmoid(self.Wr(y) + self.Ur(x))
+        z = self.sigmoid(self.Wz(y) + self.Uz(x) - self.bg)
+        h = self.tanh(self.Wg(y) + self.Ug(torch.mul(r, x)))  # element wise multiplication
+        g = torch.mul(1 - z, x) + torch.mul(z, h)
+        return g  # x.shape == y.shape == g.shape
+
+class GRUGate(nn.Module):
+    """Implements a gated recurrent unit for use in AttentionNet
+    https://github.com/ray-project/ray/blob/d909ac2b5fe5afe65feb192b49aca53abe962cee/rllib/models/torch/modules/gru_gate.py"""
+
+    def __init__(self, dim: int, init_bias: int = 0.0, **kwargs):
+        """
+        input_shape (torch.Tensor): dimension of the input
+        init_bias: Bias added to every input to stabilize training
+        """
+        super().__init__(**kwargs)
+        # Xavier initialization of torch tensors
+        self._w_r = nn.Parameter(torch.zeros(dim, dim))
+        self._w_z = nn.Parameter(torch.zeros(dim, dim))
+        self._w_h = nn.Parameter(torch.zeros(dim, dim))
+        nn.init.xavier_uniform_(self._w_r)
+        nn.init.xavier_uniform_(self._w_z)
+        nn.init.xavier_uniform_(self._w_h)
+        self.register_parameter("_w_r", self._w_r)
+        self.register_parameter("_w_z", self._w_z)
+        self.register_parameter("_w_h", self._w_h)
+
+        self._u_r = nn.Parameter(torch.zeros(dim, dim))
+        self._u_z = nn.Parameter(torch.zeros(dim, dim))
+        self._u_h = nn.Parameter(torch.zeros(dim, dim))
+        nn.init.xavier_uniform_(self._u_r)
+        nn.init.xavier_uniform_(self._u_z)
+        nn.init.xavier_uniform_(self._u_h)
+        self.register_parameter("_u_r", self._u_r)
+        self.register_parameter("_u_z", self._u_z)
+        self.register_parameter("_u_h", self._u_h)
+
+        self._bias_z = nn.Parameter(
+            torch.zeros(
+                dim,
+            ).fill_(init_bias)
+        )
+        self.register_parameter("_bias_z", self._bias_z)
+
+    def forward(self, inputs, **kwargs):
+        # Pass in internal state first.
+        h, X = inputs
+
+        r = torch.tensordot(X, self._w_r, dims=1) + torch.tensordot(
+            h, self._u_r, dims=1
+        )
+        r = torch.sigmoid(r)
+
+        z = (
+            torch.tensordot(X, self._w_z, dims=1)
+            + torch.tensordot(h, self._u_z, dims=1)
+            - self._bias_z
+        )
+        z = torch.sigmoid(z)
+
+        h_next = torch.tensordot(X, self._w_h, dims=1) + torch.tensordot(
+            (h * r), self._u_h, dims=1
+        )
+        h_next = torch.tanh(h_next)
+
+        return (1 - z) * h + z * h_next
