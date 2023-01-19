@@ -62,9 +62,8 @@ def main():
         --num-episodes=<n>         The number of to be played episodes [default: 1].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
-        --generate_website         Specifies wether a website shall be generated. [default: False]
-        --truncate_memory          Specifies wether the memory should be truncated. [default: False]
-        --memory_length=<n>        Specifies the memory length. [default: 4]
+        --web                      Specifies wether a website shall be generated. [default: False]
+        --memory_length=<n>        Specifies the memory length. [default: -2]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                  # defaults to False
@@ -75,9 +74,8 @@ def main():
     num_episodes = int(options["--num-episodes"])       # defauults to 1
     video_path = options["--video"]                     # defaults to "video"
     frame_rate = options["--framerate"]                 # defaults to 6
-    generate_website = options["--generate_website"]    # defaults to False
-    truncate_memory = options["--truncate_memory"]     # defaults to False
-    memory_length = int(options["--memory_length"])     # defaults to 4
+    web = options["--web"]                 # defaults to False
+    memory_length = int(options["--memory-length"])     # defaults to 4
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -89,7 +87,7 @@ def main():
             num_episodes = 1
             break
 
-    if generate_website:
+    if web:
         logger.info("Step 0: Only 1 episode will be played")
         num_episodes = 1
 
@@ -115,7 +113,7 @@ def main():
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
     visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1)
-    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
+    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or web)
 
     # Build or load model
     logger.info("Step 2: Creating model")
@@ -139,9 +137,8 @@ def main():
     model.eval()
 
     # Truncates the memory of the model
-    if truncate_memory:
-        if "transformer" in model_config.keys():
-            model_config["transformer"]["memory_length"] = memory_length
+    if memory_length != -2:
+        model_config["transformer"]["memory_length"] = memory_length
         model = TruncateMemory(model, model_config, memory_length, device)
         
     # Run all desired episodes
@@ -217,7 +214,7 @@ def main():
         logger.info("Episode Length: " + str(info["length"]))
 
         # Complete video data
-        if record_video or generate_website:
+        if record_video or web:
             trajectory_data = env.get_episode_trajectory
             trajectory_data["action_names"] = env.action_names
             trajectory_data["actions"] = [items for items in actions for _ in range(frame_skip)]
@@ -239,7 +236,7 @@ def main():
             if record_video:
                 video_recorder.render_video(trajectory_data)
             # Generate website
-            if generate_website:
+            if web:
                 video_recorder.generate_website(trajectory_data, configs)
 
     env.close()
