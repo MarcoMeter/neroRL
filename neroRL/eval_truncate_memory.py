@@ -129,7 +129,7 @@ def evaluate(untrained = False, config_path="", checkpoint_path="", worker_id=2,
         memory_length = model_config["transformer"]["memory_length"]
 
     # Play episode
-    logger.info("Step 4: Run . . .")
+    logger.info("Step 4: Run one episode")
 
     # Store data for video recording
     probs, entropies, values, actions = [], [], [], []
@@ -195,7 +195,7 @@ def main():
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --seed=<n>                 The to be played seed of an episode [default: 0].
         --max-memory-length=<n>    Specifies the max memory length. [default: -2]
-        --title                    Title of the plot [default: "result"].
+        --title=<name>             Title of the plot [default: result].
     """
     options = docopt(_USAGE)
     config_path = options["--config"]
