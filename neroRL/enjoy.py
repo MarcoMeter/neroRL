@@ -159,7 +159,7 @@ def main():
         # Init transformer memory
         if "transformer" in model_config:
             memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model, device)
-            memory_length = model_config["transformer"]["memory_length"] if memory_length == -2 else memory_length
+            memory_length = model_config["transformer"]["memory_length"]
         if memory_length != -2:
             model.reset()
 

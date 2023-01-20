@@ -4,6 +4,7 @@ import time
 
 from neroRL.utils.worker import Worker
 from neroRL.utils.video_recorder import VideoRecorder
+from neroRL.wrapper.truncate_memory import TruncateMemory
 
 class Evaluator():
     """Evaluates a model based on the initially provided config."""
@@ -83,6 +84,9 @@ class Evaluator():
         """
         time_start = time.time()
         episode_infos = []
+        # Truncate memory if specified
+        if self.memory_length != -2:
+            model = TruncateMemory(model, self.model_config, self.memory_length, device)
         # Loop over all seeds
         for seed in self.seeds:
             # Initialize observations
@@ -149,7 +153,10 @@ class Evaluator():
                                 in_memory = memory[w]
 
                             # Forward model
-                            policy, value, new_memory, _ = model(vis_obs_batch, vec_obs_batch, in_memory, mask, indices)
+                            if self.memory_length == -2:
+                                policy, value, new_memory, _ = model(vis_obs_batch, vec_obs_batch, in_memory, mask, indices)
+                            else:
+                                policy, value, new_memory, _ = model[w](vis_obs_batch, vec_obs_batch, in_memory, mask, indices)
 
                             # Set memory if used
                             if self.recurrence_config is not None:
