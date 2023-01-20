@@ -63,7 +63,7 @@ def main():
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
         --web                      Specifies wether a website shall be generated. [default: False]
-        --memory_length=<n>        Specifies the memory length. [default: -2]
+        --memory-length=<n>        Specifies the memory length. [default: -2]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                  # defaults to False
