@@ -61,20 +61,6 @@ def evaluate(untrained = False, config_path="", checkpoint_path="", worker_id=2,
         --memory_length=<n>        Specifies the memory length. [default: 4]
     """
 
-    # Determine whether to record a video. A video is only recorded if the video flag is used.
-    record_video = False
-    for i, arg in enumerate(sys.argv):
-        if "--video" in arg:
-            record_video = True
-            logger.info("Step 0: Video recording enabled. Video will be saved to " + video_path)
-            logger.info("Step 0: Only 1 episode will be played")
-            num_episodes = 1
-            break
-
-    if generate_website:
-        logger.info("Step 0: Only 1 episode will be played")
-        num_episodes = 1
-
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
@@ -97,7 +83,7 @@ def evaluate(untrained = False, config_path="", checkpoint_path="", worker_id=2,
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
     visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1)
-    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
+    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = False)
 
     # Build or load model
     logger.info("Step 2: Creating model")
@@ -126,74 +112,71 @@ def evaluate(untrained = False, config_path="", checkpoint_path="", worker_id=2,
             model_config["transformer"]["memory_length"] = memory_length
         model = TruncateMemory(model, model_config, memory_length, device)
         
-    # Run all desired episodes
-    # Note: Only one episode is run upon generating a result website or rendering a video
-    for _ in range(num_episodes):
-        # Reset environment
-        t = 0
-        logger.info("Step 3: Resetting the environment")
-        logger.info("Step 3: Using seed " + str(seed))
-        vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
-        done = False
-        
-        # Init memory if applicable
-        memory, memory_mask, memory_indices, mask, indices = None, None, None, None, None
-        # Init hidden state (None if not available)
-        if "recurrence" in model_config:
-            memory = init_recurrent_cell(model_config["recurrence"], model, device)
-        # Init transformer memory
-        if "transformer" in model_config:
-            memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model, device)
-            memory_length = model_config["transformer"]["memory_length"]
-        if truncate_memory:
-            model.reset()
+    # Run one episode
+    t = 0
+    logger.info("Step 3: Resetting the environment")
+    logger.info("Step 3: Using seed " + str(seed))
+    vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
+    done = False
+    
+    # Init memory if applicable
+    memory, memory_mask, memory_indices, mask, indices = None, None, None, None, None
+    # Init hidden state (None if not available)
+    if "recurrence" in model_config:
+        memory = init_recurrent_cell(model_config["recurrence"], model, device)
+    # Init transformer memory
+    if "transformer" in model_config:
+        memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model, device)
+        memory_length = model_config["transformer"]["memory_length"]
+    if truncate_memory:
+        model.reset()
 
-        # Play episode
-        logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
+    # Play episode
+    logger.info("Step 4: Run . . .")
 
-        # Store data for video recording
-        probs, entropies, values, actions = [], [], [], []
+    # Store data for video recording
+    probs, entropies, values, actions = [], [], [], []
 
-        # Play one episode
-        with torch.no_grad():
-            while not done:
-                # Forward the neural net
-                vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
-                vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                # Prepare transformer memory
-                if "transformer" in model_config:
-                    in_memory = memory[0, memory_indices[t].unsqueeze(0)]
-                    t_ = max(0, min(t, memory_length - 1))
-                    mask = memory_mask[t_].unsqueeze(0)
-                    indices = memory_indices[t].unsqueeze(0)
-                else:
-                    in_memory = memory
+    # Play one episode
+    with torch.no_grad():
+        while not done:
+            # Forward the neural net
+            vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
+            vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
+            # Prepare transformer memory
+            if "transformer" in model_config:
+                in_memory = memory[0, memory_indices[t].unsqueeze(0)]
+                t_ = max(0, min(t, memory_length - 1))
+                mask = memory_mask[t_].unsqueeze(0)
+                indices = memory_indices[t].unsqueeze(0)
+            else:
+                in_memory = memory
 
-                policy, value, new_memory, _ = model(vis_obs, vec_obs, in_memory, mask, indices)
-                
-                # Set memory if used
-                if "recurrence" in model_config:
-                    memory = new_memory
-                if "transformer" in model_config:
-                    memory[:, t] = new_memory
+            policy, value, new_memory, _ = model(vis_obs, vec_obs, in_memory, mask, indices)
+            
+            # Set memory if used
+            if "recurrence" in model_config:
+                memory = new_memory
+            if "transformer" in model_config:
+                memory[:, t] = new_memory
 
-                _actions, _probs, entropy = [], [], []
-                # Sample action
-                for action_branch in policy:
-                    action = action_branch.sample()
-                    _actions.append(action.item())
-                    _probs.append(action_branch.probs)
-                    entropy.append(action_branch.entropy().item())
+            _actions, _probs, entropy = [], [], []
+            # Sample action
+            for action_branch in policy:
+                action = action_branch.sample()
+                _actions.append(action.item())
+                _probs.append(action_branch.probs)
+                entropy.append(action_branch.entropy().item())
 
-                # Store data for video recording
-                actions.append(_actions)
-                probs.append(_probs)
-                entropies.append(entropy)
-                values.append(value.cpu().numpy())
+            # Store data for video recording
+            actions.append(_actions)
+            probs.append(_probs)
+            entropies.append(entropy)
+            values.append(value.cpu().numpy())
 
-                # Step environment
-                vis_obs, vec_obs, _, done, info = env.step(_actions)
-                t += 1
+            # Step environment
+            vis_obs, vec_obs, _, done, info = env.step(_actions)
+            t += 1
 
         logger.info("Episode Reward: " + str(info["reward"]))
         logger.info("Episode Length: " + str(info["length"]))
