@@ -37,7 +37,7 @@ model:
     layer_norm: "pre" # options: "" "pre" "post"
     gtrxl: True
     gtrxl_bias: 0.0
-    gtrxl_swap: True
+    gtrxl_swap: False
 
 evaluation:
   evaluate: False
