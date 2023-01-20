@@ -74,8 +74,8 @@ def main():
     num_episodes = int(options["--num-episodes"])       # defauults to 1
     video_path = options["--video"]                     # defaults to "video"
     frame_rate = options["--framerate"]                 # defaults to 6
-    web = options["--web"]                 # defaults to False
-    memory_length = int(options["--memory-length"])     # defaults to 4
+    web = options["--web"]                              # defaults to False
+    memory_length = int(options["--memory-length"])     # defaults to -2 (no truncation)
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -159,8 +159,8 @@ def main():
         # Init transformer memory
         if "transformer" in model_config:
             memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model, device)
-            memory_length = model_config["transformer"]["memory_length"]
-        if truncate_memory:
+            memory_length = model_config["transformer"]["memory_length"] if memory_length == -2 else memory_length
+        if memory_length != -2:
             model.reset()
 
         # Play episode
