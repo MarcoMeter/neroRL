@@ -41,26 +41,17 @@ def init_transformer_memory(trxl_conf, model, device):
     return memory, memory_mask, memory_indices
 
 def evaluate(untrained = False, config_path="", checkpoint_path="", worker_id=2, seed=0, memory_length=-2):
-    # Docopt command line arguments
-    _USAGE = """
-    Usage:
-        nenjoy [options]
-        nenjoy --help
-
-    Options:
-        --config=<path>            Path to the config file [default: ].
-        --checkpoint=<path>        Path to the checkpoint file [default: ].
-        --untrained                Whether an untrained model should be used [default: False].
-        --worker-id=<n>            Sets the port for each environment instance [default: 2].
-        --seed=<n>                 The to be played seed of an episode [default: 0].
-        --num-episodes=<n>         The number of to be played episodes [default: 1].
-        --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
-        --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
-        --generate_website         Specifies wether a website shall be generated. [default: False]
-        --truncate_memory          Specifies wether the memory should be truncated. [default: False]
-        --memory_length=<n>        Specifies the memory length. [default: -2]
     """
-
+        Arguments:
+            untrained {bool} - Whether an untrained model should be used
+            config_path {str} - Path to the config file
+            checkpoint_path {str} - Path to the checkpoint file
+            worker_id {int} - Sets the port for each environment instance
+            seed {int} - The to be played seed of an episode
+            memory_length {int} - Specifies the memory length
+        Returns:
+            {int} - Episode reward
+    """
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
