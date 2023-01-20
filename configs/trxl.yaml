@@ -35,6 +35,9 @@ model:
     memory_length: 32
     positional_encoding: "" # options: "" "relative" "learned"
     layer_norm: "pre" # options: "" "pre" "post"
+    gtrxl: True
+    gtrxl_bias: 0.0
+    gtrxl_swap: True
 
 evaluation:
   evaluate: False
