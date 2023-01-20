@@ -137,7 +137,7 @@ def main():
     model.eval()
 
     # Truncates the memory of the model
-    if memory_length != -2:
+    if "transformer" in model_config.keys() and memory_length != -2:
         model_config["transformer"]["memory_length"] = memory_length
         model = TruncateMemory(model, model_config, memory_length, device)
         

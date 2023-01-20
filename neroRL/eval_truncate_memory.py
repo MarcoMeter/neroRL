@@ -40,7 +40,7 @@ def init_transformer_memory(trxl_conf, model, device):
     memory_indices = torch.cat((repetitions, memory_indices))
     return memory, memory_mask, memory_indices
 
-def evaluate(untrained = False, config_path="", checkpoint_path="", worker_id=2, seed=0, num_episodes=1, video_path="video", frame_rate=6, generate_website=False, truncate_memory=False, memory_length=4):
+def evaluate(untrained = False, config_path="", checkpoint_path="", worker_id=2, seed=0, memory_length=-2):
     # Docopt command line arguments
     _USAGE = """
     Usage:
@@ -58,7 +58,7 @@ def evaluate(untrained = False, config_path="", checkpoint_path="", worker_id=2,
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
         --generate_website         Specifies wether a website shall be generated. [default: False]
         --truncate_memory          Specifies wether the memory should be truncated. [default: False]
-        --memory_length=<n>        Specifies the memory length. [default: 4]
+        --memory_length=<n>        Specifies the memory length. [default: -2]
     """
 
     # Determine cuda availability
@@ -107,9 +107,8 @@ def evaluate(untrained = False, config_path="", checkpoint_path="", worker_id=2,
     model.eval()
 
     # Truncates the memory of the model
-    if truncate_memory:
-        if "transformer" in model_config.keys():
-            model_config["transformer"]["memory_length"] = memory_length
+    if "transformer" in model_config.keys() and memory_length != -2:
+        model_config["transformer"]["memory_length"] = memory_length
         model = TruncateMemory(model, model_config, memory_length, device)
         
     # Run one episode
@@ -128,8 +127,6 @@ def evaluate(untrained = False, config_path="", checkpoint_path="", worker_id=2,
     if "transformer" in model_config:
         memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model, device)
         memory_length = model_config["transformer"]["memory_length"]
-    if truncate_memory:
-        model.reset()
 
     # Play episode
     logger.info("Step 4: Run . . .")
@@ -181,48 +178,51 @@ def evaluate(untrained = False, config_path="", checkpoint_path="", worker_id=2,
         logger.info("Episode Reward: " + str(info["reward"]))
         logger.info("Episode Length: " + str(info["length"]))
 
-        # Complete video data
-        if record_video or generate_website:
-            trajectory_data = env.get_episode_trajectory
-            trajectory_data["action_names"] = env.action_names
-            trajectory_data["actions"] = [items for items in actions for _ in range(frame_skip)]
-            trajectory_data["probs"] = [items for items in probs for _ in range(frame_skip)]
-            trajectory_data["entropies"] = [items for items in entropies for _ in range(frame_skip)]
-            trajectory_data["values"] = [items for items in values for _ in range(frame_skip)]
-            trajectory_data["episode_reward"] = info["reward"]
-            trajectory_data["seed"] = seed
-            # if frame_skip > 1:
-            #     # remainder = info["length"] % frame_skip
-            #     remainder = len(trajectory_data["probs"]) % frame_skip
-            #     if remainder > 0:
-            #         for key in ["actions", "probs", "entropies", "values"]:
-            #             trajectory_data[key] = trajectory_data[key][:-remainder]
-
-            # Init video recorder
-            video_recorder = VideoRecorder(video_path, frame_rate)
-            # Render and serialize video
-            if record_video:
-                video_recorder.render_video(trajectory_data)
-            # Generate website
-            if generate_website:
-                video_recorder.generate_website(trajectory_data, configs)
-
     env.close()
     return info["reward"]
 
-memory_lengths, rewards = [], []
-for memory_length in range(1, 46):
-    print("Current memory_length:", memory_length)
-    reward = evaluate(memory_length=memory_length, truncate_memory=True, checkpoint_path="./checkpoints/trxl/mpg-4999.pt", seed=1)
-    
-    rewards.append(reward)
-    memory_lengths.append(memory_length)
+def main():
+    # Docopt command line arguments
+    _USAGE = """
+    Usage:
+        nenjoy [options]
+        nenjoy --help
 
-# Plot the results
-fig = plt.figure()
-ax = plt.axes()
-ax.plot(memory_lengths, rewards)
-ax.title.set_text("trxl/mpg-4999 with seed 1")
-ax.set_xlabel("Memory Length")
-ax.set_ylabel("Reward")
-fig.savefig('result.pdf')
+    Options:
+        --config=<path>            Path to the config file [default: ].
+        --checkpoint=<path>        Path to the checkpoint file [default: ].
+        --untrained                Whether an untrained model should be used [default: False].
+        --worker-id=<n>            Sets the port for each environment instance [default: 2].
+        --seed=<n>                 The to be played seed of an episode [default: 0].
+        --max-memory-length=<n>    Specifies the max memory length. [default: -2]
+        --title                    Title of the plot [default: "result"].
+    """
+    options = docopt(_USAGE)
+    config_path = options["--config"]
+    checkpoint_path = options["--checkpoint"]
+    untrained = options["--untrained"]
+    worker_id = int(options["--worker-id"])
+    seed = int(options["--seed"])
+    max_memory_length = int(options["--max-memory-length"])
+    title = options["--title"]
+    
+    # Evaluate the model with different memory lengths
+    memory_lengths, rewards = [], []
+    for memory_length in range(1, max_memory_length):
+        print("Current memory_length:", memory_length)
+        reward = evaluate(untrained, config_path, checkpoint_path, worker_id, seed, memory_length)
+        
+        rewards.append(reward)
+        memory_lengths.append(memory_length)
+
+    # Plot the results
+    fig = plt.figure()
+    ax = plt.axes()
+    ax.plot(memory_lengths, rewards)
+    ax.title.set_text(title)
+    ax.set_xlabel("Memory Length")
+    ax.set_ylabel("Reward")
+    fig.savefig(title + '.pdf')
+
+if __name__ == "__main__":
+    main()
