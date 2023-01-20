@@ -21,6 +21,7 @@ class Evaluator():
         """
         # Set members
         self.configs = configs
+        self.model_config = configs["model"]
         self.n_workers = configs["evaluation"]["n_workers"]
         if "explicit-seeds" in configs["evaluation"]["seeds"]:
             self.seeds = configs["evaluation"]["seeds"]["explicit-seeds"]
@@ -68,7 +69,10 @@ class Evaluator():
         memory_indices = torch.cat((repetitions, memory_indices))
         memory = []
         for _ in range(self.n_workers):
-            memory.append(model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device))
+            if self.memory_length == -2:
+                memory.append(model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device))
+            else:
+                memory.append(model[0].init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device))
         return memory, memory_mask, memory_indices
 
     def evaluate(self, model, device):
@@ -86,7 +90,7 @@ class Evaluator():
         episode_infos = []
         # Truncate memory if specified
         if self.memory_length != -2:
-            model = TruncateMemory(model, self.model_config, self.memory_length, device)
+            model = [TruncateMemory(model, self.model_config, self.memory_length, device) for _ in range(len(self.workers))]
         # Loop over all seeds
         for seed in self.seeds:
             # Initialize observations
@@ -183,6 +187,9 @@ class Evaluator():
                             # Step environment
                             worker.child.send(("step", _actions))
                             worker_steps[w] += 1
+                        else:
+                            if self.memory_length != -2:
+                                model[w].reset()
 
                     # Receive and process step result if not done
                     for w, worker in enumerate(self.workers):
