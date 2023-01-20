@@ -14,7 +14,7 @@ from neroRL.utils.utils import get_environment_specs
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.video_recorder import VideoRecorder
 from neroRL.nn.actor_critic import create_actor_critic_model
-from neroRL.nn.wrapper import TruncateMemory
+from neroRL.wrapper.truncate_memory import TruncateMemory
 
 # Setup logger
 logging.basicConfig(level = logging.INFO, handlers=[])
