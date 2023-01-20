@@ -65,7 +65,7 @@ def main():
 
     if not config_path and not checkpoint_path:
         raise ValueError("Either a config or a checkpoint must be provided")
-    checkpoint = torch.load(checkpoint_path) if checkpoint_path else None
+    checkpoint = torch.load(checkpoint_path, map_location=device) if checkpoint_path else None
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
     model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
 
