@@ -83,25 +83,30 @@ class MultiHeadAttention(nn.Module):
         return out, attention
         
 class TransformerBlock(Module):
-    def __init__(self, embed_dim, num_heads, layer_norm):
+    def __init__(self, embed_dim, num_heads, config):
         """Transformer Block made of LayerNorms, Multi Head Attention and one fully connected feed forward projection.
 
         Arguments:
             embed_dim {int} -- Size of the embeddding dimension
             num_heads {int} -- Number of attention headds
-            attention_norm {str} -- Whether to apply LayerNorm "pre" or "post" attention
-            projection_norm {str} -- Whether to apply LayerNorm "pre" or "post" the feed forward projection
+            config {dict} -- General config
         """
         super(TransformerBlock, self).__init__()
 
         # Attention
         self.attention = MultiHeadAttention(embed_dim, num_heads)
 
+        # Setup GTrXL if used
+        self.use_gtrxl = config["gtrxl"]
+        if self.use_gtrxl:
+            self.gate1 = GRUGate(embed_dim, config["gtrxl_bias"], config["gtrxl_swap"])
+            self.gate2 = GRUGate(embed_dim, config["gtrxl_bias"], config["gtrxl_swap"])
+
         # LayerNorms
-        self.layer_norm = layer_norm
+        self.layer_norm = config["layer_norm"]
         self.norm1 = nn.LayerNorm(embed_dim)
         self.norm2 = nn.LayerNorm(embed_dim)
-        if layer_norm == "pre":
+        if self.layer_norm == "pre":
             self.norm_kv = nn.LayerNorm(embed_dim)
 
         # Feed forward projection
@@ -130,8 +135,14 @@ class TransformerBlock(Module):
         # Forward MultiHeadAttention
         attention, attention_weights = self.attention(value, key, query_, mask)
 
-        # Add skip connection and run through normalization
-        h = attention + query
+        # GRU Gate or skip connection
+        if self.use_gtrxl:
+            # Forward GRU gating
+            h = self.gate1(query, attention)
+        else:
+            # Skip connection
+            h = attention + query
+        
         # Apply post-layer norm across the attention output (i.e. projection input)
         if self.layer_norm == "post":
             h = self.norm1(h)
@@ -145,11 +156,18 @@ class TransformerBlock(Module):
         # Forward projection
         forward = self.fc(h_)
 
-        # Add skip connection and run through normalization
-        out = forward + h
+        # GRU Gate or skip connection
+        if self.use_gtrxl:
+            # Forward GRU gating
+            out = self.gate2(h, forward)
+        else:
+            # Skip connection
+            out = forward + h
+        
         # Apply post-layer norm across the projection output
         if self.layer_norm == "post":
             out = self.norm2(out)
+
         return out, attention_weights
 
 class SinusoidalPosition(nn.Module):
@@ -198,7 +216,7 @@ class Transformer(nn.Module):
         
         # Instantiate transformer blocks
         self.transformer_blocks = nn.ModuleList([
-            TransformerBlock(self.embed_dim, self.num_heads, config["layer_norm"]) 
+            TransformerBlock(self.embed_dim, self.num_heads, config) 
             for _ in range(self.num_blocks)])
 
     def forward(self, h, memories, mask, memory_indices):
@@ -234,3 +252,57 @@ class Transformer(nn.Module):
             if len(h.shape) == 1:
                 h = h.unsqueeze(0)
         return h, torch.stack(out_memories, dim=1)
+
+class GRUGate(torch.nn.Module):
+    """
+    Overview:
+        GRU Gating Unit used in GTrXL.
+        Inspired by https://github.com/dhruvramani/Transformers-RL/blob/master/layers.py
+    """
+
+    def __init__(self, input_dim: int, bg: float = 0.0, swap_inputs:bool = False):
+        """
+        Arguments:
+            input_dim {int} -- Input dimension
+            bg {float} -- Initial gate bias value. By setting bg > 0 we can explicitly initialize the gating mechanism to
+            be close to the identity map. This can greatly improve the learning speed and stability since it
+            initializes the agent close to a Markovian policy (ignore attention at the beginning). (default: {0.0})
+            swap_inputs {bool} -- Swap GRU inputs (default: {False})
+        """
+        super(GRUGate, self).__init__()
+        self.swap_inputs = swap_inputs
+        self.Wr = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.Ur = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.Wz = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.Uz = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.Wg = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.Ug = torch.nn.Linear(input_dim, input_dim, bias=False)
+        self.bg = nn.Parameter(torch.full([input_dim], bg))  # bias
+        self.sigmoid = torch.nn.Sigmoid()
+        self.tanh = torch.nn.Tanh()
+        nn.init.xavier_uniform_(self.Wr.weight)
+        nn.init.xavier_uniform_(self.Ur.weight)
+        nn.init.xavier_uniform_(self.Wz.weight)
+        nn.init.xavier_uniform_(self.Uz.weight)
+        nn.init.xavier_uniform_(self.Wg.weight)
+        nn.init.xavier_uniform_(self.Ug.weight)
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor):
+        """        
+        Arguments:
+            x {torch.Tensor} -- First input
+            y {torch.Tensor} -- Second input
+
+        Returns:
+            {torch.tensor} -- Output
+        """
+        if not self.swap_inputs:
+            r = self.sigmoid(self.Wr(y) + self.Ur(x))
+            z = self.sigmoid(self.Wz(y) + self.Uz(x) - self.bg)
+            h = self.tanh(self.Wg(y) + self.Ug(torch.mul(r, x)))
+            return torch.mul(1 - z, x) + torch.mul(z, h)
+        else:
+            r = self.sigmoid(self.Wr(x) + self.Ur(y))
+            z = self.sigmoid(self.Wz(x) + self.Uz(y) - self.bg)
+            h = self.tanh(self.Wg(x) + self.Ug(torch.mul(r, y)))
+            return torch.mul(1 - z, y) + torch.mul(z, h)
