@@ -261,10 +261,14 @@ class YamlParser:
                     self._config["model"]["transformer"]["memory_length"] = 512
                 if "positional_encoding" not in self._config["model"]["transformer"]:
                     self._config["model"]["transformer"]["positional_encoding"] = "relative"
-                if "attentinon_norm" not in self._config["model"]["transformer"]:
-                    self._config["model"]["transformer"]["attentinon_norm"] = "pre"
-                if "projection_norm" not in self._config["model"]["transformer"]:
-                    self._config["model"]["transformer"]["projection_norm"] = "pre"
+                if "layer_norm" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["layer_norm"] = "pre"
+                if "gtrxl" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["gtrxl"] = False
+                if "gtrxl_bias" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["gtrxl_bias"] = 0.0
+                if "gtrxl_swap" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["gtrxl_swap"] = False
 
             # Check DAAC if DecoupledPPO
             if "DAAC" in self._config["trainer"]:
