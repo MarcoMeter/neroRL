@@ -13,7 +13,7 @@ class PPOTrainer(BaseTrainer):
     and vector obsverations (either alone or simultaenously). Parameters can be shared or not. If gradients shall be decoupled,
     go for the DecoupledPPOTrainer.
     """
-    def __init__(self, configs, worker_id, run_id, out_path, seed = 0):
+    def __init__(self, configs, device, worker_id, run_id, out_path, seed = 0):
         """
         Initializes distinct members of the PPOTrainer
 
@@ -23,7 +23,7 @@ class PPOTrainer(BaseTrainer):
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
         """
-        super().__init__(configs, worker_id, run_id=run_id, out_path=out_path, seed=seed)
+        super().__init__(configs, device, worker_id, run_id=run_id, out_path=out_path, seed=seed)
 
         # Hyperparameter setup
         self.epochs = configs["trainer"]["epochs"]
@@ -46,7 +46,7 @@ class PPOTrainer(BaseTrainer):
 
     def create_model(self) -> None:
         return create_actor_critic_model(self.configs["model"], self.configs["trainer"]["share_parameters"],
-        self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.device)
+        self.vis_obs_space, self.vec_obs_space, self.action_space_shape, self.device)
 
     def train(self):
         train_info = {}
@@ -112,8 +112,8 @@ class PPOTrainer(BaseTrainer):
             memory_indices = samples["memory_indices"]
 
         # Forward model -> policy, value, memory, gae
-        policy, value, _, _ = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
-                                    samples["vec_obs"] if self.vector_observation_space is not None else None,
+        policy, value, _, _ = self.model(samples["vis_obs"] if self.vis_obs_space is not None else None,
+                                    samples["vec_obs"] if self.vec_obs_space is not None else None,
                                     memory = memory, mask = mask, memory_indices = memory_indices,
                                     sequence_length = self.sampler.buffer.actual_sequence_length)
         
