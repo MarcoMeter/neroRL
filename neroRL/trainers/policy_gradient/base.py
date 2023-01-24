@@ -395,6 +395,10 @@ class BaseTrainer():
         except:
             pass
 
+    def to(self, device):
+        self.sampler.to(device)
+        self.sampler.buffer.to(device)
+        self.model.to(device)
 
     def _handler(self, signal_received, frame):
         """Invoked by the Ctrl-C event, the trainer is being closed and the python program is being exited."""

@@ -362,3 +362,9 @@ class Buffer():
         
         # Refresh batches
         self.prepare_batch_dict() 
+
+    def to(self, device):
+        for k in dir(self):
+            att = getattr(self, k)
+            if torch.is_tensor(att):
+                setattr(self, k, att.to(device))
