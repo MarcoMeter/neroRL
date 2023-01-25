@@ -70,7 +70,8 @@ class Training():
 
         # Load checkpoint and apply data
         if configs["model"]["load_model"]:
-            self.trainer.load_checkpoint()
+            self.monitor.log("Load checkpoint: " + configs["model"]["model_path"])
+            self.trainer.load_checkpoint(configs["model"]["model_path"])
 
         # Set variables
         self.configs = configs

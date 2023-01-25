@@ -189,12 +189,11 @@ class BaseTrainer():
         checkpoint_data["seed"] = self.seed
         torch.save(checkpoint_data, path + ".pt")
 
-    def load_checkpoint(self):
+    def load_checkpoint(self, path):
         """Loads a checkpoint from a specified file by the config and triggers the process of applying the loaded data."""
-        self.monitor.log("Step 3: Loading model from " + self.configs["model"]["model_path"])
-        checkpoint = torch.load(self.configs["model"]["model_path"])
+        checkpoint = torch.load(path)
         if checkpoint["version"] != neroRL.__version__:
-            self.monitor.log("WARNING: The loaded model is created with a different version of neroRL. " +
+            print("WARNING: The loaded model is created with a different version of neroRL. " +
                 "The loaded model might not work properly.")
         self.seed = checkpoint["seed"]
         set_library_seeds(self.seed)
