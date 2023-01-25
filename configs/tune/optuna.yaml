@@ -1,13 +1,7 @@
-start_seed: 0           # start seed
-num_seeds: 3            # number of seeds (i.e. repetitions) to run the training for
-upper_threshold: 0.49   # prune training if threshold is reached (positive outcome, no need to train further)
-num_updates: 1000       # number of training steps (entire PPO cycles)
-use_eval: True          # whether to measure the training or evaluation score
-start_eval: 400         # when to start evaluating
-eval_interval: 100      # time intervals to conduct the evaluation
-lower_threshold: [0.2]  # prune the entire trial of the training is not above the threshold after the specified steps (negative outcome)
-lower_steps: [300]
-summary_frequency: 50   # Intervals for logging and writing the tensorboard summary
+seed: -1                # Training seed (if negative -> sample)
+repetitions: 3          # Number of training repetiutions
+num_updates: 9       # Number of training steps (entire PPO cycles)
+trainer_period: 3      # Interval for one training repetition to progress until switching to the next training
 
 categorical:
   sequence_length: [-1, 32, 64]

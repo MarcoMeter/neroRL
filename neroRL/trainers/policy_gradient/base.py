@@ -194,7 +194,6 @@ class BaseTrainer():
             print("WARNING: The loaded model is created with a different version of neroRL. " +
                 "The loaded model might not work properly.")
         self.seed = checkpoint["seed"]
-        set_library_seeds(self.seed)
         self.apply_checkpoint_data(checkpoint)
 
     @staticmethod

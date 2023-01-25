@@ -1,3 +1,4 @@
+import random
 import numpy as np
 import optuna
 import sys
@@ -6,10 +7,13 @@ import torch
 from docopt import docopt
 from ruamel.yaml.comments import CommentedMap
 
+from neroRL.evaluator import Evaluator
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
 from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
 from neroRL.utils.yaml_parser import OptunaYamlParser, YamlParser
+from neroRL.utils.monitor import Monitor
 from neroRL.utils.monitor import Tag
+from neroRL.utils.utils import set_library_seeds
 
 def main():
     # Docopt command line arguments
@@ -47,21 +51,20 @@ def main():
 
     # Load the original config file
     train_config = YamlParser(config_path).get_config()
+    train_config["run_id"] = run_id
+    train_config["worker_id"] = worker_id
 
     # Load the tuning configuration that features the hyperparameter search space
     tune_config = OptunaYamlParser(tune_config_path).get_config()
 
     # Setup trial members
-    start_seed = tune_config["start_seed"]
-    num_seeds = tune_config["num_seeds"]
-    upper_threshold = tune_config["upper_threshold"]
+    num_repetitions = tune_config["repetitions"]
     num_updates = tune_config["num_updates"]
-    use_eval = tune_config["use_eval"]
-    start_eval = tune_config["start_eval"]
-    eval_interval = tune_config["eval_interval"]
-    lower_threshold = tune_config["lower_threshold"]
-    lower_steps = tune_config["lower_steps"]
-    summary_frequency = tune_config["summary_frequency"]
+    trainer_period = tune_config["trainer_period"]
+    seed = tune_config["seed"]
+    # Sampled seed if a value smaller than 0 was submitted
+    if seed < 0:
+        seed = random.randint(0, 2 ** 31 - 1)
 
     # Define objective function
     def objective(trial):
@@ -81,94 +84,94 @@ def main():
         # Create the training config for this trial using the sampled hyperparameters
         trial_config = build_trial_config(suggestions, train_config)
 
-        # Monitor final training duration (total steps) and results
-        results = []
-        total_steps = []
+        # Init monitor
+        monitor = Monitor(out_path, trial_config["run_id"], trial_config["worker_id"])
+        monitor.write_hyperparameters(trial_config)
+        monitor.log("Trial Seed: " + str(seed))
+        # Start logging the training setup
+        monitor.log("Trial Config:")
+        for key in trial_config:
+            if type(trial_config[key]) is dict:
+                monitor.log("\t" + str(key) + ":")
+                if type(trial_config[key]) is dict:
+                    for k, v in trial_config[key].items():
+                        monitor.log("\t" * 2 + str(k) + ": " + str(v))
+        monitor.log("Trial Suggestions:")
+        for k, v in suggestions.items():
+                monitor.log("\t" + str(k) + ": " + str(v))
 
-        # Run all training repetitions using fixed seeds
-        for seed in range(start_seed, start_seed + num_seeds):
-            new_run_id = run_id + "_" + str(trial.number) + "_" + str(seed)
-            # Setup trainer
-            if trial_config["trainer"]["algorithm"] == "PPO":
-                trainer = PPOTrainer(trial_config, worker_id, new_run_id, out_path, seed)
-            elif trial_config["trainer"]["algorithm"] == "DecoupledPPO":
-                trainer = DecoupledPPOTrainer(trial_config, worker_id, run_id, out_path, seed)
-            else:
-                assert(False), "Unsupported algorithm specified"
+        # Determine cuda availability
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if torch.cuda.is_available():
+            torch.set_default_tensor_type("torch.cuda.FloatTensor")
+        else:
+            torch.set_default_tensor_type("torch.FloatTensor")
+        cpu_device = torch.device("cpu")
 
-            trainer.monitor.log("Run trial " + str(trial.number) + ": " + str(seed - start_seed + 1) + "/" + str(num_seeds))
-            trainer.monitor.log("Trial sugestions:")
-            trainer.monitor.log(suggestions)
+        # Instantiate as many trainers as there are repetitions
+        set_library_seeds(seed)
+        trainers = []
+        monitor.log("Initializing " + str(num_repetitions) + " trainers")
+        for c in range(num_repetitions):
+            train_config["worker_id"] += 50
+            run_id = trial_config["run_id"] + "_" + str(trial.number) + "_" + str(c) + "_" + str(seed)
+            monitor.log("\t" + "Run id: " + run_id)
+            trainer = PPOTrainer(trial_config, device, train_config["worker_id"], run_id, out_path, seed)
+            trainer.to(device) # Move models and tensors to CPU
+            trainers.append(trainer)
 
-            # Run single training
-            for update in range(num_updates):
-                # step training
-                episode_result, training_stats, formatted_string, update_duration, decayed_hyperparameters = trainer.step(update)
+        # Log environment specifications
+        monitor.log("Environment specs:")
+        monitor.log("\t" + "Visual Observation Space: " + str(trainers[0].vis_obs_space))
+        monitor.log("\t" + "Vector Observation Space: " + str(trainers[0].vec_obs_space))
+        monitor.log("\t" + "Action Space Shape: " + str(trainers[0].action_space_shape))
+        monitor.log("\t" + "Max Episode Steps: " + str(trainers[0].max_episode_steps))
 
-                # log stats once in a while
-                if update % summary_frequency == 0:
-                    if episode_result:
-                        trainer.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
-                            (" value={:3f} std={:.3f} adv={:.3f} std={:.3f}")).format(
-                            update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
-                            episode_result["length_mean"], episode_result["length_std"], torch.mean(trainer.sampler.buffer.values), torch.std(trainer.sampler.buffer.values),
-                            torch.mean(trainer.sampler.buffer.advantages), torch.std(trainer.sampler.buffer.advantages)) +
-                            " " + formatted_string)
-                    else:
-                        trainer.monitor.log("{:4} sec={:2} value={:3f} std={:.3f} adv={:.3f} std={:.3f}".format(
-                            update, update_duration, torch.mean(trainer.sampler.buffer.values), torch.std(trainer.sampler.buffer.values),
-                            torch.mean(trainer.sampler.buffer.advantages), torch.std(trainer.sampler.buffer.advantages)) +
-                            " " + formatted_string)
-                    training_stats = {
-                    **training_stats,
-                    **decayed_hyperparameters,
-                    "advantage_mean": (Tag.EPISODE, torch.mean(trainer.sampler.buffer.advantages)),
-                    "value_mean": (Tag.EPISODE, torch.mean(trainer.sampler.buffer.values)),
-                    "sequence_length": (Tag.OTHER, trainer.sampler.buffer.actual_sequence_length),}
-                    # write training statistics to tensorboard
-                    trainer.monitor.write_training_summary(update, training_stats, episode_result)
+        # Init evaluator
+        monitor.log("Initializing Evaluator")
+        evaluator = Evaluator(trial_config, trial_config["model"], worker_id, trainers[0].vis_obs_space,
+                                trainers[0].vec_obs_space, trainers[0].max_episode_steps)
+        
+        # Execute all training runs "concurrently" (i.e. one trainer runs for the specified period and then training moves on with the next trainer)
+        monitor.log("Executing trial using " + str(device))
+        for cycle in range(0, num_updates, trainer_period):
+            # Lists to monitor results
+            episode_results = []
+            training_stats = []
+            update_durations = []
+            eval_results = []
+            for c, trainer in enumerate(trainers):
+                trainer.to(device) # Move current trainer model and tensors to GPU
+                for t in range(trainer_period):
+                    episode_result, training_stat, formatted_string, update_duration, decayed_hyperparameters = trainer.step(cycle + t)
+                    episode_results.append(episode_result)
+                    training_stats.append(training_stat)
+                    update_durations.append(update_duration)
+                    print(cycle + t)
+                # Evaluate
+                eval_duration, eval_episode_info = evaluator.evaluate(trainer.model, device)
+                eval_results.append(eval_episode_info)
+                # Log trainer results
+                # After the training period, move current trainer model and tensors to CPU
+                trainer.to(cpu_device)
+            # Aggregate results
 
-                # eval?
-                if use_eval:
-                    if update >= start_eval:
-                        if update % eval_interval == 0 or update + 1 == num_updates:
-                            eval_duration, evaluation_result = trainer.evaluate()
-                            # prune upper threshold based on evaluation score
-                            if episode_result["reward_mean"] >= upper_threshold:
-                                results.append(episode_result["reward_mean"])
-                                total_steps.append(update)
-                                trainer.monitor.log("Trial succeeded by reaching the threshold earlier.")
-                                break
+            # Log training stats to console, file, tensorboard
 
-                # TODO prune entire trial based on lower threshold
+            # Log evaluation stats to console, file, tensorboard
 
-            # Clean up training run
-            # Add the last result if no results made it to the list yet
-            if not results:
-                results.append(episode_result["reward_mean"])
-                total_steps.append(update)
-            # Save model
-            trainer.close()
-            del trainer
+            # Save checkpoint
 
-        # Process results across all seeds
-        results = np.asarray(results)
-        total_steps = np.asarray(total_steps)
-        weights = (1 - total_steps / num_updates) + 1 # scale up scores that surpassed the upper threshold earlier
-        result = weights * results
-        result = result.mean()
-        print("RESULT AGGREGATION")
-        print("Raw results")
-        print(results)
-        print("Raw steps")
-        print(total_steps)
-        print("Weights")
-        print(weights)
-        print("Weighted results")
-        print(weights * results)
-        print("Aggregated result")
-        print(result)
-        return result
+            # Report evaluation result to optuna
+
+        # Finish up trial
+        # for trainer in trainers:
+            # trainer.close()
+
+        
+
+        # Return final result
+        return 0
 
     print("Create/continue study")
     study = optuna.create_study(study_name=run_id, sampler=optuna.samplers.TPESampler(), direction="maximize",
