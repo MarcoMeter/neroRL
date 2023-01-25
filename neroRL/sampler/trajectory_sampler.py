@@ -180,6 +180,8 @@ class TrajectorySampler():
             pass
 
     def to(self, device):
+        """Args:
+            device {torch.device} -- Desired device for all current tensors"""
         for k in dir(self):
             att = getattr(self, k)
             if torch.is_tensor(att):

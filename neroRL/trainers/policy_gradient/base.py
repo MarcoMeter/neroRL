@@ -1,9 +1,7 @@
-import torch
 import numpy as np
 import time
+import torch
 from collections import deque
-
-from sys import exit
 
 import neroRL
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
@@ -227,6 +225,8 @@ class BaseTrainer():
             pass
 
     def to(self, device):
+        """Args:
+            device {torch.device} -- Desired device for all current tensors and models"""
         self.sampler.to(device)
         self.sampler.buffer.to(device)
         self.model.to(device)

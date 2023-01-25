@@ -19,6 +19,14 @@ from neroRL.utils.yaml_parser import YamlParser
 
 class Training():
     def __init__(self, configs, run_id, worker_id, out_path, seed) -> None:
+        """
+        Arguments:
+            configs {dict} -- Environment, Model and Training configuration
+            run_id {str} -- Short tag that describes the underlying training run
+            worker_id {int} -- A different worker id has to be chosen for socket based environments like Unity ML-Agents
+            out_path {str} -- Desired output path
+            seed {int} -- Seed for all number generators
+        """
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
         signal(SIGINT, self._close)
 
@@ -82,7 +90,7 @@ class Training():
         self.out_path = out_path
 
     def run(self):
-        # Run training loop
+        """Run training loop"""
         if(self.resume_at > 0):
             self.monitor.log("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
         else:
