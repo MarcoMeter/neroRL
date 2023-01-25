@@ -139,12 +139,13 @@ class Evaluator():
                             vec_obs_batch = torch.tensor(np.expand_dims(vec_obs[w], 0), dtype=torch.float32, device=device) if vec_obs is not None else None
 
                             # Prepare transformer memory
+                            in_memory, mask, indices = None, None, None
                             if self.transformer_config is not None:
                                 in_memory = memory[w][0, memory_indices[worker_steps[w]]].unsqueeze(0)
                                 t = max(0, min(worker_steps[w], self.memory_length - 1))
                                 mask = memory_mask[t].unsqueeze(0)
                                 indices = memory_indices[worker_steps[w]].unsqueeze(0)
-                            else:
+                            elif self.recurrence_config is not None:
                                 in_memory = memory[w]
 
                             # Forward model
