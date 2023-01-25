@@ -20,7 +20,7 @@ from neroRL.utils.yaml_parser import YamlParser
 class Training():
     def __init__(self, configs, run_id, worker_id, out_path, seed) -> None:
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
-        signal(SIGINT, self._handler)
+        signal(SIGINT, self._close)
 
         # Sampled seed if a value smaller than 0 was submitted
         if seed < 0:
@@ -37,9 +37,9 @@ class Training():
         # Create training monitor
         self.monitor = Monitor(out_path, run_id, worker_id)
         self.monitor.write_hyperparameters(configs)
-        self.monitor.log("Step 0: Training Seed: " + str(self.seed))
+        self.monitor.log("Training Seed: " + str(self.seed))
         # Start logging the training setup
-        self.monitor.log("Step 1: Provided config:")
+        self.monitor.log("Provided config:")
         for key in configs:
             self.monitor.log("\t" + str(key) + ":")
             for k, v in configs[key].items():
@@ -53,6 +53,7 @@ class Training():
         else:
             assert(False), "Unsupported algorithm specified"
 
+        self.monitor.log("Environment specs:")
         self.monitor.log("\t" + "Visual Observation Space: " + str(self.trainer.vis_obs_space))
         self.monitor.log("\t" + "Vector Observation Space: " + str(self.trainer.vec_obs_space))
         self.monitor.log("\t" + "Action Space Shape: " + str(self.trainer.action_space_shape))
@@ -62,7 +63,7 @@ class Training():
         self.eval = configs["evaluation"]["evaluate"]
         self.eval_interval = configs["evaluation"]["interval"]
         if self.eval and self.eval_interval > 0:
-            self.monitor.log("Step 2b: Initializing evaluator")
+            self.monitor.log("Initializing evaluator")
             self.evaluator = Evaluator(configs, configs["model"], worker_id, self.trainer.vis_obs_space, self.trainer.vec_obs_space, self.trainer.max_episode_steps)
         else:
             self.evaluator = None
@@ -88,19 +89,6 @@ class Training():
 
         for update in range(self.resume_at, self.updates):
             episode_result, training_stats, formatted_string, update_duration, decayed_hyperparameters = self.trainer.step(update)
-            # Save checkpoint (update, model, optimizer, configs)
-            if update % self.configs["model"]["checkpoint_interval"] == 0 or update == (self.configs["trainer"]["updates"] - 1):
-                self.monitor.log("Saving model to " + self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
-                self.trainer.save_checkpoint(update, self.monitor.checkpoint_path + self.run_id + "-" + str(update))
-        
-            # Eval
-            if self.eval:
-                if update % self.eval_interval == 0 or update == (self.updates - 1):
-                    eval_duration, eval_episode_info = self.evaluator.evaluate(self.trainer.model, self.device)
-                    evaluation_result = self.trainer.process_episode_info(eval_episode_info)
-                    self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
-                        eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
-                    self.monitor.write_eval_summary(update, evaluation_result)
             # Log to console
             if episode_result:
                 self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
@@ -114,6 +102,18 @@ class Training():
                     update, update_duration, torch.mean(self.trainer.sampler.buffer.values), torch.std(self.trainer.sampler.buffer.values),
                     torch.mean(self.trainer.sampler.buffer.advantages), torch.std(self.trainer.sampler.buffer.advantages)) +
                     " " + formatted_string)
+            # Evaluate agent
+            if self.eval:
+                if update % self.eval_interval == 0 or update == (self.updates - 1):
+                    eval_duration, eval_episode_info = self.evaluator.evaluate(self.trainer.model, self.device)
+                    evaluation_result = self.trainer.process_episode_info(eval_episode_info)
+                    self.monitor.log("eval: sec={:3} reward={:.2f} length={:.1f}".format(
+                        eval_duration, evaluation_result["reward_mean"], evaluation_result["length_mean"]))
+                    self.monitor.write_eval_summary(update, evaluation_result)
+            # Save checkpoint (update, model, optimizer, configs)
+            if update % self.configs["model"]["checkpoint_interval"] == 0 or update == (self.configs["trainer"]["updates"] - 1):
+                self.monitor.log("Saving model to " + self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
+                self.trainer.save_checkpoint(update, self.monitor.checkpoint_path + self.run_id + "-" + str(update))
             # Log to tensorboard
             # Add some more training statistics which should be monitored
             training_stats = {
@@ -123,14 +123,13 @@ class Training():
             "value_mean": (Tag.EPISODE, torch.mean(self.trainer.sampler.buffer.values)),
             "sequence_length": (Tag.OTHER, self.trainer.sampler.buffer.actual_sequence_length),
             }
-
             # Write training statistics to tensorboard
             self.monitor.write_training_summary(update, training_stats, episode_result)
 
         # Clean up after training
-        self.trainer.close()
+        self._close(None, None)
 
-    def _handler(self, signal_received, frame):
+    def _close(self, signal_received, frame):
         self.monitor.log("Terminating training ...")
         if self.trainer.current_update > 0:
             self.monitor.log("Terminate: Saving model . . .")
