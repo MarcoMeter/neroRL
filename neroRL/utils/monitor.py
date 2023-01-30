@@ -190,7 +190,7 @@ class TuningMonitor():
         # if not os.path.exists(out_path + "logs") or not os.path.exists(out_path + "logs/" + run_id):
         #     os.makedirs(out_path + "logs/" + run_id)
 
-        self.checkpoint_path = out_path + "checkpoints/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
+        self.checkpoint_path = out_path + "checkpoints/" + run_id + duplicate_suffix + "/"
         os.makedirs(self.checkpoint_path)
 
     def log(self, message:str) -> None:

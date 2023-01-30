@@ -1,6 +1,7 @@
 import random
 import numpy as np
 import optuna
+import os
 import sys
 import torch
 
@@ -133,11 +134,12 @@ def main():
         
         # Execute all training runs "concurrently" (i.e. one trainer runs for the specified period and then training moves on with the next trainer)
         monitor.log("Executing trial using " + str(device))
+        latest_checkpoints = ["" for _ in range(num_repetitions)]
         for cycle in range(0, num_updates, trainer_period):
             # Lists to monitor results
             eval_episode_infos = []
             monitor.log("Updates Done: {:4}".format(cycle))
-            for c, trainer in enumerate(trainers):
+            for id, trainer in enumerate(trainers):
                 train_episode_infos = []
                 training_stats = None
                 update_durations = []
@@ -159,7 +161,7 @@ def main():
                 # Log training results
                 monitor.log((("T{:1} sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
                     (" value={:3f} adv={:.3f} loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}")).format(
-                    c, sum(update_durations), train_results["reward_mean"], train_results["reward_std"],
+                    id, sum(update_durations), train_results["reward_mean"], train_results["reward_std"],
                     train_results["length_mean"], train_results["length_std"], training_stats["value_mean"][1],
                     training_stats["advantage_mean"][1], training_stats["loss"][1], training_stats["policy_loss"][1],
                     training_stats["value_loss"][1], training_stats["entropy"][1]))
@@ -178,8 +180,15 @@ def main():
                 # monitor.log(result_string + additional_string)
 
                 # Write to tensorboard
-                monitor.write_training_summary(cycle + trainer_period, training_stats, train_results, c)
-                monitor.write_eval_summary(cycle + trainer_period, eval_results, c)
+                udate = cycle + trainer_period
+                monitor.write_training_summary(udate, training_stats, train_results, id)
+                monitor.write_eval_summary(udate, eval_results, id)
+
+                # Save checkpoint
+                if os.path.isfile(latest_checkpoints[id]):
+                    os.remove(latest_checkpoints[id])
+                latest_checkpoints[id] = monitor.checkpoint_path + run_id + "_" + str(id) + "-" + str(udate) + ".pt"
+                trainer.save_checkpoint(udate, latest_checkpoints[id][:-3])
 
                 # After the training period, move current trainer model and tensors to CPU
                 trainer.to(cpu_device)
@@ -193,17 +202,15 @@ def main():
                 additional_string = " success={:.2f} std={:.2f}".format(eval_results["success_mean"], eval_results["success_std"])
             monitor.log(result_string + additional_string)
 
-            # Replace oldest checkpoints
-
             # Report evaluation result to optuna to allow for pruning
-            trial.report(cycle + trainer_period, eval_results["reward_mean"])
+            trial.report(udate, eval_results["reward_mean"])
 
         # Finish up trial
         monitor.log("Closing trainer . . .")
         for trainer in trainers:
             trainer.close()
             evaluator.close()
-            monitor.close()        
+            monitor.close()
 
         # Return final result
         return eval_results["reward_mean"]
