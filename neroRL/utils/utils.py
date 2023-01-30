@@ -57,7 +57,7 @@ def batched_index_select(input, dim, index):
     index = index.expand(expanse)
     return torch.gather(input, dim, index)
 
-def get_environment_specs(env_config, worker_id):
+def get_environment_specs(env_config, worker_id, realtime_mode = False):
     """_summary_
 
     Arguments:
@@ -67,7 +67,7 @@ def get_environment_specs(env_config, worker_id):
     Returns:
         _type_ -- _description_
     """
-    dummy_env = wrap_environment(env_config, worker_id, realtime_mode = True)
+    dummy_env = wrap_environment(env_config, worker_id, realtime_mode)
     vis_obs, vec_obs = dummy_env.reset(env_config["reset_params"])
     max_episode_steps = dummy_env.max_episode_steps
     visual_observation_space = dummy_env.visual_observation_space
