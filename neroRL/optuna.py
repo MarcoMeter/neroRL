@@ -11,7 +11,7 @@ from neroRL.evaluator import Evaluator
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
 from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
 from neroRL.utils.yaml_parser import OptunaYamlParser, YamlParser
-from neroRL.utils.monitor import TrainingMonitor, Tag
+from neroRL.utils.monitor import TuningMonitor, Tag
 from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 
 def main():
@@ -27,7 +27,7 @@ def main():
         --num-trials=<n>            Number of trials [default: 1]
         --db=<path>     	        MySQL URL [default: mysql://root@localhost/optuna]
         --worker-id=<n>             Sets the port for each environment instance [default: 2].
-        --run-id=<path>             Specifies the tag of the tensorboard summaries [default: default].
+        --run-id=<path>             Specifies the tag of the tensorboard summaries [default: no-id].
         --out=<path>                Where to output the generated config files [default: ./tpe_search/]
     """
     options = docopt(_USAGE)
@@ -84,8 +84,8 @@ def main():
         trial_config = build_trial_config(suggestions, train_config)
 
         # Init monitor
-        monitor = TrainingMonitor(out_path, trial_config["run_id"], trial_config["worker_id"])
-        monitor.write_hyperparameters(trial_config)
+        run_id = trial_config["run_id"] + "_" + str(trial.number)
+        monitor = TuningMonitor(out_path, run_id, trial_config["worker_id"], num_repetitions)
         monitor.log("Trial Seed: " + str(seed))
         # Start logging the training setup
         monitor.log("Trial Config:")
@@ -111,13 +111,13 @@ def main():
         set_library_seeds(seed)
         trainers = []
         monitor.log("Initializing " + str(num_repetitions) + " trainers")
-        for c in range(num_repetitions):
+        for t in range(num_repetitions):
             train_config["worker_id"] += 50
-            run_id = trial_config["run_id"] + "_" + str(trial.number) + "_" + str(c) + "_" + str(seed)
-            monitor.log("\t" + "Run id: " + run_id)
+            monitor.log("\t" + "Run id: " + run_id + " Seed: " + str(seed))
             trainer = PPOTrainer(trial_config, device, train_config["worker_id"], run_id, out_path, seed)
             trainer.to(device) # Move models and tensors to CPU
             trainers.append(trainer)
+            monitor.write_hyperparameters(train_config, t)
 
         # Log environment specifications
         monitor.log("Environment specs:")
@@ -178,6 +178,8 @@ def main():
                 # monitor.log(result_string + additional_string)
 
                 # Write to tensorboard
+                monitor.write_training_summary(cycle + trainer_period, training_stats, train_results, c)
+                monitor.write_eval_summary(cycle + trainer_period, eval_results, c)
 
                 # After the training period, move current trainer model and tensors to CPU
                 trainer.to(cpu_device)
@@ -190,8 +192,6 @@ def main():
             if "success_mean" in eval_results.keys():
                 additional_string = " success={:.2f} std={:.2f}".format(eval_results["success_mean"], eval_results["success_std"])
             monitor.log(result_string + additional_string)
-            # Write to tensorboard
-            # Log training stats to console, file, tensorboard
 
             # Replace oldest checkpoints
 
