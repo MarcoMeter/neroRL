@@ -28,7 +28,7 @@ class Training():
             seed {int} -- Seed for all number generators
         """
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
-        signal(SIGINT, self._close)
+        signal(SIGINT, self.close)
 
         # Sampled seed if a value smaller than 0 was submitted
         if seed < 0:
@@ -135,10 +135,7 @@ class Training():
             # Write training statistics to tensorboard
             self.monitor.write_training_summary(update, training_stats, episode_result)
 
-        # Clean up after training
-        self._close(None, None)
-
-    def _close(self, signal_received, frame):
+    def close(self, signal_received, frame):
         self.monitor.log("Terminating training ...")
         if self.trainer.current_update > 0:
             self.monitor.log("Terminate: Saving model . . .")
@@ -209,10 +206,16 @@ def main():
     # import cProfile, pstats
     # profiler = cProfile.Profile()
     # profiler.enable()
-    training.run()
+    try:
+        training.run()
+    except:
+        training.monitor.logger.exception("Exception during training")
     # profiler.disable()
     # stats = pstats.Stats(profiler).sort_stats('cumtime')
     # stats.print_stats()
+
+    # Clean up training
+    training.close(None, None)
 
 if __name__ == "__main__":
     main()
