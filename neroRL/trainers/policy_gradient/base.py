@@ -7,7 +7,7 @@ import neroRL
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
 from neroRL.sampler.recurrent_sampler import RecurrentSampler
 from neroRL.sampler.transformer_sampler import TransformerSampler
-from neroRL.utils.utils import set_library_seeds
+from neroRL.utils.monitor import Tag
 from neroRL.utils.utils import get_environment_specs
 
 class BaseTrainer():
@@ -100,6 +100,14 @@ class BaseTrainer():
         if torch.cuda.is_available():
             self.model.cuda() # Train on GPU
         training_stats, formatted_string = self.train()
+        # Extend training statistics
+        training_stats = {
+            **training_stats,
+            **decayed_hyperparameters,
+            "advantage_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.advantages).cpu().item()),
+            "value_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.values).cpu().item()),
+            "sequence_length": (Tag.OTHER, self.sampler.buffer.actual_sequence_length),
+            }
 
         # Free memory
         del(self.sampler.buffer.samples_flat)
@@ -116,10 +124,7 @@ class BaseTrainer():
         time_end = time.time()
         update_duration = int(time_end - time_start)
 
-        # 7.: Process training stats to print to console and write summaries
-        episode_result = self.process_episode_info(self.episode_info)
-
-        return episode_result, training_stats, formatted_string, update_duration, decayed_hyperparameters
+        return self.episode_info, training_stats, formatted_string, update_duration
     
     ### BEGIN:  Methods that need to be overriden/extended ###
     def create_model(self) -> None:

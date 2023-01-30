@@ -12,7 +12,7 @@ import sys
 
 from docopt import docopt
 
-from neroRL.utils.utils import get_environment_specs
+from neroRL.utils.utils import aggregate_episode_results, get_environment_specs
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
 from neroRL.nn.actor_critic import create_actor_critic_model
@@ -100,7 +100,7 @@ def main():
     # Evaluate
     logger.info("Step 4: Run evaluation . . .")
     eval_duration, raw_episode_results = evaluator.evaluate(model, device)
-    episode_result = _process_episode_info(raw_episode_results)
+    episode_result = aggregate_episode_results(raw_episode_results)
 
     # Print results
     logger.info("RESULT: sec={:3}     mean reward={:.2f} std={:.2f}     mean length={:.1f} std={:.2f}".format(
@@ -109,28 +109,6 @@ def main():
     # Close
     logger.info("Step 5: Closing evaluator . . .")
     evaluator.close()
-
-def _process_episode_info(episode_info):
-    """Extracts the mean and std of completed episodes. At minimum the episode length and the collected reward is available.
-    
-    Arguments:
-        episode_info {list} -- List of episode information, each individual item is a dictionary
-
-    Returns:
-        result {dict} -- Dictionary that contains the mean, std, min and max of all episode infos        
-    """
-    result = {}
-    if len(episode_info) > 0:
-        keys = episode_info[0].keys()
-        # Compute mean and std for each information, skip seed
-        for key in keys:
-            if key == "seed":
-                continue
-            result[key + "_mean"] = np.mean([info[key] for info in episode_info])
-            result[key + "_min"] = np.min([info[key] for info in episode_info])
-            result[key + "_max"] = np.max([info[key] for info in episode_info])
-            result[key + "_std"] = np.std([info[key] for info in episode_info])
-    return result
 
 if __name__ == "__main__":
     main()

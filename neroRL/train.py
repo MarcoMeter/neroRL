@@ -13,8 +13,7 @@ from neroRL.evaluator import Evaluator
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
 from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
 from neroRL.utils.monitor import Monitor
-from neroRL.utils.monitor import Tag
-from neroRL.utils.utils import set_library_seeds
+from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 from neroRL.utils.yaml_parser import YamlParser
 
 class Training():
@@ -97,14 +96,16 @@ class Training():
             self.monitor.log("Step 5: Starting training using " + str(self.device) + " . . .")
 
         for update in range(self.resume_at, self.updates):
-            episode_result, training_stats, formatted_string, update_duration, decayed_hyperparameters = self.trainer.step(update)
-            # Log to console
+            # Step trainer
+            episode_infos, training_stats, formatted_string, update_duration = self.trainer.step(update)
+            # Process training stats to print to console and write summaries
+            episode_result = aggregate_episode_results(episode_infos)
             if episode_result:
                 self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
                     (" value={:3f} std={:.3f} adv={:.3f} std={:.3f}")).format(
                     update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
-                    episode_result["length_mean"], episode_result["length_std"], torch.mean(self.trainer.sampler.buffer.values), torch.std(self.trainer.sampler.buffer.values),
-                    torch.mean(self.trainer.sampler.buffer.advantages), torch.std(self.trainer.sampler.buffer.advantages)) +
+                    episode_result["length_mean"], episode_result["length_std"], training_stats["value_mean"][1], torch.std(self.trainer.sampler.buffer.values),
+                    training_stats["advantage_mean"][1], torch.std(self.trainer.sampler.buffer.advantages)) +
                     " " + formatted_string)
             else:
                 self.monitor.log("{:4} sec={:2} value={:3f} std={:.3f} adv={:.3f} std={:.3f}".format(
@@ -123,15 +124,6 @@ class Training():
             if update % self.configs["model"]["checkpoint_interval"] == 0 or update == (self.configs["trainer"]["updates"] - 1):
                 self.monitor.log("Saving model to " + self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
                 self.trainer.save_checkpoint(update, self.monitor.checkpoint_path + self.run_id + "-" + str(update))
-            # Log to tensorboard
-            # Add some more training statistics which should be monitored
-            training_stats = {
-            **training_stats,
-            **decayed_hyperparameters,
-            "advantage_mean": (Tag.EPISODE, torch.mean(self.trainer.sampler.buffer.advantages)),
-            "value_mean": (Tag.EPISODE, torch.mean(self.trainer.sampler.buffer.values)),
-            "sequence_length": (Tag.OTHER, self.trainer.sampler.buffer.actual_sequence_length),
-            }
             # Write training statistics to tensorboard
             self.monitor.write_training_summary(update, training_stats, episode_result)
 

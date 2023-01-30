@@ -58,14 +58,14 @@ def batched_index_select(input, dim, index):
     return torch.gather(input, dim, index)
 
 def get_environment_specs(env_config, worker_id, realtime_mode = False):
-    """_summary_
+    """Creates a dummy environments, resets it, and hence obtains all environment specifications .
 
     Arguments:
-        env_config {_type_} -- _description_
-        worker_id {_type_} -- _description_
+        env_config {dict} -- Configuration of the environment
+        worker_id {int} -- Worker id that is necessary for socket-based environments like Unity
 
     Returns:
-        _type_ -- _description_
+        {tuple} -- Returns visual observation space, vector observations space, action space and max episode steps
     """
     dummy_env = wrap_environment(env_config, worker_id, realtime_mode)
     vis_obs, vec_obs = dummy_env.reset(env_config["reset_params"])
@@ -78,3 +78,26 @@ def get_environment_specs(env_config, worker_id, realtime_mode = False):
         action_space_shape = tuple(dummy_env.action_space.nvec)
     dummy_env.close()
     return visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps
+
+def aggregate_episode_results(episode_infos):
+    """Takes in a list of episode info dictionaries. All episode results (episode reward, length, success, ...) are
+    aggregate using min, max, mean, std.
+
+    Arguments:
+        episode_infos {list} -- List of dictionaries containing episode infos such as episode reward, length, ...
+
+    Returns:
+        {dict} -- Result dictionary featuring all aggregated metrics
+    """
+    results = {}
+    if len(episode_infos) > 0:
+        keys = episode_infos[0].keys()
+        # Compute mean, std, min and max for each information, skip seed
+        for key in keys:
+            if key == "seed":
+                continue
+            results[key + "_mean"] = np.mean([info[key] for info in episode_infos])
+            results[key + "_min"] = np.min([info[key] for info in episode_infos])
+            results[key + "_max"] = np.max([info[key] for info in episode_infos])
+            results[key + "_std"] = np.std([info[key] for info in episode_infos])
+    return results

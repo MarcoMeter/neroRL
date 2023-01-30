@@ -11,9 +11,8 @@ from neroRL.evaluator import Evaluator
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
 from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
 from neroRL.utils.yaml_parser import OptunaYamlParser, YamlParser
-from neroRL.utils.monitor import Monitor
-from neroRL.utils.monitor import Tag
-from neroRL.utils.utils import set_library_seeds
+from neroRL.utils.monitor import Monitor, Tag
+from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 
 def main():
     # Docopt command line arguments
@@ -51,7 +50,7 @@ def main():
 
     # Load the original config file
     train_config = YamlParser(config_path).get_config()
-    train_config["run_id"] = run_id
+    train_config["run_id"] = run_id # for some reason run_id and worker_id cannot be used in objective(trial)
     train_config["worker_id"] = worker_id
 
     # Load the tuning configuration that features the hyperparameter search space
@@ -136,42 +135,80 @@ def main():
         monitor.log("Executing trial using " + str(device))
         for cycle in range(0, num_updates, trainer_period):
             # Lists to monitor results
-            episode_results = []
-            training_stats = []
-            update_durations = []
-            eval_results = []
+            eval_episode_infos = []
+            monitor.log("Updates Done: {:4}".format(cycle))
             for c, trainer in enumerate(trainers):
+                train_episode_infos = []
+                training_stats = None
+                update_durations = []
                 trainer.to(device) # Move current trainer model and tensors to GPU
                 for t in range(trainer_period):
-                    episode_result, training_stat, formatted_string, update_duration, decayed_hyperparameters = trainer.step(cycle + t)
-                    episode_results.append(episode_result)
-                    training_stats.append(training_stat)
+                    episode_info, stats, formatted_string, update_duration = trainer.step(cycle + t)
+                    train_episode_infos.extend(episode_info)
+                    if training_stats is None:
+                        training_stats = {}
+                        for key, value in stats.items():
+                            training_stats[key] = (value[0], [])
+                    for key, value in stats.items():
+                            training_stats[key][1].append(value[1])
                     update_durations.append(update_duration)
-                    print(cycle + t)
+                # Aggregate training results
+                for k, v in training_stats.items():
+                    training_stats[k] = (v[0], np.asarray(v[1]).mean())
+                train_results = aggregate_episode_results(train_episode_infos)
+                # Log training results
+                monitor.log((("T{:1} sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
+                    (" value={:3f} adv={:.3f} loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}")).format(
+                    c, sum(update_durations), train_results["reward_mean"], train_results["reward_std"],
+                    train_results["length_mean"], train_results["length_std"], training_stats["value_mean"][1],
+                    training_stats["advantage_mean"][1], training_stats["loss"][1], training_stats["policy_loss"][1],
+                    training_stats["value_loss"][1], training_stats["entropy"][1]))
+
                 # Evaluate
-                eval_duration, eval_episode_info = evaluator.evaluate(trainer.model, device)
-                eval_results.append(eval_episode_info)
-                # Log trainer results
+                eval_duration, eval_episode_infos = evaluator.evaluate(trainer.model, device)
+                eval_results = aggregate_episode_results(eval_episode_infos)
+                eval_episode_infos.extend(eval_episode_infos)
+                # Log evaluation results for each individual trainer
+                # result_string = "EVAL T{:1} sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f}".format(c, eval_duration,
+                #                 eval_results["reward_mean"], eval_results["reward_std"], eval_results["length_mean"],
+                #                 eval_results["length_mean"])
+                # additional_string = ""
+                # if "success_mean" in eval_results.keys():
+                #     additional_string = " success={:.2f} std={:.2f}".format(eval_results["success_mean"], eval_results["success_std"])
+                # monitor.log(result_string + additional_string)
+                
+                # Write to tensorboard
+
                 # After the training period, move current trainer model and tensors to CPU
                 trainer.to(cpu_device)
-            # Aggregate results
 
+            # Aggregate and log evaluation results
+            eval_results = aggregate_episode_results(eval_episode_infos)
+            result_string = "EVAL reward={:.2f} std={:.2f} length={:.1f} std={:.2f}".format(eval_results["reward_mean"],
+                                        eval_results["reward_std"], eval_results["length_mean"], eval_results["length_mean"])
+            additional_string = ""
+            if "success_mean" in eval_results.keys():
+                additional_string = " success={:.2f} std={:.2f}".format(eval_results["success_mean"], eval_results["success_std"])
+            monitor.log(result_string + additional_string)
+            # Write to tensorboard
             # Log training stats to console, file, tensorboard
 
             # Log evaluation stats to console, file, tensorboard
 
-            # Save checkpoint
+            # Replace oldest checkpoints
 
-            # Report evaluation result to optuna
+            # Report evaluation result to optuna to allow for pruning
+            trial.report(cycle + trainer_period, eval_results["reward_mean"])
 
         # Finish up trial
-        # for trainer in trainers:
-            # trainer.close()
-
-        
+        monitor.log("Closing trainer . . .")
+        for trainer in trainers:
+            trainer.close()
+            evaluator.close()
+            monitor.close()        
 
         # Return final result
-        return 0
+        return eval_results["reward_mean"]
 
     print("Create/continue study")
     study = optuna.create_study(study_name=run_id, sampler=optuna.samplers.TPESampler(), direction="maximize",
