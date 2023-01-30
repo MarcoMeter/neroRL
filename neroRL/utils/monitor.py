@@ -17,7 +17,7 @@ import sys
 import random
 from torch.utils.tensorboard import SummaryWriter
 
-class Monitor():
+class TrainingMonitor():
     """The monitor is in charge of logging training statistics to console, file and tensorboard.
     It further arranges all needed directories for saving outputs like model checkpoints.
     """

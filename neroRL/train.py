@@ -12,7 +12,7 @@ from signal import signal, SIGINT
 from neroRL.evaluator import Evaluator
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
 from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
-from neroRL.utils.monitor import Monitor
+from neroRL.utils.monitor import TrainingMonitor
 from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 from neroRL.utils.yaml_parser import YamlParser
 
@@ -42,7 +42,7 @@ class Training():
             torch.set_default_tensor_type("torch.FloatTensor")
 
         # Create training monitor
-        self.monitor = Monitor(out_path, run_id, worker_id)
+        self.monitor = TrainingMonitor(out_path, run_id, worker_id)
         self.monitor.write_hyperparameters(configs)
         self.monitor.log("Training Seed: " + str(self.seed))
         # Start logging the training setup

@@ -11,7 +11,7 @@ from neroRL.evaluator import Evaluator
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
 from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
 from neroRL.utils.yaml_parser import OptunaYamlParser, YamlParser
-from neroRL.utils.monitor import Monitor, Tag
+from neroRL.utils.monitor import TrainingMonitor, Tag
 from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 
 def main():
@@ -84,7 +84,7 @@ def main():
         trial_config = build_trial_config(suggestions, train_config)
 
         # Init monitor
-        monitor = Monitor(out_path, trial_config["run_id"], trial_config["worker_id"])
+        monitor = TrainingMonitor(out_path, trial_config["run_id"], trial_config["worker_id"])
         monitor.write_hyperparameters(trial_config)
         monitor.log("Trial Seed: " + str(seed))
         # Start logging the training setup
@@ -176,7 +176,7 @@ def main():
                 # if "success_mean" in eval_results.keys():
                 #     additional_string = " success={:.2f} std={:.2f}".format(eval_results["success_mean"], eval_results["success_std"])
                 # monitor.log(result_string + additional_string)
-                
+
                 # Write to tensorboard
 
                 # After the training period, move current trainer model and tensors to CPU
@@ -192,8 +192,6 @@ def main():
             monitor.log(result_string + additional_string)
             # Write to tensorboard
             # Log training stats to console, file, tensorboard
-
-            # Log evaluation stats to console, file, tensorboard
 
             # Replace oldest checkpoints
 
