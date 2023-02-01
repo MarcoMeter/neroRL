@@ -10,17 +10,16 @@ from ruamel.yaml.comments import CommentedMap
 
 from neroRL.evaluator import Evaluator
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
-from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
 from neroRL.utils.yaml_parser import OptunaYamlParser, YamlParser
-from neroRL.utils.monitor import TuningMonitor, Tag
+from neroRL.utils.monitor import TuningMonitor
 from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 
 def main():
     # Docopt command line arguments
     _USAGE = """
     Usage:
-        ntune [options]
-        ntune --help
+        noptuna [options]
+        noptuna --help
 
     Options:
         --config=<path>             Path to the config file [default: ./configs/default.yaml].
@@ -180,15 +179,15 @@ def main():
                 # monitor.log(result_string + additional_string)
 
                 # Write to tensorboard
-                udate = cycle + trainer_period
-                monitor.write_training_summary(udate, training_stats, train_results, id)
-                monitor.write_eval_summary(udate, eval_results, id)
+                update = cycle + trainer_period
+                monitor.write_training_summary(update, training_stats, train_results, id)
+                monitor.write_eval_summary(update, eval_results, id)
 
                 # Save checkpoint
                 if os.path.isfile(latest_checkpoints[id]):
                     os.remove(latest_checkpoints[id])
-                latest_checkpoints[id] = monitor.checkpoint_path + run_id + "_" + str(id) + "-" + str(udate) + ".pt"
-                trainer.save_checkpoint(udate, latest_checkpoints[id][:-3])
+                latest_checkpoints[id] = monitor.checkpoint_path + run_id + "_" + str(id) + "-" + str(update) + ".pt"
+                trainer.save_checkpoint(update, latest_checkpoints[id][:-3])
 
                 # After the training period, move current trainer model and tensors to CPU
                 trainer.to(cpu_device)
@@ -203,7 +202,7 @@ def main():
             monitor.log(result_string + additional_string)
 
             # Report evaluation result to optuna to allow for pruning
-            trial.report(udate, eval_results["reward_mean"])
+            trial.report(update, eval_results["reward_mean"])
 
         # Finish up trial
         monitor.log("Closing trainer . . .")
