@@ -168,17 +168,17 @@ def main():
                 for key, value in stats.items():
                         training_stats[key][1].append(value[1])
                 update_durations.append(update_duration)
-                # Aggregate training results
-                for k, v in training_stats.items():
-                    training_stats[k] = (v[0], np.asarray(v[1]).mean())
-                train_results = aggregate_episode_results(train_episode_infos)
-                # Log training results
-                monitor.log((("sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
-                    (" value={:3f} adv={:.3f} loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}")).format(
-                    sum(update_durations), train_results["reward_mean"], train_results["reward_std"],
-                    train_results["length_mean"], train_results["length_std"], training_stats["value_mean"][1],
-                    training_stats["advantage_mean"][1], training_stats["loss"][1], training_stats["policy_loss"][1],
-                    training_stats["value_loss"][1], training_stats["entropy"][1]))
+            # Aggregate training results
+            for k, v in training_stats.items():
+                training_stats[k] = (v[0], np.asarray(v[1]).mean())
+            train_results = aggregate_episode_results(train_episode_infos)
+            # Log training results
+            monitor.log((("sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
+                (" value={:3f} adv={:.3f} loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}")).format(
+                sum(update_durations), train_results["reward_mean"], train_results["reward_std"],
+                train_results["length_mean"], train_results["length_std"], training_stats["value_mean"][1],
+                training_stats["advantage_mean"][1], training_stats["loss"][1], training_stats["policy_loss"][1],
+                training_stats["value_loss"][1], training_stats["entropy"][1]))
 
             # Evaluate
             eval_duration, eval_episode_infos = evaluator.evaluate(trainer.model, device)
