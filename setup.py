@@ -59,6 +59,7 @@ setup(
             "nenjoy=neroRL.enjoy:main",
             "neval=neroRL.eval:main",
             "ntune=neroRL.tune:main",
+            "noptuna=neroRL.optuna:main",
             "neval-checkpoints=neroRL.eval_checkpoints:main"
         ],
     },
