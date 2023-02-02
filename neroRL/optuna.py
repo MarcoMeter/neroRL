@@ -255,7 +255,7 @@ def main():
         print(study.best_params)
     except:
         print("no study results yet")
-    # study.optimize(objective, n_trials=num_trials, n_jobs=1)
+    study.optimize(objective, n_trials=num_trials, n_jobs=1)
     print("Study done, best params")
     print(study.best_params)
 
@@ -267,6 +267,9 @@ def build_trial_config(suggestions, train_config):
                 for k1 in trial_config[key][k]:
                     if k1 in suggestions:
                         trial_config[key][k][k1] = suggestions[k1]
+                        # Override num_hidden_units if embed_dim or hidden_state_size is changed
+                        if k1 in ("embed_dim", "hidden_state_size"):
+                            trial_config["model"]["num_hidden_units"] = suggestions[k1]
                 # Only modify the initial value of the schedules
                 if "learning_rate" in k and "learning_rate" in suggestions:
                     trial_config[key]["learning_rate_schedule"]["initial"] = suggestions["learning_rate"]
@@ -280,9 +283,6 @@ def build_trial_config(suggestions, train_config):
             else:
                 if k in suggestions:
                     trial_config[key][k] = suggestions[k]
-                    # Override num_hidden_units if embed_dim or hidden_state_size is changed
-                    if k in ("embed_dim", "hidden_state_size"):
-                        trial_config[key]["num_hidden_units"] = suggestions[k]
     return trial_config
 
 def find_value_in_nested_dict(dictionary, key):
