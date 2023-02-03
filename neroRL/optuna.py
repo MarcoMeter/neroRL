@@ -205,7 +205,11 @@ def main():
             monitor.log(result_string + additional_string)
 
             # Report evaluation result to optuna to allow for pruning
-            trial.report(update, eval_results["reward_mean"])
+            trial.report(eval_results["reward_mean"], update)
+            # Handle pruning based on the intermediate value.
+            if trial.should_prune():
+                monitor.log("Pruning trial " + str(trial.number) + " . . .")
+                raise optuna.TrialPruned()
 
         # Finish up trial
         hours, remainder = divmod(time.time() - start_time, 3600)
@@ -220,7 +224,7 @@ def main():
         return eval_results["reward_mean"]
 
     print("Create/continue study")
-    pruner = optuna.pruners.PercentilePruner(25.0, n_startup_trials=5)
+    pruner = optuna.pruners.PercentilePruner(25.0, n_startup_trials=5, n_warmup_steps=500)
     study = optuna.create_study(study_name=run_id, sampler=optuna.samplers.TPESampler(), direction="maximize",
                                 pruner=pruner, storage=storage, load_if_exists=True)
     
