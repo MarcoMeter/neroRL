@@ -1,17 +1,13 @@
 seed: -1                # Training seed (if negative -> sample)
-repetitions: 3          # Number of training repetiutions
-num_updates: 9       # Number of training steps (entire PPO cycles)
-trainer_period: 3      # Interval for one training repetition to progress until switching to the next training
+num_updates: 30         # Number of training steps (entire PPO cycles)
+trainer_period: 5       # Interval for one training repetition to progress until switching to the next training
+n_startup_trials: 5
+n_warmup_steps: 500
 
 categorical:
-  sequence_length: [-1, 32, 64]
-  layer_type: ["gru", "lstm"]
-
-uniform:
-  value_coefficient: [0.1, 1.0]
-  max_grad_norm: [0.1, 1.0]
-  clip_range: [0.1, 0.35]
-
-loguniform:
-  learning_rate: [1.0e-4, 3.0e-3]
-  beta: [0.00001, 0.01]
+  advantage_normalization: ["no", "batch", "minibatch"]
+  embed_dim: [128,  256, 384]
+  learning_rate: [2.5e-4, 3.0e-4, 3.5e-4,]
+  max_grad_norm: [0.25, 0.5, 0.75]
+  num_heads: [4, 8]
+  memory_length: [20, 40, 60, 80, 100, 119]

@@ -208,23 +208,36 @@ def main():
             trial.report(eval_results["reward_mean"], update)
             # Handle pruning based on the intermediate value.
             if trial.should_prune():
-                monitor.log("Pruning trial " + str(trial.number) + " . . .")
-                raise optuna.TrialPruned()
+                monitor.log("Pruning trial " + str(trial.number) + "at update " + str(update) + " . . .")
+                monitor.log("Trial duration: {:.0f}h {:.0f}m {:.2f}s".format(hours, minutes, seconds))
+                monitor.log("Closing trainer . . .")
+                try:
+                    trainer.close()
+                    evaluator.close()
+                    monitor.close()
+                    del monitor, trainer, evaluator
+                except:
+                    pass
+                raise optuna.exceptions.TrialPruned()
 
         # Finish up trial
         hours, remainder = divmod(time.time() - start_time, 3600)
         minutes, seconds = divmod(remainder, 60)
         monitor.log("Trial duration: {:.0f}h {:.0f}m {:.2f}s".format(hours, minutes, seconds))
         monitor.log("Closing trainer . . .")
-        trainer.close()
-        evaluator.close()
-        monitor.close()
+        try:
+            trainer.close()
+            evaluator.close()
+            monitor.close()
+            del monitor, trainer, evaluator
+        except:
+            pass
 
         # Return final result
         return eval_results["reward_mean"]
 
     print("Create/continue study")
-    pruner = optuna.pruners.PercentilePruner(25.0, n_startup_trials=5, n_warmup_steps=500)
+    pruner = optuna.pruners.PercentilePruner(25.0, n_startup_trials=tune_config["n_startup_trials"], n_warmup_steps=tune_config["n_warmup_steps"])
     study = optuna.create_study(study_name=run_id, sampler=optuna.samplers.TPESampler(), direction="maximize",
                                 pruner=pruner, storage=storage, load_if_exists=True)
     
@@ -235,12 +248,12 @@ def main():
         # Be cautious with the schedules of learning rate, beta and clip range
         if key in ("learning_rate", "clip_range", "beta"):
             value = find_value_in_nested_dict(train_config, key + "_schedule")
-            assert value
+            assert value is not None
             value = value["initial"] # The schedule is a dictionary with the keys (initial, final, power, max_decay_steps)
             baseline_suggestions[key] = value # We only consider the initial value of the schedule
         else:
             value = find_value_in_nested_dict(train_config, key)
-            assert value
+            assert value is not None
         # Add key and value to baseline suggestions
         baseline_suggestions[key] = value
     # Enqueue baseline trial
@@ -301,14 +314,14 @@ def find_value_in_nested_dict(dictionary, key):
         Union[Any, None]: The value associated with the key if found, or None if not found.
 
     """
-    if key in dictionary:
+    if key in dictionary.keys():
         value = dictionary[key]
         return value
 
     for k, v in dictionary.items():
         if isinstance(v, dict):
             value = find_value_in_nested_dict(v, key)
-            if value:
+            if value is not None:
                 return value
     return None
 
