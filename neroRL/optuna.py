@@ -208,7 +208,9 @@ def main():
             trial.report(eval_results["reward_mean"], update)
             # Handle pruning based on the intermediate value.
             if trial.should_prune():
-                monitor.log("Pruning trial " + str(trial.number) + "at update " + str(update) + " . . .")
+                monitor.log("Pruning trial " + str(trial.number) + " at update " + str(update) + " . . .")
+                hours, remainder = divmod(time.time() - start_time, 3600)
+                minutes, seconds = divmod(remainder, 60)
                 monitor.log("Trial duration: {:.0f}h {:.0f}m {:.2f}s".format(hours, minutes, seconds))
                 monitor.log("Closing trainer . . .")
                 try:
