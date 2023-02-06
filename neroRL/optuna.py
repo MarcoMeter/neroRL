@@ -108,9 +108,12 @@ def main():
 
         # Init monitor
         run_id = trial_config["run_id"] + "_" + str(trial.number)
-        monitor = TrainingMonitor(out_path, run_id, trial_config["worker_id"])
-        monitor.log("Trial Seed: " + str(seed))
+        monitor = TrainingMonitor(out_path, run_id, trial_config["worker_id"])   
         # Start logging the training setup
+        monitor.log("Training Seed: " + str(seed))
+        monitor.log("Trial " + str(trial.number)  + " Suggestions:")
+        for k, v in suggestions.items():
+            monitor.log("\t" + str(k) + ": " + str(v))
         monitor.log("Trial Config:")
         for key in trial_config:
             if type(trial_config[key]) is dict:
@@ -118,9 +121,6 @@ def main():
                 if type(trial_config[key]) is dict:
                     for k, v in trial_config[key].items():
                         monitor.log("\t" * 2 + str(k) + ": " + str(v))
-        monitor.log("Trial Suggestions:")
-        for k, v in suggestions.items():
-                monitor.log("\t" + str(k) + ": " + str(v))
 
         # Determine cuda availability
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -149,12 +149,11 @@ def main():
                                 trainer.vec_obs_space, trainer.max_episode_steps)
         
         # Execute all training runs "concurrently" (i.e. one trainer runs for the specified period and then training moves on with the next trainer)
-        monitor.log("Executing trial using " + str(device))
+        monitor.log("Executing trial using " + str(device) + " . . .")
         latest_checkpoint = ""
         for cycle in range(0, num_updates, trainer_period):
             # Lists to monitor results
             eval_episode_infos = []
-            monitor.log("Updates Done: {:4}".format(cycle))
             train_episode_infos = []
             training_stats = None
             update_durations = []
@@ -173,9 +172,10 @@ def main():
                 training_stats[k] = (v[0], np.asarray(v[1]).mean())
             train_results = aggregate_episode_results(train_episode_infos)
             # Log training results
-            monitor.log((("sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
+            update = cycle + trainer_period
+            monitor.log((("{:4} sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
                 (" value={:3f} adv={:.3f} loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}")).format(
-                sum(update_durations), train_results["reward_mean"], train_results["reward_std"],
+                update, sum(update_durations), train_results["reward_mean"], train_results["reward_std"],
                 train_results["length_mean"], train_results["length_std"], training_stats["value_mean"][1],
                 training_stats["advantage_mean"][1], training_stats["loss"][1], training_stats["policy_loss"][1],
                 training_stats["value_loss"][1], training_stats["entropy"][1]))
@@ -186,7 +186,6 @@ def main():
             eval_episode_infos.extend(eval_episode_infos)
 
             # Write to tensorboard
-            update = cycle + trainer_period
             monitor.write_training_summary(update, training_stats, train_results)
             monitor.write_eval_summary(update, eval_results)
 
@@ -197,8 +196,8 @@ def main():
             trainer.save_checkpoint(update, latest_checkpoint[:-3])
 
             # Log evaluation results
-            result_string = "EVAL reward={:.2f} std={:.2f} length={:.1f} std={:.2f}".format(eval_results["reward_mean"],
-                                        eval_results["reward_std"], eval_results["length_mean"], eval_results["length_mean"])
+            result_string = "{:4} sec={:3} eval_reward={:.2f} std={:.2f} eval_length={:.1f} std={:.2f}".format(update, eval_duration,
+                    eval_results["reward_mean"], eval_results["reward_std"], eval_results["length_mean"], eval_results["length_mean"])
             additional_string = ""
             if "success_mean" in eval_results.keys():
                 additional_string = " success={:.2f} std={:.2f}".format(eval_results["success_mean"], eval_results["success_std"])
@@ -225,6 +224,7 @@ def main():
         # Finish up trial
         hours, remainder = divmod(time.time() - start_time, 3600)
         minutes, seconds = divmod(remainder, 60)
+        monitor.log("Trial " + str(trial.number) + " completed")
         monitor.log("Trial duration: {:.0f}h {:.0f}m {:.2f}s".format(hours, minutes, seconds))
         monitor.log("Closing trainer . . .")
         try:
