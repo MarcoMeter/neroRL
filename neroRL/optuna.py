@@ -269,6 +269,12 @@ def main():
             custom_trial_suggestions[key] = v
             study.enqueue_trial(custom_trial_suggestions, skip_if_exists=True)
 
+    # get a list of failed trials and enqueue them again
+    # for trial in study.trials:
+    #     if trial.state == optuna.trial.TrialState.FAIL:
+    #         # enqueue failed trials again
+    #         study.enqueue_trial(trial.params, skip_if_exists=False)
+
     print("Best params before study")
     try:
         print(study.best_params)

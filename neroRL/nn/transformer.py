@@ -277,7 +277,7 @@ class GRUGate(torch.nn.Module):
         self.Uz = torch.nn.Linear(input_dim, input_dim, bias=False)
         self.Wg = torch.nn.Linear(input_dim, input_dim, bias=False)
         self.Ug = torch.nn.Linear(input_dim, input_dim, bias=False)
-        self.bg = nn.Parameter(torch.full([input_dim], bg))  # bias
+        self.bg = nn.Parameter(torch.full([input_dim], float(bg)))  # bias
         self.sigmoid = torch.nn.Sigmoid()
         self.tanh = torch.nn.Tanh()
         nn.init.xavier_uniform_(self.Wr.weight)
