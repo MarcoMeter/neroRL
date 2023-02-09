@@ -304,7 +304,7 @@ def build_trial_config(suggestions, train_config):
                     # trial_config[key]["beta_schedule"]["final"] = suggestions["beta"]
                 elif "clip_range" in k and "clip_range" in suggestions:
                     trial_config[key]["clip_range_schedule"]["initial"] = suggestions["clip_range"]
-                    # trial_config[key]["clip_range_schedule"]["final"] = suggestions["clip_range"]
+                    trial_config[key]["clip_range_schedule"]["final"] = suggestions["clip_range"]
             else:
                 if k in suggestions:
                     trial_config[key][k] = suggestions[k]
