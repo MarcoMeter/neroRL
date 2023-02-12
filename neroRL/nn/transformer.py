@@ -252,6 +252,36 @@ class Transformer(nn.Module):
             if len(h.shape) == 1:
                 h = h.unsqueeze(0)
         return h, torch.stack(out_memories, dim=1)
+    
+    def init_transformer_weights(self):
+        if self.config["init_weights"] == "tfixup":
+            for p in self.transformer_blocks.parameters():
+                if p.dim() > 1:
+                    nn.init.xavier_uniform_(p)
+
+            temp_state_dic = {}
+            for name, param in self.transformer_blocks.named_parameters():
+                if any(s in name for s in ["linear1.weight", "linear2.weight", "fc_out.weight"]):
+                    temp_state_dic[name] = (0.67 * (self.num_layers) ** (- 1. / 4.)) * param
+                # elif "self_attn.in_proj_weight" in name:
+                #     temp_state_dic[name] = (0.67 * (self.num_layers) ** (- 1. / 4.)) * (param * (2**0.5))
+
+            for name in self.transformer_blocks.state_dict():
+                if name not in temp_state_dic:
+                    temp_state_dic[name] = self.transformer_blocks.state_dict()[name]
+            self.transformer_blocks.load_state_dict(temp_state_dic)
+        elif self.config["init_weights"] == "xavier":
+            for p in self.transformer_blocks.parameters():
+                if p.dim() > 1:
+                    nn.init.xavier_uniform_(p)
+        elif self.config["init_weights"] == "orthogonal":
+            for p in self.transformer_blocks.parameters():
+                if p.dim() > 1:
+                    nn.init.orthogonal_(p, np.sqrt(2))
+        elif self.config["init_weights"] == "kaiming":
+            for p in self.transformer_blocks.parameters():
+                if p.dim() > 1:
+                    nn.init.kaiming_uniform_(p)
 
 class GRUGate(torch.nn.Module):
     """
