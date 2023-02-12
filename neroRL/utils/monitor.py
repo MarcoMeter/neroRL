@@ -134,7 +134,6 @@ class TrainingMonitor():
         except:
             pass
 
-class TuningMonitor():
     """The monitor is in charge of logging training statistics to console, file and tensorboard.
     It further arranges all needed directories for saving outputs like model checkpoints.
     """
