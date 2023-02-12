@@ -24,8 +24,8 @@ class TransformerSampler(TrajectorySampler):
         # Set member variables
         self.max_episode_steps = max_episode_steps
         self.memory_length = configs["model"]["transformer"]["memory_length"]
-        self.num_mem_layers = configs["model"]["transformer"]["num_blocks"]
-        self.mem_layer_size = configs["model"]["transformer"]["embed_dim"]
+        self.num_blocks = configs["model"]["transformer"]["num_blocks"]
+        self.embed_dim = configs["model"]["transformer"]["embed_dim"]
 
         # The buffer has to store multiple fields for the experience tuples:
         # - Entire episode memories (episodes can be as long as max_episode_steps)
@@ -39,7 +39,7 @@ class TransformerSampler(TrajectorySampler):
         # It is designed to store an entire episode of past latent features (i.e. activations of the encoder and the transformer layers).
         # Initialization using zeros
         # Once an episode is completed (max episode steps reached or environment termination), it is added to the buffer.
-        self.memory = self.model.init_transformer_memory(self.n_workers, self.max_episode_steps, self.num_mem_layers, self.mem_layer_size, device)
+        self.memory = self.model.init_transformer_memory(self.n_workers, self.max_episode_steps, self.num_blocks, self.embed_dim, device)
         # Setup the memory mask that reflects the desired memory (i.e. context) length for the transformer architecture
         self.memory_mask = torch.tril(torch.ones((self.memory_length, self.memory_length)), diagonal=-1)
         """ e.g. memory mask tensor looks like this if memory_length = 6
@@ -97,7 +97,7 @@ class TransformerSampler(TrajectorySampler):
         mem_index = self.buffer.memory_index[id, t]
         self.buffer.memories[mem_index] = self.buffer.memories[mem_index].clone()
         # Reset episodic memory
-        self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_steps, self.num_mem_layers, self.mem_layer_size, self.device).squeeze(0)
+        self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_steps, self.num_blocks, self.embed_dim, self.device).squeeze(0)
         if t < self.worker_steps - 1:
             # Save memory
             self.buffer.memories.append(self.memory[id])

@@ -30,6 +30,7 @@ class Training():
         signal(SIGINT, self.close)
 
         # Sampled seed if a value smaller than 0 was submitted
+        self.seed = seed
         if seed < 0:
             self.seed = random.randint(0, 2 ** 31 - 1)
         set_library_seeds(self.seed)
