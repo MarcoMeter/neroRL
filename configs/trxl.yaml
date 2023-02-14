@@ -1,17 +1,17 @@
 # https://github.com/maximecb/gym-minigrid
 
 environment:
-  type: "MinigridVec"
-  name: "MiniGrid-MemoryS7-v0"
+  type: "Minigrid"
+  name: "MiniGrid-MemoryS9-v0"
   frame_skip: 1
   last_action_to_obs: False
   last_reward_to_obs: False
   obs_stacks: 1
-  # grayscale: False
-  # resize_vis_obs: [84, 84]
+  grayscale: False
+  resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
-    num-seeds: 100
+    num-seeds: 1000
     # The view size of the agent, which has to be an odd number
     # The default value in minigrid is 7, which is not a good challenge in terms of agent memory
     view-size: 3
@@ -19,23 +19,26 @@ environment:
 
 model:
   load_model: False
-  model_path: "./models/good_minigrid-900.pt"
+  model_path: "./checkpoints/mg_17r/20220112-065616_2/mg_17r-208.pt"
   checkpoint_interval: 100
   activation: "relu"
   vis_encoder: "cnn"
-  vec_encoder: "linear"
+  vec_encoder_layer: "linear"
   num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
-  num_hidden_units: 512
-  recurrence:
-    layer_type: "gru"
-    num_layers: 1
-    sequence_length: 16
-    hidden_state_size: 32
-    hidden_state_init: "zero"
-    reset_hidden_state: False
-    residual: False
+  num_hidden_units: 384
+  transformer:
+    num_blocks: 3
+    embed_dim: 384
+    num_heads: 8
+    memory_length: 32
+    positional_encoding: "" # options: "" "relative" "learned"
+    layer_norm: "pre" # options: "" "pre" "post"
+    init_weights: "xavier" # options: "xavier" "orthogonal" "tfixup" "kaiming"
+    gtrxl: True
+    gtrxl_bias: 0.0
+    gtrxl_swap: False
 
 evaluation:
   evaluate: False
@@ -43,7 +46,7 @@ evaluation:
   seeds:
     start-seed: 100000
     num-seeds: 10
-  interval: 10
+  interval: 100
 
 sampler:
   n_workers: 16
@@ -52,23 +55,24 @@ sampler:
 trainer:
   algorithm: "PPO"
   resume_at: 0
-  gamma: 0.99
+  gamma: 0.995
   lamda: 0.95
-  updates: 1000
-  epochs: 4
+  updates: 200
+  epochs: 5
   refresh_buffer_epoch: -1
   n_mini_batches: 8
-  value_coefficient: 0.25
+  advantage_normalization: "batch"
+  value_coefficient: 0.5
   max_grad_norm: 0.5
   share_parameters: True
   learning_rate_schedule:
-    initial: 2.5e-4
-    final: 3.0e-6
+    initial: 3.5e-4
+    final: 1.0e-4
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 250
   beta_schedule:
     initial: 0.001
-    final: 0.00001
+    final: 0.001
     power: 1.0
     max_decay_steps: 1000
   clip_range_schedule:

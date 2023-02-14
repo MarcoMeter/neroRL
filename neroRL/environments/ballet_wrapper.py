@@ -75,6 +75,11 @@ class BalletWrapper(Env):
         return spaces.Discrete(8)
 
     @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return 2048
+
+    @property
     def seed(self):
         """Returns the seed of the current episode."""
         return self._seed

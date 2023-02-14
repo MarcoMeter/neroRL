@@ -16,6 +16,7 @@ from docopt import docopt
 from gymnasium import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
+from neroRL.utils.utils import get_environment_specs
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.video_recorder import VideoRecorder
 from neroRL.nn.actor_critic import create_actor_critic_model
@@ -26,6 +27,23 @@ logger = logging.getLogger("enjoy")
 console = logging.StreamHandler()
 console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
 logger.addHandler(console)
+
+def init_recurrent_cell(recurrence_config, model, device):
+    hxs, cxs = model.init_recurrent_cell_states(1, device)
+    if recurrence_config["layer_type"] == "gru":
+        recurrent_cell = hxs
+    elif recurrence_config["layer_type"] == "lstm":
+        recurrent_cell = (hxs, cxs)
+    return recurrent_cell
+
+def init_transformer_memory(trxl_conf, model, device):
+    memory_mask = torch.tril(torch.ones((trxl_conf["memory_length"], trxl_conf["memory_length"])), diagonal=-1)
+    memory = model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device)
+    # Setup memory window indices
+    repetitions = torch.repeat_interleave(torch.arange(0, trxl_conf["memory_length"]).unsqueeze(0), trxl_conf["memory_length"] - 1, dim = 0).long()
+    memory_indices = torch.stack([torch.arange(i, i + trxl_conf["memory_length"]) for i in range(trxl_conf["max_episode_steps"] - trxl_conf["memory_length"] + 1)]).long()
+    memory_indices = torch.cat((repetitions, memory_indices))
+    return memory, memory_mask, memory_indices
 
 def main():
     # Docopt command line arguments
@@ -91,23 +109,18 @@ def main():
     configs["environment"]["reset_params"]["start-seed"] = seed
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
+    visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
     env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
-    # Retrieve observation space
-    visual_observation_space = env.visual_observation_space
-    vector_observation_space = env.vector_observation_space
-    if isinstance(env.action_space, spaces.Discrete):
-        action_space_shape = (env.action_space.n,)
-    else:
-        action_space_shape = tuple(env.action_space.nvec)
 
     # Build or load model
     logger.info("Step 2: Creating model")
     share_parameters = False
     if configs["trainer"]["algorithm"] == "PPO":
         share_parameters = configs["trainer"]["share_parameters"]
+    if "transformer" in model_config:
+        model_config["transformer"]["max_episode_steps"] = max_episode_steps
     model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
-                            vector_observation_space, action_space_shape,
-                            model_config["recurrence"] if "recurrence" in model_config else None, device)
+                            vector_observation_space, action_space_shape, device)
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
@@ -124,20 +137,21 @@ def main():
     # Note: Only one episode is run upon generating a result website or rendering a video
     for _ in range(num_episodes):
         # Reset environment
+        t = 0
         logger.info("Step 3: Resetting the environment")
         logger.info("Step 3: Using seed " + str(seed))
         vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
         done = False
         
+        # Init memory if applicable
+        memory, memory_mask, memory_indices, mask, indices = None, None, None, None, None
         # Init hidden state (None if not available)
         if "recurrence" in model_config:
-            hxs, cxs = model.init_recurrent_cell_states(1, device)
-            if model_config["recurrence"]["layer_type"] == "gru":
-                recurrent_cell = hxs
-            elif model_config["recurrence"]["layer_type"] == "lstm":
-                recurrent_cell = (hxs, cxs)
-        else:
-            recurrent_cell = None
+            memory = init_recurrent_cell(model_config["recurrence"], model, device)
+        # Init transformer memory
+        if "transformer" in model_config:
+            memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model, device)
+            memory_length = model_config["transformer"]["memory_length"]
 
         # Play episode
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
@@ -154,7 +168,22 @@ def main():
                 # Forward the neural net
                 vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                 vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
+                # Prepare transformer memory
+                if "transformer" in model_config:
+                    in_memory = memory[0, memory_indices[t].unsqueeze(0)]
+                    t_ = max(0, min(t, memory_length - 1))
+                    mask = memory_mask[t_].unsqueeze(0)
+                    indices = memory_indices[t].unsqueeze(0)
+                else:
+                    in_memory = memory
+
+                policy, value, new_memory, _ = model(vis_obs, vec_obs, in_memory, mask, indices)
+                
+                # Set memory if used
+                if "recurrence" in model_config:
+                    memory = new_memory
+                if "transformer" in model_config:
+                    memory[:, t] = new_memory
 
                 _actions = []
                 _probs = []
@@ -174,6 +203,7 @@ def main():
 
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
+                t += 1
 
         logger.info("Episode Reward: " + str(info["reward"]))
         logger.info("Episode Length: " + str(info["length"]))

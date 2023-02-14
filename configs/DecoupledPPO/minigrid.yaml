@@ -13,6 +13,7 @@ environment:
     start-seed: 0
     num-seeds: 100
     view-size: 3
+    max-episode-steps: 96
 
 model:
   load_model: False
@@ -43,7 +44,6 @@ evaluation:
   interval: 100
 
 sampler:
-  type: "TrajectorySampler"
   n_workers: 16
   worker_steps: 256
 

@@ -29,6 +29,11 @@ class Env(ABC):
         raise NotImplementedError("This abstract property has to be implemented by a child.")
 
     @abstractproperty
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        raise NotImplementedError("This abstract property has to be implemented by a child.")
+
+    @abstractproperty
     def seed(self):
         """Returns the seed of the current episode."""
         raise NotImplementedError("This abstract property has to be implemented by a child.")

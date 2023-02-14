@@ -2,55 +2,83 @@ import torch
 import numpy as np
 
 class Buffer():
-    """
-    The buffer stores and prepares the training data. It supports recurrent policies.
-    """
-    def __init__(self, num_workers, worker_steps, visual_observation_space, vector_observation_space,
-                    action_space_shape, recurrence, device, share_parameters, sampler):
+    """The buffer stores and prepares the training data. It supports recurrent and transformer policies."""
+    def __init__(self, configs, visual_observation_space, vector_observation_space,
+                    action_space_shape, device, share_parameters, sampler):
         """
         Arguments:
-            num_workers {int} -- Number of environments/agents to sample training data
-            worker_steps {int} -- Number of steps per environment/agent to sample training data
-            num_mini_batches {int} -- Number of mini batches that are used for each training epoch
+            configs {dict} -- The whole set of configurations (e.g. model, training, environment, ... configs)
             visual_observation_space {Box} -- Visual observation if available, else None
             vector_observation_space {tuple} -- Vector observation space if available, else None
             action_space_shape {tuple} -- Shape of the action space
-            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
-                - layer_type {str}, sequence_length {int}, hidden_state_size {int}, hiddens_state_init {str}, reset_hidden_state {bool}
             device {torch.device} -- The device that will be used for training/storing single mini batches
-            sampler {TrajectorySampler} -- The current sampler
+            share_parameters {bool} -- Whether the policy and the value function share parameters or not
+            sampler {TrajectorySampler} -- The used sampler
         """
         self.device = device
         self.sampler = sampler
-        self.recurrence = recurrence
-        self.sequence_length = recurrence["sequence_length"] if recurrence is not None else None
-        self.num_workers = num_workers
-        self.worker_steps = worker_steps
+        self.configs = configs
+        self.recurrence, self.transformer_memory = None, None       # place holder for recurrence and transformer config
+        self.num_workers = configs["sampler"]["n_workers"]
+        self.worker_steps = configs["sampler"]["worker_steps"]
         self.batch_size = self.num_workers * self.worker_steps
-        self.rewards = np.zeros((num_workers, worker_steps), dtype=np.float32)
-        self.actions = torch.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=torch.long)
-        self.dones = np.zeros((num_workers, worker_steps), dtype=np.bool)
-        if visual_observation_space is not None:
-            self.vis_obs = torch.zeros((num_workers, worker_steps) + visual_observation_space.shape)
+        self.action_space_shape = action_space_shape
+        self.visual_observation_space = visual_observation_space
+        self.vector_observation_space = vector_observation_space
+        self.share_parameters = share_parameters
+        self.init_default_buffer_fields()
+
+    def init_default_buffer_fields(self):
+        """Initializes buffer fields that every training run depends on."""
+        if self.visual_observation_space is not None:
+            self.vis_obs = torch.zeros((self.num_workers, self.worker_steps) + self.visual_observation_space.shape)
         else:
             self.vis_obs = None
-        if vector_observation_space is not None:
-            self.vec_obs = torch.zeros((num_workers, worker_steps,) + vector_observation_space)
+        if self.vector_observation_space is not None:
+            self.vec_obs = torch.zeros((self.num_workers, self.worker_steps,) + self.vector_observation_space)
         else:
             self.vec_obs = None
-        
-        if share_parameters:
-            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"])) if recurrence is not None else None
-            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"])) if recurrence is not None else None
-        else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
-            self.hxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"], 2)) if recurrence is not None else None
-            self.cxs = torch.zeros((num_workers, worker_steps, recurrence["num_layers"], recurrence["hidden_state_size"], 2)) if recurrence is not None else None
+        self.rewards = np.zeros((self.num_workers, self.worker_steps), dtype=np.float32)
+        self.actions = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)), dtype=torch.long)
+        self.dones = np.zeros((self.num_workers, self.worker_steps), dtype=np.bool)
+        self.log_probs = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)))
+        self.values = torch.zeros((self.num_workers, self.worker_steps))
+        self.advantages = torch.zeros((self.num_workers, self.worker_steps))
 
-        self.log_probs = torch.zeros((num_workers, worker_steps, len(action_space_shape)))
-        self.values = torch.zeros((num_workers, worker_steps))
-        self.advantages = torch.zeros((num_workers, worker_steps))
+    def init_recurrent_buffer_fields(self):
+        """Initializes the buffer fields and members that are needed for training recurrent policies."""
         self.num_sequences = 0
         self.actual_sequence_length = 0
+        self.recurrence = self.configs["model"]["recurrence"]
+        self.sequence_length = self.recurrence["sequence_length"]
+        num_layers = self.recurrence["num_layers"]
+        hidden_state_size = self.recurrence["hidden_state_size"]
+        layer_type = self.recurrence["layer_type"]
+        if self.share_parameters:
+            self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
+            if layer_type == "lstm":
+                self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
+        else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
+            self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
+            if layer_type == "lstm":
+                self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
+
+    def init_transformer_buffer_fields(self, max_episode_steps):
+        """Initializes the buffer fields and members that are needed for training transformer-based policies."""
+        self.max_episode_steps = max_episode_steps
+        self.transformer_memory = self.configs["model"]["transformer"]
+        self.memory_length = self.transformer_memory["memory_length"]
+        self.num_mem_layers = self.transformer_memory["num_blocks"]
+        self.mem_layer_size = self.transformer_memory["embed_dim"]
+        # Episodic memory index buffer
+        # Whole episode memories
+        self.memories = []
+        # Memory mask used during attention
+        self.memory_mask = torch.zeros((self.num_workers, self.worker_steps, self.memory_length), dtype=torch.bool)
+        # Index to select the correct episode memory
+        self.memory_index = torch.zeros((self.num_workers, self.worker_steps), dtype=torch.long)
+        # Indices to slice the memory window
+        self.memory_indices = torch.zeros((self.num_workers, self.worker_steps, self.memory_length), dtype=torch.long)
 
     def calc_advantages(self, last_value, gamma, lamda):
         """Generalized advantage estimation (GAE)
@@ -75,27 +103,34 @@ class Buffer():
     def prepare_batch_dict(self):
         """
         Flattens the training samples and stores them inside a dictionary.
-        If a recurrent policy is used, the data is split into episodes or sequences beforehand.
+        If a recurrent policy is used, the model's input data and actions are split into episodes or sequences beforehand.
         """
         # Supply training samples
-        samples = {
-            "actions": self.actions,
-            "values": self.values,
-            "log_probs": self.log_probs,
-            "advantages": self.advantages,
-            # The loss mask is used for masking the padding while computing the loss function.
-            # This is only of significance while using recurrence.
-            "loss_mask": torch.ones((self.num_workers, self.worker_steps), dtype=torch.bool)
-        }
+        samples = {"actions": self.actions} # actions are added at this point to ensure that these are padded while using recurrence
 
+        # OBSERVATION SAMPLES
     	# Add available observations to the dictionary
         if self.vis_obs is not None:
             samples["vis_obs"] = self.vis_obs
         if self.vec_obs is not None:
             samples["vec_obs"] = self.vec_obs
 
+        # TRANSFORMER SAMPLES
+        # Add data concerned with the episodic memory (i.e. transformer-based policy)
+        if self.transformer_memory is not None:
+            samples["memory_index"] = self.memory_index
+            samples["memory_mask"] = self.memory_mask
+            samples["memory_indices"] = self.memory_indices
+            # Convert the memories to a tensor
+            self.memories = torch.stack(self.memories, dim=0)
+
+        # RECURRENCE SAMPLES
+        # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
         max_sequence_length = 1
         if self.recurrence is not None:
+            # The loss mask is used for masking the padding while computing the loss function.
+            samples["loss_mask"] = torch.ones((self.num_workers, self.worker_steps), dtype=torch.bool)
+
             # Add collected recurrent cell states to the dictionary
             samples["hxs"] =  self.hxs
             if self.recurrence["layer_type"] == "lstm":
@@ -109,27 +144,17 @@ class Buffer():
                 # Append the index of the last element of a trajectory as well, as it "artifically" marks the end of an episode
                 if len(episode_done_indices[w]) == 0 or episode_done_indices[w][-1] != self.worker_steps - 1:
                     episode_done_indices[w].append(self.worker_steps - 1)
+
+            # Retrieve unpadded sequence indices
+            self.flat_sequence_indices = np.asarray(self._arange_sequences(
+                        np.arange(0, self.num_workers * self.worker_steps).reshape(
+                            (self.num_workers, self.worker_steps)), episode_done_indices)[0], dtype=object)
             
-            # Split vis_obs, vec_obs, values, advantages, recurrent cell states, actions and log_probs into episodes and then into sequences
+            # Split vis_obs, vec_obs, recurrent cell states and actions into episodes and then into sequences
             for key, value in samples.items():
-                sequences = []
-                for w in range(self.num_workers):
-                    start_index = 0
-                    for done_index in episode_done_indices[w]:
-                        # Split trajectory into episodes
-                        episode = value[w, start_index:done_index + 1]
-                        start_index = done_index + 1
-                        # Split episodes into sequences
-                        if self.sequence_length > 0:
-                            for start in range(0, len(episode), self.sequence_length):
-                                end = start + self.sequence_length
-                                sequences.append(episode[start:end])
-                            max_sequence_length = self.sequence_length
-                        else:
-                            # If the sequence length is not set to a proper value, sequences will be based on episodes
-                            sequences.append(episode)
-                            max_sequence_length = len(episode) if len(episode) > max_sequence_length else max_sequence_length
-                
+                # Split data into episodes or sequences
+                sequences, max_sequence_length = self._arange_sequences(value, episode_done_indices)
+
                 # Apply zero-padding to ensure that each episode has the same length
                 # Therfore we can train batches of episodes in parallel instead of one episode at a time
                 for i, sequence in enumerate(sequences):
@@ -142,16 +167,54 @@ class Buffer():
                     # Select the very first recurrent cell state of a sequence and add it to the samples
                     samples[key] = samples[key][:, 0]
 
-        # Store important information
-        self.num_sequences = len(samples["values"])
+            # Store important information
+            self.num_sequences = len(sequences)
+            
         self.actual_sequence_length = max_sequence_length
         
-        # Flatten all samples
+        # Add remaining data samples
+        samples["values"] = self.values
+        samples["log_probs"] = self.log_probs
+        samples["advantages"] = self.advantages
+
+        # Flatten samples
         self.samples_flat = {}
         for key, value in samples.items():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
-            self.samples_flat[key] = value        
+            self.samples_flat[key] = value
+
+    def _arange_sequences(self, data, episode_done_indices):
+        """Splits the povided data into episodes and then into sequences.
+        The split points are indicated by the envrinoments' done signals.
+
+        Arguments:
+            data {torch.tensor} -- The to be split data arrange into num_worker, worker_steps
+            episode_done_indices {list} -- Nested list indicating the indices of done signals. Trajectory ends are treated as done
+            max_length {int} -- The maximum length of all sequences
+
+        Returns:
+            {list} -- Data arranged into sequences of variable length as list
+        """
+        sequences = []
+        max_length = 1
+        for w in range(self.num_workers):
+            start_index = 0
+            for done_index in episode_done_indices[w]:
+                # Split trajectory into episodes
+                episode = data[w, start_index:done_index + 1]
+                # Split episodes into sequences
+                if self.sequence_length > 0:
+                    for start in range(0, len(episode), self.sequence_length):
+                        end = start + self.sequence_length
+                        sequences.append(episode[start:end])
+                    max_length = self.sequence_length
+                else:
+                    # If the sequence length is not set to a proper value, sequences will be based on episodes
+                    sequences.append(episode)
+                    max_length = len(episode) if len(episode) > max_length else max_length
+                start_index = done_index + 1
+        return sequences, max_length
 
     def _pad_sequence(self, sequence, target_length):
         """Pads a sequence to the target length using zeros.
@@ -198,7 +261,10 @@ class Buffer():
             mini_batch_indices = indices[start: end]
             mini_batch = {}
             for key, value in self.samples_flat.items():
-                mini_batch[key] = value[mini_batch_indices].to(self.device)
+                if key == "memory_index":
+                    mini_batch["memories"] = self.memories[value[mini_batch_indices]]
+                else:
+                    mini_batch[key] = value[mini_batch_indices].to(self.device)
             yield mini_batch
 
     def recurrent_mini_batch_generator(self, num_mini_batches):
@@ -220,20 +286,26 @@ class Buffer():
         # Prepare indices, but only shuffle the sequence indices and not the entire batch to ensure that sequences are maintained as a whole.
         indices = torch.arange(0, self.num_sequences * self.actual_sequence_length).reshape(self.num_sequences, self.actual_sequence_length)
         sequence_indices = torch.randperm(self.num_sequences)
-        # At this point it is assumed that all of the available training data (values, observations, actions, ...) is padded.
 
         # Compose mini batches
         start = 0
         for num_sequences in num_sequences_per_batch:
             end = start + num_sequences
-            mini_batch_indices = indices[sequence_indices[start:end]].reshape(-1)
+            mini_batch_padded_indices = indices[sequence_indices[start:end]].reshape(-1)
+            # Unpadded and flat indices are used to sample unpadded training data
+            mini_batch_unpadded_indices = self.flat_sequence_indices[sequence_indices[start:end].tolist()]
+            mini_batch_unpadded_indices = [item for sublist in mini_batch_unpadded_indices for item in sublist]
             mini_batch = {}
             for key, value in self.samples_flat.items():
-                if key != "hxs" and key != "cxs":
-                    mini_batch[key] = value[mini_batch_indices].to(self.device)
-                else:
-                    # Collect recurrent cell states
+                if key == "hxs" or key == "cxs":
+                    # Select recurrent cell states of sequence starts
                     mini_batch[key] = value[sequence_indices[start:end]].to(self.device)
+                elif key == "log_probs" or "advantages" in key or key == "values":
+                    # Select unpadded data
+                    mini_batch[key] = value[mini_batch_unpadded_indices].to(self.device)
+                else:
+                    # Select padded data
+                    mini_batch[key] = value[mini_batch_padded_indices].to(self.device)
             start = end
             yield mini_batch
 
@@ -290,3 +362,11 @@ class Buffer():
         
         # Refresh batches
         self.prepare_batch_dict() 
+
+    def to(self, device):
+        """Args:
+            device {torch.device} -- Desired device for all current tensors"""
+        for k in dir(self):
+            att = getattr(self, k)
+            if torch.is_tensor(att):
+                setattr(self, k, att.to(device))

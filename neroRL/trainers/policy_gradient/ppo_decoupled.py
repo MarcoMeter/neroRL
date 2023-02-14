@@ -5,7 +5,7 @@ from threading import Thread
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
-from neroRL.utils.utils import masked_mean, compute_gradient_stats
+from neroRL.utils.utils import compute_gradient_stats
 from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.monitor import Tag
 
@@ -13,7 +13,7 @@ class DecoupledPPOTrainer(BaseTrainer):
     """The DecoupledPPOTrainer does not share parameters (i.e. weights) and not gradients among the policy and value function.
     Therefore, it uses slightly different hyperparameters as the regular PPOTrainer to allow more control over updating the
     policy and the value function. Optinally, the actor model can estimate the advantage function as proposed by Raileanu & Fergus, 2021"""
-    def __init__(self, configs, worker_id, run_id, out_path, seed = 0):
+    def __init__(self, configs, device, worker_id, run_id, out_path, seed = 0):
         """
         Initializes distinct members of the DecoupledPPOTrainer
 
@@ -28,7 +28,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.use_daac = "DAAC" in configs["trainer"]
 
         # Init base class
-        super().__init__(configs, worker_id, run_id=run_id, out_path=out_path, seed=seed)
+        super().__init__(configs, device, worker_id, run_id=run_id, out_path=out_path, seed=seed)
 
         # Hyperparameter setup
         self.num_policy_epochs = configs["trainer"]["policy_epochs"]
@@ -67,7 +67,7 @@ class DecoupledPPOTrainer(BaseTrainer):
 
     def create_model(self):
         model =  create_actor_critic_model(self.configs["model"], False,
-        self.visual_observation_space, self.vector_observation_space, self.action_space_shape, self.recurrence, self.device)
+        self.vis_obs_space, self.vec_obs_space, self.action_space_shape,self.device)
         # Optionally, add the advantage estimator head to the model
         if self.use_daac:
             model.add_gae_estimator_head(self.action_space_shape, self.device)
@@ -77,7 +77,8 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.train_info = {}
 
         # Add dummy key to the samples dict to avoid threading issues if the advantage should be normalized batch-wise
-        self.sampler.buffer.samples_flat["normalized_advantages"] = None
+        if self.configs["trainer"]["advantage_normalization"] == "batch":
+            self.sampler.buffer.samples_flat["normalized_advantages"] = None
 
         if self.run_threaded:
             # Launch threads for training the actor and critic model simultaenously
@@ -112,11 +113,12 @@ class DecoupledPPOTrainer(BaseTrainer):
             if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
                 self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
 
+            # Normalize advantages batch-wise if desired
+            # This is done during every epoch just in case refreshing the buffer is used
             if self.configs["trainer"]["advantage_normalization"] == "batch":
-                mask = self.sampler.buffer.samples_flat["loss_mask"]
-                advantages = torch.masked_select(self.sampler.buffer.samples_flat["advantages"], mask)
-                self.sampler.buffer.samples_flat["normalized_advantages"] = (self.sampler.buffer.samples_flat["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)  
-
+                advantages = self.sampler.buffer.samples_flat["advantages"]
+                self.sampler.buffer.samples_flat["normalized_advantages"] = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+                
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
             if self.recurrence is not None:
@@ -132,7 +134,7 @@ class DecoupledPPOTrainer(BaseTrainer):
 
     def train_value(self):
         # Train the value function using the whole batch of data instead of mini batches
-        if self.currentUpdate % self.value_update_interval == 0:
+        if self.current_update % self.value_update_interval == 0:
             for epoch in range(self.num_value_epochs):
                 # Refreshes buffer with current model for every refresh_buffer_epoch
                 if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
@@ -155,34 +157,47 @@ class DecoupledPPOTrainer(BaseTrainer):
         Returns:
             training_stats {dict} -- Losses, entropy, kl-divergence and clip fraction
         """
-        # Retrieve sampled recurrent cell states to feed the model
-        recurrent_cell = None
+        # Retrieve the agent's memory to feed the model
+        actor_memory, actor_memory_mask = None, None
+        # Case Recurrence: the recurrent cell state is treated as the memory. Only the initial hidden states are selected.
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
                 recurrent_cell = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"], samples["cxs"])
-            (actor_recurrent_cell, _) = self.model.unpack_recurrent_cell(recurrent_cell)
-        else:
-            actor_recurrent_cell = None
+            (actor_memory, _) = self.model.unpack_recurrent_cell(recurrent_cell)
+        # Case Transformer: the episodic memory is based on activations that were previously gathered throughout an episode
+        if self.transformer is not None:
+            actor_memory = samples["memories"][..., 0]
+            actor_memory_mask = samples["memory_mask"]
         
-        policy, _, gae = self.model.forward_actor(samples["vis_obs"] if self.visual_observation_space is not None else None,
-                                    samples["vec_obs"] if self.vector_observation_space is not None else None,
-                                    actor_recurrent_cell,
+        # Forward model -> policy, value, memory, gae
+        policy, _, gae = self.model.forward_actor(samples["vis_obs"] if self.vis_obs_space is not None else None,
+                                    samples["vec_obs"] if self.vec_obs_space is not None else None,
+                                    actor_memory, actor_memory_mask,
                                     self.sampler.buffer.actual_sequence_length,
                                     samples["actions"])
 
         # Policy Loss
         # Retrieve and process log_probs from each policy branch
-        log_probs = []
+        log_probs, entropies = [], []
         for i, policy_branch in enumerate(policy):
             log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
+            entropies.append(policy_branch.entropy())
         log_probs = torch.stack(log_probs, dim=1)
+        entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)
+
+        # Remove paddings if recurrence is used
+        if self.recurrence is not None:
+            log_probs = log_probs[samples["loss_mask"]]
+            entropies = entropies[samples["loss_mask"]] 
 
         # Compute surrogates
+        # Determine advantage normalization
         if self.configs["trainer"]["advantage_normalization"] == "minibatch":
-            advantages = torch.masked_select(samples["advantages"], samples["loss_mask"])
-            normalized_advantage = (samples["advantages"] - advantages.mean()) / (advantages.std() + 1e-8)
+            normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        elif self.configs["trainer"]["advantage_normalization"] == "no":
+            normalized_advantage = samples["advantages"]
         else:
             normalized_advantage = samples["normalized_advantages"]
         # Repeat is necessary for multi-discrete action spaces
@@ -192,17 +207,20 @@ class DecoupledPPOTrainer(BaseTrainer):
         surr1 = ratio * advs
         surr2 = torch.clamp(ratio, 1.0 - self.policy_clip_range, 1.0 + self.policy_clip_range) * advs
         policy_loss = torch.min(surr1, surr2)
-        policy_loss = masked_mean(policy_loss, samples["loss_mask"])
+        policy_loss = policy_loss.mean()
 
         # Entropy Bonus
         entropies = []
         for policy_branch in policy:
             entropies.append(policy_branch.entropy())
-        entropy_bonus = masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
+        entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)
+        # Mean reduction of entropy bonus
+        entropy_bonus = entropies.mean()
 
         # Advantage estimation as part of the DAAC algorithm (Raileanu & Fergus, 2021)
         if self.use_daac:
-            adv_loss = masked_mean((normalized_advantage - gae)**2, samples["loss_mask"])
+            adv_loss = (normalized_advantage - gae)**2
+            adv_loss = adv_loss.mean()
 
         # Complete loss
         if self.use_daac:
@@ -217,7 +235,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.policy_optimizer.step()
 
         # Monitor additional training statistics
-        approx_kl = masked_mean((ratio - 1.0) - log_ratio, samples["loss_mask"]) # http://joschu.net/blog/kl-approx.html
+        approx_kl = ((ratio - 1.0) - log_ratio).mean()  # http://joschu.net/blog/kl-approx.html
         clip_fraction = (abs((ratio - 1.0)) > self.policy_clip_range).float().mean()
 
         out = {**compute_gradient_stats(self.model.actor_modules, prefix = "actor"),
@@ -239,26 +257,35 @@ class DecoupledPPOTrainer(BaseTrainer):
         Returns:
             training_stats {dict} -- Value loss
         """
-        # Retrieve sampled recurrent cell states to feed the model
-        recurrent_cell = None
+        # Retrieve the agent's memory to feed the model
+        critic_memory, critic_memory_mask = None, None
+        # Case Recurrence: the recurrent cell state is treated as the memory. Only the initial hidden states are selected.
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
                 recurrent_cell = samples["hxs"]
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"], samples["cxs"])
-            (_, critic_recurrent_cell) = self.model.unpack_recurrent_cell(recurrent_cell)
-        else:
-            critic_recurrent_cell = None
+            (critic_memory, _) = self.model.unpack_recurrent_cell(recurrent_cell)
+        # Case Transformer: the episodic memory is based on activations that were previously gathered throughout an episode
+        if self.transformer is not None:
+            critic_memory = samples["memories"][..., 0]
+            critic_memory_mask = samples["memory_mask"]
         
-        value, _ = self.model.forward_critic(samples["vis_obs"] if self.visual_observation_space is not None else None,
-                                    samples["vec_obs"] if self.vector_observation_space is not None else None,
-                                    critic_recurrent_cell,
-                                    self.sampler.buffer.actual_sequence_length)
+        value, _ = self.model.forward_critic(samples["vis_obs"] if self.vis_obs_space is not None else None,
+                                    samples["vec_obs"] if self.vec_obs_space is not None else None,
+                                    critic_memory, critic_memory_mask,
+                                    self.sampler.buffer.actual_sequence_length,
+                                    samples["actions"])
 
+        # Remove paddings if recurrence is used
+        if self.recurrence is not None:
+            value = value[samples["loss_mask"]]
+
+        # Value loss
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.value_clip_range, max=self.value_clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
-        vf_loss = masked_mean(vf_loss, samples["loss_mask"])
+        vf_loss = vf_loss.mean()
 
         # Compute gradients
         self.value_optimizer.zero_grad()

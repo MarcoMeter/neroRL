@@ -6,17 +6,15 @@ instantiate the model. A checkpoint can be also provided via the config.
 """
 
 import logging
-from tabnanny import check
 import torch
 import numpy as np
 import sys
 
 from docopt import docopt
-from gymnasium import spaces
 
+from neroRL.utils.utils import aggregate_episode_results, get_environment_specs
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
-from neroRL.environments.wrapper import wrap_environment
 from neroRL.nn.actor_critic import create_actor_critic_model
 
 # Setup logger
@@ -70,14 +68,7 @@ def main():
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
-    dummy_env = wrap_environment(configs["environment"], worker_id)
-    visual_observation_space = dummy_env.visual_observation_space
-    vector_observation_space = dummy_env.vector_observation_space
-    if isinstance(dummy_env.action_space, spaces.Discrete):
-        action_space_shape = (dummy_env.action_space.n,)
-    else:
-        action_space_shape = tuple(dummy_env.action_space.nvec)
-    dummy_env.close()
+    visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
 
     # Build or load model
     logger.info("Step 2: Creating model")
@@ -85,8 +76,7 @@ def main():
     if configs["trainer"]["algorithm"] == "PPO":
         share_parameters = configs["trainer"]["algorithm"]
     model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
-                            vector_observation_space, action_space_shape,
-                            model_config["recurrence"] if "recurrence" in model_config else None, device)
+                            vector_observation_space, action_space_shape, device)
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
@@ -105,12 +95,12 @@ def main():
     logger.info("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
     logger.info("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
     evaluator = Evaluator(configs, model_config, worker_id, visual_observation_space, vector_observation_space,
-                            video_path, record_video)
+                            max_episode_steps, video_path, record_video)
 
     # Evaluate
     logger.info("Step 4: Run evaluation . . .")
     eval_duration, raw_episode_results = evaluator.evaluate(model, device)
-    episode_result = _process_episode_info(raw_episode_results)
+    episode_result = aggregate_episode_results(raw_episode_results)
 
     # Print results
     logger.info("RESULT: sec={:3}     mean reward={:.2f} std={:.2f}     mean length={:.1f} std={:.2f}".format(
@@ -119,28 +109,6 @@ def main():
     # Close
     logger.info("Step 5: Closing evaluator . . .")
     evaluator.close()
-
-def _process_episode_info(episode_info):
-    """Extracts the mean and std of completed episodes. At minimum the episode length and the collected reward is available.
-    
-    Arguments:
-        episode_info {list} -- List of episode information, each individual item is a dictionary
-
-    Returns:
-        result {dict} -- Dictionary that contains the mean, std, min and max of all episode infos        
-    """
-    result = {}
-    if len(episode_info) > 0:
-        keys = episode_info[0].keys()
-        # Compute mean and std for each information, skip seed
-        for key in keys:
-            if key == "seed":
-                continue
-            result[key + "_mean"] = np.mean([info[key] for info in episode_info])
-            result[key + "_min"] = np.min([info[key] for info in episode_info])
-            result[key + "_max"] = np.max([info[key] for info in episode_info])
-            result[key + "_std"] = np.std([info[key] for info in episode_info])
-    return result
 
 if __name__ == "__main__":
     main()

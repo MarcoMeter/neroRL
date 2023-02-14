@@ -69,6 +69,11 @@ class MemoryGymWrapper(Env):
         return self._env.action_space
 
     @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return self._env.max_episode_steps
+
+    @property
     def seed(self):
         """Returns the seed of the current episode."""
         return self._seed
@@ -79,7 +84,7 @@ class MemoryGymWrapper(Env):
         if isinstance(self.action_space, spaces.MultiDiscrete):
             return [["no-op", "left", "right"], ["no-op", "up", "down"]]
         else:
-            return ["no-op", "rotate left", "rotate right", "move forward"]
+            return [["no-op", "rotate left", "rotate right", "move forward"]]
 
     @property
     def get_episode_trajectory(self):
@@ -146,6 +151,8 @@ class MemoryGymWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
+        if isinstance(action, int):
+            action = [action]
         obs, reward, done, truncation, info = self._env.step(action)
 
         if type(self._env.observation_space) is spaces.Dict:

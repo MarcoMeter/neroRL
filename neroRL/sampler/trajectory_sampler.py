@@ -20,21 +20,21 @@ class TrajectorySampler():
             device {torch.device} -- The device that is used for retrieving the data from the model
         """
         # Set member variables
-        self.configs = configs
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
         self.model = model
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
-        self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.device = device
 
         # Create Buffer
-        self.buffer = Buffer(self.n_workers, self.worker_steps, visual_observation_space, vector_observation_space,
-                        action_space_shape, self.recurrence, self.device, self.model.share_parameters, self)
+        self.buffer = Buffer(configs, visual_observation_space, vector_observation_space,
+                        action_space_shape, self.device, self.model.share_parameters, self)
 
         # Launch workers
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
+        # Setup timestep placeholder
+        self.worker_current_episode_step = torch.zeros((self.n_workers, ), dtype=torch.long)
         
         # Setup initial observations
         if visual_observation_space is not None:
@@ -45,16 +45,6 @@ class TrajectorySampler():
             self.vec_obs = np.zeros((self.n_workers,) + vector_observation_space, dtype=np.float32)
         else:
             self.vec_obs = None
-
-        # Setup initial recurrent cell
-        if self.recurrence is not None:
-            hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.device)
-            if self.recurrence["layer_type"] == "gru":
-                self.recurrent_cell = hxs
-            elif self.recurrence["layer_type"] == "lstm":
-                self.recurrent_cell = (hxs, cxs)
-        else:
-            self.recurrent_cell = None
 
         # Reset workers
         for worker in self.workers:
@@ -83,25 +73,14 @@ class TrajectorySampler():
         for t in range(self.worker_steps):
             # Gradients can be omitted for sampling data
             with torch.no_grad():
-                # Save the initial observations and hidden states
-                if self.vis_obs is not None:
-                    self.buffer.vis_obs[:, t] = torch.tensor(self.vis_obs)
-                if self.vec_obs is not None:
-                    self.buffer.vec_obs[:, t] = torch.tensor(self.vec_obs)
-                # Store recurrent cell states inside the buffer
-                if self.recurrence is not None:
-                    if self.recurrence["layer_type"] == "gru":
-                        self.buffer.hxs[:, t] = self.recurrent_cell
-                    elif self.recurrence["layer_type"] == "lstm":
-                        self.buffer.hxs[:, t] = self.recurrent_cell[0]
-                        self.buffer.cxs[:, t] = self.recurrent_cell[1]
+                # Write observations and recurrent cell to buffer
+                self.previous_model_input_to_buffer(t)
 
                 # Forward the model to retrieve the policy (making decisions), 
                 # the states' value of the value function and the recurrent hidden states (if available)
                 vis_obs_batch = torch.tensor(self.vis_obs) if self.vis_obs is not None else None
                 vec_obs_batch = torch.tensor(self.vec_obs) if self.vec_obs is not None else None
-                policy, value, self.recurrent_cell, _ = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
-                self.buffer.values[:, t] = value.data
+                policy, value = self.forward_model(vis_obs_batch, vec_obs_batch, t)      
 
                 # Sample actions from each individual policy branch
                 actions = []
@@ -110,8 +89,10 @@ class TrajectorySampler():
                     action = action_branch.sample()
                     actions.append(action)
                     log_probs.append(action_branch.log_prob(action))
+                # Write actions, log_probs, and values to buffer
                 self.buffer.actions[:, t] = torch.stack(actions, dim=1)
                 self.buffer.log_probs[:, t] = torch.stack(log_probs, dim=1)
+                self.buffer.values[:, t] = value.data
 
             # Execute actions
             actions = self.buffer.actions[:, t].cpu().numpy() # send actions as batch to the CPU, to save IO time
@@ -128,51 +109,80 @@ class TrajectorySampler():
                 if info:
                     # Store the information of the completed episode (e.g. total reward, episode length)
                     episode_infos.append(info)
-                    # Reset agent (potential interface for providing reset parameters)
-                    worker.child.send(("reset", None))
-                    # Get data from reset
-                    vis_obs, vec_obs = worker.child.recv()
-                    if self.vis_obs is not None:
-                        self.vis_obs[w] = vis_obs
-                    if self.vec_obs is not None:
-                        self.vec_obs[w] = vec_obs
-                    # Reset recurrent cell states
-                    if self.recurrence is not None:
-                        if self.recurrence["reset_hidden_state"]:
-                            hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
-                            if self.recurrence["layer_type"] == "gru":
-                                self.recurrent_cell[w] = hxs
-                            elif self.recurrence["layer_type"] == "lstm":
-                                self.recurrent_cell[0][w] = hxs
-                                self.recurrent_cell[1][w] = cxs
+                    self.reset_worker(worker, w, t)
+                else:
+                    # Increment worker timestep
+                    self.worker_current_episode_step[w] +=1
 
         return episode_infos
 
-    def last_vis_obs(self) -> np.ndarray:
-        """
-        Returns:
-            {np.ndarray} -- The last visual observation of the sampling process, which can be used to calculate the advantage.
-        """
-        return torch.tensor(self.vis_obs) if self.vis_obs is not None else None
+    def previous_model_input_to_buffer(self, t):
+        """Add the model's previous input to the buffer.
 
-    def last_vec_obs(self) -> np.ndarray:
+        Arguments:
+            t {int} -- Current step of sampling
         """
-        Returns:
-            {np.ndarray} -- The last vector observation of the sampling process, which can be used to calculate the advantage.
-        """
-        return torch.tensor(self.vec_obs) if self.vec_obs is not None else None
+        if self.vis_obs is not None:
+            self.buffer.vis_obs[:, t] = torch.tensor(self.vis_obs)
+        if self.vec_obs is not None:
+            self.buffer.vec_obs[:, t] = torch.tensor(self.vec_obs)
 
-    def last_recurrent_cell(self) -> tuple:
-        """
+    def forward_model(self, vis_obs, vec_obs, t):
+        """Forwards the model to retrieve the policy and the value of the to be fed observations.
+
+        Arguments:
+            vis_obs {torch.tensor} -- Visual observations batched across workers
+            vec_obs {torch.tensor} -- Vector observations batched across workers
+            t {int} -- Current step of sampling
+
         Returns:
-            {tuple} -- The latest recurrent cell of the sampling process, which can be used to calculate the advantage.
+            {tuple} -- policy {list of categorical distributions}, value {torch.tensor}
         """
-        return self.recurrent_cell
+        policy, value, _, _ = self.model(vis_obs, vec_obs)
+        return policy, value
+
+    def reset_worker(self, worker, id, t):
+        """Resets the specified worker.
+
+        Arguments:
+            worker {remote} -- The to be reset worker
+            id {int} -- The ID of the to be reset worker
+            t {int} -- Current step of sampling data
+        """
+        # Reset the worker's current timestep
+        self.worker_current_episode_step[id] = 0
+        # Reset agent (potential interface for providing reset parameters)
+        worker.child.send(("reset", None))
+        # Get data from reset
+        vis_obs, vec_obs = worker.child.recv()
+        if self.vis_obs is not None:
+            self.vis_obs[id] = vis_obs
+        if self.vec_obs is not None:
+            self.vec_obs[id] = vec_obs
+
+    def get_last_value(self):
+        """Returns the last value of the current observation to compute GAE.
+
+        Returns:
+            {torch.tensor} -- Last value
+        """
+        _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
+                                        torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
+                                        None)
+        return last_value
 
     def close(self) -> None:
         """Closes the sampler and shuts down its environment workers."""
         try:
             for worker in self.workers:
-                worker.child.send(("close", None))
+                worker.close()
         except:
             pass
+
+    def to(self, device):
+        """Args:
+            device {torch.device} -- Desired device for all current tensors"""
+        for k in dir(self):
+            att = getattr(self, k)
+            if torch.is_tensor(att):
+                setattr(self, k, att.to(device))

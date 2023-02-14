@@ -130,6 +130,11 @@ class UnityWrapper(Env):
         return None
 
     @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return 2048
+
+    @property
     def get_episode_trajectory(self):
         """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
         """

@@ -28,6 +28,7 @@ environment:
     start-seed: 0
     num-seeds: 100
     view-size: 3
+    max-episode-steps: 128
 
 ### MODEL CONFIG ###
 model:
@@ -37,26 +38,26 @@ model:
   model_path: "path/to/model.pt"
   # Save the model after every n-th update
   checkpoint_interval: 50
-  # Set the to be used activation function (elu, leaky_relu, relu, swish)
+  # Set the to be used activation function (elu, leaky_relu, relu, swish, gelu)
   activation: "relu"
   # Set the to be used visual encoder
   vis_encoder: "cnn"
-  recurrence:
-    # Supported recurrent layers: gru, lstm
-    layer_type: "lstm"
-    # The number of recurrent layers
-    num_layers: 1
-    # Length of the trained sequences, if set to 0 or smaller the sequence length is dynamically fit to episode lengths
-    sequence_length: 32
-    # Size of the recurrent layer's hidden state
-    hidden_state_size: 128
-    # How to initialize the hidden state (zero, one, mean, sample, learned)
-    hidden_state_init: "zero"
-    # Whether to reset the hidden state before a new episode.
-    # Environments that use short episodes are likely to profit from not resetting the hidden state.
-    reset_hidden_state: True
-    # Wether residual connections should be used for the recurrent layer
-    residual: False
+  # recurrence:
+  #   # Supported recurrent layers: gru, lstm
+  #   layer_type: "lstm"
+  #   # The number of recurrent layers
+  #   num_layers: 1
+  #   # Length of the trained sequences, if set to 0 or smaller the sequence length is dynamically fit to episode lengths
+  #   sequence_length: 32
+  #   # Size of the recurrent layer's hidden state
+  #   hidden_state_size: 128
+  #   # How to initialize the hidden state (zero, one, mean, sample, learned)
+  #   hidden_state_init: "zero"
+  #   # Whether to reset the hidden state before a new episode.
+  #   # Environments that use short episodes are likely to profit from not resetting the hidden state.
+  #   reset_hidden_state: True
+  #   # Wether residual connections should be used for the recurrent layer
+  #   residual: False
   # Set the to be used vector encoder
   vec_encoder: "linear" # "linear", "none"
   num_vec_encoder_units: 128
@@ -86,8 +87,6 @@ evaluation:
 # The sampler is in charge of collecting training data
 # These hyperparameters determine the amount of data and the sampler's behavior
 sampler:
-  # The TrajectorySampler gathers monte carlo rollouts that may contain truncated episodes
-  type: "TrajectorySampler"
   # Number of environments that are used for sampling data
   n_workers: 16
   # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
@@ -113,7 +112,7 @@ trainer:
   # Number of mini batches that are trained throughout one epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
   n_mini_batches: 4
-  # Wether to normalize the advantages on minibatch or batch level.
+  # Wether to normalize the advantages on "minibatch" level, "batch" level or not at all ("no").
   advantage_normalization: "minibatch"
   # Coefficient of the loss of the value function (i.e. critic)
   # It is only of use if model parameters are shared among the actor and the critic

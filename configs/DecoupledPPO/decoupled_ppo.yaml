@@ -27,6 +27,8 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
+    view-size: 3
+    max-episode-steps: 96
 
 ### MODEL CONFIG ###
 model:
@@ -36,7 +38,7 @@ model:
   model_path: "path/to/model.pt"
   # Save the model after every n-th update
   checkpoint_interval: 50
-  # Set the to be used activation function (elu, leaky_relu, relu, swish)
+  # Set the to be used activation function (elu, leaky_relu, relu, swish, gelu)
   activation: "relu"
   # Set the to be used encoder
   vis_encoder: "cnn"
@@ -86,8 +88,6 @@ evaluation:
 # The sampler is in charge of collecting training data
 # These hyperparameters determine the amount of data and the sampler's behavior
 sampler:
-  # The TrajectorySampler gathers monte carlo rollouts that may contain truncated episodes
-  type: "TrajectorySampler"
   # Number of environments that are used for sampling data
   n_workers: 16
   # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)

@@ -76,7 +76,6 @@ class YamlParser:
         }
 
         sampler_dict = {
-            "type": "TrajectorySampler",
             "n_workers": 16,
             "worker_steps": 256
         }
@@ -246,7 +245,32 @@ class YamlParser:
                 if "reset_hidden_state" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["reset_hidden_state"] = True
                 if "residual" not in self._config["model"]["recurrence"]:
-                    self._config["model"]["recurrence"]["residual"] = False           
+                    self._config["model"]["recurrence"]["residual"] = False 
+
+            # Check if the model dict contains a transformer dict
+            # If no transformer dict is available, it is assumed that a transformer-based policy is not used
+            # In the other case check for completeness and apply defaults if necessary
+            if "transformer" in self._config["model"]:
+                if "num_blocks" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["num_blocks"] = 1
+                if "embed_dim" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["embed_dim"] = 512
+                if "num_heads" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["num_heads"] = 8
+                if "memory_length" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["memory_length"] = 512
+                if "positional_encoding" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["positional_encoding"] = "relative"
+                if "layer_norm" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["layer_norm"] = "pre"
+                if "init_weights" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["init_weights"] = "xavier"
+                if "gtrxl" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["gtrxl"] = False
+                if "gtrxl_bias" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["gtrxl_bias"] = 0.0
+                if "gtrxl_swap" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["gtrxl_swap"] = False
 
             # Check DAAC if DecoupledPPO
             if "DAAC" in self._config["trainer"]:
@@ -257,39 +281,5 @@ class YamlParser:
         """ 
         Returns:
             {dict} -- Nested dictionary that contains configs for the environment, model, evaluation and trainer.
-        """
-        return self._config
-
-class GridSearchYamlParser:
-    """The GridSearchYamlParser parses a yaml file containing parameters for tuning hyperparameters based on grid search.
-    The data is parsed during initialization.
-    Retrieve the parameters using the get_config function.
-
-    The data can be accessed like:
-    parser.get_config()["search_space"]["worker_steps"]
-    """
-
-    def __init__(self, path = "./configs/tune/example.yaml"):
-        """Loads and prepares the specified config file.
-        
-        Arguments:
-            path {str} -- Yaml file path to the to be loaded config (default: {"./configs/tune/search.yaml"})
-        """
-        # Load the config file
-        stream = open(path, "r")
-        yaml = YAML()
-        yaml_args = yaml.load_all(stream)
-        
-        # Final contents of the config file will be added to a dictionary
-        self._config = {}
-
-        # Prepare data
-        for data in yaml_args:
-            self._config = dict(data)
-
-    def get_config(self):
-        """ 
-        Returns:
-            {dict} -- Dictionary that contains the config for the grid search.
         """
         return self._config
