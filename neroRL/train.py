@@ -3,6 +3,7 @@ Runs the training program using the provided config and arguments.
 """
 import random
 import sys
+import time
 import torch
 
 from docopt import docopt
@@ -26,6 +27,9 @@ class Training():
             out_path {str} -- Desired output path
             seed {int} -- Seed for all number generators
         """
+        # Start time
+        self.start_time = time.time()
+
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
         signal(SIGINT, self.close)
 
@@ -130,6 +134,9 @@ class Training():
 
     def close(self, signal_received, frame):
         self.monitor.log("Terminating training ...")
+        hours, remainder = divmod(time.time() - self.start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        self.monitor.log("Trainig duration: {:.0f}h {:.0f}m {:.2f}s".format(hours, minutes, seconds))
         if self.trainer.current_update > 0:
             self.monitor.log("Terminate: Saving model . . .")
             try:
