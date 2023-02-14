@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch import nn
 from einops import rearrange
 from neroRL.nn.module import Module
@@ -140,10 +141,12 @@ class TransformerBlock(Module):
             # Forward GRU gating
             h = self.gate1(query, attention)
         else:
+            if self.layer_norm == "pre":
+                attention = F.relu(attention)
             # Skip connection
             h = attention + query
         
-        # Apply post-layer norm across the attention output (i.e. projection input)
+        # Apply post-layer norm across the attention output (i.e. projection input) 
         if self.layer_norm == "post":
             h = self.norm1(h)
 
@@ -161,6 +164,8 @@ class TransformerBlock(Module):
             # Forward GRU gating
             out = self.gate2(h, forward)
         else:
+            if self.layer_norm == "pre":
+                forward = F.relu(forward)
             # Skip connection
             out = forward + h
         
