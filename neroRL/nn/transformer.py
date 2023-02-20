@@ -24,12 +24,14 @@ class MultiHeadAttention(nn.Module):
             self.head_size * num_heads == embed_dim
         ), "Embedding dimension needs to be divisible by the number of heads"
 
-        
+        # Create the linear layers for the keys, values and queries
         if self.share_heads:
+            # If we share the weights of the heads, we only need one set of linear layers
             self.values = nn.Linear(self.head_size, self.head_size, bias=False)
             self.keys = nn.Linear(self.head_size, self.head_size, bias=False)
             self.queries = nn.Linear(self.head_size, self.head_size, bias=False)
         else:
+            # If we don't share the weights of the heads, we need as many sets of linear layers as there are heads
             self.values = [nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)]
             self.keys = [nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)]
             self.queries = [nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)]
@@ -62,10 +64,12 @@ class MultiHeadAttention(nn.Module):
             keys = self.keys(keys)  # (N, key_len, heads, head_dim)
             queries = self.queries(query)  # (N, query_len, heads, heads_dim)
         else:
+            # Apply the linear layer separately to each head
             values = [self.values[i](values[:, :, i].unsqueeze(2)) for i in range(self.num_heads)]
             keys = [self.keys[i](keys[:, :, i].unsqueeze(2)) for i in range(self.num_heads)]
             queries = [self.queries[i](query[:, :, i].unsqueeze(2)) for i in range(self.num_heads)]
             
+            # Concatenate the different heads
             values = torch.cat(values, dim=2) # (N, value_len, heads, head_dim)
             keys = torch.cat(keys, dim=2) # (N, value_len, heads, head_dim)
             queries = torch.cat(queries, dim=2) # (N, value_len, heads, head_dim)
@@ -248,8 +252,8 @@ class Transformer(nn.Module):
             memory_indices {torch.tensor} -- Memory window indices (dtype: long) of shape (N, L)
 
         Returns:
-            torch.tensor -- Output of the entire transformer encoder
-            torch.tensor -- Out memories (i.e. inputs to the transformer blocks)
+            {torch.tensor} -- Output of the entire transformer encoder
+            {torch.tensor} -- Out memories (i.e. inputs to the transformer blocks)
         """
         # Feed embedding layer and activate
         h = self.activation(self.linear_embedding(h))
