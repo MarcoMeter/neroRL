@@ -4,7 +4,7 @@ import numpy as np
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent and transformer policies."""
     def __init__(self, configs, visual_observation_space, vector_observation_space,
-                    action_space_shape, device, share_parameters, sampler):
+                    action_space_shape, use_helm, device, share_parameters, sampler):
         """
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. model, training, environment, ... configs)
@@ -18,6 +18,7 @@ class Buffer():
         self.device = device
         self.sampler = sampler
         self.configs = configs
+        self.use_helm = use_helm
         self.recurrence, self.transformer_memory = None, None       # place holder for recurrence and transformer config
         self.num_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
@@ -38,6 +39,7 @@ class Buffer():
             self.vec_obs = torch.zeros((self.num_workers, self.worker_steps,) + self.vector_observation_space)
         else:
             self.vec_obs = None
+        self.h_helm = torch.zeros((self.num_workers, self.worker_steps, 1024)) if self.use_helm else None
         self.rewards = np.zeros((self.num_workers, self.worker_steps), dtype=np.float32)
         self.actions = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)), dtype=torch.long)
         self.dones = np.zeros((self.num_workers, self.worker_steps), dtype=np.bool)
@@ -114,6 +116,8 @@ class Buffer():
             samples["vis_obs"] = self.vis_obs
         if self.vec_obs is not None:
             samples["vec_obs"] = self.vec_obs
+        if self.use_helm:
+            samples["h_helm"] = self.h_helm
 
         # TRANSFORMER SAMPLES
         # Add data concerned with the episodic memory (i.e. transformer-based policy)
