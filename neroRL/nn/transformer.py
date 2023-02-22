@@ -36,8 +36,8 @@ class MultiHeadAttention(nn.Module):
             mask {torch.tensor} -- Attention mask in shape of (N, L)
 
         Returns:
-            torch.tensor -- Output
-            torch.tensor -- Attention weights
+            {torch.tensor} -- Output
+            {torch.tensor} -- Attention weights
         """
         # Get number of training examples and sequence lengths
         N = query.shape[0]
