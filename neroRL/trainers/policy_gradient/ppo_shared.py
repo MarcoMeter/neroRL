@@ -204,7 +204,6 @@ class PPOTrainer(BaseTrainer):
             "clip_range": (Tag.DECAY, self.clip_range)
         }
 
-
     def collect_checkpoint_data(self, update):
         checkpoint_data = super().collect_checkpoint_data(update)
         # Reduce size of the helm model by removing not trainable parameters
