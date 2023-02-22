@@ -175,7 +175,7 @@ class TrajectorySampler():
         # Reset HELM Memory
         if "helm" in self.configs["model"]:
             for l in range(len(self.helm_memory)):
-                self.helm_memory[l][:, worker] = 0.
+                self.helm_memory[l][:, id] = 0.
 
     def get_last_value(self):
         """Returns the last value of the current observation to compute GAE.
