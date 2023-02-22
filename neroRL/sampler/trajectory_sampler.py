@@ -23,6 +23,7 @@ class TrajectorySampler():
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
         self.model = model
+        self.config = configs
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.device = device
