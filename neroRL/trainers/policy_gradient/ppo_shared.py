@@ -112,8 +112,9 @@ class PPOTrainer(BaseTrainer):
             memory_indices = samples["memory_indices"]
 
         # Forward model -> policy, value, memory, gae
-        policy, value, _, _ = self.model(samples["vis_obs"] if self.vis_obs_space is not None else None,
+        policy, value, *_ = self.model(samples["vis_obs"] if self.vis_obs_space is not None else None,
                                     samples["vec_obs"] if self.vec_obs_space is not None else None,
+                                    h_helm = samples["h_helm"] if "helm" in self.configs["model"] else None,
                                     memory = memory, mask = mask, memory_indices = memory_indices,
                                     sequence_length = self.sampler.buffer.actual_sequence_length)
         
@@ -206,11 +207,23 @@ class PPOTrainer(BaseTrainer):
 
     def collect_checkpoint_data(self, update):
         checkpoint_data = super().collect_checkpoint_data(update)
-        checkpoint_data["model"] = self.model.state_dict()
+        # Reduce size of the helm model by removing not trainable parameters
+        if "helm" in self.configs["model"].keys():
+            state_dict = self.model.state_dict()
+            # We assume that transfo_xl_wt103 weights are not trainable
+            pretrained_model_keys = [key for key in state_dict if "transfo_xl_wt103" in key]
+            for key in pretrained_model_keys:
+                del state_dict[key]
+            checkpoint_data["model"] = state_dict
+        else:
+            checkpoint_data["model"] = self.model.state_dict()
         checkpoint_data["optimizer"] = self.optimizer.state_dict()
         return checkpoint_data
 
     def apply_checkpoint_data(self, checkpoint):
         super().apply_checkpoint_data(checkpoint)
-        self.model.load_state_dict(checkpoint["model"])
+        if "helm" in self.configs["model"].keys():
+            self.model.load_state_dict(checkpoint["model"], strict=False)
+        else:
+            self.model.load_state_dict(checkpoint["model"])
         self.optimizer.load_state_dict(checkpoint["optimizer"])
