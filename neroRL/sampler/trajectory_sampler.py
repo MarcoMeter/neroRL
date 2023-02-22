@@ -45,6 +45,12 @@ class TrajectorySampler():
             self.vec_obs = np.zeros((self.n_workers,) + vector_observation_space, dtype=np.float32)
         else:
             self.vec_obs = None
+            
+        # Setup HELM memory
+        if "helm" in configs["model"]:
+            self.helm_memory = [torch.zeros((511, self.n_workers, 1024)) for _ in range(18)]
+        else:
+            self.helm_memory = None
 
         # Reset workers
         for worker in self.workers:
@@ -80,7 +86,13 @@ class TrajectorySampler():
                 # the states' value of the value function and the recurrent hidden states (if available)
                 vis_obs_batch = torch.tensor(self.vis_obs) if self.vis_obs is not None else None
                 vec_obs_batch = torch.tensor(self.vec_obs) if self.vec_obs is not None else None
-                policy, value = self.forward_model(vis_obs_batch, vec_obs_batch, t)      
+                if self.helm_memory is not None:
+                    self.model.helm_encoder.memory = self.helm_memory
+                policy, value, h_helm = self.forward_model(vis_obs_batch, vec_obs_batch, t)   
+                if self.helm_memory is not None:
+                    self.helm_memory = self.model.helm_encoder.memory
+                if "helm" in self.configs["model"]:
+                    self.buffer.h_helm[:, t] = h_helm   
 
                 # Sample actions from each individual policy branch
                 actions = []
@@ -138,8 +150,8 @@ class TrajectorySampler():
         Returns:
             {tuple} -- policy {list of categorical distributions}, value {torch.tensor}
         """
-        policy, value, _, _ = self.model(vis_obs, vec_obs)
-        return policy, value
+        policy, value, _, _, h_helm = self.model(vis_obs, vec_obs)
+        return policy, value, h_helm
 
     def reset_worker(self, worker, id, t):
         """Resets the specified worker.
@@ -159,6 +171,10 @@ class TrajectorySampler():
             self.vis_obs[id] = vis_obs
         if self.vec_obs is not None:
             self.vec_obs[id] = vec_obs
+        # Reset HELM Memory
+        if "helm" in self.configs["model"]:
+            for l in range(len(self.helm_memory)):
+                self.helm_memory[l][:, worker] = 0.
 
     def get_last_value(self):
         """Returns the last value of the current observation to compute GAE.
@@ -166,7 +182,7 @@ class TrajectorySampler():
         Returns:
             {torch.tensor} -- Last value
         """
-        _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
+        _, last_value, *_ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
                                         None)
         return last_value
