@@ -336,7 +336,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             for b, block in enumerate(self.transformer.transformer_blocks):
                 self.actor_critic_modules["transformer_" + str(b)] = block
 
-    def forward(self, vis_obs, vec_obs, memory = None, mask = None, memory_indices = None, sequence_length = 1):
+    def forward(self, vis_obs, vec_obs, h_helm = None, memory = None, mask = None, memory_indices = None, sequence_length = 1):
         """Forward pass of the model
 
             vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
@@ -383,7 +383,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Head: Policy branches
         pi = self.actor_policy(h)
 
-        return pi, value, memory, None
+        return pi, value, memory, None, h_helm
 
 def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, device):
     """Creates a shared or non-shared weights actor critic model.
