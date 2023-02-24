@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from neroRL.nn.encoder import CNNEncoder, ResCNN, SmallImpalaCNN, LinVecEncoder, HELMv1Encoder
+from neroRL.nn.encoder import CNNEncoder, ResCNN, SmallImpalaCNN, LinVecEncoder, HELMv1Encoder, HELMv2Encoder
 from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU
 from neroRL.nn.transformer import Transformer
 from neroRL.nn.body import HiddenLayer
@@ -58,7 +58,7 @@ class ActorCriticBase(Module):
 
         # Helm encoder
         helm_out_dim = 0
-        if "helm" in config:
+        if "helmv1" in config:
             in_dim = vis_obs_space.shape[1] * vis_obs_space.shape[2]
             helm_encoder = HELMv1Encoder(in_dim, config["helm"]["memory_length"], config["helm"]["beta"], device = torch.device("cuda" if torch.cuda.is_available() else "cpu"))
             helm_out_dim = helm_encoder.out_dim
