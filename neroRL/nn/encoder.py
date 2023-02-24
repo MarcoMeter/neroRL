@@ -396,26 +396,19 @@ class HELMv2Encoder(nn.Module):
 
         self.memory = None
 
-    def yield_trainable_params(self):
-        for n, p in self.named_parameters():
-            if 'model.' in n or 'vis_encoder' in n:
-                continue
-            else:
-                yield p
-
     def forward(self, observations):
         bs, *_ = observations.shape
         obs_query = self.query_encoder(observations)
         observations = self.vis_encoder(observations)
         observations = (observations - observations.mean(0)) / (observations.std(0) + 1e-8)
         observations = observations * self.we_std + self.we_mean
-        out = self.model(inputs_embeds=observations.unsqueeze(1), output_hidden_states=True, mems=self.memory)
+        out = self.model(inputs_embeds=observations.unsqueeze(1), output_hidden_states=True, mems=self.memory).detach()
         self.memory = out.mems
         hidden = out.last_hidden_state[:, -1, :]
 
         hidden = torch.cat([hidden, obs_query], dim=-1)
 
-        return hidden
+        return hidden.detach()
 
     def evaluate_actions(self, hidden_states, actions, observations):
         queries = self.query_encoder(observations)
