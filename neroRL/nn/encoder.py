@@ -408,7 +408,7 @@ class HELMv2Encoder(nn.Module):
 
         hidden = torch.cat([hidden, obs_query], dim=-1)
 
-        return hidden.detach()
+        return hidden
 
     def evaluate_actions(self, hidden_states, actions, observations):
         queries = self.query_encoder(observations)
