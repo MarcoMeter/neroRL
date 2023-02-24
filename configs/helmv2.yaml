@@ -30,7 +30,6 @@ model:
   num_hidden_units: 512
   helmv2:
     memory_length: 128
-    beta: 50             # choices 0.5, 1, 10, 50, 100
 
 evaluation:
   evaluate: False
