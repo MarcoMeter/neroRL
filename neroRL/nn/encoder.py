@@ -185,7 +185,7 @@ class ResCNN(Module):
 
 class SmallImpalaCNN(Module):
     """https://github.com/ml-jku/helm/blob/main/model.py#L42"""
-    def __init__(self, vis_obs_space, config, activ_fn, channel_scale=1, hidden_dim=256):
+    def __init__(self, vis_obs_space, channel_scale=1, hidden_dim=256):
         super(SmallImpalaCNN, self).__init__()
         vis_obs_shape = vis_obs_space.shape
         self.obs_size = vis_obs_shape
@@ -402,10 +402,10 @@ class HELMv2Encoder(nn.Module):
         observations = self.vis_encoder(observations)
         observations = (observations - observations.mean(0)) / (observations.std(0) + 1e-8)
         observations = observations * self.we_std + self.we_mean
-        out = self.model(inputs_embeds=observations.unsqueeze(1), output_hidden_states=True, mems=self.memory).detach()
+        out = self.model(inputs_embeds=observations.unsqueeze(1), output_hidden_states=True, mems=self.memory)
         self.memory = out.mems
-        hidden = out.last_hidden_state[:, -1, :]
-
+        
+        hidden = out.last_hidden_state[:, -1, :].detach()
         hidden = torch.cat([hidden, obs_query], dim=-1)
 
         return hidden

@@ -57,7 +57,7 @@ class ActorCriticBase(Module):
         vis_encoder, vec_encoder, helm_encoder, recurrent_layer, transformer, body = None, None, None, None, None, None
 
         # Helm encoder
-        helm_encoder = self.create_helm_encoder(config, vec_obs_shape)
+        helm_encoder = self.create_helm_encoder(config, vis_obs_space)
 
         # Observation encoder
         if vis_obs_space is not None:
@@ -197,11 +197,10 @@ class ActorCriticBase(Module):
         helm_encoder = None
         if "helmv1" in config:
             in_dim = vis_obs_space.shape[1] * vis_obs_space.shape[2]
-            helm_encoder = HELMv1Encoder(in_dim, config["helm"]["memory_length"], config["helm"]["beta"], device = torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+            helm_encoder = HELMv1Encoder(in_dim, config["helmv1"]["memory_length"], config["helmv1"]["beta"], device = torch.device("cuda" if torch.cuda.is_available() else "cpu"))
             self.helm_out_dim = helm_encoder.out_dim
         elif "helmv2" in config:
-            in_dim = vis_obs_space.shape[1] * vis_obs_space.shape[2]
-            helm_encoder = HELMv2Encoder(in_dim, config["helm"]["memory_length"], device = torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+            helm_encoder = HELMv2Encoder(vis_obs_space, config["helmv2"]["memory_length"], device = torch.device("cuda" if torch.cuda.is_available() else "cpu"))
             self.helm_out_dim = helm_encoder.out_dim
             
         return helm_encoder
@@ -221,7 +220,7 @@ class ActorCriticBase(Module):
         elif config["vis_encoder"] == "rescnn":
             return ResCNN(vis_obs_space, config, self.activ_fn)
         elif config["vis_encoder"] == "smallimpala":
-            return SmallImpalaCNN(vis_obs_space, config, self.activ_fn)
+            return SmallImpalaCNN(vis_obs_space)
 
     def create_vec_encoder(self, config, in_features, out_features):
         """Creates and returns a new instance of the vector encoder based on the model config.
