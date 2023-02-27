@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from neroRL.nn.encoder import CNNEncoder, ResCNN, SmallImpalaCNN, LinVecEncoder, HELMEncoder
+from neroRL.nn.encoder import CNNEncoder, ResCNN, SmallImpalaCNN, LinVecEncoder, HELMv1Encoder
 from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU
 from neroRL.nn.transformer import Transformer
 from neroRL.nn.body import HiddenLayer
@@ -57,11 +57,7 @@ class ActorCriticBase(Module):
         vis_encoder, vec_encoder, helm_encoder, recurrent_layer, transformer, body = None, None, None, None, None, None
 
         # Helm encoder
-        helm_out_dim = 0
-        if "helmv1" in config:
-            in_dim = vis_obs_space.shape[1] * vis_obs_space.shape[2]
-            helm_encoder = HELMEncoder(in_dim, config["helmv1"]["memory_length"], config["helmv1"]["beta"], device = torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-            helm_out_dim = helm_encoder.out_dim
+        helm_encoder = self.create_helm_encoder(config, vis_obs_space)
 
         # Observation encoder
         if vis_obs_space is not None:
@@ -100,7 +96,7 @@ class ActorCriticBase(Module):
 
         # Network body
         out_features = config["num_hidden_units"]
-        body = self.create_body(config, in_features_next_layer + helm_out_dim, out_features)
+        body = self.create_body(config, in_features_next_layer + self.helm_out_dim, out_features)
 
         return vis_encoder, vec_encoder, helm_encoder, recurrent_layer, transformer, body
 
@@ -186,6 +182,23 @@ class ActorCriticBase(Module):
             return nn.SiLU()
         elif config["activation"] == "gelu":
             return nn.GELU()
+
+    def create_helm_encoder(self, config, vis_obs_space):
+        """Creates and returns a new instance of the helm encoder based on the model config.
+        Arguments:
+            config {dict} -- Model config
+            vis_obs_space {box} -- Dimensions of the visual observation space
+        Returns:
+            {Module} -- The created helm encoder
+        """
+        
+        helm_encoder = None
+        if "helmv1" in config:
+            in_dim = vis_obs_space.shape[1] * vis_obs_space.shape[2]
+            helm_encoder = HELMv1Encoder(in_dim, config["helmv1"]["memory_length"], config["helmv1"]["beta"], device = torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+            self.helm_out_dim = helm_encoder.out_dim
+            
+        return helm_encoder
 
     def create_vis_encoder(self, config, vis_obs_space):
         """Creates and returns a new instance of the visual encoder based on the model config.

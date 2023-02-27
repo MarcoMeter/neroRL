@@ -315,9 +315,9 @@ class FrozenHopfield(nn.Module):
         obs = torch.stack([o.view(-1) for o in obs])
         return obs
 
-class HELMEncoder(nn.Module):
+class HELMv1Encoder(nn.Module):
     def __init__(self, input_dim, mem_len=511, beta=100, device='cuda'):
-        super(HELMEncoder, self).__init__()
+        super(HELMv1Encoder, self).__init__()
         config = TransfoXLConfig()
         config.mem_len = mem_len
         self.mem_len = config.mem_len
