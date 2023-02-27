@@ -49,7 +49,10 @@ class TrajectorySampler():
             self.vec_obs = None
             
         # Setup HELM memory
-        self.helm_memory = [torch.zeros((128, self.n_workers, 1024)) for _ in range(18)]
+        if self.use_helm:
+            self.helm_memory = [torch.zeros((128, self.n_workers, 1024)) for _ in range(18)]
+        else:
+            self.helm_memory = None
 
         # Reset workers
         for worker in self.workers:
