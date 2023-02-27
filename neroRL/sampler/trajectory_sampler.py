@@ -49,8 +49,10 @@ class TrajectorySampler():
             self.vec_obs = None
             
         # Setup HELM memory
-        if self.use_helm:
+        if "helmv1" in configs["model"]:
             self.helm_memory = [torch.zeros((511, self.n_workers, 1024)) for _ in range(18)]
+        elif "helmv2" in configs["model"]:
+            self.helm_memory = [torch.zeros((128, self.n_workers, 1024)) for _ in range(18)]
         else:
             self.helm_memory = None
 

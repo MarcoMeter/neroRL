@@ -402,6 +402,7 @@ class HELMv2Encoder(nn.Module):
         observations = self.vis_encoder(observations)
         observations = (observations - observations.mean(0)) / (observations.std(0) + 1e-8)
         observations = observations * self.we_std + self.we_mean
+        self.memory = None
         out = self.model(inputs_embeds=observations.unsqueeze(1), output_hidden_states=True, mems=self.memory)
         self.memory = out.mems
         
