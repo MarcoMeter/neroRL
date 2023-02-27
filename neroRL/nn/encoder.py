@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import clip
 from torch import nn
 from torch.nn import functional as F
 from transformers import TransfoXLModel, TransfoXLConfig
@@ -184,7 +185,7 @@ class ResCNN(Module):
 
 class SmallImpalaCNN(Module):
     """https://github.com/ml-jku/helm/blob/main/model.py#L42"""
-    def __init__(self, vis_obs_space, config, activ_fn, channel_scale=1, hidden_dim=256):
+    def __init__(self, vis_obs_space, config = None, activ_fn = None, channel_scale=1, hidden_dim=256):
         super(SmallImpalaCNN, self).__init__()
         vis_obs_shape = vis_obs_space.shape
         self.obs_size = vis_obs_shape
@@ -344,3 +345,76 @@ class HELMv1Encoder(nn.Module):
         self.memory = out.mems
         hidden = out.last_hidden_state[:, -1, :]
         return hidden.detach()
+
+class VisionBackbone(nn.Module):
+    def __init__(self):
+        super(VisionBackbone, self).__init__()
+        print(f"Allocating CLIP...")
+        self.model, preprocess = clip.load("RN50")
+        self.transforms = preprocess
+        preprocess.transforms = [preprocess.transforms[0], preprocess.transforms[1], preprocess.transforms[-1]]
+        self.transforms = preprocess
+
+        self.model.eval()
+        self._deactivate_grad()
+
+    def forward(self, observations):
+        observations = self._preprocess(observations)
+        out = self.model.encode_image(observations).float()
+        return out
+
+    def _deactivate_grad(self):
+        for p in self.model.parameters():
+            p.requires_grad_(False)
+
+    def _preprocess(self, observation):
+        return self.transforms(observation)
+
+class HELMv2Encoder(nn.Module):
+    def __init__(self, input_dim, mem_len=511, device='cuda'):
+        super(HELMv2Encoder, self).__init__()
+        config = TransfoXLConfig()
+        config.mem_len = mem_len
+        self.mem_len = config.mem_len
+
+        self.model = TransfoXLModel.from_pretrained('transfo-xl-wt103', config=config)
+        n_tokens = self.model.word_emb.n_token
+        word_embs = self.model.word_emb(torch.arange(n_tokens)).detach().to(device)
+        self.we_std = word_embs.std(0)
+        self.we_mean = word_embs.mean(0)
+        self.vis_encoder = VisionBackbone()
+        hidden_dim = self.model.d_embed
+
+        for p in self.model.parameters():
+            p.requires_grad_(False)
+
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+
+        self.query_encoder = SmallImpalaCNN(vis_obs_space = input_dim, channel_scale = 4, hidden_dim = hidden_dim)
+        self.out_dim = hidden_dim*2
+
+        self.memory = None
+
+    def forward(self, observations):
+        bs, *_ = observations.shape
+        obs_query = self.query_encoder(observations)
+        observations = self.vis_encoder(observations)
+        observations = (observations - observations.mean(0)) / (observations.std(0) + 1e-8)
+        observations = observations * self.we_std + self.we_mean
+        out = self.model(inputs_embeds=observations.unsqueeze(1), output_hidden_states=True, mems=self.memory)
+        self.memory = out.mems
+        
+        hidden = out.last_hidden_state[:, -1, :].detach()
+        hidden = torch.cat([hidden, obs_query], dim=-1)
+
+        return hidden
+
+    def evaluate_actions(self, hidden_states, actions, observations):
+        queries = self.query_encoder(observations)
+        hidden = torch.cat([hidden_states, queries], dim=-1)
+
+        log_prob, entropy = self.actor.evaluate(hidden, actions)
+        value = self.critic(hidden).squeeze()
+
+        return value, log_prob, entropy
