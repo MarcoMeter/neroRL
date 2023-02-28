@@ -380,7 +380,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
                     h_helm, h_mem = self.helm_encoder(vis_obs)
             else:
                 if "helmv2" in self.config:
-                    h_helm = torch.cat([self.helm_encoder.query_encoder(vis_obs), h_helm], dim=-1)
+                    h_helm = torch.cat([h_helm, self.helm_encoder.query_encoder(vis_obs)], dim=-1)
             h = torch.cat((h, h_helm), dim=-1)
 
         # Feed network body
