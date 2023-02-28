@@ -22,6 +22,7 @@ class ActorCriticBase(Module):
         super().__init__()
 
         # Whether the model uses shared parameters (i.e. weights) or not
+        self.config = config
         self.share_parameters = False
 
         # Members for using a recurrent policy

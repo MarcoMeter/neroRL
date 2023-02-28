@@ -405,10 +405,10 @@ class HELMv2Encoder(nn.Module):
         out = self.model(inputs_embeds=observations.unsqueeze(1), output_hidden_states=True, mems=self.memory)
         self.memory = out.mems
         
-        hidden = out.last_hidden_state[:, -1, :].detach()
-        hidden = torch.cat([hidden, obs_query], dim=-1)
+        hidden_mem = out.last_hidden_state[:, -1, :].detach()
+        hidden = torch.cat([hidden_mem, obs_query], dim=-1)
 
-        return hidden
+        return hidden, hidden_mem
 
     def evaluate_actions(self, hidden_states, actions, observations):
         queries = self.query_encoder(observations)

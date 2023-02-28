@@ -40,8 +40,7 @@ class Buffer():
         else:
             self.vec_obs = None
         if self.use_helm:
-            helm_dim = 1024 if "helmv1" in self.configs["model"] else 2048
-            self.h_helm = torch.zeros((self.num_workers, self.worker_steps, helm_dim))
+            self.h_helm = torch.zeros((self.num_workers, self.worker_steps, 1024))
         self.rewards = np.zeros((self.num_workers, self.worker_steps), dtype=np.float32)
         self.actions = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)), dtype=torch.long)
         self.dones = np.zeros((self.num_workers, self.worker_steps), dtype=np.bool)

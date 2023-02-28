@@ -111,10 +111,15 @@ class PPOTrainer(BaseTrainer):
             mask = samples["memory_mask"]
             memory_indices = samples["memory_indices"]
 
+        if "helmv1" in self.configs["model"] or "helmv2" in self.configs["model"]:
+            h_helm = samples["h_helm"]
+        else:
+            h_helm = None
+            
         # Forward model -> policy, value, memory, gae
         policy, value, *_ = self.model(samples["vis_obs"] if self.vis_obs_space is not None else None,
                                     samples["vec_obs"] if self.vec_obs_space is not None else None,
-                                    h_helm = samples["h_helm"] if "helmv1" in self.configs["model"] else None,
+                                    h_helm = h_helm,
                                     memory = memory, mask = mask, memory_indices = memory_indices,
                                     sequence_length = self.sampler.buffer.actual_sequence_length)
         
