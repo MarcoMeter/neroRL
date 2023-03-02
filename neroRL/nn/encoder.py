@@ -350,21 +350,21 @@ class VisionBackbone(nn.Module):
     def __init__(self):
         super(VisionBackbone, self).__init__()
         print(f"Allocating CLIP...")
-        self.model, preprocess = clip.load("RN50")
+        self.RN50, preprocess = clip.load("RN50")
         self.transforms = preprocess
         preprocess.transforms = [preprocess.transforms[0], preprocess.transforms[1], preprocess.transforms[-1]]
         self.transforms = preprocess
 
-        self.model.eval()
+        self.RN50.eval()
         self._deactivate_grad()
 
     def forward(self, observations):
         observations = self._preprocess(observations)
-        out = self.model.encode_image(observations).float()
+        out = self.RN50.encode_image(observations).float()
         return out
 
     def _deactivate_grad(self):
-        for p in self.model.parameters():
+        for p in self.RN50.parameters():
             p.requires_grad_(False)
 
     def _preprocess(self, observation):
@@ -377,15 +377,15 @@ class HELMv2Encoder(nn.Module):
         config.mem_len = mem_len
         self.mem_len = config.mem_len
 
-        self.model = TransfoXLModel.from_pretrained('transfo-xl-wt103', config=config)
-        n_tokens = self.model.word_emb.n_token
-        word_embs = self.model.word_emb(torch.arange(n_tokens)).detach().to(device)
+        self.transfo_xl_wt103 = TransfoXLModel.from_pretrained('transfo-xl-wt103', config=config)
+        n_tokens = self.transfo_xl_wt103.word_emb.n_token
+        word_embs = self.transfo_xl_wt103.word_emb(torch.arange(n_tokens)).detach().to(device)
         self.we_std = word_embs.std(0)
         self.we_mean = word_embs.mean(0)
         self.vis_encoder = VisionBackbone()
-        hidden_dim = self.model.d_embed
+        hidden_dim = self.transfo_xl_wt103.d_embed
 
-        for p in self.model.parameters():
+        for p in self.transfo_xl_wt103.parameters():
             p.requires_grad_(False)
 
         self.input_dim = input_dim
@@ -402,7 +402,7 @@ class HELMv2Encoder(nn.Module):
         observations = self.vis_encoder(observations)
         observations = (observations - observations.mean(0)) / (observations.std(0) + 1e-8)
         observations = observations * self.we_std + self.we_mean
-        out = self.model(inputs_embeds=observations.unsqueeze(1), output_hidden_states=True, mems=self.memory)
+        out = self.transfo_xl_wt103(inputs_embeds=observations.unsqueeze(1), output_hidden_states=True, mems=self.memory)
         self.memory = out.mems
         
         hidden_mem = out.last_hidden_state[:, -1, :].detach()
