@@ -358,13 +358,58 @@ def pad_to_multiple(t, multiple, dim = -2, value = 0.):
     padded_t = F.pad(t, (*zeroes, remainder, 0), value = value)
     return padded_t
 
-class HTMAttention(nn.Module):
+class Attention(nn.Module):
+    def __init__(
+        self,
+        embed_dim,
+        num_heads
+    ):
+        super().__init__()
+        
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.head_size = embed_dim // num_heads
+        
+        self.scale = self.head_size ** -0.5
+        self.heads = self.num_heads 
+        inner_dim = self.head_size * self.num_heads 
+
+        self.to_q = nn.Linear(self.embed_dim, inner_dim, bias = False)
+        self.to_kv = nn.Linear(self.embed_dim, inner_dim * 2, bias = False)
+        self.to_out = nn.Linear(inner_dim, self.embed_dim)
+
+    def forward(
+        self,
+        x,
+        mems,
+        mask = None
+    ):
+        h = self.heads
+        q, k, v = self.to_q(x), *self.to_kv(mems).chunk(2, dim = -1)
+
+        q, k, v = map(lambda t: rearrange(t, 'b ... (h d) -> (b h) ... d', h = h), (q, k, v))
+        q = q * self.scale
+
+        sim = einsum('b m i d, b m i j d -> b m i j', q, k)
+
+        if exists(mask):
+            mask = repeat(mask, 'b ... -> (b h) ...', h = h).bool()
+            mask_value = -torch.finfo(sim.dtype).max
+            sim = sim.masked_fill(~mask, mask_value)
+
+        attn = sim.softmax(dim = -1)
+
+        out = einsum('... i j, ... i j d -> ... i d', attn, v)
+        out = rearrange(out, '(b h) ... d -> b ... (h d)', h = h)
+        return self.to_out(out)
+
+class HTMAttention(Module):
     # https://github.com/lucidrains/HTM-pytorch/blob/main/htm_pytorch/htm_pytorch.py
     def __init__(
         self,
         dim,
         num_heads,
-        topk_mems = 2,
+        topk_mems = 1,
         mem_chunk_size = 32,
         embed_dim = 64,
         eps = 1e-5
@@ -377,7 +422,7 @@ class HTMAttention(nn.Module):
         self.to_summary_queries = nn.Linear(dim, dim)
         self.to_summary_keys = nn.Linear(dim, dim)
 
-        self.attn = MultiHeadAttention(num_heads = num_heads, embed_dim = embed_dim)
+        self.attn = Attention(num_heads = num_heads, embed_dim = embed_dim)
 
         self.topk_mems = topk_mems
         self.mem_chunk_size = mem_chunk_size
@@ -404,7 +449,7 @@ class HTMAttention(nn.Module):
         # summarize memories through mean-pool, accounting for mask
 
         if exists(mask):
-            mean_mask = rearrange(mask, '... -> ... ()')
+            mean_mask = rearrange(mask, '... -> ... ()').bool()
             memories = memories.masked_fill(~mean_mask, 0.)
             numer = memories.sum(dim = 2)
             denom = mean_mask.sum(dim = 2)
@@ -467,7 +512,7 @@ class HTMAttention(nn.Module):
 
 # HTM Block
 
-class HTMBlock(nn.Module):
+class HTMBlock(Module):
     def __init__(self, embed_dim, num_heads, config):
         super().__init__()
         self.norm = nn.LayerNorm(embed_dim)
@@ -482,7 +527,7 @@ class HTMBlock(nn.Module):
         out = self.attn(queries, memories, mask) + queries
         return out
     
-class HCAMTransformer(nn.Module):
+class HCAMTransformer(Module):
     """Transformer encoder architecture without dropout. Positional encoding can be either "relative", "learned" or "" (none)."""
     def __init__(self, config, input_dim, activation) -> None:
         """Sets up the input embedding, positional encoding and the transformer blocks.
@@ -545,7 +590,7 @@ class HCAMTransformer(nn.Module):
         out_memories = []
         for i, block in enumerate(self.transformer_blocks):
             out_memories.append(h.detach())
-            h, attention_weights = block(h.unsqueeze(1), memories[:, :, i], mask) # args: queries, memories, mask
+            h = block(queries = h.unsqueeze(1), memories = memories[:, :, i], mask = mask) # args: queries, memories, mask
             h = h.squeeze()
             if len(h.shape) == 1:
                 h = h.unsqueeze(0)
