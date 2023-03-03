@@ -234,3 +234,17 @@ class BaseTrainer():
         self.sampler.to(device)
         self.sampler.buffer.to(device)
         self.model.to(device)
+
+    def get_num_trainable_parameters_str(self):
+        """
+        Returns:
+            str -- Formatted number of trainable parameters
+        """
+        num_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        if num_params > 1e6:
+            num_params = str(round(num_params / 1e6, 2)) + "M"
+        elif num_params > 1e3:
+            num_params = str(round(num_params / 1e3, 2)) + "K"
+        else:
+            num_params = str(num_params)
+        return num_params

@@ -85,6 +85,9 @@ class Training():
             self.monitor.log("Load checkpoint: " + configs["model"]["model_path"])
             self.trainer.load_checkpoint(configs["model"]["model_path"])
 
+        # Log the number of trainable parameters of the to-be-optimized model
+        self.monitor.log("Number of trainable parameters: " + self.trainer.get_num_trainable_parameters_str())
+
         # Set variables
         self.configs = configs
         self.resume_at = configs["trainer"]["resume_at"]
