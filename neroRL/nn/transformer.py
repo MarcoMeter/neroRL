@@ -545,7 +545,7 @@ class HCAMTransformer(nn.Module):
         out_memories = []
         for i, block in enumerate(self.transformer_blocks):
             out_memories.append(h.detach())
-            h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask) # args: value, key, query, mask
+            h, attention_weights = block(h.unsqueeze(1), memories[:, :, i], mask) # args: queries, memories, mask
             h = h.squeeze()
             if len(h.shape) == 1:
                 h = h.unsqueeze(0)
