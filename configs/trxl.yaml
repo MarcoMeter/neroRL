@@ -29,6 +29,7 @@ model:
   num_hidden_layers: 1
   num_hidden_units: 384
   transformer:
+    layer_type: "vanilla"
     num_blocks: 3
     embed_dim: 384
     num_heads: 8

@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch import nn, einsum
+import torch.nn.functional as F
 from einops import rearrange
 from neroRL.nn.module import Module
 from einops import rearrange, repeat
@@ -488,3 +489,72 @@ class HTMBlock(nn.Module):
         queries = self.norm(queries)
         out = self.attn(queries, memories, **kwargs) + queries
         return out
+    
+class HCAMTransformer(nn.Module):
+    """Transformer encoder architecture without dropout. Positional encoding can be either "relative", "learned" or "" (none)."""
+    def __init__(self, config, input_dim, activation) -> None:
+        """Sets up the input embedding, positional encoding and the transformer blocks.
+
+        Arguments:
+            config {dict} -- Transformer config
+            input_dim {int} -- Dimension of the input
+            activation {torch.nn.modules.activation} -- Activation function of the input embedding
+        """
+        super().__init__()
+        self.config = config
+        self.num_blocks = config["num_blocks"]
+        self.embed_dim = config["embed_dim"]
+        self.num_heads = config["num_heads"]
+        self.max_episode_steps = config["max_episode_steps"]
+        self.activation = activation
+
+        # Input embedding layer
+        self.linear_embedding = nn.Linear(input_dim, self.embed_dim)
+        nn.init.orthogonal_(self.linear_embedding.weight, np.sqrt(2))
+
+        # Determine positional encoding
+        if config["positional_encoding"] == "relative":
+            self.pos_embedding = SinusoidalPosition(dim = self.embed_dim)
+        elif config["positional_encoding"] == "learned":
+            self.pos_embedding = nn.Parameter(torch.randn(self.max_episode_steps, self.embed_dim)) # (batch size, max episoded steps, num layers, layer size)
+        else:
+            pass    # No positional encoding is used
+        
+        # Instantiate transformer blocks
+        self.transformer_blocks = nn.ModuleList([
+            TransformerBlock(self.embed_dim, self.num_heads, config) 
+            for _ in range(self.num_blocks)])
+
+    def forward(self, h, memories, mask, memory_indices):
+        """
+        Arguments:
+            h {torch.tensor} -- Input (query)
+            memories {torch.tesnor} -- Whole episoded memories of shape (N, L, num blocks, D)
+            mask {torch.tensor} -- Attention mask (dtype: bool) of shape (N, L)
+            memory_indices {torch.tensor} -- Memory window indices (dtype: long) of shape (N, L)
+
+        Returns:
+            torch.tensor -- Output of the entire transformer encoder
+            torch.tensor -- Out memories (i.e. inputs to the transformer blocks)
+        """
+        # Feed embedding layer and activate
+        h = self.activation(self.linear_embedding(h))
+
+        # Add positional encoding to every transformer block input
+        if self.config["positional_encoding"] == "relative":
+            pos_embedding = self.pos_embedding(self.max_episode_steps)[memory_indices]
+            memories = memories + pos_embedding.unsqueeze(2)
+            # memories[:,:,0] = memories[:,:,0] + pos_embedding # add positional encoding only to first layer?
+        elif self.config["positional_encoding"] == "learned":
+            memories = memories + self.pos_embedding[memory_indices].unsqueeze(2)
+            # memories[:,:,0] = memories[:,:,0] + self.pos_embedding[memory_indices] # add positional encoding only to first layer?
+
+        # Forward transformer blocks
+        out_memories = []
+        for i, block in enumerate(self.transformer_blocks):
+            out_memories.append(h.detach())
+            h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask) # args: value, key, query, mask
+            h = h.squeeze()
+            if len(h.shape) == 1:
+                h = h.unsqueeze(0)
+        return h, torch.stack(out_memories, dim=1)

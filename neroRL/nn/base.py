@@ -4,7 +4,7 @@ from torch import nn
 
 from neroRL.nn.encoder import CNNEncoder, ResCNN, SmallImpalaCNN, LinVecEncoder
 from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU
-from neroRL.nn.transformer import Transformer
+from neroRL.nn.transformer import Transformer, HCAMTransformer
 from neroRL.nn.body import HiddenLayer
 from neroRL.nn.module import Module, Sequential
 
@@ -258,7 +258,12 @@ class ActorCriticBase(Module):
         Returns:
             {nn.Module} -- The entire transformer
         """
-        return Transformer(config, input_shape, self.activ_fn)
+        
+        if config["layer_type"] == "vannila":
+            return Transformer(config, input_shape, self.activ_fn)
+        if config["layer_type"] == "hcam":
+            return HCAMTransformer(config, input_shape, self.activ_fn)
+        return 
 
     def get_vis_enc_output(self, vis_encoder, shape):
         """Computes the output size of the visual encoder by feeding a dummy tensor.
