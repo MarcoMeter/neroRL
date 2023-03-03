@@ -367,7 +367,6 @@ class HTMAttention(nn.Module):
         topk_mems = 2,
         mem_chunk_size = 32,
         embed_dim = 64,
-        add_pos_enc = True,
         eps = 1e-5
     ):
         super().__init__()
@@ -382,7 +381,6 @@ class HTMAttention(nn.Module):
 
         self.topk_mems = topk_mems
         self.mem_chunk_size = mem_chunk_size
-        self.pos_emb = SinusoidalPosition(dim = dim) if add_pos_enc else None
 
     def forward(
         self,
@@ -445,12 +443,6 @@ class HTMAttention(nn.Module):
         mem_topk_indices = repeat(topk_indices, 'b i m -> b m i j d', j = mem_chunk_size, d = dim)
         selected_memories = memories.gather(1, mem_topk_indices)
 
-        # positional encoding
-
-        if exists(self.pos_emb):
-            pos_emb = self.pos_emb(memories)
-            selected_memories = selected_memories + rearrange(pos_emb, 'n d -> () () () n d')
-
         # select the mask
 
         selected_mask = None
@@ -476,10 +468,10 @@ class HTMAttention(nn.Module):
 # HTM Block
 
 class HTMBlock(nn.Module):
-    def __init__(self, dim, **kwargs):
+    def __init__(self, embed_dim, num_heads, config):
         super().__init__()
-        self.norm = nn.LayerNorm(dim)
-        self.attn = HTMAttention(dim = dim, **kwargs)
+        self.norm = nn.LayerNorm(embed_dim)
+        self.attn = HTMAttention(dim = embed_dim, num_heads = num_heads)
     def forward(
         self,
         queries,
@@ -522,7 +514,7 @@ class HCAMTransformer(nn.Module):
         
         # Instantiate transformer blocks
         self.transformer_blocks = nn.ModuleList([
-            TransformerBlock(self.embed_dim, self.num_heads, config) 
+            HTMBlock(self.embed_dim, self.num_heads, config) 
             for _ in range(self.num_blocks)])
 
     def forward(self, h, memories, mask, memory_indices):
