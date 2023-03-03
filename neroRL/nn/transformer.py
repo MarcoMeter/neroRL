@@ -471,7 +471,7 @@ class HTMBlock(nn.Module):
     def __init__(self, embed_dim, num_heads, config):
         super().__init__()
         self.norm = nn.LayerNorm(embed_dim)
-        self.attn = HTMAttention(dim = embed_dim, num_heads = num_heads, embed_dim=embed_dim)
+        self.attn = HTMAttention(dim = embed_dim, num_heads = num_heads, embed_dim = embed_dim)
     def forward(
         self,
         queries,
