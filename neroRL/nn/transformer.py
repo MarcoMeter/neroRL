@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch import nn
+from torch import nn, einsum
 from einops import rearrange
 from neroRL.nn.module import Module
 from einops import rearrange, repeat
