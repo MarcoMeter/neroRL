@@ -377,7 +377,7 @@ class HTMAttention(nn.Module):
         self.to_summary_queries = nn.Linear(dim, dim)
         self.to_summary_keys = nn.Linear(dim, dim)
 
-        self.attn = MultiHeadAttention(num_heads = embed_dim, embed_dim = embed_dim)
+        self.attn = MultiHeadAttention(num_heads = num_heads, embed_dim = embed_dim)
 
         self.topk_mems = topk_mems
         self.mem_chunk_size = mem_chunk_size
