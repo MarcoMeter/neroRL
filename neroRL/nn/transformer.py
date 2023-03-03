@@ -476,10 +476,10 @@ class HTMBlock(nn.Module):
         self,
         queries,
         memories,
-        **kwargs
+        mask
     ):
         queries = self.norm(queries)
-        out = self.attn(queries, memories, **kwargs) + queries
+        out = self.attn(queries, memories, mask) + queries
         return out
     
 class HCAMTransformer(nn.Module):
