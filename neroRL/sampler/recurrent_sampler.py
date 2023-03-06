@@ -36,7 +36,7 @@ class RecurrentSampler(TrajectorySampler):
     def forward_model(self, vis_obs, vec_obs, t):
         """Forwards the model to retrieve the policy and the value of the to be fed observations and recurrent cell state."""
         # The recurrent cell state is the agent's memory
-        policy, value, self.recurrent_cell, _, h_helm = self.model(vis_obs, vec_obs, self.recurrent_cell)
+        policy, value, self.recurrent_cell, _, h_helm = self.model(vis_obs, vec_obs, memory = self.recurrent_cell)
         return policy, value, h_helm
 
     def reset_worker(self, worker, id, t):
@@ -54,5 +54,5 @@ class RecurrentSampler(TrajectorySampler):
         """Returns the last value of the current observation and recurrent cell state to compute GAE."""
         _, last_value, *_ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
-                                        self.recurrent_cell)
+                                        memory = self.recurrent_cell)
         return last_value
