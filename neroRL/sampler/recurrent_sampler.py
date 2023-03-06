@@ -54,5 +54,5 @@ class RecurrentSampler(TrajectorySampler):
         """Returns the last value of the current observation and recurrent cell state to compute GAE."""
         _, last_value, *_ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
-                                        self.recurrent_cell)
+                                        memory = self.recurrent_cell)
         return last_value

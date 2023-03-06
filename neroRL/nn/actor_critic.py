@@ -336,7 +336,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             for b, block in enumerate(self.transformer.transformer_blocks):
                 self.actor_critic_modules["transformer_" + str(b)] = block
 
-    def forward(self, vis_obs, vec_obs, memory = None, h_helm = None, mask = None, memory_indices = None, sequence_length = 1):
+    def forward(self, vis_obs, vec_obs, h_helm = None, memory = None, mask = None, memory_indices = None, sequence_length = 1):
         """Forward pass of the model
 
             vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
