@@ -36,7 +36,7 @@ class RecurrentSampler(TrajectorySampler):
     def forward_model(self, vis_obs, vec_obs, t):
         """Forwards the model to retrieve the policy and the value of the to be fed observations and recurrent cell state."""
         # The recurrent cell state is the agent's memory
-        policy, value, self.recurrent_cell, _, h_helm = self.model(vis_obs, vec_obs, self.recurrent_cell)
+        policy, value, self.recurrent_cell, _, h_helm = self.model(vis_obs, vec_obs, memory = self.recurrent_cell)
         return policy, value, h_helm
 
     def reset_worker(self, worker, id, t):

@@ -194,6 +194,7 @@ class ActorCriticBase(Module):
         """
         
         helm_encoder = None
+        self.helm_out_dim = 0
         if "helmv1" in config:
             in_dim = vis_obs_space.shape[1] * vis_obs_space.shape[2]
             helm_encoder = HELMv1Encoder(in_dim, config["helmv1"]["memory_length"], config["helmv1"]["beta"], device = torch.device("cuda" if torch.cuda.is_available() else "cpu"))
