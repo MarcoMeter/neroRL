@@ -379,7 +379,7 @@ class HELMv2Encoder(nn.Module):
 
         self.transfo_xl_wt103 = TransfoXLModel.from_pretrained('transfo-xl-wt103', config=config)
         n_tokens = self.transfo_xl_wt103.word_emb.n_token
-        word_embs = self.transfo_xl_wt103.word_emb(torch.arange(n_tokens)).detach().to(device)
+        word_embs = self.transfo_xl_wt103.word_emb(torch.arange(n_tokens).to(device)).detach().to(device)
         self.we_std = word_embs.std(0)
         self.we_mean = word_embs.mean(0)
         self.vis_encoder = VisionBackbone()
