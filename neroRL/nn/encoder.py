@@ -377,7 +377,7 @@ class HELMv2Encoder(nn.Module):
         config.mem_len = mem_len
         self.mem_len = config.mem_len
 
-        self.transfo_xl_wt103 = TransfoXLModel.from_pretrained('transfo-xl-wt103', config=config)
+        self.transfo_xl_wt103 = TransfoXLModel.from_pretrained('transfo-xl-wt103', config=config).to(device)
         n_tokens = self.transfo_xl_wt103.word_emb.n_token
         word_embs = self.transfo_xl_wt103.word_emb(torch.arange(n_tokens).to(device)).detach().to(device)
         self.we_std = word_embs.std(0)
