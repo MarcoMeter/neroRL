@@ -259,7 +259,7 @@ class ActorCriticBase(Module):
             {nn.Module} -- The entire transformer
         """
         
-        if config["layer_type"] == "vannila":
+        if config["layer_type"] == "vanilla":
             return Transformer(config, input_shape, self.activ_fn)
         if config["layer_type"] == "hcam":
             return HCAMTransformer(config, input_shape, self.activ_fn)
