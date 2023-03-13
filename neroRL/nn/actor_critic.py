@@ -373,14 +373,17 @@ class ActorCriticSharedWeights(ActorCriticBase):
         h_mem = None
         if self.helm_encoder is not None:
             if h_helm is None:
+                # Sampling
                 if "helmv1" in self.config:
                     h_helm = self.helm_encoder(vis_obs)
                     h_mem = h_helm
                 elif "helmv2" in self.config:
                     h_helm, h_mem = self.helm_encoder(vis_obs)
             else:
+                # Training
                 if "helmv2" in self.config:
-                    h_helm = torch.cat([h_helm, self.helm_encoder.query_encoder(vis_obs)], dim=-1)
+                    helm_query = self.helm_encoder.query_encoder(vis_obs)
+                    h_helm = torch.cat([h_helm, helm_query], dim=-1)
             h = torch.cat((h, h_helm), dim=-1)
 
         # Feed network body
