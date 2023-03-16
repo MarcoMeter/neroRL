@@ -45,6 +45,10 @@ class BaseTrainer():
         if self.transformer is not None:
             # Add max episode steps to the transformer config
             configs["model"]["transformer"]["max_episode_steps"] = self.max_episode_steps
+            # If memory length is -1 or invalid, set it to max episode steps
+            memory_length = configs["model"]["transformer"]["memory_length"]
+            if memory_length == -1 or memory_length > self.max_episode_steps:
+                configs["model"]["transformer"]["memory_length"] = self.max_episode_steps
 
         # Init model
         self.model = self.create_model()
