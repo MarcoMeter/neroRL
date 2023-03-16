@@ -48,7 +48,7 @@ trainer:
   resume_at: 0
   gamma: 0.99
   lamda: 0.95
-  updates: 50
+  updates: 250
   epochs: 3
   refresh_buffer_epoch: -1
   n_mini_batches: 8
@@ -60,12 +60,12 @@ trainer:
     initial: 3.5e-4
     final: 1.0e-4
     power: 1.0
-    max_decay_steps: 50
+    max_decay_steps: 250
   beta_schedule:
     initial: 0.001
     final: 0.00001
     power: 1.0
-    max_decay_steps: 50
+    max_decay_steps: 250
   clip_range_schedule:
     initial: 0.2
     final: 0.2
