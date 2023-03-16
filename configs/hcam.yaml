@@ -30,12 +30,12 @@ model:
   num_hidden_units: 384
   transformer:
     layer_type: "hcam"
-    topk_mems: 8
-    mem_chunk_size: 32
+    topk_mems: 2
+    mem_chunk_size: 16
     num_blocks: 3
     embed_dim: 384
     num_heads: 8
-    memory_length: 32
+    memory_length: 64
     positional_encoding: "" # options: "" "relative" "learned"
 
 evaluation:
