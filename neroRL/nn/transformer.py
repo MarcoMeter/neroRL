@@ -513,16 +513,12 @@ class HTMAttention(Module):
 # HTM Block
 
 class HTMBlock(Module):
-    def __init__(self, embed_dim, num_heads, config):
+    def __init__(self, config):
         super().__init__()
-        self.norm = nn.LayerNorm(embed_dim)
-        self.attn = HTMAttention(dim = embed_dim, num_heads = num_heads, embed_dim = embed_dim)
-    def forward(
-        self,
-        queries,
-        memories,
-        mask
-    ):
+        self.norm = nn.LayerNorm(config["embed_dim"])
+        self.attn = HTMAttention(dim = config["embed_dim"], num_heads = config["num_heads"], embed_dim = config["embed_dim"], topk_mems=config["topk_mems"], mem_chunk_size=config["mem_chunk_size"])
+    
+    def forward(self, queries, memories, mask):
         queries = self.norm(queries)
         out = self.attn(queries, memories, mask) + queries
         return out
@@ -539,9 +535,8 @@ class HCAMTransformer(Module):
         """
         super().__init__()
         self.config = config
-        self.num_blocks = config["num_blocks"]
         self.embed_dim = config["embed_dim"]
-        self.num_heads = config["num_heads"]
+        self.num_blocks = config["num_blocks"]
         self.max_episode_steps = config["max_episode_steps"]
         self.activation = activation
 
@@ -558,9 +553,7 @@ class HCAMTransformer(Module):
             pass    # No positional encoding is used
         
         # Instantiate transformer blocks
-        self.transformer_blocks = nn.ModuleList([
-            HTMBlock(self.embed_dim, self.num_heads, config) 
-            for _ in range(self.num_blocks)])
+        self.transformer_blocks = nn.ModuleList([HTMBlock(config) for _ in range(self.num_blocks)])
 
     def forward(self, h, memories, mask, memory_indices):
         """
