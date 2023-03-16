@@ -30,6 +30,8 @@ model:
   num_hidden_units: 384
   transformer:
     layer_type: "hcam"
+    topk_mems: 8
+    mem_chunk_size: 32
     num_blocks: 3
     embed_dim: 384
     num_heads: 8
