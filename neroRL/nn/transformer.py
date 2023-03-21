@@ -407,6 +407,7 @@ class HTMAttention(Module):
     # https://github.com/lucidrains/HTM-pytorch/blob/main/htm_pytorch/htm_pytorch.py
     def __init__(
         self,
+        config,
         dim,
         num_heads,
         topk_mems = 1,
@@ -416,6 +417,7 @@ class HTMAttention(Module):
         add_pos_enc = True
     ):
         super().__init__()
+        self.config = config
         self.dim = dim
         self.eps = eps
         self.scale = dim ** -0.5
@@ -493,7 +495,7 @@ class HTMAttention(Module):
         # positional encoding
 
         if exists(self.pos_emb):
-            pos_emb = self.pos_emb(memories.shape[-2])
+            pos_emb = self.pos_emb(self.config["max_episode_steps"])
             selected_memories = selected_memories + rearrange(pos_emb, 'n d -> () () () n d')
 
         # select the mask
@@ -524,7 +526,7 @@ class HTMBlock(Module):
     def __init__(self, config, add_pos_enc):
         super().__init__()
         self.norm = nn.LayerNorm(config["embed_dim"])
-        self.attn = HTMAttention(dim = config["embed_dim"], num_heads = config["num_heads"], embed_dim = config["embed_dim"], topk_mems=config["topk_mems"], mem_chunk_size=config["mem_chunk_size"], add_pos_enc=add_pos_enc)
+        self.attn = HTMAttention(config = config, dim = config["embed_dim"], num_heads = config["num_heads"], embed_dim = config["embed_dim"], topk_mems=config["topk_mems"], mem_chunk_size=config["mem_chunk_size"], add_pos_enc=add_pos_enc)
     
     def forward(self, queries, memories, mask):
         queries = self.norm(queries)
