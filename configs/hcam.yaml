@@ -36,7 +36,7 @@ model:
     embed_dim: 384
     num_heads: 8
     memory_length: 64
-    positional_encoding: "" # options: "" "relative" "learned"
+    positional_encoding: "inblock" # options: "" "relative" "learned" "inblock"
 
 evaluation:
   evaluate: False

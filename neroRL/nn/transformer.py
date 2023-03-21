@@ -412,7 +412,8 @@ class HTMAttention(Module):
         topk_mems = 1,
         mem_chunk_size = 32,
         embed_dim = 64,
-        eps = 1e-5
+        eps = 1e-5,
+        add_pos_enc = True
     ):
         super().__init__()
         self.dim = dim
@@ -426,6 +427,7 @@ class HTMAttention(Module):
 
         self.topk_mems = topk_mems
         self.mem_chunk_size = mem_chunk_size
+        self.pos_emb = SinusoidalPosition(dim = dim) if add_pos_enc else None
 
     def forward(
         self,
@@ -487,6 +489,12 @@ class HTMAttention(Module):
         memories = repeat(memories, 'b m j d -> b m i j d', i = query_len)
         mem_topk_indices = repeat(topk_indices, 'b i m -> b m i j d', j = mem_chunk_size, d = dim)
         selected_memories = memories.gather(1, mem_topk_indices)
+        
+        # positional encoding
+
+        if exists(self.pos_emb):
+            pos_emb = self.pos_emb(memories.shape[-2])
+            selected_memories = selected_memories + rearrange(pos_emb, 'n d -> () () () n d')
 
         # select the mask
 
@@ -513,10 +521,10 @@ class HTMAttention(Module):
 # HTM Block
 
 class HTMBlock(Module):
-    def __init__(self, config):
+    def __init__(self, config, add_pos_enc):
         super().__init__()
         self.norm = nn.LayerNorm(config["embed_dim"])
-        self.attn = HTMAttention(dim = config["embed_dim"], num_heads = config["num_heads"], embed_dim = config["embed_dim"], topk_mems=config["topk_mems"], mem_chunk_size=config["mem_chunk_size"])
+        self.attn = HTMAttention(dim = config["embed_dim"], num_heads = config["num_heads"], embed_dim = config["embed_dim"], topk_mems=config["topk_mems"], mem_chunk_size=config["mem_chunk_size"], add_pos_enc=add_pos_enc)
     
     def forward(self, queries, memories, mask):
         queries = self.norm(queries)
@@ -545,15 +553,16 @@ class HCAMTransformer(Module):
         nn.init.orthogonal_(self.linear_embedding.weight, np.sqrt(2))
 
         # Determine positional encoding
+        inblock_pos_enc = False
         if config["positional_encoding"] == "relative":
             self.pos_embedding = SinusoidalPosition(dim = self.embed_dim)
         elif config["positional_encoding"] == "learned":
             self.pos_embedding = nn.Parameter(torch.randn(self.max_episode_steps, self.embed_dim)) # (batch size, max episoded steps, num layers, layer size)
-        else:
-            pass    # No positional encoding is used
+        elif config["positional_encoding"] == "inblock":
+            inblock_pos_enc = True
         
         # Instantiate transformer blocks
-        self.transformer_blocks = nn.ModuleList([HTMBlock(config) for _ in range(self.num_blocks)])
+        self.transformer_blocks = nn.ModuleList([HTMBlock(config, inblock_pos_enc) for _ in range(self.num_blocks)])
 
     def forward(self, h, memories, mask, memory_indices):
         """
