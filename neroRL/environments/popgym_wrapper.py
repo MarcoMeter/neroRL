@@ -1,7 +1,8 @@
 from neroRL.environments.env import Env
 from random import randint
-from popgym.envs import Battleship, StatelessCartPole, ConcentrationHard, StatelessPendulum
-from popgym.envs import CountRecall, HigherLower, LabyrinthEscape, LabyrinthExplore, MineSweeperHard
+import gym
+
+import popgym 
 
 class POPGymWrapper(Env):
     """
