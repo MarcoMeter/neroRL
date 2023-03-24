@@ -1,7 +1,7 @@
 from neroRL.environments.env import Env
 from random import randint
 
-class MemoryGymWrapper(Env):
+class POPGymWrapper(Env):
     """
     This class wraps POPGym environment.
     https://github.com/proroklab/popgym
