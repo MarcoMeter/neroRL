@@ -6,10 +6,30 @@ import popgym
 
 class POPGymWrapper(Env):
     """
-    This class wraps POPGym environment.
     https://github.com/proroklab/popgym
+    This class wraps POPGym environment.
     Available Environments:
-
+        popgym-Autoencode{DIFFICULTY}-v0
+        popgym-RepeatPrevious{DIFFICULTY}-v0
+        popgym-RepeatFirst{DIFFICULTY}-v0
+        popgym-CountRecall{DIFFICULTY}-v0
+        popgym-StatelessCartPole{DIFFICULTY}-v0
+        popgym-StatelessPendulum{DIFFICULTY}-v0
+        popgym-NoisyStatelessCartPole{DIFFICULTY}-v0
+        popgym-NoisyStatelessPendulum{DIFFICULTY}-v0
+        popgym-MultiarmedBandit{DIFFICULTY}-v0
+        popgym-HigherLower{DIFFICULTY}-v0
+        popgym-Battleship{DIFFICULTY}-v0
+        popgym-Concentration{DIFFICULTY}-v0
+        popgym-MineSweeper{DIFFICULTY}-v0
+        popgym-LabyrinthExplore{DIFFICULTY}-v0
+        popgym-LabyrinthEscape{DIFFICULTY}-v0
+    
+    Where
+        {DIFFICULTY} => Easy | Medium | Hard
+    
+    Example:
+        popgym-AutoencodeEasy-v0, popgym-AutoencodeMedium-v0, popgym-AutoencodeHard-v0
     """
     def __init__(self, env_name, reset_params = None, realtime_mode = False, record_trajectory = False) -> None:
         """Instantiates the POPGym environment.
