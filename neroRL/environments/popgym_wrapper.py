@@ -1,6 +1,6 @@
 from neroRL.environments.env import Env
 from random import randint
-import gym
+import gymnasium as gym
 
 import popgym 
 
@@ -46,7 +46,7 @@ class POPGymWrapper(Env):
             self._default_reset_params = reset_params
 
         render_mode = None if not realtime_mode else "debug_rgb_array"
-        self._env = None
+        self._env = gym.make(env_name)
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
