@@ -1,6 +1,7 @@
 from neroRL.environments.env import Env
 from random import randint
 import gymnasium as gym
+from gymnasium.spaces import Box
 
 import popgym 
 
@@ -46,13 +47,13 @@ class POPGymWrapper(Env):
             self._default_reset_params = reset_params
 
         render_mode = None if not realtime_mode else "debug_rgb_array"
-        self._env = gym.make(env_name)
+        self._env = gym.make(env_name, render_mode="rgb_array")
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
 
         self._visual_observation_space = None
-        self._vector_observation_space = None
+        self._vector_observation_space = self._env.observation_space if isinstance(self._env.observation_space, Box) else None
 
     @property
     def unwrapped(self):
@@ -113,9 +114,13 @@ class POPGymWrapper(Env):
 
         # Sample seed
         self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+        
 
         vis_obs, vec_obs = None, None
 
+        if self.vector_observation_space is not None:
+            vec_obs, info = self._env.reset(seed = self._seed)
+            
         return vis_obs, vec_obs
 
     def step(self, action):
@@ -133,9 +138,11 @@ class POPGymWrapper(Env):
         """
         if isinstance(action, int):
             action = [action]
-        obs, reward, done, truncation, info = self._env.step(action)
-
-        img, vis_obs, vec_obs = None, None, None
+            
+        vis_obs, vec_obs = None, None
+        
+        if self.vector_observation_space is not None:
+            vec_obs, reward, done, truncation, info = self._env.step(action)
 
         #if type(self._env.observation_space) is spaces.Dict:
         #    vis_obs = obs["visual_observation"]
@@ -144,8 +151,8 @@ class POPGymWrapper(Env):
         #    vis_obs = obs
         #    vec_obs = None
 
-        #if self._realtime_mode or self._record:
-        #    img = self._env.render()
+        if self._realtime_mode or self._record:
+            img = self._env.render()
 
         # Record trajectory data
         if self._record:
@@ -154,7 +161,7 @@ class POPGymWrapper(Env):
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
 
-        return vis_obs, vec_obs, reward, done, info
+        return vis_obs, vec_obs, reward, done or truncation, info
 
     def close(self):
         """Shuts down the environment."""
