@@ -1,7 +1,7 @@
 from neroRL.environments.env import Env
 from random import randint
 import gymnasium as gym
-from gymnasium.spaces import Box, MultiDiscrete
+from gymnasium.spaces import Box, MultiDiscrete, Discrete
 
 import popgym 
 
@@ -46,8 +46,12 @@ class POPGymWrapper(Env):
         else:
             self._default_reset_params = reset_params
 
-        render_mode = None if not realtime_mode else "debug_rgb_array"
-        self._env = gym.make(env_name, render_mode="rgb_array")
+        render_mode = None if not realtime_mode else "rgb_array"
+        # The keyword: render_mode is only supported for some environments
+        if render_mode is not None:
+            self._env = gym.make(env_name, render_mode=render_mode)
+        else:
+            self._env = gym.make(env_name)
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
@@ -55,6 +59,8 @@ class POPGymWrapper(Env):
         self._vector_observation_space, self._visual_observation_space = None, None
         if isinstance(self._env.observation_space, Box):
             self._vector_observation_space = self._env.observation_space.shape
+        if isinstance(self._env.observation_space, Discrete):
+            self._vector_observation_space = (1,)
 
     @property
     def unwrapped(self):
