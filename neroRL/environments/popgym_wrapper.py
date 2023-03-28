@@ -15,11 +15,8 @@ class POPGymWrapper(Env):
         popgym-RepeatFirst{DIFFICULTY}-v0
         popgym-CountRecall{DIFFICULTY}-v0
         popgym-StatelessCartPole{DIFFICULTY}-v0
-        popgym-StatelessPendulum{DIFFICULTY}-v0
         popgym-NoisyStatelessCartPole{DIFFICULTY}-v0
-        popgym-NoisyStatelessPendulum{DIFFICULTY}-v0
         popgym-MultiarmedBandit{DIFFICULTY}-v0
-        popgym-HigherLower{DIFFICULTY}-v0
         popgym-Battleship{DIFFICULTY}-v0
         popgym-Concentration{DIFFICULTY}-v0
         popgym-MineSweeper{DIFFICULTY}-v0
