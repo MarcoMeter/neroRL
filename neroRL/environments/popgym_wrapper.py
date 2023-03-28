@@ -58,7 +58,7 @@ class POPGymWrapper(Env):
         self.step_count = 0
 
         self._vector_observation_space, self._visual_observation_space = None, None
-        if isinstance(self._env.observation_space, Box):
+        if isinstance(self._env.observation_space, Box) or isinstance(self._env.observation_space, MultiDiscrete):
             self._vector_observation_space = self._env.observation_space.shape
         if isinstance(self._env.observation_space, Discrete):
             self._vector_observation_space = (1,)
@@ -86,8 +86,8 @@ class POPGymWrapper(Env):
     @property
     def max_episode_steps(self):
         """Returns the maximum number of steps that an episode can last."""
-        if hasattr(self._env, "max_episode_steps"):
-            return self._env.max_episode_steps
+        if hasattr(self._env, "max_episode_length"):
+            return self._env.max_episode_length
         return self._default_reset_params["max_episode_length"]
 
     @property
@@ -176,7 +176,7 @@ class POPGymWrapper(Env):
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
 
-        return vis_obs, vec_obs, reward, done or truncation, info
+        return vis_obs, vec_obs, reward, done or truncation, None
 
     def close(self):
         """Shuts down the environment."""

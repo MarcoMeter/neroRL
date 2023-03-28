@@ -2,7 +2,7 @@
 
 environment:
   type: "POPGym"
-  name: "popgym-HigherLowerEasy-v0"
+  name: "popgym-LabyrinthEscapeEasy-v0"
   frame_skip: 1
   last_action_to_obs: False
   last_reward_to_obs: False
@@ -12,7 +12,6 @@ environment:
     num-seeds: 100
     # Whether to mask the velocity of the cart and the tip of the pole
     mask-velocity: True
-    max_episode_length: 100
 
 model:
   load_model: False
