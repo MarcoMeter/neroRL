@@ -55,7 +55,7 @@ class POPGymWrapper(Env):
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
-        self.step_count = 0
+        self.step_count, self._rewards = 0, []
 
         self._vector_observation_space, self._visual_observation_space = None, None
         if isinstance(self._env.observation_space, Box) or isinstance(self._env.observation_space, MultiDiscrete):
@@ -118,7 +118,7 @@ class POPGymWrapper(Env):
             {numpy.ndarray} -- Visual observation
             {numpy.ndarray} -- Vector observation
         """
-        self.step_count = 0
+        self.step_count, self._rewards = 0, []
         # Process reset parameters
         if reset_params is None:
             reset_params = self._default_reset_params
@@ -177,8 +177,16 @@ class POPGymWrapper(Env):
             self._trajectory["vec_obs"].append(vec_obs)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
+            
+        # Wrap up episode information once completed (i.e. done)
+        self._rewards.append(reward)
+        if done or truncation:
+            info = {"reward": sum(self._rewards),
+                    "length": len(self._rewards)}
+        else:
+            info = None
 
-        return vis_obs, vec_obs, reward, done or truncation, None
+        return vis_obs, vec_obs, reward, done or truncation, info
 
     def close(self):
         """Shuts down the environment."""

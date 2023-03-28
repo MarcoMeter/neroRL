@@ -2,7 +2,7 @@
 
 environment:
   type: "POPGym"
-  name: "popgym-MultiarmedBanditEasy-v0"
+  name: "popgym-CountRecallEasy-v0"
   frame_skip: 1
   last_action_to_obs: False
   last_reward_to_obs: False
