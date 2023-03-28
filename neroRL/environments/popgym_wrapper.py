@@ -1,7 +1,7 @@
 from neroRL.environments.env import Env
 from random import randint
 import gymnasium as gym
-from gymnasium.spaces import Box
+from gymnasium.spaces import Box, MultiDiscrete
 
 import popgym 
 
@@ -52,8 +52,9 @@ class POPGymWrapper(Env):
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
 
-        self._visual_observation_space = None
-        self._vector_observation_space = self._env.observation_space if isinstance(self._env.observation_space, Box) else None
+        self._vector_observation_space, self._visual_observation_space = None, None
+        if isinstance(self._env.observation_space, Box) or isinstance(self._env.observation_space, MultiDiscrete):
+            self._vector_observation_space = self._env.observation_space
 
     @property
     def unwrapped(self):
@@ -68,7 +69,7 @@ class POPGymWrapper(Env):
     @property
     def vector_observation_space(self):
         """Returns the shape of the vector component of the observation space as a tuple."""
-        return self._vector_observation_space
+        return self._vector_observation_space.shape
 
     @property
     def action_space(self):
@@ -142,7 +143,7 @@ class POPGymWrapper(Env):
         vis_obs, vec_obs = None, None
         
         if self.vector_observation_space is not None:
-            vec_obs, reward, done, truncation, info = self._env.step(action)
+            vec_obs, reward, done, truncation, info = self._env.step(action[0])
 
         #if type(self._env.observation_space) is spaces.Dict:
         #    vis_obs = obs["visual_observation"]

@@ -48,7 +48,9 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
     elif config["type"] == "RandomMaze":
         from neroRL.environments.maze_wrapper import MazeWrapper
         env = MazeWrapper(config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
-        
+    if config["type"] == "POPGym":
+        from neroRL.environments.popgym_wrapper import POPGymWrapper
+        env = POPGymWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)     
 
     # Wrap environment
     # Frame Skip
