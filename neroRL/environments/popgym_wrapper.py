@@ -1,7 +1,7 @@
 from neroRL.environments.env import Env
 from random import randint
 import gymnasium as gym
-from gymnasium.spaces import Box, MultiDiscrete, Discrete
+from gymnasium.spaces import Box, MultiDiscrete, Discrete, Tuple
 
 import popgym 
 
@@ -62,6 +62,8 @@ class POPGymWrapper(Env):
             self._vector_observation_space = self._env.observation_space.shape
         if isinstance(self._env.observation_space, Discrete):
             self._vector_observation_space = (1,)
+        if isinstance(self._env.observation_space, Tuple):
+            self._vector_observation_space = (len(self._env.observation_space.spaces),)
 
     @property
     def unwrapped(self):
