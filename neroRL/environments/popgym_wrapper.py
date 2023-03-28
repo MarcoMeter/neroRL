@@ -42,7 +42,7 @@ class POPGymWrapper(Env):
             record_trajectory {bool} -- Whether to record the trajectory of an entire episode. This can be used for video recording. (default: {False})
         """
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "max_episode_length": 100}
         else:
             self._default_reset_params = reset_params
 
@@ -55,6 +55,7 @@ class POPGymWrapper(Env):
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
+        self.step_count = 0
 
         self._vector_observation_space, self._visual_observation_space = None, None
         if isinstance(self._env.observation_space, Box):
@@ -85,7 +86,9 @@ class POPGymWrapper(Env):
     @property
     def max_episode_steps(self):
         """Returns the maximum number of steps that an episode can last."""
-        return self._env.max_episode_length
+        if hasattr(self._env, "max_episode_steps"):
+            return self._env.max_episode_steps
+        return self._default_reset_params["max_episode_length"]
 
     @property
     def seed(self):
@@ -113,6 +116,7 @@ class POPGymWrapper(Env):
             {numpy.ndarray} -- Visual observation
             {numpy.ndarray} -- Vector observation
         """
+        self.step_count = 0
         # Process reset parameters
         if reset_params is None:
             reset_params = self._default_reset_params
@@ -143,6 +147,7 @@ class POPGymWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
+        self.step_count += 1
         if len(action) == 1:
             action = action[0]
             
@@ -150,6 +155,9 @@ class POPGymWrapper(Env):
         
         if self.vector_observation_space is not None:
             vec_obs, reward, done, truncation, info = self._env.step(action)
+            
+        if self.step_count >= self.max_episode_steps:
+            done, truncation = True, True
 
         #if type(self._env.observation_space) is spaces.Dict:
         #    vis_obs = obs["visual_observation"]
