@@ -143,13 +143,13 @@ class POPGymWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
-        if isinstance(action, int):
-            action = [action]
+        if len(action) == 1:
+            action = action[0]
             
         vis_obs, vec_obs = None, None
         
         if self.vector_observation_space is not None:
-            vec_obs, reward, done, truncation, info = self._env.step(action[0])
+            vec_obs, reward, done, truncation, info = self._env.step(action)
 
         #if type(self._env.observation_space) is spaces.Dict:
         #    vis_obs = obs["visual_observation"]
