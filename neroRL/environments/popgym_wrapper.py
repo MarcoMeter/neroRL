@@ -53,8 +53,8 @@ class POPGymWrapper(Env):
         self._record = record_trajectory
 
         self._vector_observation_space, self._visual_observation_space = None, None
-        if isinstance(self._env.observation_space, Box) or isinstance(self._env.observation_space, MultiDiscrete):
-            self._vector_observation_space = self._env.observation_space
+        if isinstance(self._env.observation_space, Box):
+            self._vector_observation_space = self._env.observation_space.shape
 
     @property
     def unwrapped(self):
@@ -69,7 +69,7 @@ class POPGymWrapper(Env):
     @property
     def vector_observation_space(self):
         """Returns the shape of the vector component of the observation space as a tuple."""
-        return self._vector_observation_space.shape
+        return self._vector_observation_space
 
     @property
     def action_space(self):
