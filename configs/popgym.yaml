@@ -2,10 +2,11 @@
 
 environment:
   type: "POPGym"
-  name: "popgym-NoisyStatelessCartPoleEasy-v0"
+  name: "popgym-StatelessCartPole-v0"
   frame_skip: 1
   last_action_to_obs: False
   last_reward_to_obs: False
+  obs_normalization: True
   obs_stacks: 1
   reset_params:
     start-seed: 0

@@ -2,6 +2,7 @@ from neroRL.environments.wrappers.frame_skip import FrameSkipEnv
 from neroRL.environments.wrappers.stacked_observation import StackedObservationEnv
 from neroRL.environments.wrappers.scaled_visual_observation import ScaledVisualObsEnv
 from neroRL.environments.wrappers.grayscale_visual_observation import GrayscaleVisualObsEnv
+from neroRL.environments.wrappers.observation_normalization import ObservationNorm
 from neroRL.environments.wrappers.spotlights import SpotlightsEnv
 from neroRL.environments.wrappers.pytorch_shape import PyTorchEnv
 from neroRL.environments.wrappers.last_action_to_obs import LastActionToObs
@@ -76,5 +77,8 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
         env = StackedObservationEnv(env, config["obs_stacks"])
     if config["reward_normalization"] > 1:
         env = RewardNormalizer(env, config["reward_normalization"])
+    # Observation Normalization
+    if config["obs_normalization"]:
+        env = ObservationNorm(env)
         
     return PyTorchEnv(env)
