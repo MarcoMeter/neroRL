@@ -127,7 +127,7 @@ class ObservationNorm(Env):
         """
         new_vec_obs = []
         for val, obs_space in zip(observation_space, vec_obs):
-            new_vec_obs.append(self.discrete_normalize(val, obs_space))
+            new_vec_obs.append(self._discrete_normalize(val, obs_space))
         return np.array(new_vec_obs)
     
     def _discrete_normalize(self, vec_obs, observation_space):

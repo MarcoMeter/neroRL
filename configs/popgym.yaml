@@ -2,7 +2,7 @@
 
 environment:
   type: "POPGym"
-  name: "popgym-StatelessCartPoleEasy-v0"
+  name: "popgym-CountRecallEasy-v0"
   frame_skip: 1
   last_action_to_obs: False
   last_reward_to_obs: False
@@ -11,8 +11,6 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
-    # Whether to mask the velocity of the cart and the tip of the pole
-    mask-velocity: True
 
 model:
   load_model: False
