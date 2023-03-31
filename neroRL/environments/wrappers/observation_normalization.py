@@ -126,7 +126,7 @@ class ObservationNorm(Env):
             {np.ndarray} -- Normalized vector observation
         """
         new_vec_obs = []
-        for val, obs_space in zip(observation_space, vec_obs):
+        for val, obs_space in zip(vec_obs, observation_space):
             new_vec_obs.append(self._discrete_normalize(val, obs_space))
         return np.array(new_vec_obs)
     
@@ -155,7 +155,7 @@ class ObservationNorm(Env):
             {np.ndarray} -- Normalized vector observation
         """
         new_vec_obs = []
-        for val, obs_space in zip(observation_space, vec_obs):
+        for val, obs_space in zip(vec_obs, observation_space):
             new_vec_obs.append(self._normalize(val, obs_space))
         return np.array(new_vec_obs)
 
