@@ -1,4 +1,5 @@
 from neroRL.environments.env import Env
+from gymnasium.spaces import Box, MultiDiscrete, Discrete, Tuple
 
 class ObservationNorm(Env):
     """This wrapper normalizes the observation to the range [0, 1].
@@ -54,6 +55,7 @@ class ObservationNorm(Env):
     def reset(self, reset_params = None):
         """Reset the environment. The provided reset_params is a dictionary featuring reset parameters of the environment such as the seed."""
         vis_obs, vec_obs = self._env.reset(reset_params = reset_params)
+        vec_obs = self.normalize(vec_obs)
         
         return vis_obs, vec_obs
 
@@ -71,8 +73,45 @@ class ObservationNorm(Env):
             {dict} -- Further episode information retrieved from the environment
         """
         vis_obs, vec_obs, reward, done, info = self._env.step(action)
+        vec_obs = self.normalize(vec_obs)
 
         return vis_obs, vec_obs, reward, done, info
+
+    def normalize(self, vec_obs):
+        if isinstance(self._env.observation_space, Box):
+            vec_obs = self.box_normalize(vec_obs)
+        elif isinstance(self._env.observation_space, MultiDiscrete):
+            vec_obs = self.multi_discrete_normalize(vec_obs)
+        elif isinstance(self._env.observation_space, Discrete):
+            vec_obs = self.discrete_normalize(vec_obs)
+        elif isinstance(self._env.observation_space, Tuple):
+            vec_obs = self.tuple_normalize(vec_obs)
+        return vec_obs
+    
+    def box_normalize(self, vec_obs):
+        """Normalize Box observation space to [0, 1].
+            vec_obs {np.ndarray} -- Vector observation
+        """
+        pass
+    
+    def multi_discrete_normalize(self, vec_obs):
+        """Normalize MultiDiscrete observation space to [0, 1].
+            vec_obs {np.ndarray} -- Vector observation
+        """
+        pass
+    
+    def discrete_normalize(self, vec_obs):
+        """Normalize Discrete observation space to [0, 1].
+            vec_obs {np.ndarray} -- Vector observation
+        """
+        pass
+    
+    def tuple_normalize(self, vec_obs):
+        """Normalize Tuple observation space to [0, 1].
+            vec_obs {np.ndarray} -- Vector observation
+        """
+        pass
+
 
     def close(self):
         """Shuts down the environment."""
