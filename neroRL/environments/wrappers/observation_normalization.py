@@ -79,6 +79,14 @@ class ObservationNorm(Env):
         return vis_obs, vec_obs, reward, done, info
 
     def normalize(self, vec_obs):
+        """Normalizes the observation to the range [0, 1].
+
+        Args:
+            vec_obs {np.ndarray} -- Vector observation
+
+        Returns:
+            {np.ndarray} -- Normalized vector observation
+        """
         if isinstance(self._env.observation_space, Box):
             vec_obs = self.box_normalize(vec_obs)
         elif isinstance(self._env.observation_space, MultiDiscrete):
