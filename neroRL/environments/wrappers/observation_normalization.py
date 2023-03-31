@@ -104,7 +104,9 @@ class ObservationNorm(Env):
         """Normalize Discrete observation space to [0, 1].
             vec_obs {np.ndarray} -- Vector observation
         """
-        pass
+        num_obs = self._env.observation_space.n
+        vec_obs /= num_obs
+        return vec_obs
     
     def tuple_normalize(self, vec_obs):
         """Normalize Tuple observation space to [0, 1].
