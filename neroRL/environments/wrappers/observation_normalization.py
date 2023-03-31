@@ -9,7 +9,7 @@ class ObservationNorm(Env):
         Env {Env} -- The to be wrapped environment that needs normalized observations.
     """
     def __init__(self, env):
-        super().__init__(env)
+        self._env = env
         self.observation_space = env.observation_space
 
     @property
@@ -20,7 +20,7 @@ class ObservationNorm(Env):
     @property
     def visual_observation_space(self):
         """Returns the shape of the visual component of the observation space as a tuple."""
-        return self._visual_observation_space
+        return self._env.visual_observation_space
 
     @property
     def vector_observation_space(self):
