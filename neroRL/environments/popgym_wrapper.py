@@ -61,6 +61,8 @@ class POPGymWrapper(Env):
             self._vector_observation_space = (1,)
         if isinstance(self._env.observation_space, Tuple):
             self._vector_observation_space = (len(self._env.observation_space.spaces),)
+        
+        self.observation_space = self._env.observation_space
 
     @property
     def unwrapped(self):
