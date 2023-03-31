@@ -56,7 +56,7 @@ class ObservationNorm(Env):
     def reset(self, reset_params = None):
         """Reset the environment. The provided reset_params is a dictionary featuring reset parameters of the environment such as the seed."""
         vis_obs, vec_obs = self._env.reset(reset_params = reset_params)
-        vec_obs = self.normalize(vec_obs, self._env.observation_space)
+        vec_obs = self._normalize(vec_obs, self._env.observation_space)
         
         return vis_obs, vec_obs
 
@@ -74,11 +74,11 @@ class ObservationNorm(Env):
             {dict} -- Further episode information retrieved from the environment
         """
         vis_obs, vec_obs, reward, done, info = self._env.step(action)
-        vec_obs = self.normalize(vec_obs, self._env.observation_space)
+        vec_obs = self._normalize(vec_obs, self._env.observation_space)
 
         return vis_obs, vec_obs, reward, done, info
 
-    def normalize(self, vec_obs, observation_space):
+    def _normalize(self, vec_obs, observation_space):
         """Normalizes the observation to the range [0, 1].
 
         Arguments:
@@ -89,16 +89,16 @@ class ObservationNorm(Env):
             {np.ndarray} -- Normalized vector observation
         """
         if isinstance(observation_space, Box):
-            vec_obs = self.box_normalize(vec_obs, observation_space)
+            vec_obs = self._box_normalize(vec_obs, observation_space)
         elif isinstance(observation_space, MultiDiscrete):
-            vec_obs = self.multi_discrete_normalize(vec_obs, observation_space)
+            vec_obs = self._multi_discrete_normalize(vec_obs, observation_space)
         elif isinstance(observation_space, Discrete):
-            vec_obs = self.discrete_normalize(vec_obs, observation_space)
+            vec_obs = self._discrete_normalize(vec_obs, observation_space)
         elif isinstance(observation_space, Tuple):
-            vec_obs = self.tuple_normalize(vec_obs, observation_space)
+            vec_obs = self._tuple_normalize(vec_obs, observation_space)
         return vec_obs
     
-    def box_normalize(self, vec_obs):
+    def _box_normalize(self, vec_obs, observation_space):
         """Normalize Box observation space to [0, 1].
         
         Arguments:
@@ -115,7 +115,7 @@ class ObservationNorm(Env):
             
         return np.array(norm_vec_obs)
             
-    def multi_discrete_normalize(self, vec_obs, observation_space):
+    def _multi_discrete_normalize(self, vec_obs, observation_space):
         """Normalize MultiDiscrete observation space to [0, 1].
             
         Arguments:
@@ -130,7 +130,7 @@ class ObservationNorm(Env):
             new_vec_obs.append(self.discrete_normalize(val, obs_space))
         return np.array(new_vec_obs)
     
-    def discrete_normalize(self, vec_obs, observation_space):
+    def _discrete_normalize(self, vec_obs, observation_space):
         """Normalize Discrete observation space to [0, 1].
         
         Arguments:
@@ -144,7 +144,7 @@ class ObservationNorm(Env):
         vec_obs /= num_obs
         return vec_obs
     
-    def tuple_normalize(self, vec_obs, observation_space):
+    def _tuple_normalize(self, vec_obs, observation_space):
         """Normalize Tuple observation space to [0, 1].
         
         Arguments:
@@ -156,7 +156,7 @@ class ObservationNorm(Env):
         """
         new_vec_obs = []
         for val, obs_space in zip(observation_space, vec_obs):
-            new_vec_obs.append(self.normalize(val, obs_space))
+            new_vec_obs.append(self._normalize(val, obs_space))
         return np.array(new_vec_obs)
 
     def close(self):
