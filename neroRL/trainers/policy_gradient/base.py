@@ -1,4 +1,5 @@
 import numpy as np
+import platform
 import time
 import torch
 from collections import deque
@@ -53,6 +54,9 @@ class BaseTrainer():
 
         # Init model
         self.model = self.create_model()
+        # Compile the model if not on Windows and if Pytorch version is >= 2.0
+        if not platform.system() == "Windows" and torch.__version__ >= "2.0":
+            self.model = torch.compile(self.model)
 
         # Set model to train mode
         self.model.train()
