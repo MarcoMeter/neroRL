@@ -1,5 +1,6 @@
 from neroRL.environments.env import Env
 from gymnasium.spaces import Box, MultiDiscrete, Discrete, Tuple
+import numpy as np
 
 class ObservationNorm(Env):
     """This wrapper normalizes the observation to the range [0, 1].
@@ -92,8 +93,14 @@ class ObservationNorm(Env):
         """Normalize Box observation space to [0, 1].
             vec_obs {np.ndarray} -- Vector observation
         """
-        pass
-    
+        lower, upper = self._env.observation_space.low, self._env.observation_space.high
+        
+        norm_vec_obs = []
+        for low, up, val in zip(lower, upper, vec_obs):
+            norm_vec_obs.append((val - low) / (up - low))
+            
+        return np.array(norm_vec_obs)
+            
     def multi_discrete_normalize(self, vec_obs):
         """Normalize MultiDiscrete observation space to [0, 1].
             vec_obs {np.ndarray} -- Vector observation
