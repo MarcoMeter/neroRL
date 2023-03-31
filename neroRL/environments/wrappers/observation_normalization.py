@@ -81,7 +81,7 @@ class ObservationNorm(Env):
     def normalize(self, vec_obs):
         """Normalizes the observation to the range [0, 1].
 
-        Args:
+        Arguments:
             vec_obs {np.ndarray} -- Vector observation
 
         Returns:
@@ -99,7 +99,12 @@ class ObservationNorm(Env):
     
     def box_normalize(self, vec_obs):
         """Normalize Box observation space to [0, 1].
+        
+        Arguments:
             vec_obs {np.ndarray} -- Vector observation
+        
+        Returns:
+            {np.ndarray} -- Normalized vector observation
         """
         lower, upper = self._env.observation_space.low, self._env.observation_space.high
         
@@ -111,13 +116,23 @@ class ObservationNorm(Env):
             
     def multi_discrete_normalize(self, vec_obs):
         """Normalize MultiDiscrete observation space to [0, 1].
+            
+        Arguments:
             vec_obs {np.ndarray} -- Vector observation
+        
+        Returns:
+            {np.ndarray} -- Normalized vector observation
         """
         pass
     
     def discrete_normalize(self, vec_obs):
         """Normalize Discrete observation space to [0, 1].
+        
+        Arguments:
             vec_obs {np.ndarray} -- Vector observation
+        
+        Returns:
+            {np.ndarray} -- Normalized vector observation
         """
         num_obs = self._env.observation_space.n
         vec_obs /= num_obs
@@ -125,7 +140,12 @@ class ObservationNorm(Env):
     
     def tuple_normalize(self, vec_obs):
         """Normalize Tuple observation space to [0, 1].
+        
+        Arguments:
             vec_obs {np.ndarray} -- Vector observation
+        
+        Returns:
+            {np.ndarray} -- Normalized vector observation
         """
         pass
 
