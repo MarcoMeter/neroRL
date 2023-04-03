@@ -495,7 +495,7 @@ class HTMAttention(Module):
         # positional encoding
 
         if exists(self.pos_emb):
-            pos_emb = self.pos_emb(self.config["max_episode_steps"])
+            pos_emb = self.pos_emb(memories.shape[-2])
             selected_memories = selected_memories + rearrange(pos_emb, 'n d -> () () () n d')
 
         # select the mask
