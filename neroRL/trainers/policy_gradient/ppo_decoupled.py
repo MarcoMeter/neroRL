@@ -13,7 +13,7 @@ class DecoupledPPOTrainer(BaseTrainer):
     """The DecoupledPPOTrainer does not share parameters (i.e. weights) and not gradients among the policy and value function.
     Therefore, it uses slightly different hyperparameters as the regular PPOTrainer to allow more control over updating the
     policy and the value function. Optinally, the actor model can estimate the advantage function as proposed by Raileanu & Fergus, 2021"""
-    def __init__(self, configs, device, worker_id, run_id, out_path, seed = 0):
+    def __init__(self, configs, device, worker_id, run_id, out_path, seed = 0, compile_model = False):
         """
         Initializes distinct members of the DecoupledPPOTrainer
 
@@ -22,13 +22,14 @@ class DecoupledPPOTrainer(BaseTrainer):
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
+            compile_model {bool} -- If True, the model is compiled before training (default: {False})
         """
         # Shall the policy estimate the advantage function? (DAAC algorithm by Raileanu & Fergus, 2021)
         # Assign this before initializing the base class, because this information is needed during model creation
         self.use_daac = "DAAC" in configs["trainer"]
 
         # Init base class
-        super().__init__(configs, device, worker_id, run_id=run_id, out_path=out_path, seed=seed)
+        super().__init__(configs, device, worker_id, run_id=run_id, out_path=out_path, seed=seed, compile_model=compile_model)
 
         # Hyperparameter setup
         self.num_policy_epochs = configs["trainer"]["policy_epochs"]

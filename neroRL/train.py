@@ -18,7 +18,7 @@ from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 from neroRL.utils.yaml_parser import YamlParser
 
 class Training():
-    def __init__(self, configs, run_id, worker_id, out_path, seed) -> None:
+    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model) -> None:
         """
         Arguments:
             configs {dict} -- Environment, Model and Training configuration
@@ -26,6 +26,7 @@ class Training():
             worker_id {int} -- A different worker id has to be chosen for socket based environments like Unity ML-Agents
             out_path {str} -- Desired output path
             seed {int} -- Seed for all number generators
+            compile_model {bool} -- Whether to compile the model or not (only PyTorch >= 2.0.0)
         """
         # Start time
         self.start_time = time.time()
@@ -59,9 +60,9 @@ class Training():
 
         # Initialize trainer
         if configs["trainer"]["algorithm"] == "PPO":
-            self.trainer = PPOTrainer(configs, self.device, worker_id, run_id, out_path, self.seed)
+            self.trainer = PPOTrainer(configs, self.device, worker_id, run_id, out_path, self.seed, compile_model)
         elif configs["trainer"]["algorithm"] == "DecoupledPPO":
-            self.trainer = DecoupledPPOTrainer(configs, self.device, worker_id, run_id, out_path, self.seed)
+            self.trainer = DecoupledPPOTrainer(configs, self.device, worker_id, run_id, out_path, self.seed, compile_model)
         else:
             assert(False), "Unsupported algorithm specified"
 
@@ -87,6 +88,8 @@ class Training():
 
         # Log the number of trainable parameters of the to-be-optimized model
         self.monitor.log("Number of trainable parameters: " + self.trainer.get_num_trainable_parameters_str())
+        if compile_model:
+            self.monitor.log("Model will be compiled if applicable")
 
         # Set variables
         self.configs = configs
@@ -182,6 +185,7 @@ def main():
         --run-id=<path>            Specifies the tag of the tensorboard summaries [default: default].
         --out=<path>               Specifies the path to output files such as summaries and checkpoints. [default: ./]
         --seed=<n>      	       Specifies the seed to use during training. If set to smaller than 0, use a random seed. [default: -1]
+        --compile                  Whether to compile the model or not (requires PyTorch >= 2.0.0). [default: False]
     """
     # Debug CUDA
     # import os
@@ -192,6 +196,7 @@ def main():
     run_id = options["--run-id"]
     out_path = options["--out"]
     seed = int(options["--seed"])
+    compile_model = options["--compile"]
 
     # If a run-id was not assigned, use the config's name
     for i, arg in enumerate(sys.argv):
@@ -205,7 +210,7 @@ def main():
     configs = YamlParser(config_path).get_config()
 
     # Training program
-    training = Training(configs, run_id, worker_id, out_path, seed)
+    training = Training(configs, run_id, worker_id, out_path, seed, compile_model)
     # import cProfile, pstats
     # profiler = cProfile.Profile()
     # profiler.enable()

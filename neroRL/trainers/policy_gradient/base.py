@@ -13,7 +13,7 @@ from neroRL.utils.utils import get_environment_specs
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
-    def __init__(self, configs, device, worker_id = 1, run_id  = "default", out_path = "./", seed = 0):
+    def __init__(self, configs, device, worker_id = 1, run_id  = "default", out_path = "./", seed = 0, compile_model = False):
         """Initializes the trainer, the model, the buffer, the evaluator and the training data sampler
 
         Arguments:
@@ -23,6 +23,7 @@ class BaseTrainer():
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
             seed {int} -- Specifies the seed to use during training. (default: {0})
+            compile_model {bool} -- Specifies whether the model should be compiled or not. (default: {False})
         """
         # Init members
         self.device = device
@@ -54,9 +55,10 @@ class BaseTrainer():
 
         # Init model
         self.model = self.create_model()
-        # Compile the model if not on Windows and if Pytorch version is >= 2.0
-        if not platform.system() == "Windows" and torch.__version__ >= "2.0":
-            self.model = torch.compile(self.model)
+        if compile_model:
+            # Compile the model if not on Windows and if Pytorch version is >= 2.0
+            if not platform.system() == "Windows" and torch.__version__ >= "2.0":
+                self.model = torch.compile(self.model, dynamic=True)
 
         # Set model to train mode
         self.model.train()

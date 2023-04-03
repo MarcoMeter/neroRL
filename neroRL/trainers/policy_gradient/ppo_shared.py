@@ -13,7 +13,7 @@ class PPOTrainer(BaseTrainer):
     and vector obsverations (either alone or simultaenously). Parameters can be shared or not. If gradients shall be decoupled,
     go for the DecoupledPPOTrainer.
     """
-    def __init__(self, configs, device, worker_id, run_id, out_path, seed = 0):
+    def __init__(self, configs, device, worker_id, run_id, out_path, seed = 0, compile_model = False):
         """
         Initializes distinct members of the PPOTrainer
 
@@ -22,8 +22,9 @@ class PPOTrainer(BaseTrainer):
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
+            compile_model {bool} -- If true, the model is compiled before training (default: {False})
         """
-        super().__init__(configs, device, worker_id, run_id=run_id, out_path=out_path, seed=seed)
+        super().__init__(configs, device, worker_id, run_id=run_id, out_path=out_path, seed=seed, compile_model=compile_model)
 
         # Hyperparameter setup
         self.epochs = configs["trainer"]["epochs"]
