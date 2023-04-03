@@ -32,9 +32,9 @@ class MultiHeadAttention(nn.Module):
             self.queries = nn.Linear(self.head_size, self.head_size, bias=False)
         else:
             # If we don't share the weights of the heads, we need as many sets of linear layers as there are heads
-            self.values = [nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)]
-            self.keys = [nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)]
-            self.queries = [nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)]
+            self.values = nn.ModuleList([nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)])
+            self.keys = nn.ModuleList([nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)])
+            self.queries = nn.ModuleList([nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)])
             
         self.fc_out = nn.Linear(self.num_heads * self.head_size, embed_dim)
 
