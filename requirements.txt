@@ -15,3 +15,5 @@ ruamel.yaml
 scipy
 tensorboard
 tblib
+transformers
+git+https://github.com/openai/CLIP.git
