@@ -151,89 +151,103 @@ def main():
         # Execute all training runs "concurrently" (i.e. one trainer runs for the specified period and then training moves on with the next trainer)
         monitor.log("Executing trial using " + str(device) + " . . .")
         latest_checkpoint = ""
-        for cycle in range(0, num_updates, trainer_period):
-            # Lists to monitor results
-            eval_episode_infos = []
-            train_episode_infos = []
-            training_stats = None
-            update_durations = []
-            for t in range(trainer_period):
-                episode_info, stats, formatted_string, update_duration = trainer.step(cycle + t)
-                train_episode_infos.extend(episode_info)
-                if training_stats is None:
-                    training_stats = {}
-                    for key, value in stats.items():
-                        training_stats[key] = (value[0], [])
-                for key, value in stats.items():
-                        training_stats[key][1].append(value[1])
-                update_durations.append(update_duration)
-            # Aggregate training results
-            for k, v in training_stats.items():
-                training_stats[k] = (v[0], np.asarray(v[1]).mean())
-            train_results = aggregate_episode_results(train_episode_infos)
-            # Log training results
-            update = cycle + trainer_period
-            monitor.log((("{:4} sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
-                (" value={:3f} adv={:.3f} loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}")).format(
-                update, sum(update_durations), train_results["reward_mean"], train_results["reward_std"],
-                train_results["length_mean"], train_results["length_std"], training_stats["value_mean"][1],
-                training_stats["advantage_mean"][1], training_stats["loss"][1], training_stats["policy_loss"][1],
-                training_stats["value_loss"][1], training_stats["entropy"][1]))
 
-            # Evaluate
-            eval_duration, eval_episode_infos = evaluator.evaluate(trainer.model, device)
-            eval_results = aggregate_episode_results(eval_episode_infos)
-            eval_episode_infos.extend(eval_episode_infos)
-
-            # Write to tensorboard
-            monitor.write_training_summary(update, training_stats, train_results)
-            monitor.write_eval_summary(update, eval_results)
-
-            # Save checkpoint (keep only the latest checkpoint)
-            if os.path.isfile(latest_checkpoint):
-                os.remove(latest_checkpoint)
-            latest_checkpoint = monitor.checkpoint_path + run_id + "-" + str(update) + ".pt"
-            trainer.save_checkpoint(update, latest_checkpoint[:-3])
-
-            # Log evaluation results
-            result_string = "{:4} sec={:3} eval_reward={:.2f} std={:.2f} eval_length={:.1f} std={:.2f}".format(update, eval_duration,
-                    eval_results["reward_mean"], eval_results["reward_std"], eval_results["length_mean"], eval_results["length_mean"])
-            additional_string = ""
-            if "success_mean" in eval_results.keys():
-                additional_string = " success={:.2f} std={:.2f}".format(eval_results["success_mean"], eval_results["success_std"])
-            monitor.log(result_string + additional_string)
-
-            # Report evaluation result to optuna to allow for pruning
-            trial.report(eval_results["reward_mean"], update)
-            # Handle pruning based on the intermediate value.
-            if trial.should_prune():
-                monitor.log("Pruning trial " + str(trial.number) + " at update " + str(update) + " . . .")
-                hours, remainder = divmod(time.time() - start_time, 3600)
-                minutes, seconds = divmod(remainder, 60)
-                monitor.log("Trial duration: {:.0f}h {:.0f}m {:.2f}s".format(hours, minutes, seconds))
-                monitor.log("Closing trainer . . .")
-                try:
-                    trainer.close()
-                    evaluator.close()
-                    monitor.close()
-                    del monitor, trainer, evaluator
-                except:
-                    pass
-                raise optuna.exceptions.TrialPruned()
-
-        # Finish up trial
-        hours, remainder = divmod(time.time() - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        monitor.log("Trial " + str(trial.number) + " completed")
-        monitor.log("Trial duration: {:.0f}h {:.0f}m {:.2f}s".format(hours, minutes, seconds))
-        monitor.log("Closing trainer . . .")
         try:
-            trainer.close()
-            evaluator.close()
-            monitor.close()
-            del monitor, trainer, evaluator
+            for cycle in range(0, num_updates, trainer_period):
+                # Lists to monitor results
+                eval_episode_infos = []
+                train_episode_infos = []
+                training_stats = None
+                update_durations = []
+                for t in range(trainer_period):
+                    episode_info, stats, formatted_string, update_duration = trainer.step(cycle + t)
+                    train_episode_infos.extend(episode_info)
+                    if training_stats is None:
+                        training_stats = {}
+                        for key, value in stats.items():
+                            training_stats[key] = (value[0], [])
+                    for key, value in stats.items():
+                            training_stats[key][1].append(value[1])
+                    update_durations.append(update_duration)
+                # Aggregate training results
+                for k, v in training_stats.items():
+                    training_stats[k] = (v[0], np.asarray(v[1]).mean())
+                train_results = aggregate_episode_results(train_episode_infos)
+                # Log training results
+                update = cycle + trainer_period
+                monitor.log((("{:4} sec={:3} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
+                    (" value={:3f} adv={:.3f} loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}")).format(
+                    update, sum(update_durations), train_results["reward_mean"], train_results["reward_std"],
+                    train_results["length_mean"], train_results["length_std"], training_stats["value_mean"][1],
+                    training_stats["advantage_mean"][1], training_stats["loss"][1], training_stats["policy_loss"][1],
+                    training_stats["value_loss"][1], training_stats["entropy"][1]))
+
+                # Evaluate
+                eval_duration, eval_episode_infos = evaluator.evaluate(trainer.model, device)
+                eval_results = aggregate_episode_results(eval_episode_infos)
+                eval_episode_infos.extend(eval_episode_infos)
+
+                # Write to tensorboard
+                monitor.write_training_summary(update, training_stats, train_results)
+                monitor.write_eval_summary(update, eval_results)
+
+                # Save checkpoint (keep only the latest checkpoint)
+                if os.path.isfile(latest_checkpoint):
+                    os.remove(latest_checkpoint)
+                latest_checkpoint = monitor.checkpoint_path + run_id + "-" + str(update) + ".pt"
+                trainer.save_checkpoint(update, latest_checkpoint[:-3])
+
+                # Log evaluation results
+                result_string = "{:4} sec={:3} eval_reward={:.2f} std={:.2f} eval_length={:.1f} std={:.2f}".format(update, eval_duration,
+                        eval_results["reward_mean"], eval_results["reward_std"], eval_results["length_mean"], eval_results["length_mean"])
+                additional_string = ""
+                if "success_mean" in eval_results.keys():
+                    additional_string = " success={:.2f} std={:.2f}".format(eval_results["success_mean"], eval_results["success_std"])
+                monitor.log(result_string + additional_string)
+
+                # Report evaluation result to optuna to allow for pruning
+                trial.report(eval_results["reward_mean"], update)
+                # Handle pruning based on the intermediate value.
+                if trial.should_prune():
+                    monitor.log("Pruning trial " + str(trial.number) + " at update " + str(update) + " . . .")
+                    hours, remainder = divmod(time.time() - start_time, 3600)
+                    minutes, seconds = divmod(remainder, 60)
+                    monitor.log("Trial duration: {:.0f}h {:.0f}m {:.2f}s".format(hours, minutes, seconds))
+                    monitor.log("Closing trainer . . .")
+                    try:
+                        trainer.close()
+                        evaluator.close()
+                        monitor.close()
+                        del monitor, trainer, evaluator
+                    except:
+                        pass
+                    raise optuna.exceptions.TrialPruned()
+
+            # Finish up trial
+            hours, remainder = divmod(time.time() - start_time, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            monitor.log("Trial " + str(trial.number) + " completed")
+            monitor.log("Trial duration: {:.0f}h {:.0f}m {:.2f}s".format(hours, minutes, seconds))
+            monitor.log("Closing trainer . . .")
+            try:
+                trainer.close()
+                evaluator.close()
+                monitor.close()
+                del monitor, trainer, evaluator
+            except:
+                pass
         except:
-            pass
+            monitor.logger.exception("Trial " + str(trial.number) + " failed")
+            monitor.log("Closing trainer . . .")
+            try:
+                trainer.close()
+                evaluator.close()
+                monitor.close()
+                del monitor, trainer, evaluator
+            except:
+                pass
+            # Return None to indicate that the trial failed
+            return None
 
         # Return final result
         return eval_results["reward_mean"]

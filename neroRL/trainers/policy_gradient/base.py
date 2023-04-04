@@ -1,4 +1,5 @@
 import numpy as np
+import platform
 import time
 import torch
 from collections import deque
@@ -12,7 +13,7 @@ from neroRL.utils.utils import get_environment_specs
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
-    def __init__(self, configs, device, worker_id = 1, run_id  = "default", out_path = "./", seed = 0):
+    def __init__(self, configs, device, worker_id = 1, run_id  = "default", out_path = "./", seed = 0, compile_model = False):
         """Initializes the trainer, the model, the buffer, the evaluator and the training data sampler
 
         Arguments:
@@ -22,6 +23,7 @@ class BaseTrainer():
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
             seed {int} -- Specifies the seed to use during training. (default: {0})
+            compile_model {bool} -- Specifies whether the model should be compiled or not. (default: {False})
         """
         # Init members
         self.device = device
@@ -45,9 +47,18 @@ class BaseTrainer():
         if self.transformer is not None:
             # Add max episode steps to the transformer config
             configs["model"]["transformer"]["max_episode_steps"] = self.max_episode_steps
+            # If memory length is -1 or invalid, set it to max episode steps
+            memory_length = configs["model"]["transformer"]["memory_length"]
+            if memory_length < 0 or memory_length > self.max_episode_steps:
+                print("WARNING: Transformer memory length is invalid. Setting it to max episode steps.")
+                configs["model"]["transformer"]["memory_length"] = self.max_episode_steps
 
         # Init model
         self.model = self.create_model()
+        if compile_model:
+            # Compile the model if not on Windows and if Pytorch version is >= 2.0
+            if not platform.system() == "Windows" and torch.__version__ >= "2.0":
+                self.model = torch.compile(self.model, dynamic=True)
 
         # Set model to train mode
         self.model.train()
@@ -234,3 +245,17 @@ class BaseTrainer():
         self.sampler.to(device)
         self.sampler.buffer.to(device)
         self.model.to(device)
+
+    def get_num_trainable_parameters_str(self):
+        """
+        Returns:
+            str -- Formatted number of trainable parameters
+        """
+        num_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        if num_params > 1e6:
+            num_params = str(round(num_params / 1e6, 2)) + "M"
+        elif num_params > 1e3:
+            num_params = str(round(num_params / 1e3, 2)) + "K"
+        else:
+            num_params = str(num_params)
+        return num_params

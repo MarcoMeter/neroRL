@@ -139,7 +139,7 @@ class ActorCriticBase(Module):
                 cxs = torch.normal(np.mean(mean), 0.01, size=(1, num_sequences, self.recurrence_config["num_layers"], self.recurrence_config["hidden_state_size"]))
         return hxs, cxs
 
-    def init_transformer_memory(self, num_sequences, memory_length, num_layers, layer_size, deivce):
+    def init_transformer_memory(self, num_sequences, memory_length, num_layers, layer_size, device):
         """Initializes the transformer-based episodic memory as zeros.
 
         Arguments:
@@ -147,7 +147,7 @@ class ActorCriticBase(Module):
             memory_length {int} -- Sequence / memory length of the transformer
             num_layers {int} -- Number of transformer blocks
             layer_size {int} -- Dimension of the transformber layers
-            deivce {torch.device} -- Tensor device
+            device {torch.device} -- Tensor device
 
         Returns:
             {torch.tensor} -- Transformer-based episodic memory as zeros
