@@ -370,20 +370,10 @@ class ActorCriticSharedWeights(ActorCriticBase):
             h, memory = self.transformer(h, memory, mask, memory_indices)
             
         # Forward HELM encoder
-        h_mem = None
         if self.helm_encoder is not None:
             if h_helm is None:
                 # Sampling
-                if "helmv1" in self.config:
-                    h_helm = self.helm_encoder(vis_obs)
-                    h_mem = h_helm
-                elif "helmv2" in self.config:
-                    h_helm, h_mem = self.helm_encoder(vis_obs)
-            else:
-                # Training
-                if "helmv2" in self.config:
-                    helm_query = self.helm_encoder.query_encoder(vis_obs)
-                    h_helm = torch.cat([h_helm, helm_query], dim=-1)
+                h_helm = self.helm_encoder(vis_obs)
             h = torch.cat((h, h_helm), dim=-1)
 
         # Feed network body
@@ -394,7 +384,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Head: Policy branches
         pi = self.actor_policy(h)
 
-        return pi, value, memory, None, h_mem
+        return pi, value, memory, None, h_helm
 
 def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, device):
     """Creates a shared or non-shared weights actor critic model.

@@ -390,31 +390,19 @@ class HELMv2Encoder(nn.Module):
 
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
-
-        self.query_encoder = SmallImpalaCNN(vis_obs_space = input_dim, channel_scale = 4, hidden_dim = hidden_dim)
-        self.out_dim = hidden_dim*2
+        self.out_dim = hidden_dim
 
         self.memory = None
 
     def forward(self, observations):
-        bs, *_ = observations.shape
-        obs_query = self.query_encoder(observations)
+        # Forward vision backbone (Res50)
         observations = self.vis_encoder(observations)
         observations = (observations - observations.mean(0)) / (observations.std(0) + 1e-8)
         observations = observations * self.we_std + self.we_mean
+        # Forward TrXL
         out = self.transfo_xl_wt103(inputs_embeds=observations.unsqueeze(1), output_hidden_states=True, mems=self.memory)
         self.memory = out.mems
         
         hidden_mem = out.last_hidden_state[:, -1, :].detach()
-        hidden = torch.cat([hidden_mem, obs_query], dim=-1)
 
-        return hidden, hidden_mem
-
-    def evaluate_actions(self, hidden_states, actions, observations):
-        queries = self.query_encoder(observations)
-        hidden = torch.cat([hidden_states, queries], dim=-1)
-
-        log_prob, entropy = self.actor.evaluate(hidden, actions)
-        value = self.critic(hidden).squeeze()
-
-        return value, log_prob, entropy
+        return hidden_mem
