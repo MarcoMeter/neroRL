@@ -13,18 +13,20 @@ class PPOTrainer(BaseTrainer):
     and vector obsverations (either alone or simultaenously). Parameters can be shared or not. If gradients shall be decoupled,
     go for the DecoupledPPOTrainer.
     """
-    def __init__(self, configs, device, worker_id, run_id, out_path, seed = 0, compile_model = False):
+    def __init__(self, configs, sample_device, train_device, worker_id, run_id, out_path, seed = 0, compile_model = False):
         """
         Initializes distinct members of the PPOTrainer
 
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. training and environment configs)
+            sample_device {torch.device} -- The device used for sampling training data.
+            train_device {torch.device} -- The device used for model optimization.
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
             compile_model {bool} -- If true, the model is compiled before training (default: {False})
         """
-        super().__init__(configs, device, worker_id, run_id=run_id, out_path=out_path, seed=seed, compile_model=compile_model)
+        super().__init__(configs, sample_device, train_device, worker_id, run_id=run_id, out_path=out_path, seed=seed, compile_model=compile_model)
 
         # Hyperparameter setup
         self.epochs = configs["trainer"]["epochs"]
@@ -47,7 +49,7 @@ class PPOTrainer(BaseTrainer):
 
     def create_model(self) -> None:
         return create_actor_critic_model(self.configs["model"], self.configs["trainer"]["share_parameters"],
-        self.vis_obs_space, self.vec_obs_space, self.action_space_shape, self.device)
+        self.vis_obs_space, self.vec_obs_space, self.action_space_shape, self.sample_device)
 
     def train(self):
         train_info = {}

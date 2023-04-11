@@ -238,20 +238,19 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # return (actor_hxs, actor_cxs), (critic_hxs, critic_cxs)
         return actor_recurrent_cell, critic_recurrent_cell
 
-    def init_transformer_memory(self, num_sequences, memory_length, num_layers, layer_size, deivce):
+    def init_transformer_memory(self, num_sequences, episode_length, num_layers, layer_size):
         """Initializes the transformer-based episodic memory as zeros.
 
         Arguments:
             num_sequences {int} -- Number of batches / sequences
-            memory_length {int} -- Sequence / memory length of the transformer
+            episode_length {int} -- Max number of steps in an episode
             num_layers {int} -- Number of transformer blocks
             layer_size {int} -- Dimension of the transformber layers
-            deivce {torch.device} -- Tensor device
 
         Returns:
             {torch.tensor} -- Transformer-based episodic memory as zeros for actor and critic
         """
-        return torch.zeros((num_sequences, memory_length, num_layers, layer_size, 2), dtype=torch.float32)
+        return torch.zeros((num_sequences, episode_length, num_layers, layer_size, 2), dtype=torch.float32)
 
     def add_gae_estimator_head(self, action_space_shape, device) -> None:
         """Adds the generalized advantage estimation head to the model

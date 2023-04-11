@@ -18,7 +18,7 @@ from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 from neroRL.utils.yaml_parser import YamlParser
 
 class Training():
-    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model) -> None:
+    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model, low_mem) -> None:
         """
         Arguments:
             configs {dict} -- Environment, Model and Training configuration
@@ -27,6 +27,7 @@ class Training():
             out_path {str} -- Desired output path
             seed {int} -- Seed for all number generators
             compile_model {bool} -- Whether to compile the model or not (only PyTorch >= 2.0.0)
+            low_mem {bool} -- Whether to use low memory mode or not
         """
         # Start time
         self.start_time = time.time()
@@ -40,11 +41,22 @@ class Training():
             self.seed = random.randint(0, 2 ** 31 - 1)
         set_library_seeds(self.seed)
 
-        # Determine cuda availability
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Determine sampling and training devices
         if torch.cuda.is_available():
-            torch.set_default_tensor_type("torch.cuda.FloatTensor")
+            # Model optimization on GPU
+            self.train_device = torch.device("cuda")
+            if low_mem:
+                # Sample data on CPU
+                self.sample_device = torch.device("cpu")
+                torch.set_default_tensor_type("torch.FloatTensor")
+            else:
+                # Sample data on GPU
+                self.sample_device = torch.device("cuda")
+                torch.set_default_tensor_type("torch.cuda.FloatTensor")
         else:
+            # Sampling and model optimization on CPU
+            self.train_device = torch.device("cpu")
+            self.sample_device = torch.device("cpu")
             torch.set_default_tensor_type("torch.FloatTensor")
 
         # Create training monitor
@@ -60,9 +72,9 @@ class Training():
 
         # Initialize trainer
         if configs["trainer"]["algorithm"] == "PPO":
-            self.trainer = PPOTrainer(configs, self.device, worker_id, run_id, out_path, self.seed, compile_model)
+            self.trainer = PPOTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
         elif configs["trainer"]["algorithm"] == "DecoupledPPO":
-            self.trainer = DecoupledPPOTrainer(configs, self.device, worker_id, run_id, out_path, self.seed, compile_model)
+            self.trainer = DecoupledPPOTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
         else:
             assert(False), "Unsupported algorithm specified"
 
@@ -102,9 +114,9 @@ class Training():
     def run(self):
         """Run training loop"""
         if(self.resume_at > 0):
-            self.monitor.log("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
+            self.monitor.log("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.train_device) + " . . .")
         else:
-            self.monitor.log("Step 5: Starting training using " + str(self.device) + " . . .")
+            self.monitor.log("Step 5: Starting training using " + str(self.train_device) + " . . .")
 
         for update in range(self.resume_at, self.updates):
             # Step trainer
@@ -180,12 +192,13 @@ def main():
         ntrain --help
 
     Options:
-        --config=<path>            Path to the config file [default: ./configs/default.yaml].
-        --worker-id=<n>            Sets the port for each environment instance [default: 2].
-        --run-id=<path>            Specifies the tag of the tensorboard summaries [default: default].
-        --out=<path>               Specifies the path to output files such as summaries and checkpoints. [default: ./]
-        --seed=<n>      	       Specifies the seed to use during training. If set to smaller than 0, use a random seed. [default: -1]
-        --compile                  Whether to compile the model or not (requires PyTorch >= 2.0.0). [default: False]
+        --config=<path>             Path to the config file [default: ./configs/default.yaml].
+        --worker-id=<n>             Sets the port for each environment instance [default: 2].
+        --run-id=<path>             Specifies the tag of the tensorboard summaries [default: default].
+        --out=<path>                Specifies the path to output files such as summaries and checkpoints. [default: ./]
+        --seed=<n>      	        Specifies the seed to use during training. If set to smaller than 0, use a random seed. [default: -1]
+        --compile                   Whether to compile the model or not (requires PyTorch >= 2.0.0). [default: False]
+        --low-mem                   Whether to move one mini_batch at a time to GPU to save memory [default: False].
     """
     # Debug CUDA
     # import os
@@ -197,6 +210,7 @@ def main():
     out_path = options["--out"]
     seed = int(options["--seed"])
     compile_model = options["--compile"]
+    low_mem = options["--low-mem"]
 
     # If a run-id was not assigned, use the config's name
     for i, arg in enumerate(sys.argv):
@@ -210,7 +224,7 @@ def main():
     configs = YamlParser(config_path).get_config()
 
     # Training program
-    training = Training(configs, run_id, worker_id, out_path, seed, compile_model)
+    training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem)
     # import cProfile, pstats
     # profiler = cProfile.Profile()
     # profiler.enable()

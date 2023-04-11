@@ -13,12 +13,13 @@ from neroRL.utils.utils import get_environment_specs
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
-    def __init__(self, configs, device, worker_id = 1, run_id  = "default", out_path = "./", seed = 0, compile_model = False):
+    def __init__(self, configs, sample_device, train_device, worker_id = 1, run_id  = "default", out_path = "./", seed = 0, compile_model = False):
         """Initializes the trainer, the model, the buffer, the evaluator and the training data sampler
 
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. training and environment configs)
-            device {torch.device} -- The device used for the entire training.
+            sample_device {torch.device} -- The device used for sampling training data.
+            train_device {torch.device} -- The device used for model optimization.
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
@@ -26,7 +27,8 @@ class BaseTrainer():
             compile_model {bool} -- Specifies whether the model should be compiled or not. (default: {False})
         """
         # Init members
-        self.device = device
+        self.sample_device = sample_device
+        self.train_device = train_device
         self.run_id = run_id
         self.configs = configs
         self.resume_at = configs["trainer"]["resume_at"]
@@ -67,15 +69,15 @@ class BaseTrainer():
         # Instantiate sampler for memory-less / markvoivan policies
         if self.recurrence is None and self.transformer is None:
             self.sampler = TrajectorySampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space,
-                                        self.action_space_shape, self.model, self.device)
+                                        self.action_space_shape, self.model, self.sample_device, self.train_device)
         # Instantiate sampler for recurrent policies
         elif self.recurrence is not None:
             self.sampler = RecurrentSampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space,
-                                        self.action_space_shape, self.model, self.device)
+                                        self.action_space_shape, self.model, self.sample_device, self.train_device)
         # Instantiate sampler for transformer policoes
         elif self.transformer is not None:
             self.sampler = TransformerSampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space,
-                                        self.action_space_shape, self.max_episode_steps, self.model, self.device)
+                    self.action_space_shape, self.max_episode_steps, self.model, self.sample_device, self.train_device)
 
         # List that stores the most recent episodes for training statistics
         self.episode_info = deque(maxlen=100)
@@ -88,7 +90,8 @@ class BaseTrainer():
         decayed_hyperparameters = self.step_decay_schedules(update)
 
         # 2.: Sample data from each worker for worker steps
-        sample_episode_info = self.sampler.sample(self.device)
+        self.model.to(self.sample_device)
+        sample_episode_info = self.sampler.sample()
 
         # 3.: Calculate advantages
         last_value = self.sampler.get_last_value()
@@ -108,8 +111,7 @@ class BaseTrainer():
         self.sampler.buffer.prepare_batch_dict()
 
         # 6.: Train n epochs over the sampled data
-        if torch.cuda.is_available():
-            self.model.cuda() # Train on GPU
+        self.model.to(self.train_device)
         training_stats, formatted_string = self.train()
         # Extend training statistics
         training_stats = {
@@ -120,9 +122,9 @@ class BaseTrainer():
             "sequence_length": (Tag.OTHER, self.sampler.buffer.actual_sequence_length),
             }
 
-        # Free memory
+        # Free VRAM
         del(self.sampler.buffer.samples_flat)
-        if self.device.type == "cuda":
+        if self.train_device == "cuda":
             torch.cuda.empty_cache()
         # mem = torch.cuda.mem_get_info(device=None)
         # mem = (mem[1] - mem[0]) / 1024 / 1024

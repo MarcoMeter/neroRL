@@ -7,7 +7,7 @@ from neroRL.utils.worker import Worker
 class TrajectorySampler():
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, device) -> None:
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, sample_device, train_device) -> None:
         """Initializes the TrajectorSampler and launches its environment workers.
 
         Arguments:
@@ -17,7 +17,8 @@ class TrajectorySampler():
             vector_observation_space {tuple} -- Dimensions of the vector observation space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
             model {nn.Module} -- The model to retrieve the policy and value from
-            device {torch.device} -- The device that is used for retrieving the data from the model
+            sample_device {torch.device} -- The device that is used for retrieving the data from the model
+            train_device {torch.device} -- The device that is used for training the model
         """
         # Set member variables
         self.visual_observation_space = visual_observation_space
@@ -25,11 +26,12 @@ class TrajectorySampler():
         self.model = model
         self.n_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
-        self.device = device
+        self.sample_device = sample_device
+        self.train_device = train_device
 
         # Create Buffer
         self.buffer = Buffer(configs, visual_observation_space, vector_observation_space,
-                        action_space_shape, self.device, self.model.share_parameters, self)
+                        action_space_shape, self.train_device, self.model.share_parameters, self)
 
         # Launch workers
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
@@ -57,11 +59,8 @@ class TrajectorySampler():
             if self.vec_obs is not None:
                 self.vec_obs[i] = vec_obs
 
-    def sample(self, device) -> list:
+    def sample(self) -> list:
         """Samples training data (i.e. experience tuples) using n workers for t worker steps.
-
-        Arguments:
-            device {torch.device} -- The device that is used for retrieving the data from the model
 
         Returns:
             {list} -- List of completed episodes. Each episode outputs a dictionary containing at least the

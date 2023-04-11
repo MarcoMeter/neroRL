@@ -4,18 +4,18 @@ import numpy as np
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent and transformer policies."""
     def __init__(self, configs, visual_observation_space, vector_observation_space,
-                    action_space_shape, device, share_parameters, sampler):
+                    action_space_shape, train_device, share_parameters, sampler):
         """
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. model, training, environment, ... configs)
             visual_observation_space {Box} -- Visual observation if available, else None
             vector_observation_space {tuple} -- Vector observation space if available, else None
             action_space_shape {tuple} -- Shape of the action space
-            device {torch.device} -- The device that will be used for training/storing single mini batches
+            train_device {torch.device} -- Single mini batches will be moved to this device for model optimization
             share_parameters {bool} -- Whether the policy and the value function share parameters or not
             sampler {TrajectorySampler} -- The used sampler
         """
-        self.device = device
+        self.train_device = train_device
         self.sampler = sampler
         self.configs = configs
         self.recurrence, self.transformer_memory = None, None       # place holder for recurrence and transformer config
@@ -262,9 +262,9 @@ class Buffer():
             mini_batch = {}
             for key, value in self.samples_flat.items():
                 if key == "memory_index":
-                    mini_batch["memories"] = self.memories[value[mini_batch_indices]]
+                    mini_batch["memories"] = self.memories[value[mini_batch_indices]].to(self.train_device)
                 else:
-                    mini_batch[key] = value[mini_batch_indices].to(self.device)
+                    mini_batch[key] = value[mini_batch_indices].to(self.train_device)
             yield mini_batch
 
     def recurrent_mini_batch_generator(self, num_mini_batches):
@@ -299,13 +299,13 @@ class Buffer():
             for key, value in self.samples_flat.items():
                 if key == "hxs" or key == "cxs":
                     # Select recurrent cell states of sequence starts
-                    mini_batch[key] = value[sequence_indices[start:end]].to(self.device)
+                    mini_batch[key] = value[sequence_indices[start:end]].to(self.train_device)
                 elif key == "log_probs" or "advantages" in key or key == "values":
                     # Select unpadded data
-                    mini_batch[key] = value[mini_batch_unpadded_indices].to(self.device)
+                    mini_batch[key] = value[mini_batch_unpadded_indices].to(self.train_device)
                 else:
                     # Select padded data
-                    mini_batch[key] = value[mini_batch_padded_indices].to(self.device)
+                    mini_batch[key] = value[mini_batch_padded_indices].to(self.train_device)
             start = end
             yield mini_batch
 
@@ -349,7 +349,7 @@ class Buffer():
                 for w in range(self.num_workers):
                     if self.recurrence is not None and self.dones[w, t]:
                         if self.recurrence["reset_hidden_state"]:
-                            hxs, cxs = model.init_recurrent_cell_states(1, self.device)
+                            hxs, cxs = model.init_recurrent_cell_states(1, self.train_device)
                             if self.recurrence["layer_type"] == "gru":
                                 recurrent_cell[:, w] = hxs.contiguous()
                             elif self.recurrence["layer_type"] == "lstm":

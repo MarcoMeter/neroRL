@@ -7,9 +7,9 @@ class RecurrentSampler(TrajectorySampler):
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones. The RecurrentSampler takes care of
     resetting and adding recurrent cell states (i.e. agent memory) to the buffer."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, device) -> None:
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, sample_device, train_device) -> None:
         """Initializes the RecurrentSampler and launches its environment worker."""
-        super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, device)
+        super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, sample_device, train_device)
         # Set member variables
         self.layer_type = configs["model"]["recurrence"]["layer_type"]
         self.reset_hidden_state = configs["model"]["recurrence"]["reset_hidden_state"]
@@ -17,7 +17,7 @@ class RecurrentSampler(TrajectorySampler):
         self.buffer.init_recurrent_buffer_fields()
 
         # Setup initial recurrent cell
-        hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.device)
+        hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.sample_device)
         if self.layer_type == "gru":
             self.recurrent_cell = hxs
         elif self.layer_type == "lstm":
@@ -43,7 +43,7 @@ class RecurrentSampler(TrajectorySampler):
         """Resets the specified worker and resets the agent's recurrent cell state."""
         super().reset_worker(worker, id, t)
         if self.reset_hidden_state:
-            hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
+            hxs, cxs = self.model.init_recurrent_cell_states(1, self.sample_device)
             if self.layer_type == "gru":
                 self.recurrent_cell[id] = hxs
             elif self.layer_type == "lstm":

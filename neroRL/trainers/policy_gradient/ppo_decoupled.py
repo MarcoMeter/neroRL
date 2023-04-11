@@ -13,12 +13,14 @@ class DecoupledPPOTrainer(BaseTrainer):
     """The DecoupledPPOTrainer does not share parameters (i.e. weights) and not gradients among the policy and value function.
     Therefore, it uses slightly different hyperparameters as the regular PPOTrainer to allow more control over updating the
     policy and the value function. Optinally, the actor model can estimate the advantage function as proposed by Raileanu & Fergus, 2021"""
-    def __init__(self, configs, device, worker_id, run_id, out_path, seed = 0, compile_model = False):
+    def __init__(self, configs, sample_device, train_device, worker_id, run_id, out_path, seed = 0, compile_model = False):
         """
         Initializes distinct members of the DecoupledPPOTrainer
 
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. training and environment configs)
+            sample_device {torch.device} -- The device used for sampling training data.
+            train_device {torch.device} -- The device used for model optimization.
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
@@ -29,7 +31,7 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.use_daac = "DAAC" in configs["trainer"]
 
         # Init base class
-        super().__init__(configs, device, worker_id, run_id=run_id, out_path=out_path, seed=seed, compile_model=compile_model)
+        super().__init__(configs, sample_device, train_device, worker_id, run_id=run_id, out_path=out_path, seed=seed, compile_model=compile_model)
 
         # Hyperparameter setup
         self.num_policy_epochs = configs["trainer"]["policy_epochs"]
@@ -68,10 +70,10 @@ class DecoupledPPOTrainer(BaseTrainer):
 
     def create_model(self):
         model =  create_actor_critic_model(self.configs["model"], False,
-        self.vis_obs_space, self.vec_obs_space, self.action_space_shape,self.device)
+        self.vis_obs_space, self.vec_obs_space, self.action_space_shape,self.sample_device)
         # Optionally, add the advantage estimator head to the model
         if self.use_daac:
-            model.add_gae_estimator_head(self.action_space_shape, self.device)
+            model.add_gae_estimator_head(self.action_space_shape, self.sample_device)
         return model
 
     def train(self):
