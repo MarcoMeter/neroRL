@@ -3,7 +3,7 @@ import torch
 from torch import nn
 
 from neroRL.nn.encoder import CNNEncoder, ResCNN, SmallImpalaCNN, LinVecEncoder
-from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU
+from neroRL.nn.recurrent import GRU, LSTM
 from neroRL.nn.transformer import Transformer
 from neroRL.nn.body import HiddenLayer
 from neroRL.nn.module import Module, Sequential
@@ -240,13 +240,9 @@ class ActorCriticBase(Module):
             {Module} -- The created recurrent layer
         """
         if config["layer_type"] == "gru":
-            if config["residual"]:
-                return ResGRU(input_shape, hidden_state_size, config["num_layers"])
-            return GRU(input_shape, hidden_state_size, config["num_layers"])
+            return GRU(input_shape, hidden_state_size, config["num_layers"], self.activ_fn, config["residual"])
         elif config["layer_type"] == "lstm":
-            if config["residual"]:
-                return ResLSTM(input_shape, hidden_state_size, config["num_layers"])
-            return LSTM(input_shape, hidden_state_size, config["num_layers"])
+            return LSTM(input_shape, hidden_state_size, config["num_layers"], self.activ_fn, config["residual"])
 
     def create_transformer_layer(self, config, input_shape):
         """Creates and returns a transformer module based on the provided config.
