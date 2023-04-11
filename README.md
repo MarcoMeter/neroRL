@@ -1,10 +1,12 @@
 # neroRL
 
-neroRL is a PyTorch based research framework for Deep Reinforcement Learning specializing on Recurrent Proximal Policy Optimization.
+neroRL is a PyTorch based research framework for Deep Reinforcement Learning specializing on Transformer and Recurrent Agents based on Proximal Policy Optimization.
 Its focus is set on environments that are procedurally generated, while providing some usefull tools for experimenting and analyzing a trained behavior.
+This is a research framework.
 
 # Features
 - Environments:
+  - [Memory Gym](https://github.com/MarcoMeter/drl-memory-gym)
   - [Obstacle Tower](https://github.com/Unity-Technologies/obstacle-tower-env)
   - [Unity ML-Agents](https://github.com/Unity-Technologies/ml-agents)
   - [Procgen](https://github.com/openai/procgen)

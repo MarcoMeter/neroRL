@@ -110,6 +110,7 @@ trainer:
   # Each epoch trains on a random permutation of the sampled training batch
   epochs: 4
   # Refreshes the buffer every n epochs (-1 = turned off). Stale advantages and hidden states are refreshed.
+  # This feature might be broken by now
   refresh_buffer_epoch: -1
   # Number of mini batches that are trained throughout one epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
@@ -122,6 +123,7 @@ trainer:
   # Strength of clipping the loss gradients
   max_grad_norm: 0.5
   # Wether the actor and critic model should share its parameters
+  # Decoupled parameter training might be broken by now
   share_parameters: True
   # Polynomial Decay Schedules
   # Learning Rate

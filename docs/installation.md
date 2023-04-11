@@ -2,13 +2,13 @@
 
 ## Dependencies
 
-- Python >= 3.7
-- (Optional) CUDA >= 11.1
+- Python >= 3.9
+- (Optional) CUDA >= 11.7
 
 ## Install PyTorch
 
 Install PyTorch as described [here](https://pytorch.org/get-started/locally/).
-neroRL is tested with PyTorch version 1.8.1 and CUDA 11.1
+neroRL is tested with PyTorch version 2.0.0 and CUDA 11.7
 
 ## Install neroRL
 
@@ -19,6 +19,8 @@ If the source code is not needed, simply install the PyPi package. Depending on 
 Otherwise clone this repository and use the setup.py
 
 `git clone https://github.com/MarcoMeter/neroRL.git`
+
+`cd neroRL`
 
 `pip install -e .[procgen]`
 

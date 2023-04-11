@@ -30,6 +30,8 @@ environment:
   grayscale: False
   # Whether to rescale visual observations to the specified dimensions
   resize_vis_obs: [84, 84]
+  # Whether to add or concatenate positional encodings to the agent's observation
+  positional_encoding: False
   # Only add the spotlight_perturbation dictionary if an environment with visual observations shall be perturbed by randomly moving spotlights.
   spotlight_perturbation:
     start-seed: 0
@@ -76,7 +78,7 @@ Some environments come with their own distinct reset parameters (see `reset_para
 
 ```
 model:
-  # Whether to load a model
+  # Whether to load a model checkpoint to resume training
   load_model: False
   # File path to the model
   model_path: "path/to/model.pt"
@@ -100,6 +102,8 @@ model:
     # Whether to reset the hidden state before a new episode.
     # Environments that use short episodes are likely to profit from not resetting the hidden state.
     reset_hidden_state: True
+    # Whether to add a residual connection between the input and the output of the recurrennt layers
+    residual: False
   # Set the to be used vector encoder
   vec_encoder: "linear" # "linear", "none"
   num_vec_encoder_units: 128
@@ -113,7 +117,7 @@ model:
 
 Every tool may use the model_path.
 During training models are saved to the `checkpoints` directory.
-The [model's architecture](model.md) can be customized to support varying observation encoders or even recurrent policies.
+The [model's architecture](model.md) can be customized to support varying observation encoders or even recurrent or transformer policies.
 
 ## Evaluation Config
 
@@ -169,10 +173,13 @@ trainer:
   # Each epoch trains on a random permutation of the sampled training batch
   epochs: 4
   # Refreshes the buffer every n epochs (-1 = turned off). Stale advantages and hidden states are refreshed.
+  # This feature might be broken by now
   refresh_buffer_epoch: -1
   # Number of mini batches that are trained throughout one epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
   n_mini_batches: 4
+  # Wether to normalize the advantages on "minibatch" level, "batch" level or not at all ("no").
+  advantage_normalization: "minibatch"
   # Coefficient of the loss of the value function (i.e. critic)
   # It is only of use if model parameters are shared among the actor and the critic
   value_coefficient: 0.25
@@ -206,6 +213,8 @@ Polynomial decay schedules can be applied to the clip_range, the entropy bonus c
 
 ### DecoupledPPO
 
+The training with decoupled gradients and parameters might be broken by now.
+
 ```
 trainer:
   # Which algorithm to use. For now, PPO is supported.
@@ -236,6 +245,8 @@ trainer:
   n_value_mini_batches: 1
   # This interval determines when to optimize the value function based on how many update cycles have passed.
   value_update_interval: 1
+  # Wether to normalize the advantages on "minibatch" level, "batch" level or not at all ("no").
+  advantage_normalization: "minibatch"
   # Strength of clipping the norm of the policy loss gradients
   max_policy_grad_norm: 0.5
   # Strength of clipping the norm of the value loss gradients

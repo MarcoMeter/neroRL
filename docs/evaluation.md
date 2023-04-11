@@ -14,7 +14,7 @@ To evaluate a model utilize the `neval` command. `python neroRL/eval.py` is the 
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
-"""
+    """
 ```
 
 ## --config
