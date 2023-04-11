@@ -71,7 +71,7 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
     if env.visual_observation_space is not None:
         env = ScaledVisualObsEnv(env, config["resize_vis_obs"][0], config["resize_vis_obs"][1])
     # Positional Encoding
-    if env.visual_observation_space is not None and config["positional_encoding"]:
+    if config["positional_encoding"]:
         env = PositionalEncodingEnv(env)
     # Stack Observation
     if config["obs_stacks"] > 1:

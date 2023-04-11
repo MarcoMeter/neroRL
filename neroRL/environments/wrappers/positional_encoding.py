@@ -2,7 +2,7 @@ import numpy as np
 from neroRL.environments.env import Env
 
 class PositionalEncodingEnv(Env):
-    """This wrapper adds positional encoding to visual observation or concatenates positional encoding to vector observations."""
+    """This wrapper concatenates positional encoding to vector observations."""
 
     def __init__(self, env):
         """Initializes the positoinal encoding.
@@ -12,22 +12,22 @@ class PositionalEncodingEnv(Env):
         """
         self._env = env
 
-        # Prepare positional encoding
-        # self._vector_observation_space = self._env.vector_observation_space
+        # Prepare relative positional encoding
         sequence_length = 512
         n = 10000
-        # if self._env.visual_observation_space is not None:
-            # d = self._env.visual_observation_space.shape[0] * self._env.visual_observation_space.shape[0]
-        # else:
         d = 16
-            # Udate the shape of the vector observation space
-        self._vector_observation_space = (self._env.vector_observation_space[0] + d,)
         self.pos_encoding = np.zeros((512, d), dtype=np.float32)
         for k in range(sequence_length):
             for i in np.arange(int(d/2)):
                 denominator = np.power(n, 2*i/d)
                 self.pos_encoding[k, 2*i] = np.sin(k/denominator)
                 self.pos_encoding[k, 2*i+1] = np.cos(k/denominator)
+
+        # Udate the shape of the vector observation space
+        if self._env.vector_observation_space is not None:
+            self._vector_observation_space = (self._env.vector_observation_space[0] + d,)
+        else:
+            self._vector_observation_space = (d,)
 
     @property
     def unwrapped(self):
@@ -48,6 +48,11 @@ class PositionalEncodingEnv(Env):
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return self._env.action_space
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return self._env.max_episode_steps
 
     @property
     def seed(self):
@@ -72,18 +77,18 @@ class PositionalEncodingEnv(Env):
             reset_params {dict} -- Reset parameters to configure the environment (default: {None})
         
         Returns:
-            {numpy.ndarray} -- Resized visual observation
+            {numpy.ndarray} -- Visual observation
             {numpy.ndarray} -- Vector observation
         """
         # Track the current step of the episode
         self.t = 0
         vis_obs, vec_obs = self._env.reset(reset_params = reset_params)
 
-        # Apply positional encoding
-        # if self._env.visual_observation_space is not None:
-        #     vis_obs = self._add_visual_positional_encoding(vis_obs, self.t)
-        # else:
-        vec_obs = self._cat_positional_encoding(vec_obs, self.t)
+        # Concatenate positional encoding
+        if vec_obs is not None:
+            vec_obs = np.concatenate((vec_obs, self.pos_encoding[self.t]))
+        else:
+            vec_obs = self.pos_encoding[self.t]
 
         return vis_obs, vec_obs
 
@@ -94,8 +99,8 @@ class PositionalEncodingEnv(Env):
             action {List} -- A list of at least one discrete action to be executed by the agent
         
         Returns:
-            {numpy.ndarray} -- Stacked visual observation
-            {numpy.ndarray} -- Stacked vector observation
+            {numpy.ndarray} -- Visual observation
+            {numpy.ndarray} -- Vector observation
             {float} -- Scalar reward signaled by the environment
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information retrieved from the environment
@@ -105,40 +110,14 @@ class PositionalEncodingEnv(Env):
         # Increment the current step of the episode
         self.t += 1
 
-        # Apply positional encoding
-        # if self._env.visual_observation_space is not None:
-        #     vis_obs = self._add_visual_positional_encoding(vis_obs, self.t)
-        # else:
-        vec_obs = self._cat_positional_encoding(vec_obs, self.t)
+        # Concatenate positional encoding
+        if vec_obs is not None:
+            vec_obs = np.concatenate((vec_obs, self.pos_encoding[self.t]))
+        else:
+            vec_obs = self.pos_encoding[self.t]
 
         return vis_obs, vec_obs, reward, done, info
 
     def close(self):
         """Shuts down the environment."""
         self._env.close()
-
-    def _add_visual_positional_encoding(self, vis_obs, t):
-        """Adds positional encoding to to the visual observation.
-        
-        Arguments:
-            vis_obs {numpy.ndarray} -- The source visual observation
-            t {int} -- The current step of the episode
-        
-        Returns:
-            {numpy.ndarray} -- The visual observation with the positional encoding
-        """
-        encoding = self.pos_encoding[t].reshape(self._env.visual_observation_space.shape[:2])
-        vis_obs = vis_obs + np.expand_dims(encoding, axis=2)
-        return vis_obs
-
-    def _cat_positional_encoding(self, vec_obs, t):
-        """Concatenate positional encoding to the vector observation
-
-        Arguments:
-            vec_obs {numpy.ndarray} -- The source visual observation
-            t {int} -- The current step of the episode
-
-        Returns:
-            {numpy.ndarray} -- The vector observation with the positional encoding
-        """
-        return np.concatenate((vec_obs, self.pos_encoding[t]))

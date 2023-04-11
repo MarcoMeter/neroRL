@@ -22,7 +22,7 @@ environment:
   # Whether to rescale visual observations to the specified dimensions
   resize_vis_obs: [84, 84]
   # Whether to add or concatenate positional encodings to the agent's observation
-  positional_endocing: False
+  positional_encoding: False
   # Reset parameters for the environment
   # At minimum, these parameters set the range of training seeds
   # Environments, like Obstacle Tower, provide more parameters to alter the environment

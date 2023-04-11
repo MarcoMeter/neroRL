@@ -2,11 +2,11 @@ environment:
   type: "MemoryGym"
   name: "MortarMayhemB-Grid-v0"
   frame_skip: 1
-  last_action_to_obs: False
-  last_reward_to_obs: False
+  last_action_to_obs: True
+  last_reward_to_obs: True
   obs_stacks: 1
   grayscale: False
-  positional_endocing: True
+  positional_encoding: True
   resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
@@ -15,8 +15,8 @@ environment:
     arena_size: 5
     allowed_commands: 5
     command_count: [10]
-    explosion_duration: 2
-    explosion_delay: 5
+    explosion_duration: [2]
+    explosion_delay: [6]
     reward_command_failure: 0.0
     reward_command_success: 0.1
     reward_episode_success: 0.0
@@ -36,22 +36,19 @@ model:
 evaluation:
   evaluate: False
   n_workers: 3
-  seeds:
-    start-seed: 100000
-    num-seeds: 10
+  seeds: [1001, 1002, 1003, 1004, 1005]
   interval: 200
 
 sampler:
-  type: "TrajectorySampler"
   n_workers: 16
-  worker_steps: 256
+  worker_steps: 512
 
 trainer:
   algorithm: "PPO"
   resume_at: 0
   gamma: 0.99
   lamda: 0.95
-  updates: 20000
+  updates: 10000
   epochs: 3
   refresh_buffer_epoch: -1
   n_mini_batches: 8
