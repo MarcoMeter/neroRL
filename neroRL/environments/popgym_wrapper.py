@@ -46,7 +46,7 @@ class POPGymWrapper(Env):
         render_mode = None if not realtime_mode else "rgb_array"
         # The keyword: render_mode is only supported for some environments
         if render_mode is not None:
-            self._env = gym.make(env_name, render_mode=render_mode)
+            self._env = gym.make(env_name)
         else:
             self._env = gym.make(env_name)
 
@@ -186,6 +186,8 @@ class POPGymWrapper(Env):
             info = None
 
         return vis_obs, vec_obs, reward, done or truncation, info
+
+
 
     def close(self):
         """Shuts down the environment."""
