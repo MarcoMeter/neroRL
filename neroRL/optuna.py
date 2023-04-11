@@ -136,6 +136,9 @@ def main():
         trainer = PPOTrainer(trial_config, device, train_config["worker_id"], run_id, out_path, seed)
         monitor.write_hyperparameters(train_config)
 
+        # Print the number of trainable parameters
+        monitor.log("Number of trainable parameters: " + trainer.get_num_trainable_parameters_str())
+
         # Log environment specifications
         monitor.log("Environment specs:")
         monitor.log("\t" + "Visual Observation Space: " + str(trainer.vis_obs_space))
