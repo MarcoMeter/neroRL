@@ -3,6 +3,7 @@ import torch
 from torch import nn
 
 from neroRL.nn.encoder import CNNEncoder, ResCNN, SmallImpalaCNN, LinVecEncoder
+from neroRL.nn.decoder import CNNDecoder
 from neroRL.nn.recurrent import GRU, LSTM
 from neroRL.nn.transformer import Transformer
 from neroRL.nn.body import HiddenLayer
@@ -36,25 +37,27 @@ class ActorCriticBase(Module):
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
-    def create_base_model(self, config, vis_obs_space, vec_obs_shape):
+    def create_base_model(self, config, vis_obs_space, vec_obs_shape, use_decoder = False):
         """
         Creates and returns the components of a base model, which consists of:
             - a visual encoder,
             - a vector encoder
             - a recurrent layer (optional)
-            - a transformer architecture (optinal)
-            - and a body
+            - a transformer architecture (optional)
+            - a body
+            - and a visual decoder
         specified by the model config.
 
         Arguments:
             config {dict} -- Model config
             vis_obs_space {box} -- Dimensions of the visual observation space
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
+            use_decoder {bool} -- Whether to use a decoder for observation reconstruction or not (default: {False})
         
         Returns:
-            {tuple} -- visual encoder, vector encoder, recurrent layer, transformer, body
+            {tuple} -- visual encoder, vector encoder, recurrent layer, transformer, body, vis_decoder
         """
-        vis_encoder, vec_encoder, recurrent_layer, transformer, body = None, None, None, None, None
+        vis_encoder, vec_encoder, recurrent_layer, transformer, body, vis_decoder = None, None, None, None, None, None
 
         # Observation encoder
         if vis_obs_space is not None:
@@ -65,6 +68,10 @@ class ActorCriticBase(Module):
             # Compute output size of the encoder
             conv_out_size = self.get_vis_enc_output(vis_encoder, vis_obs_shape)
             in_features_next_layer = conv_out_size
+
+            # Observation decoder when using observation reconstruction
+            if use_decoder:
+                vis_decoder = CNNDecoder(conv_out_size, vis_obs_shape)
 
             # Determine number of features for the next layer's input
             if vec_obs_shape is not None:
@@ -95,7 +102,7 @@ class ActorCriticBase(Module):
         out_features = config["num_hidden_units"]
         body = self.create_body(config, in_features_next_layer, out_features)
 
-        return vis_encoder, vec_encoder, recurrent_layer, transformer, body
+        return vis_encoder, vec_encoder, recurrent_layer, transformer, body, vis_decoder
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
@@ -195,6 +202,24 @@ class ActorCriticBase(Module):
             return ResCNN(vis_obs_space, config, self.activ_fn)
         elif config["vis_encoder"] == "smallimpala":
             return SmallImpalaCNN(vis_obs_space, config, self.activ_fn)
+        
+    def create_vis_decoder(self, config, vis_obs_space):
+        """Creates and returns a new instance of the visual decoder based on the model config.
+
+        Arguments:
+            config {dict} -- Model config
+            vis_obs_space {box} -- Dimensions of the visual observation space
+
+        Returns:
+            {Module} -- The created visual decoder
+        """
+        if config["vis_decoder"] == "cnn":
+            return CNNDecoder(vis_obs_space, config, self.activ_fn)
+        elif config["vis_decoder"] == "rescnn":
+            raise NotImplementedError("ResCNN decoder not implemented yet.")
+        elif config["vis_decoder"] == "smallimpala":
+            raise NotImplementedError("SmallImpalaCNN decoder not implemented yet.")
+
 
     def create_vec_encoder(self, config, in_features, out_features):
         """Creates and returns a new instance of the vector encoder based on the model config.

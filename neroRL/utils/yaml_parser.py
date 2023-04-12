@@ -96,7 +96,8 @@ class YamlParser:
             "share_parameters": True,
             "learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},
-            "clip_range_schedule": {"initial": 0.2}
+            "clip_range_schedule": {"initial": 0.2},
+            "obs_reconstruction_schedule": {"initial": 0.0},
         }
 
         decoupled_ppo_dict = {

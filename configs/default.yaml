@@ -144,3 +144,9 @@ trainer:
     final: 0.2
     power: 1.0
     max_decay_steps: 1000
+  # Strength of the observation reconstruction loss
+  obs_reconstruction_schedule:
+    initial: 1.0
+    final: 1.0
+    power: 1.0
+    max_decay_steps: 1000

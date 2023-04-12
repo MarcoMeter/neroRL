@@ -295,7 +295,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, use_decoder = False):
         """Model setup
 
         Arguments:
@@ -303,8 +303,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
-            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
+            use_decoder {bool} -- Whether to use a decoder for observation reconstruction or not (default: {False})
         """
         ActorCriticBase.__init__(self, config)
 
@@ -312,7 +311,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.share_parameters = True
 
         # Create the base model
-        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.transformer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.transformer, self.body, self.vis_decoder = self.create_base_model(config, vis_obs_space, vec_obs_shape, use_decoder)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(self.out_features_body, action_space_shape, self.activ_fn)
@@ -330,6 +329,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
             "actor_head": self.actor_policy,
             "critic_head": self.critic
         }
+
+        if self.vis_decoder is not None:
+            self.actor_critic_modules["vis_decoder"] = self.vis_decoder
 
         if self.transformer is not None:
             for b, block in enumerate(self.transformer.transformer_blocks):
@@ -353,6 +355,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Forward observation encoder
         if vis_obs is not None:
             h = self.vis_encoder(vis_obs)
+            self.vis_encoder_features = h # vis encoder featurers are only persistent for the utilization of the observation reconstruction
             if vec_obs is not None:
                 h_vec = self.vec_encoder(vec_obs)
                 # Add vector observation to the flattened output of the visual encoder if available
@@ -377,8 +380,16 @@ class ActorCriticSharedWeights(ActorCriticBase):
         pi = self.actor_policy(h)
 
         return pi, value, memory, None
+    
+    def reconstruct_observation(self):
+        """Reconstructs the observation from the visual encoder features
+        
+        Returns:
+            {torch.tensor} -- Reconstructed observation"""
+        y = self.vis_decoder(self.vis_encoder_features)
+        return y
 
-def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, device):
+def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, device, use_decoder = False):
     """Creates a shared or non-shared weights actor critic model.
 
     Arguments:
@@ -388,13 +399,14 @@ def create_actor_critic_model(model_config, share_parameters, visual_observation
         vector_observation_space {tuple} -- Dimensions of the vector observation space (None if not available)
         action_space_shape {tuple} -- Dimensions of the action space
         device {torch.device} -- Current device
+        use_decoder {bool} -- Whether to use a decoder for observation reconstruction or not (default: {False})
 
     Returns:
         {ActorCriticBase} -- The created actor critic model
     """
     if share_parameters: # check if the actor critic model should share its weights
         return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
-                            action_space_shape).to(device)
+                            action_space_shape, use_decoder).to(device)
     else:
         return ActorCriticSeperateWeights(model_config, visual_observation_space, vector_observation_space,
                             action_space_shape).to(device)

@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from torch import optim
+from torch import nn, optim
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
@@ -47,9 +47,16 @@ class PPOTrainer(BaseTrainer):
         # Instantiate optimizer
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.learning_rate)
 
+        # Setup visual observation reconstruction members
+        if self.use_obs_reconstruction:
+            self.obs_recon_schedule = self.configs["trainer"]["obs_reconstruction_schedule"]
+            self.obs_recon_coef = self.obs_recon_schedule["initial"]
+            self.bce_loss = nn.BCELoss()
+
     def create_model(self) -> None:
+        self.use_obs_reconstruction = self.configs["trainer"]["obs_reconstruction_schedule"]["initial"] > 0.0
         return create_actor_critic_model(self.configs["model"], self.configs["trainer"]["share_parameters"],
-        self.vis_obs_space, self.vec_obs_space, self.action_space_shape, self.sample_device)
+        self.vis_obs_space, self.vec_obs_space, self.action_space_shape, self.sample_device, use_decoder = self.use_obs_reconstruction)
 
     def train(self):
         train_info = {}
@@ -84,8 +91,12 @@ class PPOTrainer(BaseTrainer):
             train_info[key] = (tag, np.mean(values))
 
         # Format specific values for logging inside the base class
-        formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
-            train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
+        if self.use_obs_reconstruction:
+            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} r_loss={:.3f} entropy={:.3f}".format(
+                train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["r_loss"][1], train_info["entropy"][1])
+        else:
+            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
+                train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
 
         # Return the mean of the training statistics
         return train_info, formatted_string
@@ -164,6 +175,19 @@ class PPOTrainer(BaseTrainer):
         # Complete loss
         loss = -(policy_loss - self.vf_loss_coef * vf_loss + self.beta * entropy_bonus)
 
+        # Add observation reconstruction loss
+        if self.use_obs_reconstruction:
+            # Forward decoder
+            decoder_output = self.model.reconstruct_observation()
+            vis_obs = samples["vis_obs"]
+            # Remove paddings if recurrence is used
+            if self.recurrence is not None:
+                decoder_output = decoder_output[samples["loss_mask"]]
+                vis_obs = vis_obs[samples["loss_mask"]]
+            # Compute reconstruction loss
+            reconstruction_loss = self.bce_loss(decoder_output, vis_obs)
+            loss += self.obs_recon_coef * reconstruction_loss
+
         # Compute gradients
         self.optimizer.zero_grad()
         loss.backward()
@@ -180,13 +204,18 @@ class PPOTrainer(BaseTrainer):
         else:
             modules = {**self.model.actor_modules, **self.model.critic_modules}
 
-        return {**compute_gradient_stats(modules),
+        out = {**compute_gradient_stats(modules),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),
                 "value_loss": (Tag.LOSS, vf_loss.cpu().data.numpy()),
                 "loss": (Tag.LOSS, loss.cpu().data.numpy()),
                 "entropy": (Tag.OTHER, entropy_bonus.cpu().data.numpy()),
                 "kl_divergence": (Tag.OTHER, approx_kl.cpu().data.numpy()),
                 "clip_fraction": (Tag.OTHER, clip_fraction.cpu().data.numpy())}
+        
+        if self.use_obs_reconstruction:
+            out["r_loss"] = (Tag.LOSS, reconstruction_loss.cpu().data.numpy())
+
+        return out
 
     def step_decay_schedules(self, update):
         self.learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"],
@@ -195,16 +224,26 @@ class PPOTrainer(BaseTrainer):
                                         self.beta_schedule["max_decay_steps"], self.beta_schedule["power"], update)
         self.clip_range = polynomial_decay(self.cr_schedule["initial"], self.cr_schedule["final"],
                                         self.cr_schedule["max_decay_steps"], self.cr_schedule["power"], update)
-
+        if self.use_obs_reconstruction:
+            self.obs_recon_coef = polynomial_decay(self.obs_recon_schedule["initial"], self.obs_recon_schedule["final"], 
+                                            self.obs_recon_schedule["max_decay_steps"], self.obs_recon_schedule["power"], update)
+        
         # Apply learning rate to optimizer
         for pg in self.optimizer.param_groups:
             pg["lr"] = self.learning_rate
 
-        return {
+        # Report decayed values
+        out = {
             "learning_rate": (Tag.DECAY, self.learning_rate),
             "beta": (Tag.DECAY, self.beta),
             "clip_range": (Tag.DECAY, self.clip_range)
         }
+
+        # Report current observation reconstruction coefficient if applicable
+        if self.use_obs_reconstruction:
+            out["obs_recon_coef"] = (Tag.DECAY, self.obs_recon_coef)
+
+        return out
 
 
     def collect_checkpoint_data(self, update):
