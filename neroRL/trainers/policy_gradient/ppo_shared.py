@@ -188,6 +188,11 @@ class PPOTrainer(BaseTrainer):
             reconstruction_loss = self.bce_loss(decoder_output, vis_obs)
             loss += self.obs_recon_coef * reconstruction_loss
 
+        # plot several images of viso_obs next to the reconstructed images
+        # if self.use_obs_reconstruction and self.vis_obs_space is not None:
+        #     if self.current_update % 10 == 0 and self.current_update > 1:
+        #         self.plot_obs_reconstruction(vis_obs, decoder_output)
+
         # Compute gradients
         self.optimizer.zero_grad()
         loss.backward()
@@ -217,6 +222,19 @@ class PPOTrainer(BaseTrainer):
 
         return out
 
+    def plot_obs_reconstruction(self, vis_obs, decoder_output):
+        import matplotlib.pyplot as plt
+        # plot the first 5 images of viso_obs next to the reconstructed images
+        vis_obs = vis_obs.cpu().data.numpy()
+        decoder_output = decoder_output.cpu().data.numpy()
+        for i in range(100):
+            fig, axes = plt.subplots(1, 2)
+            axes[0].imshow(vis_obs[i].transpose(1, 2, 0))
+            axes[1].imshow(decoder_output[i].transpose(1, 2, 0))
+            plt.savefig("./obs/obs_reconstruction_" + str(i) + ".png")
+            plt.close()
+        assert False
+
     def step_decay_schedules(self, update):
         self.learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"],
                                         self.lr_schedule["max_decay_steps"], self.lr_schedule["power"], update)
@@ -244,7 +262,6 @@ class PPOTrainer(BaseTrainer):
             out["obs_recon_coef"] = (Tag.DECAY, self.obs_recon_coef)
 
         return out
-
 
     def collect_checkpoint_data(self, update):
         checkpoint_data = super().collect_checkpoint_data(update)

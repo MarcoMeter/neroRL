@@ -48,6 +48,7 @@ class CNNEncoder(Module):
         h = self.activ_fn(self.conv1(vis_obs))
         h = self.activ_fn(self.conv2(h))
         h = self.activ_fn(self.conv3(h))
+        self.h = h
         # Flatten the output of the convolutional layers
         h = h.reshape((-1, self.conv_enc_size))
 

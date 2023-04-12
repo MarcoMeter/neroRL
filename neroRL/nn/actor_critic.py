@@ -355,7 +355,6 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Forward observation encoder
         if vis_obs is not None:
             h = self.vis_encoder(vis_obs)
-            self.vis_encoder_features = h # vis encoder featurers are only persistent for the utilization of the observation reconstruction
             if vec_obs is not None:
                 h_vec = self.vec_encoder(vec_obs)
                 # Add vector observation to the flattened output of the visual encoder if available
@@ -386,7 +385,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         
         Returns:
             {torch.tensor} -- Reconstructed observation"""
-        y = self.vis_decoder(self.vis_encoder_features)
+        y = self.vis_decoder(self.vis_encoder.h)
         return y
 
 def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, device, use_decoder = False):

@@ -18,9 +18,9 @@ class CNNDecoder(Module):
         self.output_shape = output_shape
 
     def forward(self, x):
-        x = x.view(x.size(0), 64, 7, 7)
+        # x = x.view(x.size(0), 64, 7, 7)
         x = F.relu(self.deconv1(x))
         x = F.relu(self.deconv2(x))
-        x = torch.tanh(self.deconv3(x)) # alternative torch.sigmoid(self.deconv3(x))
-        x = (x + 1) / 2                 # scale to [0, 1]
+        x = torch.sigmoid(self.deconv3(x))  # alternative torch.tanh(self.deconv3(x))
+        # x = (x + 1) / 2                   # scale to [0, 1]
         return x
