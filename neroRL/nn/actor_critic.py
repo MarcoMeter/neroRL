@@ -370,6 +370,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
         if self.transformer is not None:
             h, memory = self.transformer(h, memory, mask, memory_indices)
 
+        # Store hidden representation for observation reconstruction
+        self.h = h
+
         # Feed network body
         h = self.body(h)
 
@@ -385,7 +388,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         
         Returns:
             {torch.tensor} -- Reconstructed observation"""
-        y = self.vis_decoder(self.vis_encoder.h)
+        y = self.vis_decoder(self.h)
         return y
 
 def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, device, use_decoder = False):

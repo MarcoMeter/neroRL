@@ -71,7 +71,13 @@ class ActorCriticBase(Module):
 
             # Observation decoder when using observation reconstruction
             if use_decoder:
-                vis_decoder = CNNDecoder(conv_out_size, vis_obs_shape)
+                if self.recurrence_config is not None:
+                    decoder_input_dim = self.recurrence_config["hidden_state_size"]
+                elif self.transformer_config is not None:
+                    decoder_input_dim = self.transformer_config["embed_dim"]
+                else:
+                    decoder_input_dim = conv_out_size
+                vis_decoder = CNNDecoder(decoder_input_dim, vis_obs_shape)
 
             # Determine number of features for the next layer's input
             if vec_obs_shape is not None:
