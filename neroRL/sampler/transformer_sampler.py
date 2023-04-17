@@ -65,7 +65,7 @@ class TransformerSampler(TrajectorySampler):
         2, 3, 4, 5
         3, 4, 5, 6
         """
-        self.critical_memory_usage = configs["sampler"]["critical_memory_usage"]
+        self.critical_memory_usage, self.is_critical_memory = configs["sampler"]["critical_memory_usage"], False
 
     def sample(self, device) -> list:
         """Samples training data (i.e. experience tuples) using n workers for t worker steps. But before, the memory buffer is initialized."""
@@ -136,4 +136,18 @@ class TransformerSampler(TrajectorySampler):
             self.buffer.memory_indices = self.buffer.memory_indices.cpu()
             self.buffer.memories = [m.cpu() for m in self.buffer.memories]
             self.model.transformer = self.model.transformer.cpu()
+            self.is_critical_memory = True
+    
+    def _reset_memory_usage(self):
+        """Resets the memory usage by moving the necessary parts back to the gpu."""
+        # Check if the memory usage was critical
+        if self.is_critical_memory:
+            # Move the memory and transformer model back to the gpu
+            self.memory = self.memory.to(self.device)
+            self.memory_mask = self.memory_mask.to(self.device)
+            self.memory_indices = self.memory_indices.to(self.device)
+            self.buffer.memory_mask = self.buffer.memory_mask.to(self.device)
+            self.buffer.memory_indices = self.buffer.memory_indices.to(self.device)
+            self.buffer.memories = [m.to(self.device) for m in self.buffer.memories]
+            self.model.transformer = self.model.transformer.to(self.device)
         
