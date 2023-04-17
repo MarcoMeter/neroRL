@@ -119,8 +119,8 @@ class TransformerSampler(TrajectorySampler):
     
     def _check_for_memory_usage(self):
         """Checks if the memory usage is critical and if so, it reduces the used gpu memory by moving the necessary parts to the cpu."""
-        # Check if the device is a gpu
-        if self.device.type == "cpu":
+        # Check if the device is on cpu or if the memory usage is critical to avoid unnecessary checks
+        if self.device.type == "cpu" or self.is_critical_memory:
             return
         
         # Get the relative free memory of the gpu
@@ -137,6 +137,7 @@ class TransformerSampler(TrajectorySampler):
             self.buffer.memories = [m.cpu() for m in self.buffer.memories]
             self.model.transformer = self.model.transformer.cpu()
             self.is_critical_memory = True
+            self.buffer.is_critical_memory = True
     
     def _reset_memory_usage(self):
         """Resets the memory usage by moving the necessary parts back to the gpu."""
@@ -150,4 +151,4 @@ class TransformerSampler(TrajectorySampler):
             self.buffer.memory_indices = self.buffer.memory_indices.to(self.device)
             self.buffer.memories = [m.to(self.device) for m in self.buffer.memories]
             self.model.transformer = self.model.transformer.to(self.device)
-        
+            self.buffer.is_critical_memory = False

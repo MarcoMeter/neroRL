@@ -16,6 +16,7 @@ class Buffer():
             sampler {TrajectorySampler} -- The used sampler
         """
         self.device = device
+        self.is_critical_memory = False
         self.sampler = sampler
         self.configs = configs
         self.recurrence, self.transformer_memory = None, None       # place holder for recurrence and transformer config
