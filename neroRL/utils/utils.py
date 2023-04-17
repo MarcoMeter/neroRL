@@ -101,3 +101,13 @@ def aggregate_episode_results(episode_infos):
             results[key + "_max"] = np.max([info[key] for info in episode_infos])
             results[key + "_std"] = np.std([info[key] for info in episode_infos])
     return results
+
+def get_gpu_memory_map():
+        """ Summarizes the current GPU memory usage.
+        
+        Returns:
+            {dict} -- Dictionary of current gpu memory usage.
+        """
+        free_memory, total_memory = torch.cuda.mem_get_info()
+        
+        return {'total': total_memory, 'free': free_memory, 'rel_free': free_memory/total_memory}

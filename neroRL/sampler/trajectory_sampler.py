@@ -116,16 +116,6 @@ class TrajectorySampler():
 
         return episode_infos
 
-    def get_gpu_memory_map(self, device_id=0):
-        """ Summarizes the current GPU memory usage.
-        
-        Returns:
-            {dict} -- Dictionary of current gpu memory usage.
-        """
-        free_memory, total_memory = torch.cuda.mem_get_info()
-        
-        return {'total': total_memory, 'free': free_memory, 'rel_free': free_memory/total_memory}
-
     def previous_model_input_to_buffer(self, t):
         """Add the model's previous input to the buffer.
 
