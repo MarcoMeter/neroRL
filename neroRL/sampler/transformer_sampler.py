@@ -1,7 +1,7 @@
 import torch
 
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
-from neroRL.utils.utils import batched_index_select
+from neroRL.utils.utils import batched_index_select, get_gpu_memory_map
 
 class TransformerSampler(TrajectorySampler):
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
@@ -65,6 +65,7 @@ class TransformerSampler(TrajectorySampler):
         2, 3, 4, 5
         3, 4, 5, 6
         """
+        self.critical_memory_usage = configs["sampler"]["critical_memory_usage"]
 
     def sample(self, device) -> list:
         """Samples training data (i.e. experience tuples) using n workers for t worker steps. But before, the memory buffer is initialized."""
@@ -115,3 +116,18 @@ class TransformerSampler(TrajectorySampler):
                                         memory = sliced_memory, mask = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)],
                                         memory_indices = self.buffer.memory_indices[:,-1])
         return last_value
+    
+    def _check_for_memory_usage(self):
+        """Checks if the memory usage is critical and if so, it reduces the used gpu memory by moving the necessary parts to the cpu."""
+        rel_free_memory = get_gpu_memory_map()["rel_free"]
+        
+        if rel_free_memory < self.critical_memory_usage:
+            print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.")
+            self.memory = self.memory.cpu()
+            self.memory_mask = self.memory_mask.cpu()
+            self.memory_indices = self.memory_indices.cpu()
+            self.buffer.memory_mask = self.buffer.memory_mask.cpu()
+            self.buffer.memory_indices = self.buffer.memory_indices.cpu()
+            self.buffer.memories = [m.cpu() for m in self.buffer.memories]
+            self.model.transformer = self.model.transformer.cpu()
+        
