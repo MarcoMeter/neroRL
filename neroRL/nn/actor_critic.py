@@ -371,6 +371,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             # This is necessary because memory could be critical for the transformer
             transformer_device = next(self.transformer.parameters()).device
             h, memory = self.transformer(h.to(transformer_device), memory, mask, memory_indices)
+            # Move the output back to the device of the model
             h = h.to(self.device)
 
         # Feed network body
