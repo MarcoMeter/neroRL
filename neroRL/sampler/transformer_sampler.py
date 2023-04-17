@@ -133,8 +133,7 @@ class TransformerSampler(TrajectorySampler):
         
         # Calculate the critical memory usage
         # needed_size = sys.getsizeof(self.memory[0].storage())
-        # epsilon = 2000
-        # self.critical_memory_usage = (needed_size + epsilon) / get_gpu_memory_map()["total"]
+        # self.critical_memory_usage = (needed_size * 3) / get_gpu_memory_map()["total"]
         
         # Check if the memory usage is critical
         if rel_free_memory < self.critical_memory_usage:
