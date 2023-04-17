@@ -119,8 +119,14 @@ class TransformerSampler(TrajectorySampler):
     
     def _check_for_memory_usage(self):
         """Checks if the memory usage is critical and if so, it reduces the used gpu memory by moving the necessary parts to the cpu."""
+        # Check if the device is a gpu
+        if self.device.type == "cpu":
+            return
+        
+        # Get the relative free memory of the gpu
         rel_free_memory = get_gpu_memory_map()["rel_free"]
         
+        # Check if the memory usage is critical
         if rel_free_memory < self.critical_memory_usage:
             print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.")
             self.memory = self.memory.cpu()
