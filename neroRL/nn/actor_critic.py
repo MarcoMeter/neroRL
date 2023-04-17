@@ -367,7 +367,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         # Forward transformer if available
         if self.transformer is not None:
-            h, memory = self.transformer(h, memory, mask, memory_indices)
+            transformer_device = next(self.transformer.parameters()).device
+            h, memory = self.transformer(h.to(transformer_device), memory, mask, memory_indices)
+            h = h.to(self.device)
 
         # Feed network body
         h = self.body(h)
