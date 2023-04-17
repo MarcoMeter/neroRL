@@ -1,4 +1,5 @@
 import torch
+import sys
 
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
 from neroRL.utils.utils import batched_index_select, get_gpu_memory_map
@@ -129,6 +130,11 @@ class TransformerSampler(TrajectorySampler):
         
         # Get the relative free memory of the gpu
         rel_free_memory = get_gpu_memory_map()["rel_free"]
+        
+        # Calculate the critical memory usage
+        # needed_size = sys.getsizeof(self.memory[0].storage())
+        # epsilon = 2000
+        # self.critical_memory_usage = (needed_size + epsilon) / get_gpu_memory_map()["total"]
         
         # Check if the memory usage is critical
         if rel_free_memory < self.critical_memory_usage:
