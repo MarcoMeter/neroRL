@@ -367,6 +367,8 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         # Forward transformer if available
         if self.transformer is not None:
+            # Move the input to the device of the transformer
+            # This is necessary because memory could be critical for the transformer
             transformer_device = next(self.transformer.parameters()).device
             h, memory = self.transformer(h.to(transformer_device), memory, mask, memory_indices)
             h = h.to(self.device)
