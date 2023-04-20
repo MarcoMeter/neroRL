@@ -51,6 +51,7 @@ evaluation:
 sampler:
   n_workers: 16
   worker_steps: 256
+  critical_memory_usage: 1.
 
 trainer:
   algorithm: "PPO"

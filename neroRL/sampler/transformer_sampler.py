@@ -136,7 +136,7 @@ class TransformerSampler(TrajectorySampler):
         # self.critical_memory_usage = (needed_size * 3) / get_gpu_memory_map()["total"]
         
         # Check if the memory usage is critical
-        if rel_free_memory < self.critical_memory_usage:
+        if rel_free_memory < 1. - self.critical_memory_usage:
             print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.")
             self.memory = self.memory.cpu()
             self.memory_mask = self.memory_mask.cpu()
