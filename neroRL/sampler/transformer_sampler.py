@@ -114,7 +114,7 @@ class TransformerSampler(TrajectorySampler):
         """Returns the last value of the current observation and memory window to compute GAE."""
         start = torch.clip(self.worker_current_episode_step - self.memory_length, 0)
         end = torch.clip(self.worker_current_episode_step, self.memory_length)
-        indices = torch.stack([torch.arange(start[b],end[b]) for b in range(self.n_workers)]).long()
+        indices = torch.stack([torch.arange(start[b],end[b], device=self.critical_memory_device) for b in range(self.n_workers)]).long()
         print("Debug")
         print("indices device", indices.device)
         print("memory device", self.memory.device)
