@@ -369,7 +369,6 @@ class ActorCriticSharedWeights(ActorCriticBase):
             # Move the input to the device of the transformer
             # This is necessary because memory could be critical for the transformer
             transformer_device = memory.device
-            self.transformer = self.transformer.to(transformer_device)
             h, memory = self.transformer(h.to(transformer_device), memory, mask, memory_indices)
             # Move the output back to the device of the model
             h = h.to(self.device)
