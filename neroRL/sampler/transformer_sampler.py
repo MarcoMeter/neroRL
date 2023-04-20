@@ -137,7 +137,7 @@ class TransformerSampler(TrajectorySampler):
         
         # Check if the memory usage is critical
         if rel_free_memory < 1. - self.critical_memory_usage:
-            print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.")
+            print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.", flush=True)
             self.memory = self.memory.cpu()
             self.memory_mask = self.memory_mask.cpu()
             self.memory_indices = self.memory_indices.cpu()
