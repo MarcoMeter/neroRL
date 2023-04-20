@@ -13,7 +13,7 @@ class ActorCriticBase(Module):
             - Components: Visual encoder, vector encoder, recurrent layer, transformer, body, heads (value, policy, gae)
             - Functionality: Initialization of the recurrent cells and basic model
     """
-    def __init__(self, config):
+    def __init__(self, config, device):
         """Model setup
 
         Arguments:
@@ -35,6 +35,9 @@ class ActorCriticBase(Module):
 
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
+        
+        # Set device
+        self.device = device
 
     def create_base_model(self, config, vis_obs_space, vec_obs_shape):
         """

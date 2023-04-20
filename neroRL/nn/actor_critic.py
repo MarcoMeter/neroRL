@@ -296,7 +296,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, device):
         """Model setup
 
         Arguments:
@@ -304,10 +304,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
             vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
-            recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
-                - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
+            device {torch.device} -- Tensor device
         """
-        ActorCriticBase.__init__(self, config)
+        ActorCriticBase.__init__(self, config, device)
 
         # Whether the model uses shared parameters (i.e. weights) or not
         self.share_parameters = True
@@ -400,7 +399,7 @@ def create_actor_critic_model(model_config, share_parameters, visual_observation
     """
     if share_parameters: # check if the actor critic model should share its weights
         return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
-                            action_space_shape).to(device)
+                            action_space_shape, device).to(device)
     else:
         return ActorCriticSeperateWeights(model_config, visual_observation_space, vector_observation_space,
                             action_space_shape).to(device)
