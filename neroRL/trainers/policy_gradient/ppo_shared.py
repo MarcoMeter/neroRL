@@ -110,6 +110,9 @@ class PPOTrainer(BaseTrainer):
             memory = batched_index_select(samples["memories"], 1, samples["memory_indices"])
             mask = samples["memory_mask"]
             memory_indices = samples["memory_indices"]
+            print("memory.device: ", memory.device)
+            print("mask.device: ", mask.device)
+            print("memory_indices.device: ", memory_indices.device)
 
         # Forward model -> policy, value, memory, gae
         policy, value, _, _ = self.model(samples["vis_obs"] if self.vis_obs_space is not None else None,
