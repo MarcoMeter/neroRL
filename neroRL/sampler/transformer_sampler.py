@@ -100,6 +100,8 @@ class TransformerSampler(TrajectorySampler):
         # Break the reference to the worker's memory
         mem_index = self.buffer.memory_index[id, t]
         self.buffer.memories[mem_index] = self.buffer.memories[mem_index].clone()
+        # Check if the memory usage is critical
+        self._check_for_memory_usage()
         # Reset episodic memory
         self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_steps, self.num_blocks, self.embed_dim, self.critical_memory_device).squeeze(0)
         if t < self.worker_steps - 1:
@@ -107,8 +109,6 @@ class TransformerSampler(TrajectorySampler):
             self.buffer.memories.append(self.memory[id])
             # Save the reference index to the current memory
             self.buffer.memory_index[id, t + 1:] = len(self.buffer.memories) - 1
-            # Check if the memory usage is critical
-            self._check_for_memory_usage()
 
     def get_last_value(self):
         """Returns the last value of the current observation and memory window to compute GAE."""
