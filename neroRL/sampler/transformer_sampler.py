@@ -152,7 +152,7 @@ class TransformerSampler(TrajectorySampler):
         # Check if the memory usage was critical
         if self.critical_memory_device.type != self.device.type:
             # Move the memory and transformer model back to the gpu
-            self.self.critical_memory_device = self.device
+            self.critical_memory_device = self.device
             self.memory = self.memory.to(self.device)
             self.memory_mask = self.memory_mask.to(self.device)
             self.memory_indices = self.memory_indices.to(self.device)
