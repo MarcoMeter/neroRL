@@ -263,6 +263,8 @@ class Buffer():
             for key, value in self.samples_flat.items():
                 if key == "memory_index":
                     mini_batch["memories"] = self.memories[value[mini_batch_indices]]
+                elif key == "memory_indices" or key == "memory_mask": # Make sure that the memories are on the right device due to vram limitations  
+                    mini_batch["memory_indices"] = value[mini_batch_indices]
                 else:
                     mini_batch[key] = value[mini_batch_indices].to(self.device)
             yield mini_batch
