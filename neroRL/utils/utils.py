@@ -22,7 +22,7 @@ def set_library_seeds(seed:int) -> None:
     torch.backends.cudnn.deterministic = True
     os.environ['PYTHONHASHSEED'] = str(seed)
 
-def compute_gradient_stats(modules_dict, prefix = ""):
+def compute_gradient_stats(modules_dict, device, prefix = ""):
     """Computes the gradient norm and the gradient mean for each parameter of the model and the entire model itself.
 
     Arguments:
@@ -39,7 +39,7 @@ def compute_gradient_stats(modules_dict, prefix = ""):
         if module is not None:
             grads = []
             for param in module.parameters():
-                grads.append(param.grad.view(-1))
+                grads.append(param.grad.view(-1).to(device))
             results[module_name + "_norm"] = (Tag.GRADIENT_NORM, module.grad_norm())
             # results[module_name + "_mean"] = (Tag.GRADIENT_MEAN, module.grad_mean())
             all_grads = all_grads + grads
