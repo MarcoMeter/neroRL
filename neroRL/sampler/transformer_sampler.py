@@ -115,9 +115,6 @@ class TransformerSampler(TrajectorySampler):
         start = torch.clip(self.worker_current_episode_step - self.memory_length, 0)
         end = torch.clip(self.worker_current_episode_step, self.memory_length)
         indices = torch.stack([torch.arange(start[b],end[b], device=self.critical_memory_device) for b in range(self.n_workers)]).long()
-        print("Debug")
-        print("indices device", indices.device)
-        print("memory device", self.memory.device)
         sliced_memory = batched_index_select(self.memory, 1, indices) # Retrieve the memory window from the entire episode
         _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
