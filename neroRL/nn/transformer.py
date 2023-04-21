@@ -180,6 +180,8 @@ class SinusoidalPosition(nn.Module):
 
     def forward(self, seq_len):
         seq = torch.arange(seq_len - 1, -1, -1.)
+        print(self.inv_freq)
+        print(seq.device)
         sinusoidal_inp = rearrange(seq, 'n -> n ()') * rearrange(self.inv_freqs, 'd -> () d')
         pos_emb = torch.cat((sinusoidal_inp.sin(), sinusoidal_inp.cos()), dim = -1)
         return pos_emb
