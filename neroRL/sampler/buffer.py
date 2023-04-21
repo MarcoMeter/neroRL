@@ -261,6 +261,7 @@ class Buffer():
             mini_batch_indices = indices[start: end]
             mini_batch = {}
             for key, value in self.samples_flat.items():
+                # https://pytorch.org/docs/stable/notes/faq.html#my-out-of-memory-exception-handler-can-t-allocate-memory
                 if key == "memory_index":
                     oom = False
                     try:
