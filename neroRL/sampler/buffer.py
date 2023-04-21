@@ -271,9 +271,7 @@ class Buffer():
                     if oom:
                         mini_batch = self._reduce_memory_usage(mini_batch)
                         indices = value[mini_batch_indices].cpu().numpy().tolist()
-                        for i in range(len(indices)):
-                            print(indices[i], flush=True)
-                            print(type(indices[i]), flush=True)
+                        indices = np.array(indices, dtype = int)
                         mini_batch["memories"] = self.memories[indices]
                         
                 elif key == "memory_indices" or key == "memory_mask": # Make sure that the memories are on the right device due to vram limitations  
