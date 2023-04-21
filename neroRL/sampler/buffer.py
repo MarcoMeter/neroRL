@@ -272,7 +272,7 @@ class Buffer():
                         mini_batch = self._reduce_memory_usage(mini_batch)
                         indices = value[mini_batch_indices].cpu().numpy().tolist()
                         indices = np.array(indices, dtype = int)
-                        mini_batch["memories"] = np.array(self.memories)[indices].tolist()
+                        mini_batch["memories"] = torch.tensor(np.array(self.memories)[indices].tolist(), device="cpu")
                         
                 elif key == "memory_indices" or key == "memory_mask": # Make sure that the memories are on the right device due to vram limitations  
                     oom = False
