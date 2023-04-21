@@ -270,9 +270,7 @@ class Buffer():
                         oom = True
                     if oom:
                         mini_batch = self._reduce_memory_usage(mini_batch)
-                        indices = value[mini_batch_indices].cpu().numpy().tolist()
-                        indices = np.array(indices, dtype = int)
-                        mini_batch["memories"] = np.array(self.memories)[indices].tolist()
+                        mini_batch["memories"] = self.memories[value[mini_batch_indices]]
                         
                 elif key == "memory_indices" or key == "memory_mask": # Make sure that the memories are on the right device due to vram limitations  
                     oom = False
@@ -293,7 +291,7 @@ class Buffer():
         print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.", flush=True)
         self.memory_mask = self.memory_mask.cpu()
         self.memory_indices = self.memory_indices.cpu()
-        self.memories = [m.cpu() for m in self.memories]
+        self.memories = self.memories.cpu()
         keys = ["memories", "memory_indices", "memory_mask"]
         for key in keys:
             if key in mini_batch:
