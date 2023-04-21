@@ -289,9 +289,9 @@ class Buffer():
         """Reduces the used gpu memory by moving the necessary parts to the cpu."""
         # Check if the device is on cpu or if the memory usage is critical to avoid unnecessary checks
         print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.", flush=True)
-        self.memory_mask = self.buffer.memory_mask.cpu()
-        self.memory_indices = self.buffer.memory_indices.cpu()
-        self.memories = [m.cpu() for m in self.buffer.memories]
+        self.memory_mask = self.memory_mask.cpu()
+        self.memory_indices = self.memory_indices.cpu()
+        self.memories = [m.cpu() for m in self.memories]
         keys = ["memories", "memory_indices", "memory_mask"]
         for key in keys:
             if key in minibatch:
