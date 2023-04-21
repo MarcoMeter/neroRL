@@ -270,10 +270,7 @@ class Buffer():
                         oom = True
                     if oom:
                         mini_batch = self._reduce_memory_usage(mini_batch)
-                        print(value[mini_batch_indices])
-                        print(self.memories)
-                        print(self.memories[value[mini_batch_indices]])
-                        mini_batch["memories"] = self.memories[value[mini_batch_indices]]
+                        mini_batch["memories"] = self.memories[value[mini_batch_indices].cpu()]
                         
                 elif key == "memory_indices" or key == "memory_mask": # Make sure that the memories are on the right device due to vram limitations  
                     oom = False
