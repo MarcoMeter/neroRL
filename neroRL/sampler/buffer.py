@@ -262,12 +262,40 @@ class Buffer():
             mini_batch = {}
             for key, value in self.samples_flat.items():
                 if key == "memory_index":
-                    mini_batch["memories"] = self.memories[value[mini_batch_indices]]
+                    oom = False
+                    try:
+                        mini_batch["memories"] = self.memories[value[mini_batch_indices]]
+                    except RuntimeError: # Out of memory
+                        oom = True
+                    if oom:
+                        mini_batch = self._reduce_memory_usage(mini_batch)
+                        mini_batch["memories"] = self.memories[value[mini_batch_indices]]
+                        
                 elif key == "memory_indices" or key == "memory_mask": # Make sure that the memories are on the right device due to vram limitations  
-                    mini_batch[key] = value[mini_batch_indices]
+                    oom = False
+                    try:
+                        mini_batch[key] = value[mini_batch_indices]
+                    except RuntimeError: # Out of memory
+                        oom = True
+                    if oom:
+                        mini_batch = self._reduce_memory_usage(mini_batch)
+                        mini_batch[key] = value[mini_batch_indices]
                 else:
                     mini_batch[key] = value[mini_batch_indices].to(self.device)
             yield mini_batch
+            
+    def _reduce_memory_usage(self, minibatch):
+        """Reduces the used gpu memory by moving the necessary parts to the cpu."""
+        # Check if the device is on cpu or if the memory usage is critical to avoid unnecessary checks
+        print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.", flush=True)
+        self.memory_mask = self.buffer.memory_mask.cpu()
+        self.memory_indices = self.buffer.memory_indices.cpu()
+        self.memories = [m.cpu() for m in self.buffer.memories]
+        keys = ["memories", "memory_indices", "memory_mask"]
+        for key in keys:
+            if key in minibatch:
+                minibatch[key] = minibatch[key].cpu()
+        return minibatch
 
     def recurrent_mini_batch_generator(self, num_mini_batches):
         """A recurrent generator that returns a dictionary containing the data of a whole minibatch.

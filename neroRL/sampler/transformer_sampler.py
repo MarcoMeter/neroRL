@@ -2,7 +2,7 @@ import torch
 import sys
 
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
-from neroRL.utils.utils import batched_index_select, get_gpu_memory_map
+from neroRL.utils.utils import batched_index_select
 
 class TransformerSampler(TrajectorySampler):
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
@@ -66,7 +66,6 @@ class TransformerSampler(TrajectorySampler):
         2, 3, 4, 5
         3, 4, 5, 6
         """
-        self.critical_memory_usage = configs["sampler"]["critical_memory_usage"]
         self.critical_memory_device = self.device
 
     def sample(self, device) -> list:
@@ -99,11 +98,20 @@ class TransformerSampler(TrajectorySampler):
         super().reset_worker(worker, id, t)
         # Break the reference to the worker's memory
         mem_index = self.buffer.memory_index[id, t]
-        self.buffer.memories[mem_index] = self.buffer.memories[mem_index].clone()
-        # Check if the memory usage is critical
-        self._check_for_memory_usage()
-        # Reset episodic memory
-        self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_steps, self.num_blocks, self.embed_dim, self.critical_memory_device).squeeze(0)
+        # https://pytorch.org/docs/stable/notes/faq.html#my-out-of-memory-exception-handler-can-t-allocate-memory
+        oom = False
+        try:
+            self.buffer.memories[mem_index] = self.buffer.memories[mem_index].clone()
+            # Reset episodic memory
+            self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_steps, self.num_blocks, self.embed_dim, self.critical_memory_device).squeeze(0)
+        except RuntimeError: # Out of memory
+            oom = True
+        if oom:
+            self._reduce_memory_usage()
+            self.buffer.memories[mem_index] = self.buffer.memories[mem_index].clone()
+            # Reset episodic memory
+            self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_steps, self.num_blocks, self.embed_dim, self.critical_memory_device).squeeze(0)
+        
         if t < self.worker_steps - 1:
             # Save memory
             self.buffer.memories.append(self.memory[id])
@@ -122,41 +130,27 @@ class TransformerSampler(TrajectorySampler):
                                         memory_indices = self.buffer.memory_indices[:,-1])
         return last_value
     
-    def _check_for_memory_usage(self):
-        """Checks if the memory usage is critical and if so, it reduces the used gpu memory by moving the necessary parts to the cpu."""
+    def _reduce_memory_usage(self):
+        """Reduces the used gpu memory by moving the necessary parts to the cpu."""
         # Check if the device is on cpu or if the memory usage is critical to avoid unnecessary checks
         if self.critical_memory_device.type == "cpu":
             return
-        
-        # Get the relative free memory of the gpu
-        rel_free_memory = get_gpu_memory_map()["rel_free"]
-        
-        # Calculate the critical memory usage
-        # needed_size = sys.getsizeof(self.memory[0].storage())
-        # self.critical_memory_usage = (needed_size * 3) / get_gpu_memory_map()["total"]
-        
-        # Check if the memory usage is critical
-        if rel_free_memory < 1. - self.critical_memory_usage:
-            print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.", flush=True)
-            self.memory = self.memory.cpu()
-            self.memory_mask = self.memory_mask.cpu()
-            self.memory_indices = self.memory_indices.cpu()
-            self.buffer.memory_mask = self.buffer.memory_mask.cpu()
-            self.buffer.memory_indices = self.buffer.memory_indices.cpu()
-            self.buffer.memories = [m.cpu() for m in self.buffer.memories]
-            self.model.transformer = self.model.transformer.cpu()
-            self.critical_memory_device = torch.device("cpu")
+        print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.", flush=True)
+        self.memory = self.memory.cpu()
+        self.memory_mask = self.memory_mask.cpu()
+        self.memory_indices = self.memory_indices.cpu()
+        self.buffer.memory_mask = self.buffer.memory_mask.cpu()
+        self.buffer.memory_indices = self.buffer.memory_indices.cpu()
+        self.buffer.memories = [m.cpu() for m in self.buffer.memories]
+        self.critical_memory_device = torch.device("cpu")
     
     def _reset_memory_usage(self):
         """Resets the memory usage by moving the necessary parts back to the gpu."""
-        # Check if the memory usage was critical
-        if self.critical_memory_device.type != self.device.type:
-            # Move the memory and transformer model back to the gpu
-            self.critical_memory_device = self.device
-            self.memory = self.memory.to(self.device)
-            self.memory_mask = self.memory_mask.to(self.device)
-            self.memory_indices = self.memory_indices.to(self.device)
-            self.buffer.memory_mask = self.buffer.memory_mask.to(self.device)
-            self.buffer.memory_indices = self.buffer.memory_indices.to(self.device)
-            self.buffer.memories = [m.to(self.device) for m in self.buffer.memories]
-            self.model.transformer = self.model.transformer.to(self.device)
+        # Move the memory and transformer model back to the gpu
+        self.critical_memory_device = self.device
+        self.memory = self.memory.to(self.device)
+        self.memory_mask = self.memory_mask.to(self.device)
+        self.memory_indices = self.memory_indices.to(self.device)
+        self.buffer.memory_mask = self.buffer.memory_mask.to(self.device)
+        self.buffer.memory_indices = self.buffer.memory_indices.to(self.device)
+        self.buffer.memories = [m.to(self.device) for m in self.buffer.memories]
