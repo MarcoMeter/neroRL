@@ -255,6 +255,7 @@ class Buffer():
         # Prepare indices (shuffle)
         indices = torch.randperm(self.batch_size)
         mini_batch_size = self.batch_size // num_mini_batches
+        oom = False
         for start in range(0, self.batch_size, mini_batch_size):
             # Compose mini batches
             end = start + mini_batch_size
@@ -263,7 +264,6 @@ class Buffer():
             for key, value in self.samples_flat.items():
                 # https://pytorch.org/docs/stable/notes/faq.html#my-out-of-memory-exception-handler-can-t-allocate-memory
                 if key == "memory_index":
-                    oom = False
                     try:
                         mini_batch["memories"] = self.memories[value[mini_batch_indices]]
                     except RuntimeError: # Out of memory
@@ -273,14 +273,13 @@ class Buffer():
                         mini_batch["memories"] = self.memories[value[mini_batch_indices].cpu()]
                         
                 elif key == "memory_indices" or key == "memory_mask": # Make sure that the memories are on the right device due to vram limitations  
-                    oom = False
                     try:
                         mini_batch[key] = value[mini_batch_indices]
                     except RuntimeError: # Out of memory
                         oom = True
                     if oom:
                         mini_batch = self._reduce_memory_usage(mini_batch)
-                        mini_batch[key] = value[mini_batch_indices]
+                        mini_batch[key] = value[mini_batch_indices].cpu()
                 else:
                     mini_batch[key] = value[mini_batch_indices].to(self.device)
             yield mini_batch
@@ -288,6 +287,8 @@ class Buffer():
     def _reduce_memory_usage(self, mini_batch):
         """Reduces the used gpu memory by moving the necessary parts to the cpu."""
         # Check if the device is on cpu or if the memory usage is critical to avoid unnecessary checks
+        if self.memories.device.type == "cpu":
+            return mini_batch
         print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.", flush=True)
         self.memory_mask = self.memory_mask.cpu()
         self.memory_indices = self.memory_indices.cpu()
