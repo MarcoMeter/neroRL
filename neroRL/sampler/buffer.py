@@ -265,7 +265,8 @@ class Buffer():
                 # https://pytorch.org/docs/stable/notes/faq.html#my-out-of-memory-exception-handler-can-t-allocate-memory
                 if key == "memory_index":
                     try:
-                        mini_batch["memories"] = self.memories[value[mini_batch_indices]]
+                        if not oom:
+                            mini_batch["memories"] = self.memories[value[mini_batch_indices]]
                     except RuntimeError: # Out of memory
                         oom = True
                     if oom:
@@ -274,7 +275,8 @@ class Buffer():
                         
                 elif key == "memory_indices" or key == "memory_mask": # Make sure that the memories are on the right device due to vram limitations  
                     try:
-                        mini_batch[key] = value[mini_batch_indices]
+                        if not oom:
+                            mini_batch[key] = value[mini_batch_indices]
                     except RuntimeError: # Out of memory
                         oom = True
                     if oom:
