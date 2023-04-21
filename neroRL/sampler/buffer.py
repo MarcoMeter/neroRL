@@ -293,7 +293,6 @@ class Buffer():
         self.memory_indices = self.memory_indices.cpu()
         self.memories = self.memories.cpu()
         keys = ["memories", "memory_indices", "memory_mask"]
-        self.samples_flat["memories"] = self.samples_flat["memories"].cpu()
         self.samples_flat["memory_indices"] = self.samples_flat["memory_indices"].cpu()
         self.samples_flat["memory_mask"] = self.samples_flat["memory_mask"].cpu()
         for key in keys:
