@@ -286,9 +286,16 @@ class Buffer():
             yield mini_batch
             
     def _reduce_memory_usage(self, mini_batch):
-        """Reduces the used gpu memory by moving the necessary parts to the cpu."""
+        """Reduces the used gpu memory by moving the necessary parts to the cpu.
+        
+            Arguments:
+                mini_batch {dict} -- The mini batch that is currently being processed
+            
+            Returns:
+                {dict} -- The mini batch with the memories and the memory indices moved to the cpu
+        """
         # Check if the device is on cpu or if the memory usage is critical to avoid unnecessary checks
-        print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.", flush=True)
+        print("Memory usage is critical. Reducing memory usage by moving the necessary transformer parts to the cpu.", flush=True)
         self.memory_mask = self.memory_mask.cpu()
         self.memory_indices = self.memory_indices.cpu()
         self.memories = self.memories.cpu()
