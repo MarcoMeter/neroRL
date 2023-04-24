@@ -270,7 +270,7 @@ class Buffer():
                         oom = True
                     if oom:
                         mini_batch = self._reduce_memory_usage(mini_batch)
-                        mini_batch["memories"] = self.memories[value[mini_batch_indices]].to(self.device)
+                        mini_batch["memories"] = self.memories[value[mini_batch_indices]]
                         
                 elif key == "memory_indices" or key == "memory_mask":
                     oom = False
@@ -280,7 +280,7 @@ class Buffer():
                         oom = True
                     if oom:
                         mini_batch = self._reduce_memory_usage(mini_batch)
-                        mini_batch[key] = value[mini_batch_indices].to(self.device)
+                        mini_batch[key] = value[mini_batch_indices]
                 else:
                     mini_batch[key] = value[mini_batch_indices].to(self.device)
             yield mini_batch
@@ -302,9 +302,9 @@ class Buffer():
         keys = ["memories", "memory_indices", "memory_mask"]
         self.samples_flat["memory_indices"] = self.samples_flat["memory_indices"].cpu()
         self.samples_flat["memory_mask"] = self.samples_flat["memory_mask"].cpu()
-        #for key in keys:
-        #    if key in mini_batch:
-        #        mini_batch[key] = mini_batch[key].cpu()
+        for key in keys:
+            if key in mini_batch:
+                mini_batch[key] = mini_batch[key].cpu()
         return mini_batch
 
     def recurrent_mini_batch_generator(self, num_mini_batches):
