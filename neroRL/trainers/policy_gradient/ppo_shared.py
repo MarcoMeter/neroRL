@@ -107,8 +107,6 @@ class PPOTrainer(BaseTrainer):
         # Case Transformer: the episodic memory is based on activations that were previously gathered throughout an episode
         if self.transformer is not None:
             # Slice memory windows from the whole sequence of episode memories
-            print("memory device: ", samples["memories"].device)
-            print("memory indices device: ", samples["memory_indices"].device)
             memory = batched_index_select(samples["memories"], 1, samples["memory_indices"])
             mask = samples["memory_mask"]
             memory_indices = samples["memory_indices"]

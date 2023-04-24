@@ -135,7 +135,7 @@ class TransformerSampler(TrajectorySampler):
         # Check if the device is on cpu or if the memory usage is critical to avoid unnecessary checks
         if self.critical_memory_device.type == "cpu":
             return
-        print("Memory usage is critical. Reducing memory usage by moving the memory and transformer model to the cpu.", flush=True)
+        print("Memory usage is critical. Reducing memory usage by moving the necessary transformer parts to the cpu.", flush=True)
         self.memory = self.memory.cpu()
         self.memory_mask = self.memory_mask.cpu()
         self.memory_indices = self.memory_indices.cpu()
