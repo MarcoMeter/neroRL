@@ -122,7 +122,15 @@ class Buffer():
             samples["memory_mask"] = self.memory_mask
             samples["memory_indices"] = self.memory_indices
             # Convert the memories to a tensor
-            self.memories = torch.stack(self.memories, dim=0)
+            oom = False
+            try:
+                self.memories = torch.stack(self.memories, dim=0)
+            except RuntimeError: # Out of memory
+                oom = True
+                if oom:
+                    self.memories = [memory.cpu() for memory in self.memories]
+                    self.memories = torch.stack(self.memories, dim=0)
+                    self._reduce_memory_usage({})
 
         # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
