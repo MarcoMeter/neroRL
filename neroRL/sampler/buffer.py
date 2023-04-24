@@ -127,10 +127,10 @@ class Buffer():
                 self.memories = torch.stack(self.memories, dim=0)
             except RuntimeError: # Out of memory
                 oom = True
-                if oom:
-                    self.memories = [memory.cpu() for memory in self.memories]
-                    self.memories = torch.stack(self.memories, dim=0)
-                    self._reduce_memory_usage({})
+            if oom:
+                self.memories = [memory.cpu() for memory in self.memories]
+                self.memories = torch.stack(self.memories, dim=0)
+                self._reduce_memory_usage({})
 
         # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
