@@ -75,14 +75,11 @@ def main():
     generate_website = options["--generate_website"]    # defaults to False
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
-    record_video = False
-    for i, arg in enumerate(sys.argv):
-        if "--video" in arg:
-            record_video = True
-            logger.info("Step 0: Video recording enabled. Video will be saved to " + video_path)
-            logger.info("Step 0: Only 1 episode will be played")
-            num_episodes = 1
-            break
+    record_video = "--video" in " ".join(sys.argv)
+    if record_video:
+        logger.info("Step 0: Video recording enabled. Video will be saved to " + video_path + ".mp4")
+        logger.info("Step 0: Only 1 episode will be played")
+        num_episodes = 1
 
     if generate_website:
         logger.info("Step 0: Only 1 episode will be played")

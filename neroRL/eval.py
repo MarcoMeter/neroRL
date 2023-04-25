@@ -37,6 +37,9 @@ def main():
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --video=<path>             Specify a path for saving videos, if video recording is desired. The files' extension will be set automatically. [default: ./video].
+        --start-seed=<n>           Specifies the start of the seed range [default: 200000].
+        --num-seeds=<n>            Specifies the number of seeds to evaluate [default: 50].
+        --repetitions=<n>          Specifies the number of repetitions for each seed [default: 3].
     """
     options = docopt(_USAGE)
     config_path = options["--config"]           # defaults to ""
@@ -45,13 +48,16 @@ def main():
     worker_id = int(options["--worker-id"])     # defaults to 2
     video_path = options["--video"]             # Defaults to "./video"
 
+    # Determine whether a seed configuration was passed as argument, if not, use the one from the config file
+    override_seed_config = False
+    args = " ".join(sys.argv)
+    if "--start-seed" in args and "--num-seeds" in args and "--repetitions" in args:
+        override_seed_config = True
+
     # Determine whether to record a video. A video is only recorded if the video flag is used.
-    record_video = False
-    for i, arg in enumerate(sys.argv):
-        if "--video" in arg:
-            record_video = True
-            logger.info("Step 0: Video recording enabled. Video will be saved to " + video_path)
-            break
+    record_video = "--video" in args
+    if record_video:
+        logger.info("Step 0: Video recording enabled. Video will be saved to " + video_path)
     
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -65,6 +71,14 @@ def main():
     checkpoint = torch.load(checkpoint_path) if checkpoint_path else None
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
     model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
+
+    # Override seed configuration if necessary
+    if override_seed_config:
+        if "explicit-seeds" in configs["evaluation"]["seeds"]:
+            del configs["evaluation"]["seeds"]["explicit-seeds"]
+        configs["evaluation"]["seeds"]["start-seed"] = int(options["--start-seed"])
+        configs["evaluation"]["seeds"]["num-seeds"] = int(options["--num-seeds"])
+        configs["evaluation"]["n_workers"] = int(options["--repetitions"])
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
