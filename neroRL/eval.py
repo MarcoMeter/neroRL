@@ -93,7 +93,7 @@ def main():
     logger.info("Step 3: Initialize evaluator")
     logger.info("Step 3: Number of Workers: " + str(configs["evaluation"]["n_workers"]))
     logger.info("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
-    logger.info("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
+    logger.info("Step 3: Number of episodes: " + str(configs["evaluation"]["seeds"]["num-seeds"] * configs["evaluation"]["n_workers"]))
     evaluator = Evaluator(configs, model_config, worker_id, visual_observation_space, vector_observation_space,
                             max_episode_steps, video_path, record_video)
 
