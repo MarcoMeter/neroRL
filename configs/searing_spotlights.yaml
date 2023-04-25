@@ -71,7 +71,7 @@ model:
 
 evaluation:
   evaluate: False
-  n_workers: 5
+  n_workers: 3
   seeds:
     start-seed: 100000
     num-seeds: 30
