@@ -133,7 +133,7 @@ def main():
         set_library_seeds(seed)
         monitor.log("Initializing trainer")
         monitor.log("\t" + "Run id: " + run_id + " Seed: " + str(seed))
-        trainer = PPOTrainer(trial_config, device, train_config["worker_id"], run_id, out_path, seed)
+        trainer = PPOTrainer(trial_config, device, device, train_config["worker_id"], run_id, out_path, seed)
         monitor.write_hyperparameters(train_config)
 
         # Print the number of trainable parameters
