@@ -67,7 +67,7 @@ model:
     # Whether to attach the decoder to the cnn or the memory
     attach_to: "memory" # "cnn"
     # Whether to detach the input to the decoder from the computational graph
-    detach_gradient: True
+    detach_gradient: False
 
 evaluation:
   evaluate: False
