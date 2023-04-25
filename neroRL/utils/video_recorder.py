@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ruamel
 from jinja2 import Environment, FileSystemLoader
-import torch
 
 class VideoRecorder:
     """The VideoRecorder can be used to capture videos of the agent's behavior using enjoy.py or eval.py.
