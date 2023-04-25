@@ -9,7 +9,8 @@ environment:
   resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
-    num-seeds: 1000
+    num-seeds: 100000
+    max_steps: 256
     initial_spawns: 4
     num_spawns: 30
     initial_spawn_interval: 30
@@ -20,46 +21,60 @@ environment:
     spot_min_speed: 0.0025
     spot_max_speed: 0.0075
     spot_damage: 1.0
-    light_dim_off_duration: 10
+    visual_feedback: True
+    black_background: False
+    hide_chessboard: False
+    light_dim_off_duration: 6
+    light_threshold: 255
     num_coins: [1]
     coin_scale: 0.375
+    coins_visible: False
     use_exit: True
+    exit_visible: False
     exit_scale: 0.5
     agent_speed: 2.5
-    agent_health: 100.0
+    agent_health: 5
     agent_scale: 0.25
-    reward_inside_spotlight: -0.01
+    agent_visible: False
+    sample_agent_position: True
+    reward_inside_spotlight: 0.0
     reward_outside_spotlight: 0.0
+    reward_death: 0.0
     reward_exit: 1.0
     reward_max_steps: 0.0
-    reward_coin: 0.0
+    reward_coin: 0.25
 
 model:
   load_model: False
   model_path: ""
-  checkpoint_interval: 200
+  checkpoint_interval: 500
   activation: "relu"
   vis_encoder: "cnn"
   vec_encoder: "linear"
   num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
-  num_hidden_units: 512
+  num_hidden_units: 384
   recurrence:
     layer_type: "gru"
-    num_layers: 1
-    sequence_length: 128
-    hidden_state_size: 512
+    sequence_length: -1
+    hidden_state_size: 384
     hidden_state_init: "zero"
     reset_hidden_state: True
     residual: False
+  # Observation reconstruction decoder
+  obs_decoder:
+    # Whether to attach the decoder to the cnn or the memory
+    attach_to: "memory" # "cnn"
+    # Whether to detach the input to the decoder from the computational graph
+    detach_gradient: True
 
 evaluation:
   evaluate: False
-  n_workers: 3
+  n_workers: 5
   seeds:
     start-seed: 100000
-    num-seeds: 10
+    num-seeds: 30
   interval: 200
 
 sampler:
@@ -69,27 +84,32 @@ sampler:
 trainer:
   algorithm: "PPO"
   resume_at: 0
-  gamma: 0.99
+  gamma: 0.995
   lamda: 0.95
-  updates: 10000
+  updates: 20000
   epochs: 3
-  refresh_buffer_epoch: -1
   n_mini_batches: 8
-  value_coefficient: 0.25
-  max_grad_norm: 0.5
+  advantage_normalization: "no"
+  value_coefficient: 0.5
+  max_grad_norm: 0.25
   share_parameters: True
   learning_rate_schedule:
-    initial: 3.0e-4
-    final: 3.0e-4
+    initial: 2.5e-4
+    final: 1.0e-5
     power: 1.0
-    max_decay_steps: 10000
+    max_decay_steps: 20000
   beta_schedule:
     initial: 0.0001
-    final: 0.0001
+    final: 0.000001
     power: 1.0
-    max_decay_steps: 10000
+    max_decay_steps: 20000
   clip_range_schedule:
-    initial: 0.2
-    final: 0.2
+    initial: 0.1
+    final: 0.1
     power: 1.0
-    max_decay_steps: 10000
+    max_decay_steps: 20000
+  obs_reconstruction_schedule:
+    initial: 1.0
+    final: 1.0
+    power: 1.0
+    max_decay_steps: 20000

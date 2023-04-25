@@ -276,6 +276,15 @@ class YamlParser:
                 if "gtrxl_swap" not in self._config["model"]["transformer"]:
                     self._config["model"]["transformer"]["gtrxl_swap"] = False
 
+            # Check if the model dict contains an obs_decoder dict
+            # If no obs_decoder dict is available, it is assumed that an observation decoder is not used
+            # In the other case check for completeness and apply defaults if necessary
+            if "obs_decoder" in self._config["model"]:
+                if "attach_to" not in self._config["model"]["obs_decoder"]:
+                    self._config["model"]["obs_decoder"]["attach_to"] = "cnn"
+                if "detach_gradient" not in self._config["model"]["obs_decoder"]:
+                    self._config["model"]["obs_decoder"]["detach_gradient"] = False
+
             # Check DAAC if DecoupledPPO
             if "DAAC" in self._config["trainer"]:
                 if "adv_coefficient" not in self._config["trainer"]["DAAC"]:

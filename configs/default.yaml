@@ -69,6 +69,12 @@ model:
   num_hidden_layers: 1
   # Number of hidden units
   num_hidden_units: 512
+  # Observation reconstruction decoder
+  # obs_decoder:
+  #   # Whether to attach the decoder to the cnn or the memory
+  #   attach_to: "cnn" # "memory"
+  #   # Whether to detach the input to the decoder from the computational graph
+  #   detach_gradient: False
   
 ### EVALUATION CONFIG ###
 evaluation:

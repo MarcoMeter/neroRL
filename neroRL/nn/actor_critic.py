@@ -295,7 +295,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, use_decoder = False):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape):
         """Model setup
 
         Arguments:
@@ -311,7 +311,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.share_parameters = True
 
         # Create the base model
-        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.transformer, self.body, self.vis_decoder = self.create_base_model(config, vis_obs_space, vec_obs_shape, use_decoder)
+        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.transformer, self.body, self.vis_decoder = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(self.out_features_body, action_space_shape, self.activ_fn)
@@ -355,6 +355,10 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Forward observation encoder
         if vis_obs is not None:
             h = self.vis_encoder(vis_obs)
+            # Store extracted features for observation reconstruction
+            if self.decoder_config is not None:
+                if self.decoder_config["attach_to"] == "cnn":
+                    self.decoder_h = h
             if vec_obs is not None:
                 h_vec = self.vec_encoder(vec_obs)
                 # Add vector observation to the flattened output of the visual encoder if available
@@ -371,7 +375,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
             h, memory = self.transformer(h, memory, mask, memory_indices)
 
         # Store hidden representation for observation reconstruction
-        self.h = h
+        if self.decoder_config is not None:
+            if self.decoder_config["attach_to"] == "memory":
+                self.decoder_h = h
 
         # Feed network body
         h = self.body(h)
@@ -388,10 +394,13 @@ class ActorCriticSharedWeights(ActorCriticBase):
         
         Returns:
             {torch.tensor} -- Reconstructed observation"""
-        y = self.vis_decoder(self.h)
+        # Allow gradients to only flow through the decoder?
+        if self.decoder_config["detach_gradient"]:
+            self.decoder_h = self.decoder_h.detach()
+        y = self.vis_decoder(self.decoder_h)
         return y
 
-def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, device, use_decoder = False):
+def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, device):
     """Creates a shared or non-shared weights actor critic model.
 
     Arguments:
@@ -408,7 +417,7 @@ def create_actor_critic_model(model_config, share_parameters, visual_observation
     """
     if share_parameters: # check if the actor critic model should share its weights
         return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
-                            action_space_shape, use_decoder).to(device)
+                            action_space_shape).to(device)
     else:
         return ActorCriticSeperateWeights(model_config, visual_observation_space, vector_observation_space,
                             action_space_shape).to(device)

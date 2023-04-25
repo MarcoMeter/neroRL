@@ -56,7 +56,7 @@ class PPOTrainer(BaseTrainer):
     def create_model(self) -> None:
         self.use_obs_reconstruction = self.configs["trainer"]["obs_reconstruction_schedule"]["initial"] > 0.0
         return create_actor_critic_model(self.configs["model"], self.configs["trainer"]["share_parameters"],
-        self.vis_obs_space, self.vec_obs_space, self.action_space_shape, self.sample_device, use_decoder = self.use_obs_reconstruction)
+        self.vis_obs_space, self.vec_obs_space, self.action_space_shape, self.sample_device)
 
     def train(self):
         train_info = {}

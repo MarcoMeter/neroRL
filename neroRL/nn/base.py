@@ -34,10 +34,13 @@ class ActorCriticBase(Module):
         # Members for using a transformer-based policy
         self.transformer_config = config["transformer"] if "transformer" in config else None
 
+        # Member for using a observation reconstruction decoder
+        self.decoder_config = config["obs_decoder"] if "obs_decoder" in config else None
+
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
-    def create_base_model(self, config, vis_obs_space, vec_obs_shape, use_decoder = False):
+    def create_base_model(self, config, vis_obs_space, vec_obs_shape):
         """
         Creates and returns the components of a base model, which consists of:
             - a visual encoder,
@@ -70,14 +73,14 @@ class ActorCriticBase(Module):
             in_features_next_layer = conv_out_size
 
             # Observation decoder when using observation reconstruction
-            if use_decoder:
-                if self.recurrence_config is not None:
-                    decoder_input_dim = self.recurrence_config["hidden_state_size"]
-                elif self.transformer_config is not None:
-                    decoder_input_dim = self.transformer_config["embed_dim"]
-                else:
-                    decoder_input_dim = conv_out_size
-                vis_decoder = CNNDecoder(decoder_input_dim, vis_obs_shape)
+            if self.decoder_config is not None:
+                decoder_input_dim = conv_out_size
+                if config["obs_decoder"]["attach_to"] == "memory":
+                    if self.recurrence_config is not None:
+                        decoder_input_dim = self.recurrence_config["hidden_state_size"]
+                    elif self.transformer_config is not None:
+                        decoder_input_dim = self.transformer_config["embed_dim"]
+                vis_decoder = CNNDecoder(decoder_input_dim, vis_obs_shape, "memory" == config["obs_decoder"]["attach_to"])
 
             # Determine number of features for the next layer's input
             if vec_obs_shape is not None:
@@ -208,24 +211,6 @@ class ActorCriticBase(Module):
             return ResCNN(vis_obs_space, config, self.activ_fn)
         elif config["vis_encoder"] == "smallimpala":
             return SmallImpalaCNN(vis_obs_space, config, self.activ_fn)
-        
-    def create_vis_decoder(self, config, vis_obs_space):
-        """Creates and returns a new instance of the visual decoder based on the model config.
-
-        Arguments:
-            config {dict} -- Model config
-            vis_obs_space {box} -- Dimensions of the visual observation space
-
-        Returns:
-            {Module} -- The created visual decoder
-        """
-        if config["vis_decoder"] == "cnn":
-            return CNNDecoder(vis_obs_space, config, self.activ_fn)
-        elif config["vis_decoder"] == "rescnn":
-            raise NotImplementedError("ResCNN decoder not implemented yet.")
-        elif config["vis_decoder"] == "smallimpala":
-            raise NotImplementedError("SmallImpalaCNN decoder not implemented yet.")
-
 
     def create_vec_encoder(self, config, in_features, out_features):
         """Creates and returns a new instance of the vector encoder based on the model config.
