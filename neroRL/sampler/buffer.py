@@ -135,6 +135,8 @@ class Buffer():
             # Truncate the memories to the maximum episode length
             padding_len = min((int(self.emp_max_episode_steps / self.memory_length) + 1) * self.memory_length, self.max_episode_steps)
             self.memories = self.memories[:, :padding_len]
+            # Reset the empirical maximum episode length
+            self.emp_max_episode_steps = 0
             # Move the memories to the device
             try:
                 self.memories = self.memories.to(self.device)
