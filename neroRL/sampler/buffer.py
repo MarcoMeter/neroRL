@@ -143,6 +143,8 @@ class Buffer():
             except RuntimeError: # Out of memory
                 oom = True
             if oom:
+                print("Out of memory while moving the memories to the device. Moving the memories to the CPU.", flush = True)
+                print("self.memories.shape: ", self.memories.shape, flush = True)
                 self._reduce_memory_usage({})
             
         # RECURRENCE SAMPLES
@@ -290,6 +292,7 @@ class Buffer():
                     except RuntimeError: # Out of memory
                         oom = True
                     if oom:
+                        print("Out of memory while building memories mini batch", flush=True)
                         mini_batch = self._reduce_memory_usage(mini_batch)
                         mini_batch["memories"] = self.memories[value[mini_batch_indices]]
                         
@@ -300,6 +303,7 @@ class Buffer():
                     except RuntimeError: # Out of memory
                         oom = True
                     if oom:
+                        print("Out of memory while building memory_indices or memory_mask mini batch", flush=True)
                         mini_batch = self._reduce_memory_usage(mini_batch)
                         mini_batch[key] = value[mini_batch_indices]
                 else:
