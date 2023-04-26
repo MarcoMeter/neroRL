@@ -69,7 +69,7 @@ def main():
     if len(checkpoints) == 0:
         print("No checkpoints found in the given directory. Exiting...")
         return 0
-    checkpoint = torch.load(checkpoints[0])
+    checkpoint = torch.load(checkpoints[0], map_location=device)
     model_config = checkpoint["configs"]["model"]
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
 
@@ -119,7 +119,7 @@ def main():
     results = []
     current_checkpoint = 0
     for checkpoint in checkpoints:
-        loaded_checkpoint = torch.load(checkpoint)
+        loaded_checkpoint = torch.load(checkpoint, map_location=device)
         model.load_state_dict(loaded_checkpoint["model"])
         if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(loaded_checkpoint["hxs"], loaded_checkpoint["cxs"])

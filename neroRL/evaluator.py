@@ -66,7 +66,7 @@ class Evaluator():
         memory_indices = torch.cat((repetitions, memory_indices))
         memory = []
         for _ in range(self.n_workers):
-            memory.append(model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device))
+            memory.append(model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"]))
         return memory, memory_mask, memory_indices
 
     def evaluate(self, model, device):
