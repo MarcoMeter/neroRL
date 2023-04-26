@@ -113,6 +113,8 @@ class TrajectorySampler():
                 else:
                     # Increment worker timestep
                     self.worker_current_episode_step[w] +=1
+                    
+                self.buffer.emp_max_episode_steps = max(self.worker_current_episode_step.max().item(), self.buffer.emp_max_episode_steps)
 
         return episode_infos
 

@@ -26,6 +26,7 @@ class Buffer():
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
         self.share_parameters = share_parameters
+        self.emp_max_episode_steps = 0
         self.init_default_buffer_fields()
 
     def init_default_buffer_fields(self):
@@ -130,8 +131,18 @@ class Buffer():
             if oom:
                 self.memories = [memory.cpu() for memory in self.memories]
                 self.memories = torch.stack(self.memories, dim=0)
+                
+            # Truncate the memories to the maximum episode length
+            padding_len = min((int(self.emp_max_episode_steps / self.memory_length) + 1) * self.memory_length, self.max_episode_steps)
+            self.memories = self.memories[:, :padding_len]
+            # Move the memories to the device
+            try:
+                self.memories = self.memories.to(self.device)
+            except RuntimeError: # Out of memory
+                oom = True
+            if oom:
                 self._reduce_memory_usage({})
-
+            
         # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
         max_sequence_length = 1
