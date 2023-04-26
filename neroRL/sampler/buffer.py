@@ -133,7 +133,7 @@ class Buffer():
                 self.memories = torch.stack(self.memories, dim=0)
                 
             # Truncate the memories to the maximum episode length
-            padding_len = min((int(self.emp_max_episode_steps / self.memory_length) + 1) * self.memory_length, self.max_episode_steps)
+            padding_len = self.emp_max_episode_steps + 1
             self.memories = self.memories[:, :padding_len]
             # Reset the empirical maximum episode length
             self.emp_max_episode_steps = 0
