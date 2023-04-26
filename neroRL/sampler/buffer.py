@@ -293,6 +293,7 @@ class Buffer():
                         oom = True
                     if oom:
                         print("Out of memory while building memories mini batch", flush=True)
+                        print("self.memories.shape: ", self.memories.shape, flush = True)
                         mini_batch = self._reduce_memory_usage(mini_batch)
                         mini_batch["memories"] = self.memories[value[mini_batch_indices]]
                         
