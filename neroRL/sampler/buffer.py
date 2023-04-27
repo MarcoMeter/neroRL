@@ -121,9 +121,9 @@ class Buffer():
         if self.transformer_memory is not None:
             # Truncate the memories and its index to the maximum episode length
             padding_len = self.emp_max_episode_steps + 1
-            samples["memory_index"] = self.memory_index
-            samples["memory_mask"] = self.memory_mask[:, :, :padding_len]
-            samples["memory_indices"] = self.memory_indices[:, :, :padding_len]
+            samples["memory_index"] = self.memory_index.cpu()
+            samples["memory_mask"] = self.memory_mask[:, :, :padding_len].cpu()
+            samples["memory_indices"] = self.memory_indices[:, :, :padding_len].cpu()
             
             self.memory_indices = self.memory_indices.cpu()
             self.memory_mask = self.memory_mask.cpu()
@@ -292,7 +292,7 @@ class Buffer():
                 if key == "memory_index":
                     oom = False
                     try:
-                        mini_batch["memories"] = self.memories[value[mini_batch_indices]]
+                        mini_batch["memories"] = self.memories[value[mini_batch_indices]].to(self.device)
                     except RuntimeError: # Out of memory
                         oom = True
                     if oom:
@@ -304,7 +304,7 @@ class Buffer():
                 elif key == "memory_indices" or key == "memory_mask":
                     oom = False
                     try:
-                        mini_batch[key] = value[mini_batch_indices]
+                        mini_batch[key] = value[mini_batch_indices].to(self.device)
                     except RuntimeError: # Out of memory
                         oom = True
                     if oom:
