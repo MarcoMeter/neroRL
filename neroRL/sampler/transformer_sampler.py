@@ -158,4 +158,4 @@ class TransformerSampler(TrajectorySampler):
         self.buffer.actions = self.buffer.actions.to(self.device)
         self.buffer.advantages = self.buffer.advantages.to(self.device)
         self.buffer.values = self.buffer.values.to(self.device)
-        self.log_probs = self.log_probs.to(self.device)
+        self.buffer.log_probs = self.buffer.log_probs.to(self.device)
