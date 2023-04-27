@@ -119,9 +119,12 @@ class Buffer():
         # TRANSFORMER SAMPLES
         # Add data concerned with the episodic memory (i.e. transformer-based policy)
         if self.transformer_memory is not None:
+            # Truncate the memories and its index to the maximum episode length
+            padding_len = self.emp_max_episode_steps + 1
             samples["memory_index"] = self.memory_index
-            samples["memory_mask"] = self.memory_mask
-            samples["memory_indices"] = self.memory_indices
+            samples["memory_mask"] = self.memory_mask[:, :, :padding_len]
+            samples["memory_indices"] = self.memory_indices[:, :, :padding_len]
+
             # Convert the memories to a tensor
             oom = False
             try:
@@ -132,8 +135,6 @@ class Buffer():
                 self.memories = [memory.cpu() for memory in self.memories]
                 self.memories = torch.stack(self.memories, dim=0)
                 
-            # Truncate the memories to the maximum episode length
-            padding_len = self.emp_max_episode_steps + 1
             self.memories = self.memories[:, :padding_len]
             # Reset the empirical maximum episode length
             self.emp_max_episode_steps = 0
