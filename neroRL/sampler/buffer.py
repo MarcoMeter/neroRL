@@ -124,6 +124,9 @@ class Buffer():
             samples["memory_index"] = self.memory_index
             samples["memory_mask"] = self.memory_mask[:, :, :padding_len]
             samples["memory_indices"] = self.memory_indices[:, :, :padding_len]
+            
+            self.memory_indices = self.memory_indices.cpu()
+            self.memory_mask = self.memory_mask.cpu()
 
             # Convert the memories to a tensor
             oom = False
@@ -140,7 +143,7 @@ class Buffer():
             self.emp_max_episode_steps = 0
             # Move the memories to the device
             try:
-                self.memories = self.memories.to(self.device)
+                self.memories = self.memories.cpu()
             except RuntimeError: # Out of memory
                 oom = True
             if oom:
