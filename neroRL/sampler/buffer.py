@@ -292,7 +292,7 @@ class Buffer():
                 if key == "memory_index":
                     oom = False
                     try:
-                        mini_batch["memories"] = self.memories[value[mini_batch_indices]].to(self.device)
+                        mini_batch["memories"] = self.memories[value[mini_batch_indices]]
                     except RuntimeError: # Out of memory
                         oom = True
                     if oom:
