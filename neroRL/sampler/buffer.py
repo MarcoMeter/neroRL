@@ -128,6 +128,7 @@ class Buffer():
             self.memory_indices = self.memory_indices.cpu()
             self.memory_mask = self.memory_mask.cpu()
             self.memory_index = self.memory_index.cpu()
+            self.vis_obs = self.vis_obs.cpu()
 
             # Convert the memories to a tensor
             oom = False

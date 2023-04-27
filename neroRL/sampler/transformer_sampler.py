@@ -154,3 +154,4 @@ class TransformerSampler(TrajectorySampler):
         self.buffer.memory_mask = self.buffer.memory_mask.to(self.device)
         self.buffer.memory_indices = self.buffer.memory_indices.to(self.device)
         self.buffer.memories = [m.to(self.device) for m in self.buffer.memories]
+        self.buffer.vis_obs = self.buffer.vis_obs.to(self.device)
