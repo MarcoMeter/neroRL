@@ -204,6 +204,7 @@ class Buffer():
         self.values = self.values.cpu()
         self.log_probs = self.log_probs.cpu()
         self.dones = self.dones.cpu()
+        self.rewards = self.rewards.cpu()
 
         # Flatten samples
         self.samples_flat = {}
