@@ -112,9 +112,9 @@ class Buffer():
         # OBSERVATION SAMPLES
     	# Add available observations to the dictionary
         if self.vis_obs is not None:
-            samples["vis_obs"] = self.vis_obs
+            samples["vis_obs"] = self.vis_obs.cpu()
         if self.vec_obs is not None:
-            samples["vec_obs"] = self.vec_obs
+            samples["vec_obs"] = self.vec_obs.cpu()
 
         # TRANSFORMER SAMPLES
         # Add data concerned with the episodic memory (i.e. transformer-based policy)
@@ -196,9 +196,9 @@ class Buffer():
         self.actual_sequence_length = max_sequence_length
         
         # Add remaining data samples
-        samples["values"] = self.values
-        samples["log_probs"] = self.log_probs
-        samples["advantages"] = self.advantages
+        samples["values"] = self.values.cpu()
+        samples["log_probs"] = self.log_probs.cpu()
+        samples["advantages"] = self.advantages.cpu()
         
         self.advantages = self.advantages.cpu()
         self.values = self.values.cpu()
