@@ -144,15 +144,8 @@ class Buffer():
             self.memories = self.memories[:, :padding_len]
             # Reset the empirical maximum episode length
             self.emp_max_episode_steps = 0
-            # Move the memories to the device
-            try:
-                self.memories = self.memories.cpu()
-            except RuntimeError: # Out of memory
-                oom = True
-            if oom:
-                print("Out of memory while moving the memories to the device. Moving the memories to the CPU.", flush = True)
-                print("self.memories.shape: ", self.memories.shape, flush = True)
-                self._reduce_memory_usage({})
+            # Move the memories to the cpu
+            self.memories = self.memories.cpu()
             
         # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
@@ -210,6 +203,7 @@ class Buffer():
         self.advantages = self.advantages.cpu()
         self.values = self.values.cpu()
         self.log_probs = self.log_probs.cpu()
+        self.dones = self.dones.cpu()
 
         # Flatten samples
         self.samples_flat = {}
