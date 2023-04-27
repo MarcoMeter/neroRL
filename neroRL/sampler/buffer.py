@@ -129,6 +129,7 @@ class Buffer():
             self.memory_mask = self.memory_mask.cpu()
             self.memory_index = self.memory_index.cpu()
             self.vis_obs = self.vis_obs.cpu()
+            self.actions = self.actions.cpu()
 
             # Convert the memories to a tensor
             oom = False
@@ -205,6 +206,10 @@ class Buffer():
         samples["values"] = self.values
         samples["log_probs"] = self.log_probs
         samples["advantages"] = self.advantages
+        
+        self.advantages = self.advantages.cpu()
+        self.values = self.values.cpu()
+        self.log_probs = self.log_probs.cpu()
 
         # Flatten samples
         self.samples_flat = {}
