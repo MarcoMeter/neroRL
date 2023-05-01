@@ -36,9 +36,9 @@ def init_recurrent_cell(recurrence_config, model, device):
         recurrent_cell = (hxs, cxs)
     return recurrent_cell
 
-def init_transformer_memory(trxl_conf, model, device):
+def init_transformer_memory(trxl_conf, model):
     memory_mask = torch.tril(torch.ones((trxl_conf["memory_length"], trxl_conf["memory_length"])), diagonal=-1)
-    memory = model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device)
+    memory = model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"])
     # Setup memory window indices
     repetitions = torch.repeat_interleave(torch.arange(0, trxl_conf["memory_length"]).unsqueeze(0), trxl_conf["memory_length"] - 1, dim = 0).long()
     memory_indices = torch.stack([torch.arange(i, i + trxl_conf["memory_length"]) for i in range(trxl_conf["max_episode_steps"] - trxl_conf["memory_length"] + 1)]).long()
@@ -147,7 +147,7 @@ def main():
             memory = init_recurrent_cell(model_config["recurrence"], model, device)
         # Init transformer memory
         if "transformer" in model_config:
-            memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model, device)
+            memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model)
             memory_length = model_config["transformer"]["memory_length"]
 
         # Play episode

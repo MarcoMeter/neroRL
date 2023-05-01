@@ -58,7 +58,7 @@ class Evaluator():
                 recurrent_cell.append((hxs, cxs))
         return recurrent_cell
 
-    def init_transformer_memory(self, trxl_conf, model, device):
+    def init_transformer_memory(self, trxl_conf, model):
         self.memory_length = trxl_conf["memory_length"]
         memory_mask = torch.tril(torch.ones((self.memory_length, self.memory_length)), diagonal=-1)
         repetitions = torch.repeat_interleave(torch.arange(0, self.memory_length).unsqueeze(0), self.memory_length - 1, dim = 0).long()
@@ -102,7 +102,7 @@ class Evaluator():
                 memory = self.init_recurrent_cell(self.recurrence_config, model, device)
             # Initialize the transformer memory
             if self.transformer_config is not None:
-                memory, memory_mask, memory_indices = self.init_transformer_memory(self.transformer_config, model, device)
+                memory, memory_mask, memory_indices = self.init_transformer_memory(self.transformer_config, model)
             
             # Reset workers and set evaluation seed
             for worker in self.workers:
