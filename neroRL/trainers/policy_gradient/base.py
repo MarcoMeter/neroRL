@@ -124,7 +124,7 @@ class BaseTrainer():
 
         # Free VRAM
         del(self.sampler.buffer.samples_flat)
-        if self.train_device == "cuda":
+        if self.train_device-type == "cuda":
             torch.cuda.empty_cache()
         # mem = torch.cuda.mem_get_info(device=None)
         # mem = (mem[1] - mem[0]) / 1024 / 1024
