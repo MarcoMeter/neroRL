@@ -118,11 +118,13 @@ class Buffer():
         # TRANSFORMER SAMPLES
         # Add data concerned with the episodic memory (i.e. transformer-based policy)
         if self.transformer_memory is not None:
+            # Remove unnecessary padding from transformer buffer fields depending on the actual maximum episode length
             samples["memory_index"] = self.memory_index
-            samples["memory_mask"] = self.memory_mask
-            samples["memory_indices"] = self.memory_indices
+            samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length]
+            samples["memory_indices"] = self.memory_indices[:, :, :self.sampler.max_episode_length]
             # Convert the memories to a tensor
-            self.memories = torch.stack(self.memories, dim=0)
+            self.memories = self.list_to_tensor_iteratively(self.memories, chunk_size=256)
+            self.memories = self.memories[:, :, :self.sampler.max_episode_length]
 
         # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
@@ -366,6 +368,24 @@ class Buffer():
         
         # Refresh batches
         self.prepare_batch_dict() 
+
+    def list_to_tensor_iteratively(self, list_of_tensors, chunk_size = 384):
+        if self.train_device.type == "cuda":
+            # Stack initial list elements
+            out_tensor = torch.stack(list_of_tensors[:chunk_size], dim=0)
+            # Delete initial list elements
+            del list_of_tensors[:chunk_size]
+            # Loop over the remaining list elements and concatenate them to the out tensor
+            while len(list_of_tensors) > 0:
+                out_tensor = torch.cat((out_tensor, torch.stack(list_of_tensors[:chunk_size], dim=0)), dim=0)
+                # Delete list elements
+                del list_of_tensors[:chunk_size]
+            return out_tensor
+        else:
+            # If on CPU, stack the entnire list
+            out_tensor = torch.stack(list_of_tensors, dim=0)
+            del list_of_tensors
+            return out_tensor
 
     def to(self, device):
         """Args:

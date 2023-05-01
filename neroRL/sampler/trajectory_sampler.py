@@ -67,6 +67,8 @@ class TrajectorySampler():
             achieved reward and the episode length.
         """
         episode_infos = []
+        # Init max episode lenght
+        self.max_episode_length = 0
 
         # Sample actions from the model and collect experiences for training
         for t in range(self.worker_steps):
@@ -108,10 +110,17 @@ class TrajectorySampler():
                 if info:
                     # Store the information of the completed episode (e.g. total reward, episode length)
                     episode_infos.append(info)
+                    # Set max episode length
+                    self.max_episode_length = max(self.max_episode_length, info["length"])
+                    # Reset the worker that concluded its episode
                     self.reset_worker(worker, w, t)
                 else:
                     # Increment worker timestep
                     self.worker_current_episode_step[w] +=1
+
+        # Ensure that max episode length is not 0
+        if self.max_episode_length == 0:
+            self.max_episode_length = self.worker_steps
 
         return episode_infos
 

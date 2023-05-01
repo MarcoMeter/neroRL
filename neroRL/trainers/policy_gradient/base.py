@@ -127,8 +127,7 @@ class BaseTrainer():
         if self.train_device.type == "cuda":
             torch.cuda.empty_cache()
         # mem = torch.cuda.mem_get_info(device=None)
-        # mem = (mem[1] - mem[0]) / 1024 / 1024
-        # print(mem)
+        # print("Optim 2 mem usage: {} MB".format((mem[1] - mem[0]) / 1024 / 1024))
         
         # Store recent episode infos
         self.episode_info.extend(sample_episode_info)
