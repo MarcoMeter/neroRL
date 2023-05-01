@@ -184,6 +184,10 @@ class Buffer():
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
             self.samples_flat[key] = value
 
+        # Free VRAM if possible
+        if self.train_device.type == "cuda":
+            torch.cuda.empty_cache()
+
     def _arange_sequences(self, data, episode_done_indices):
         """Splits the povided data into episodes and then into sequences.
         The split points are indicated by the envrinoments' done signals.
