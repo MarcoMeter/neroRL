@@ -61,8 +61,8 @@ def main():
         --num-episodes=<n>         The number of to be played episodes [default: 1].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
-        --generate_website         Specifies wether a website shall be generated. [default: False]
-        --generate_decoder_video   Specifies wether a video of the decoder shall be generated. [default: False]
+        --generate-website         Specifies wether a website shall be generated. [default: False]
+        --generate-decoder-video   Specifies wether a video of the decoder shall be generated. [default: False]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                              # defaults to False
@@ -73,8 +73,8 @@ def main():
     num_episodes = int(options["--num-episodes"])                   # defauults to 1
     video_path = options["--video"]                                 # defaults to "video"
     frame_rate = options["--framerate"]                             # defaults to 6
-    generate_website = options["--generate_website"]                # defaults to False
-    generate_decoder_video = options["--generate_decoder_video"]    # defaults to False
+    generate_website = options["--generate-website"]                # defaults to False
+    generate_decoder_video = options["--generate-decoder-video"]    # defaults to False
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -204,12 +204,16 @@ def main():
                 probs.append(_probs)
                 entropies.append(entropy)
                 values.append(value.cpu().numpy())
-                decoder_obs.append(model.reconstruct_observation().transpose(1, 2, 0))
+                decoder_obs.append(model.reconstruct_observation().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
 
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
                 t += 1
 
+        vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
+        vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
+        model(vis_obs, vec_obs, in_memory, mask, indices)
+        decoder_obs.append(model.reconstruct_observation().detach().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
         logger.info("Episode Reward: " + str(info["reward"]))
         logger.info("Episode Length: " + str(info["length"]))
 

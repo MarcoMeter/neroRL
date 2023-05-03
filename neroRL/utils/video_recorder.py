@@ -41,14 +41,15 @@ class VideoRecorder:
         """
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
-                                self.fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
+                                self.fourcc, self.frame_rate, (self.width * 3, self.height + self.info_height))
+        # Render each frame of the episode
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
             env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
             env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
             
             decoder_frame = trajectory_data["decoder_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
-            decoder_frame = cv2.resize(decoder_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
+            decoder_frame = cv2.resize(decoder_frame, (self.width, self.height + self.info_height), interpolation=cv2.INTER_AREA)
 
             # Setup info frame
             info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
