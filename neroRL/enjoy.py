@@ -62,17 +62,19 @@ def main():
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
         --generate_website         Specifies wether a website shall be generated. [default: False]
+        --generate_decoder_video   Specifies wether a video of the decoder shall be generated. [default: False]
     """
     options = docopt(_USAGE)
-    untrained = options["--untrained"]                  # defaults to False
-    config_path = options["--config"]                   # defaults to an empty string
-    checkpoint_path = options["--checkpoint"]           # defaults to an empty string
-    worker_id = int(options["--worker-id"])             # defaults to 2
-    seed = int(options["--seed"])                       # defaults to 0
-    num_episodes = int(options["--num-episodes"])       # defauults to 1
-    video_path = options["--video"]                     # defaults to "video"
-    frame_rate = options["--framerate"]                 # defaults to 6
-    generate_website = options["--generate_website"]    # defaults to False
+    untrained = options["--untrained"]                              # defaults to False
+    config_path = options["--config"]                               # defaults to an empty string
+    checkpoint_path = options["--checkpoint"]                       # defaults to an empty string
+    worker_id = int(options["--worker-id"])                         # defaults to 2
+    seed = int(options["--seed"])                                   # defaults to 0
+    num_episodes = int(options["--num-episodes"])                   # defauults to 1
+    video_path = options["--video"]                                 # defaults to "video"
+    frame_rate = options["--framerate"]                             # defaults to 6
+    generate_website = options["--generate_website"]                # defaults to False
+    generate_decoder_video = options["--generate_decoder_video"]    # defaults to False
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = False
@@ -161,6 +163,7 @@ def main():
         entropies = []
         values = []
         actions = []
+        decoder_output = []
 
         # Play one episode
         with torch.no_grad():
@@ -200,6 +203,7 @@ def main():
                 probs.append(_probs)
                 entropies.append(entropy)
                 values.append(value.cpu().numpy())
+                decoder_output.append(model.reconstruct_observation().transpose(1, 2, 0))
 
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
@@ -218,6 +222,8 @@ def main():
             trajectory_data["values"] = [items for items in values for _ in range(frame_skip)]
             trajectory_data["episode_reward"] = info["reward"]
             trajectory_data["seed"] = seed
+            if generate_decoder_video:
+                trajectory_data["decoder_output"] = decoder_output
             # if frame_skip > 1:
             #     # remainder = info["length"] % frame_skip
             #     remainder = len(trajectory_data["probs"]) % frame_skip
