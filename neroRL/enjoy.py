@@ -100,7 +100,7 @@ def main():
     # Load config, environment, model, evaluation and training parameters
     if not config_path and not checkpoint_path:
         raise ValueError("Either a config or a checkpoint must be provided")
-    checkpoint = torch.load(checkpoint_path) if checkpoint_path else None
+    checkpoint = torch.load(checkpoint_path, map_location=device) if checkpoint_path else None
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
     model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
     # Determine whether frame skipping is desired (important for video recording)
@@ -121,15 +121,16 @@ def main():
         share_parameters = configs["trainer"]["share_parameters"]
     if "transformer" in model_config:
         model_config["transformer"]["max_episode_steps"] = max_episode_steps
+    use_obs_reconstruction = configs["trainer"]["obs_reconstruction_schedule"]["initial"] > 0.0
     model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
-                            vector_observation_space, action_space_shape, device)
+                            vector_observation_space, action_space_shape, device, use_obs_reconstruction)
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
         if not checkpoint:
             # If a checkpoint is not provided as an argument, it shall be retrieved from the config
             logger.info("Step 2: Loading model from " + model_config["model_path"])
-            checkpoint = torch.load(model_config["model_path"])
+            checkpoint = torch.load(model_config["model_path"], map_location=device)
         model.load_state_dict(checkpoint["model"])
         if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
@@ -163,7 +164,7 @@ def main():
         entropies = []
         values = []
         actions = []
-        decoder_output = []
+        decoder_obs = []
 
         # Play one episode
         with torch.no_grad():
@@ -203,7 +204,7 @@ def main():
                 probs.append(_probs)
                 entropies.append(entropy)
                 values.append(value.cpu().numpy())
-                decoder_output.append(model.reconstruct_observation().transpose(1, 2, 0))
+                decoder_obs.append(model.reconstruct_observation().transpose(1, 2, 0))
 
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
@@ -223,7 +224,7 @@ def main():
             trajectory_data["episode_reward"] = info["reward"]
             trajectory_data["seed"] = seed
             if generate_decoder_video:
-                trajectory_data["decoder_output"] = decoder_output
+                trajectory_data["decoder_obs"] = decoder_obs
             # if frame_skip > 1:
             #     # remainder = info["length"] % frame_skip
             #     remainder = len(trajectory_data["probs"]) % frame_skip

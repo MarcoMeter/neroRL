@@ -46,6 +46,9 @@ class VideoRecorder:
             # Setup environment frame
             env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
             env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
+            
+            decoder_frame = trajectory_data["decoder_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
+            decoder_frame = cv2.resize(decoder_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
 
             # Setup info frame
             info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
@@ -87,6 +90,7 @@ class VideoRecorder:
             # Concatenate environment and debug frames
             output_image = np.hstack((env_frame, debug_frame))
             output_image = np.vstack((info_frame, output_image))
+            output_image = np.hstack((output_image, decoder_frame))
 
             # Write frame
             out.write(output_image)
