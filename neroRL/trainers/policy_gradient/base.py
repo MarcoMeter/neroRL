@@ -120,14 +120,7 @@ class BaseTrainer():
             "advantage_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.advantages).cpu().item()),
             "value_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.values).cpu().item()),
             "sequence_length": (Tag.OTHER, self.sampler.buffer.actual_sequence_length),
-            }
-
-        # Free VRAM
-        del(self.sampler.buffer.samples_flat)
-        if self.train_device.type == "cuda":
-            torch.cuda.empty_cache()
-        # mem = torch.cuda.mem_get_info(device=None)
-        # print("Optim 2 mem usage: {} MB".format((mem[1] - mem[0]) / 1024 / 1024))
+        }
         
         # Store recent episode infos
         self.episode_info.extend(sample_episode_info)

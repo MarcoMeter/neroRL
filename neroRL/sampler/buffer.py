@@ -120,10 +120,14 @@ class Buffer():
         if self.transformer_memory is not None:
             # Remove unnecessary padding from transformer buffer fields depending on the actual maximum episode length
             samples["memory_index"] = self.memory_index
-            samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length]
-            samples["memory_indices"] = self.memory_indices[:, :, :self.sampler.max_episode_length]
-            # Convert the memories to a tensor
-            self.memories = torch.stack(self.memories, dim=0)[:, :, :self.sampler.max_episode_length]
+            if self.max_episode_steps >= self.sampler.max_episode_length:
+                samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length]
+                samples["memory_indices"] = self.memory_indices[:, :, :self.sampler.max_episode_length]
+                self.memories = torch.stack(self.memories, dim=0)[:, :, :self.sampler.max_episode_length]
+            else:
+                samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length].clone()
+                samples["memory_indices"] = self.memory_indices[:, :, :self.sampler.max_episode_length].clone()
+                self.memories = torch.stack(self.memories, dim=0)[:, :, :self.sampler.max_episode_length].clone()
 
         # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
@@ -184,10 +188,6 @@ class Buffer():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
             self.samples_flat[key] = value
-
-        # Free VRAM if possible
-        if self.train_device.type == "cuda":
-            torch.cuda.empty_cache()
 
     def _arange_sequences(self, data, episode_done_indices):
         """Splits the povided data into episodes and then into sequences.
