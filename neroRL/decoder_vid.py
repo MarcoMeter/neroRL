@@ -21,6 +21,8 @@ from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.video_recorder import VideoRecorder
 from neroRL.nn.actor_critic import create_actor_critic_model
 
+import cv2
+
 # Setup logger
 logging.basicConfig(level = logging.INFO, handlers=[])
 logger = logging.getLogger("enjoy")
@@ -58,11 +60,8 @@ def main():
         --untrained                Whether an untrained model should be used [default: False].
         --worker-id=<n>            Sets the port for each environment instance [default: 2].
         --seed=<n>                 The to be played seed of an episode [default: 0].
-        --num-episodes=<n>         The number of to be played episodes [default: 1].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
-        --generate-website         Specifies wether a website shall be generated. [default: False]
-        --generate-decoder-video   Specifies wether a video of the decoder shall be generated. [default: False]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                              # defaults to False
@@ -70,25 +69,8 @@ def main():
     checkpoint_path = options["--checkpoint"]                       # defaults to an empty string
     worker_id = int(options["--worker-id"])                         # defaults to 2
     seed = int(options["--seed"])                                   # defaults to 0
-    num_episodes = int(options["--num-episodes"])                   # defauults to 1
     video_path = options["--video"]                                 # defaults to "video"
     frame_rate = options["--framerate"]                             # defaults to 6
-    generate_website = options["--generate-website"]                # defaults to False
-    generate_decoder_video = options["--generate-decoder-video"]    # defaults to False
-
-    # Determine whether to record a video. A video is only recorded if the video flag is used.
-    record_video = False
-    for i, arg in enumerate(sys.argv):
-        if "--video" in arg:
-            record_video = True
-            logger.info("Step 0: Video recording enabled. Video will be saved to " + video_path)
-            logger.info("Step 0: Only 1 episode will be played")
-            num_episodes = 1
-            break
-
-    if generate_website:
-        logger.info("Step 0: Only 1 episode will be played")
-        num_episodes = 1
 
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -103,8 +85,6 @@ def main():
     checkpoint = torch.load(checkpoint_path, map_location=device) if checkpoint_path else None
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
     model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
-    # Determine whether frame skipping is desired (important for video recording)
-    frame_skip = configs["environment"]["frame_skip"]
 
     # Launch environment
     logger.info("Step 1: Launching environment")
@@ -112,7 +92,7 @@ def main():
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
     visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
-    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
+    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = True)
 
     # Build or load model
     logger.info("Step 2: Creating model")
@@ -136,84 +116,121 @@ def main():
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
 
-    # Run all desired episodes
-    # Note: Only one episode is run upon generating a result website or rendering a video
-    for _ in range(num_episodes):
-        # Reset environment
-        t = 0
-        logger.info("Step 3: Resetting the environment")
-        logger.info("Step 3: Using seed " + str(seed))
-        vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
-        done = False
-        
-        # Init memory if applicable
-        memory, memory_mask, memory_indices, mask, indices = None, None, None, None, None
-        # Init hidden state (None if not available)
-        if "recurrence" in model_config:
-            memory = init_recurrent_cell(model_config["recurrence"], model, device)
-        # Init transformer memory
-        if "transformer" in model_config:
-            memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model)
-            memory_length = model_config["transformer"]["memory_length"]
+    # Run all one episode
+    # Reset environment
+    t = 0
+    logger.info("Step 3: Resetting the environment")
+    logger.info("Step 3: Using seed " + str(seed))
+    vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
+    done = False
+    
+    # Init memory if applicable
+    memory, memory_mask, memory_indices, mask, indices = None, None, None, None, None
+    # Init hidden state (None if not available)
+    if "recurrence" in model_config:
+        memory = init_recurrent_cell(model_config["recurrence"], model, device)
+    # Init transformer memory
+    if "transformer" in model_config:
+        memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model)
+        memory_length = model_config["transformer"]["memory_length"]
 
-        # Play episode
-        logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
+    # Play episode
+    logger.info("Step 4: Run " + str(1) + " episode(s) in realtime . . .")
 
-        # Store data for video recording
-        obs = []
+    # Store data for video recording
+    decoder_obs = []
 
-        # Play one episode
-        with torch.no_grad():
-            while not done:
-                # Forward the neural net
-                vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
-                vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                # Prepare transformer memory
-                if "transformer" in model_config:
-                    in_memory = memory[0, memory_indices[t].unsqueeze(0)]
-                    t_ = max(0, min(t, memory_length - 1))
-                    mask = memory_mask[t_].unsqueeze(0)
-                    indices = memory_indices[t].unsqueeze(0)
-                else:
-                    in_memory = memory
-
-                policy, value, new_memory, _ = model(vis_obs, vec_obs, in_memory, mask, indices)
-                
-                # Set memory if used
-                if "recurrence" in model_config:
-                    memory = new_memory
-                if "transformer" in model_config:
-                    memory[:, t] = new_memory
-
-                _actions = []
-                _probs = []
-                entropy = []
-                # Sample action
-                for action_branch in policy:
-                    action = action_branch.sample()
-                    _actions.append(action.item())
-                    _probs.append(action_branch.probs)
-                    entropy.append(action_branch.entropy().item())
-
-                # Store data for video recording
-                obs.append((vis_obs, vec_obs))
-                # Step environment
-                vis_obs, vec_obs, _, done, info = env.step(_actions)
-                t += 1
-
-        # Add final observation to decoder video data
-        if use_obs_reconstruction:
+    # Play one episode
+    with torch.no_grad():
+        while not done:
+            # Forward the neural net
             vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
             vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-            obs.append((vis_obs, vec_obs))
+            # Prepare transformer memory
+            if "transformer" in model_config:
+                in_memory = memory[0, memory_indices[t].unsqueeze(0)]
+                t_ = max(0, min(t, memory_length - 1))
+                mask = memory_mask[t_].unsqueeze(0)
+                indices = memory_indices[t].unsqueeze(0)
+            else:
+                in_memory = memory
+
+            _, _, new_memory, _ = model(vis_obs, vec_obs, in_memory, mask, indices)
+            
+            # Set memory if used
+            if "recurrence" in model_config:
+                memory = new_memory
+            if "transformer" in model_config:
+                memory[:, t] = new_memory
+
+            # Store data for video recording
+            decoder_obs.append(model.reconstruct_observation().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
+
+            # Step environment
+            vis_obs, vec_obs, _, done, info = env.step(_actions)
+            t += 1
+
+        vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
+        vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
+        model(vis_obs, vec_obs, in_memory, mask, indices)
+        decoder_obs.append(model.reconstruct_observation().detach().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
         
         logger.info("Episode Reward: " + str(info["reward"]))
         logger.info("Episode Length: " + str(info["length"]))
 
+        # Complete video data
+        trajectory_data = env.get_episode_trajectory
+        trajectory_data["episode_reward"] = info["reward"]
+        trajectory_data["seed"] = seed
+        trajectory_data["decoder_obs"] = decoder_obs
+        
+        # Render and serialize video
+        render_video(trajectory_data, video_path, frame_rate)
+
     env.close()
+
+def render_video(trajectory_data, video_path, frame_rate):
+    """Triggers the process of rendering the trajectory data to a video.
+    The rendering is done with the help of OpenCV.
     
-    
-    
+    Arguments:
+        trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
+    """
+    # Init video recorder
+    video_recorder = VideoRecorder(video_path, frame_rate)
+    # Init VideoWriter, the frame rate is defined by each environment individually
+    out = cv2.VideoWriter(video_recorder.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
+                            video_recorder.fourcc, video_recorder.frame_rate, (video_recorder.width * 2, video_recorder.height + video_recorder.info_height))
+    # Render each frame of the episode
+    for i in range(len(trajectory_data["vis_obs"])):
+        # Setup environment frame
+        env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
+        env_frame = cv2.resize(env_frame, (video_recorder.width, video_recorder.height), interpolation=cv2.INTER_AREA)
+        
+        decoder_frame = trajectory_data["decoder_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
+        decoder_frame = cv2.resize(decoder_frame, (video_recorder.width, video_recorder.height), interpolation=cv2.INTER_AREA)
+        info_frame = np.zeros((video_recorder.info_height, video_recorder.width, 3), dtype=np.uint8)
+        decoder_frame = np.vstack((info_frame, decoder_frame))
+
+        # Setup info frame
+        info_frame = np.zeros((video_recorder.info_height, video_recorder.width * 2, 3), dtype=np.uint8)
+        # Seed
+        video_recorder.draw_text_overlay(info_frame, 8, 20, trajectory_data["seed"], "seed")
+        # Current step
+        video_recorder.draw_text_overlay(info_frame, 108, 20, i, "step")
+        # Collected rewards so far
+        video_recorder.draw_text_overlay(info_frame, 208, 20, round(sum(trajectory_data["rewards"][0:i]), 3), "total reward")
+
+        # Concatenate environment and debug frames
+        output_image = np.vstack((info_frame, env_frame))
+        # Concatenate decoder frame if available
+        output_image = np.hstack((output_image, decoder_frame))
+
+        # Write frame
+        out.write(output_image)
+    # Finish up the video
+    out.release()
+
 
 if __name__ == "__main__":
     main()
