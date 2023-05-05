@@ -160,11 +160,7 @@ def main():
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
 
         # Store data for video recording
-        probs = []
-        entropies = []
-        values = []
-        actions = []
-        decoder_obs = []
+        obs = []
 
         # Play one episode
         with torch.no_grad():
@@ -200,13 +196,7 @@ def main():
                     entropy.append(action_branch.entropy().item())
 
                 # Store data for video recording
-                actions.append(_actions)
-                probs.append(_probs)
-                entropies.append(entropy)
-                values.append(value.cpu().numpy())
-                if use_obs_reconstruction:
-                    decoder_obs.append(model.reconstruct_observation().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
-
+                obs.append((vis_obs, vec_obs))
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
                 t += 1
@@ -215,41 +205,15 @@ def main():
         if use_obs_reconstruction:
             vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
             vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-            model(vis_obs, vec_obs, in_memory, mask, indices)
-            decoder_obs.append(model.reconstruct_observation().detach().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
+            obs.append((vis_obs, vec_obs))
         
         logger.info("Episode Reward: " + str(info["reward"]))
         logger.info("Episode Length: " + str(info["length"]))
 
-        # Complete video data
-        if record_video or generate_website:
-            trajectory_data = env.get_episode_trajectory
-            trajectory_data["action_names"] = env.action_names
-            trajectory_data["actions"] = [items for items in actions for _ in range(frame_skip)]
-            trajectory_data["probs"] = [items for items in probs for _ in range(frame_skip)]
-            trajectory_data["entropies"] = [items for items in entropies for _ in range(frame_skip)]
-            trajectory_data["values"] = [items for items in values for _ in range(frame_skip)]
-            trajectory_data["episode_reward"] = info["reward"]
-            trajectory_data["seed"] = seed
-            if generate_decoder_video:
-                trajectory_data["decoder_obs"] = decoder_obs
-            # if frame_skip > 1:
-            #     # remainder = info["length"] % frame_skip
-            #     remainder = len(trajectory_data["probs"]) % frame_skip
-            #     if remainder > 0:
-            #         for key in ["actions", "probs", "entropies", "values"]:
-            #             trajectory_data[key] = trajectory_data[key][:-remainder]
-
-            # Init video recorder
-            video_recorder = VideoRecorder(video_path, frame_rate)
-            # Render and serialize video
-            if record_video:
-                video_recorder.render_video(trajectory_data)
-            # Generate website
-            if generate_website:
-                video_recorder.generate_website(trajectory_data, configs)
-
     env.close()
+    
+    
+    
 
 if __name__ == "__main__":
     main()
