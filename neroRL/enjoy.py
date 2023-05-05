@@ -204,16 +204,20 @@ def main():
                 probs.append(_probs)
                 entropies.append(entropy)
                 values.append(value.cpu().numpy())
-                decoder_obs.append(model.reconstruct_observation().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
+                if use_obs_reconstruction:
+                    decoder_obs.append(model.reconstruct_observation().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
 
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
                 t += 1
 
-        vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
-        vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-        model(vis_obs, vec_obs, in_memory, mask, indices)
-        decoder_obs.append(model.reconstruct_observation().detach().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
+        # Add final observation to decoder video data
+        if use_obs_reconstruction:
+            vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
+            vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
+            model(vis_obs, vec_obs, in_memory, mask, indices)
+            decoder_obs.append(model.reconstruct_observation().detach().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
+        
         logger.info("Episode Reward: " + str(info["reward"]))
         logger.info("Episode Length: " + str(info["length"]))
 

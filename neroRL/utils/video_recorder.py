@@ -39,17 +39,24 @@ class VideoRecorder:
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
         """
+        # Check if decoder observations are available and adjust video dimensions accordingly
+        decoder_width = self.width if "decoder_obs" in trajectory_data else 0
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
-                                self.fourcc, self.frame_rate, (self.width * 3, self.height + self.info_height))
+                                self.fourcc, self.frame_rate, (self.width * 2 + decoder_width, self.height + self.info_height))
         # Render each frame of the episode
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
             env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
             env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
             
-            decoder_frame = trajectory_data["decoder_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
-            decoder_frame = cv2.resize(decoder_frame, (self.width, self.height + self.info_height), interpolation=cv2.INTER_AREA)
+            # Setup decoder frame if available
+            if "decoder_obs" in trajectory_data:
+                decoder_frame = trajectory_data["decoder_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
+                decoder_frame = cv2.resize(decoder_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
+                info_frame = np.zeros((self.info_height, self.width, 3), dtype=np.uint8)
+                self.draw_text_overlay(info_frame, 8, 20, i, "decoder_frame")
+                decoder_frame = np.vstack((info_frame, decoder_frame))
 
             # Setup info frame
             info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
@@ -91,7 +98,9 @@ class VideoRecorder:
             # Concatenate environment and debug frames
             output_image = np.hstack((env_frame, debug_frame))
             output_image = np.vstack((info_frame, output_image))
-            output_image = np.hstack((output_image, decoder_frame))
+            # Concatenate decoder frame if available
+            if "decoder_obs" in trajectory_data:
+                output_image = np.hstack((output_image, decoder_frame))
 
             # Write frame
             out.write(output_image)
