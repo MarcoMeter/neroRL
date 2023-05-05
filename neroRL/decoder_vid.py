@@ -11,6 +11,8 @@ import logging
 import torch
 import numpy as np
 import sys
+import pygame
+import gymnasium as gym
 
 from docopt import docopt
 from gymnasium import spaces
@@ -50,9 +52,6 @@ def init_transformer_memory(trxl_conf, model):
 def main():
     # Docopt command line arguments
     _USAGE = """
-    Usage:
-        nenjoy [options]
-        nenjoy --help
 
     Options:
         --config=<path>            Path to the config file [default: ].
@@ -167,7 +166,7 @@ def main():
             decoder_obs.append(model.reconstruct_observation().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
 
             # Step environment
-            vis_obs, vec_obs, _, done, info = env.step(_actions)
+            vis_obs, vec_obs, _, done, info = env.step(None)
             t += 1
 
         vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
@@ -188,6 +187,58 @@ def main():
         render_video(trajectory_data, video_path, frame_rate)
 
     env.close()
+    
+def play(seed):
+    play_ss(seed)
+    
+def play_ss(seed):
+
+    result = []
+    env = gym.make("SearingSpotlights-v0",render_mode = "debug_rgb_array")
+    reset_params = {}
+    vis_obs, reset_info = env.reset(seed = seed, options = reset_params)
+    img = env.render()
+    result.append((vis_obs, None, img, None))
+    done = False
+
+    while not done:
+        actions = [0, 0]
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_UP] or keys[pygame.K_w]:
+            actions[1] = 1
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            actions[0] = 2
+        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+            actions[1] = 2
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            actions[0] = 1
+        if keys[pygame.K_PAGEDOWN] or keys[pygame.K_PAGEUP]:
+            if keys[pygame.K_PAGEUP]:
+                seed += 1
+            if keys[pygame.K_PAGEDOWN]:
+                if not seed <= 0:
+                    seed -= 1
+            vis_obs, reset_info = env.reset(seed = seed, options = reset_params)
+            img = env.render()
+        vis_obs, reward, done, truncation, info = env.step(actions)
+        result.append((vis_obs, None, img, info))
+        img = env.render()
+
+        # Process event-loop
+        for event in pygame.event.get():
+        # Quit
+            if event.type == pygame.QUIT:
+                done = True
+
+    print("episode reward: " + str(info["reward"]))
+    print("episode length: " + str(info["length"]))
+    print("agent health: " + str(info["agent_health"]))
+    print("coins collected: " + str(info["coins_collected"]))
+    print("exit success: " + str(bool(info["exit_success"])))
+
+    env.close()
+    exit()
+    
 
 def render_video(trajectory_data, video_path, frame_rate):
     """Triggers the process of rendering the trajectory data to a video.
