@@ -13,6 +13,7 @@ import numpy as np
 import sys
 import pygame
 import gymnasium as gym
+import memory_gym
 
 from docopt import docopt
 from gymnasium import spaces
@@ -24,6 +25,7 @@ from neroRL.utils.video_recorder import VideoRecorder
 from neroRL.nn.actor_critic import create_actor_critic_model
 
 import cv2
+import pickle
 
 # Setup logger
 logging.basicConfig(level = logging.INFO, handlers=[])
@@ -191,6 +193,11 @@ def main():
 def play(seed):
     play_ss(seed)
     
+def load():
+    with open('result.pickle', 'rb') as handle:
+        b = pickle.load(handle)
+    return b
+    
 def play_ss(seed):
 
     result = []
@@ -237,7 +244,8 @@ def play_ss(seed):
     print("exit success: " + str(bool(info["exit_success"])))
 
     env.close()
-    exit()
+    with open('result.pickle', 'wb') as handle:
+        pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
 
 def render_video(trajectory_data, video_path, frame_rate):
