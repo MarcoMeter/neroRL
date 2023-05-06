@@ -205,7 +205,7 @@ def play_ss(seed):
     reset_params = {}
     vis_obs, reset_info = env.reset(seed = seed, options = reset_params)
     img = env.render()
-    result.append((vis_obs, None, img, None))
+    result = {"vis_obs": [vis_obs], "reset_info": [reset_info], "actions": [None], "rewards": [None], "done": [False], "img": [img]}
     done = False
 
     while not done:
@@ -219,16 +219,13 @@ def play_ss(seed):
             actions[1] = 2
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             actions[0] = 1
-        if keys[pygame.K_PAGEDOWN] or keys[pygame.K_PAGEUP]:
-            if keys[pygame.K_PAGEUP]:
-                seed += 1
-            if keys[pygame.K_PAGEDOWN]:
-                if not seed <= 0:
-                    seed -= 1
-            vis_obs, reset_info = env.reset(seed = seed, options = reset_params)
-            img = env.render()
+
         vis_obs, reward, done, truncation, info = env.step(actions)
-        result.append((vis_obs, None, img, info))
+        result["vis_obs"].append(vis_obs)
+        result["reward"].append(reward)
+        result["done"].append(done or truncation)
+        result["info"].append(info)
+
         img = env.render()
 
         # Process event-loop
