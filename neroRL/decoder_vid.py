@@ -66,7 +66,7 @@ def main():
         --seed=<n>                 The to be played seed of an episode [default: 0].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
-        --play                     Play a specific environment by yourself. [default: False]
+        --play                     Play a the checkpoint environment by yourself to collect the data. [default: False]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                              # defaults to False
