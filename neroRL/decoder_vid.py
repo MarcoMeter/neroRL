@@ -190,11 +190,12 @@ def main():
         logger.info("Episode Length: " + str(info["length"]))
 
         # Complete video data
-        trajectory_data = env.get_episode_trajectory
+        trajectory_data = {}
         trajectory_data["episode_reward"] = info["reward"]
         trajectory_data["seed"] = seed
         trajectory_data["decoder_obs"] = decoder_obs
         trajectory_data["vis_obs"] = env_data["imgs"]
+        trajectory_data["rewards"] = env_data["reward"]
         
         # Render and serialize video
         render_video(trajectory_data, video_path, frame_rate)
@@ -214,8 +215,8 @@ def play_ss(config, seed):
 
     result = []
     env = wrap_environment(config, realtime_mode = True, record_trajectory = True, worker_id=None)
-    vis_obs, reset_info = env.reset()
-    result = {"vis_obs": [vis_obs], "vec_obs": [None], "reset_info": [reset_info], "actions": [None], "reward": [None], "done": [False], "info": [None], "seed": seed}
+    vis_obs, vec_obs = env.reset()
+    result = {"vis_obs": [vis_obs], "vec_obs": [vec_obs], "reset_info": [None], "actions": [None], "reward": [0], "done": [False], "info": [None], "seed": seed}
     done = False
 
     while not done:
@@ -279,7 +280,7 @@ def render_video(trajectory_data, video_path, frame_rate):
         decoder_frame = np.vstack((info_frame, decoder_frame))
 
         # Setup info frame
-        info_frame = np.zeros((video_recorder.info_height, video_recorder.width * 2, 3), dtype=np.uint8)
+        info_frame = np.zeros((video_recorder.info_height, video_recorder.width, 3), dtype=np.uint8)
         # Seed
         video_recorder.draw_text_overlay(info_frame, 8, 20, trajectory_data["seed"], "seed")
         # Current step
