@@ -118,11 +118,12 @@ def main():
     model.eval()
 
     # Run all one episode
+    env_data =load_env_data()
     # Reset environment
     t = 0
     logger.info("Step 3: Resetting the environment")
     logger.info("Step 3: Using seed " + str(seed))
-    vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
+    vis_obs, vec_obs = env_data["vis_obs"][t], env_data["vec_obs"][t]
     done = False
     
     # Init memory if applicable
@@ -168,8 +169,8 @@ def main():
             decoder_obs.append(model.reconstruct_observation().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
 
             # Step environment
-            vis_obs, vec_obs, _, done, info = env.step(None)
             t += 1
+            vis_obs, vec_obs, _, done, info = env_data["vis_obs"][t], env_data["vec_obs"][t], env_data["reward"][t], env_data["done"][t], env_data["info"][t]
 
         vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
         vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
@@ -184,6 +185,7 @@ def main():
         trajectory_data["episode_reward"] = info["reward"]
         trajectory_data["seed"] = seed
         trajectory_data["decoder_obs"] = decoder_obs
+        trajectory_data["vis_obs"] = env_data["vis_obs"]
         
         # Render and serialize video
         render_video(trajectory_data, video_path, frame_rate)
@@ -193,8 +195,8 @@ def main():
 def play(seed):
     play_ss(seed)
     
-def load():
-    with open('result.pickle', 'rb') as handle:
+def load_env_data(file_name:str):
+    with open(file_name, 'rb') as handle:
         b = pickle.load(handle)
     return b
     
