@@ -131,6 +131,8 @@ class YamlParser:
                     trainer_dict = ppo_dict
                 elif self._config["trainer"]["algorithm"] == "DecoupledPPO":
                     trainer_dict = decoupled_ppo_dict
+                elif self._config["trainer"]["algorithm"] == "DecoderTrainer":
+                    trainer_dict = ppo_dict
                 else:
                     assert(False), "Unsupported algorithm specified"
             else:
@@ -174,15 +176,16 @@ class YamlParser:
                 self._config[key] = trainer_dict
 
                 #  Check beta
-                if "final" not in value["beta_schedule"]:
-                    trainer_dict["beta_schedule"]["final"] = trainer_dict["beta_schedule"]["initial"]
-                if "power" not in value["beta_schedule"]:
-                    trainer_dict["beta_schedule"]["power"] = 1.0        
-                if "max_decay_steps" not in value["beta_schedule"]:
-                    trainer_dict["beta_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+                if value["algorithm"] != "DecoderTrainer":
+                    if "final" not in value["beta_schedule"]:
+                        trainer_dict["beta_schedule"]["final"] = trainer_dict["beta_schedule"]["initial"]
+                    if "power" not in value["beta_schedule"]:
+                        trainer_dict["beta_schedule"]["power"] = 1.0        
+                    if "max_decay_steps" not in value["beta_schedule"]:
+                        trainer_dict["beta_schedule"]["max_decay_steps"] = self._config[key]["updates"]
 
                 # Check decaying parameter schedules that have to be differentiated for the available algorithms
-                if value["algorithm"] == "PPO":
+                if value["algorithm"] == "PPO" or value["algorithm"] == "DecoderTrainer":
                     # Check learning rate
                     if "final" not in value["learning_rate_schedule"]:
                         trainer_dict["learning_rate_schedule"]["final"] = trainer_dict["learning_rate_schedule"]["initial"]
@@ -191,12 +194,13 @@ class YamlParser:
                     if "max_decay_steps" not in value["learning_rate_schedule"]:
                         trainer_dict["learning_rate_schedule"]["max_decay_steps"] = self._config[key]["updates"]
                     # Check clip range
-                    if "final" not in value["clip_range_schedule"]:
-                        trainer_dict["clip_range_schedule"]["final"] = trainer_dict["clip_range_schedule"]["initial"]
-                    if "power" not in value["clip_range_schedule"]:
-                        trainer_dict["clip_range_schedule"]["power"] = 1.0
-                    if "max_decay_steps" not in value["clip_range_schedule"]:
-                        trainer_dict["clip_range_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+                    if value["algorithm"] != "DecoderTrainer":
+                        if "final" not in value["clip_range_schedule"]:
+                            trainer_dict["clip_range_schedule"]["final"] = trainer_dict["clip_range_schedule"]["initial"]
+                        if "power" not in value["clip_range_schedule"]:
+                            trainer_dict["clip_range_schedule"]["power"] = 1.0
+                        if "max_decay_steps" not in value["clip_range_schedule"]:
+                            trainer_dict["clip_range_schedule"]["max_decay_steps"] = self._config[key]["updates"]
                 elif value["algorithm"] == "DecoupledPPO":
                     # Policy learning rate schedule
                     if "final" not in value["policy_learning_rate_schedule"]:
