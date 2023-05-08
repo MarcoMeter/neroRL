@@ -54,6 +54,9 @@ def init_transformer_memory(trxl_conf, model):
 def main():
     # Docopt command line arguments
     _USAGE = """
+    Usage:
+            nenjoy [options]
+            nenjoy --help
 
     Options:
         --config=<path>            Path to the config file [default: ].
@@ -63,6 +66,7 @@ def main():
         --seed=<n>                 The to be played seed of an episode [default: 0].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
+        --play                     Play a specific environment by yourself. [default: False]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                              # defaults to False
@@ -72,6 +76,8 @@ def main():
     seed = int(options["--seed"])                                   # defaults to 0
     video_path = options["--video"]                                 # defaults to "video"
     frame_rate = options["--framerate"]                             # defaults to 6
+    play_env = options["--play"]                                        # defaults to False
+    
 
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -87,6 +93,9 @@ def main():
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
     model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
 
+    if play_env:
+        play(configs["environment"], seed)
+        
     # Launch environment
     logger.info("Step 1: Launching environment")
     configs["environment"]["reset_params"]["start-seed"] = seed
@@ -118,7 +127,7 @@ def main():
     model.eval()
 
     # Run all one episode
-    env_data =load_env_data()
+    env_data =load_env_data("result.pkl")
     # Reset environment
     t = 0
     logger.info("Step 3: Resetting the environment")
@@ -185,29 +194,28 @@ def main():
         trajectory_data["episode_reward"] = info["reward"]
         trajectory_data["seed"] = seed
         trajectory_data["decoder_obs"] = decoder_obs
-        trajectory_data["vis_obs"] = env_data["vis_obs"]
+        trajectory_data["vis_obs"] = env_data["imgs"]
         
         # Render and serialize video
         render_video(trajectory_data, video_path, frame_rate)
 
     env.close()
     
-def play(seed):
-    play_ss(seed)
+def play(config, seed):
+    if config["name"] == "SearingSpotlights-v0":
+        play_ss(config, seed)
     
 def load_env_data(file_name:str):
     with open(file_name, 'rb') as handle:
         b = pickle.load(handle)
     return b
     
-def play_ss(seed):
+def play_ss(config, seed):
 
     result = []
-    env = gym.make("SearingSpotlights-v0",render_mode = "debug_rgb_array")
-    reset_params = {}
-    vis_obs, reset_info = env.reset(seed = seed, options = reset_params)
-    img = env.render()
-    result = {"vis_obs": [vis_obs], "reset_info": [reset_info], "actions": [None], "rewards": [None], "done": [False], "img": [img]}
+    env = wrap_environment(config, realtime_mode = True, record_trajectory = True, worker_id=None)
+    vis_obs, reset_info = env.reset()
+    result = {"vis_obs": [vis_obs], "vec_obs": [None], "reset_info": [reset_info], "actions": [None], "reward": [None], "done": [False], "info": [None], "seed": seed}
     done = False
 
     while not done:
@@ -222,13 +230,12 @@ def play_ss(seed):
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             actions[0] = 1
 
-        vis_obs, reward, done, truncation, info = env.step(actions)
+        vis_obs, vec_obs, reward, done, info = env.step(actions)
         result["vis_obs"].append(vis_obs)
+        result["vec_obs"].append(vec_obs)
         result["reward"].append(reward)
-        result["done"].append(done or truncation)
+        result["done"].append(done)
         result["info"].append(info)
-
-        img = env.render()
 
         # Process event-loop
         for event in pygame.event.get():
@@ -242,8 +249,9 @@ def play_ss(seed):
     print("coins collected: " + str(info["coins_collected"]))
     print("exit success: " + str(bool(info["exit_success"])))
 
+    result["imgs"] = env.get_episode_trajectory["vis_obs"]
     env.close()
-    with open('result.pickle', 'wb') as handle:
+    with open('result.pkl', 'wb') as handle:
         pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
 
