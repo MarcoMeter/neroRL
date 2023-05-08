@@ -22,7 +22,7 @@ environment:
     reward_episode_success: 0.0
 
 model:
-  load_model: True
+  load_model: False
   model_path: "./trxl-10000.pt"
   checkpoint_interval: 500
   activation: "relu"
