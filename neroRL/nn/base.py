@@ -37,6 +37,9 @@ class ActorCriticBase(Module):
         # Member for using a observation reconstruction decoder
         self.decoder_config = config["obs_decoder"] if "obs_decoder" in config else None
 
+        # Member for using aa ground truth estimator
+        self.ground_truth_estimator_config = config["ground_truth_estimator"] if "ground_truth_estimator" in config else None
+
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
@@ -106,6 +109,9 @@ class ActorCriticBase(Module):
             out_features = self.transformer_config["embed_dim"]
             transformer = self.create_transformer_layer(self.transformer_config, in_features_next_layer)
             in_features_next_layer = out_features
+        
+        # memory_dim is used to determine the input size of the ground truth estimator heaad if used
+        self.memory_dim = out_features
 
         # Network body
         out_features = config["num_hidden_units"]

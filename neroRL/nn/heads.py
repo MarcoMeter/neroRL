@@ -105,3 +105,33 @@ class AdvantageEstimator(Module):
                 h = torch.cat((h, one_hot_actions), dim=1)
         
         return self.advantage(h).reshape(-1)
+    
+class GroundTruthEstimator(Module):
+    """Estimation of the environment's ground truth information"""
+    def __init__(self, in_features, out_features, activ_fn):
+        """
+        Arguments:
+            in_features {int} -- Number of to be fed features
+            out_features {int} -- Number of to be estimated features
+            activ_fn {function} -- The to be applied activation function to the linear layer
+        """
+        super().__init__()
+        # Set the activation function
+        self.activ_fn = activ_fn
+        # Linear layer before head
+        self.linear = nn.Linear(in_features=in_features, out_features=512)
+        nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
+        # Estimaton head
+        self.ground_truth_estimation = nn.Linear(in_features=512, out_features=out_features)
+        nn.init.orthogonal_(self.ground_truth_estimation.weight, np.sqrt(2))
+
+    def forward(self, h):
+        """
+        Arguments:
+            h {toch.tensor} -- The fed input data
+
+        Returns:
+            {torch.tensor} -- Estimated ground truth information
+        """
+        h = self.activ_fn(self.linear(h))
+        return self.ground_truth_estimation(h)

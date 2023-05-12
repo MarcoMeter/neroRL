@@ -118,6 +118,8 @@ class Buffer():
             samples["vis_obs"] = self.vis_obs
         if self.vec_obs is not None:
             samples["vec_obs"] = self.vec_obs
+        if self.ground_truth is not None:
+            samples["ground_truth"] = self.ground_truth
 
         # TRANSFORMER SAMPLES
         # Add data concerned with the episodic memory (i.e. transformer-based policy)

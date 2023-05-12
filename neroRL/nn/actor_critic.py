@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from neroRL.nn.base import ActorCriticBase
-from neroRL.nn.heads import MultiDiscreteActionPolicy, ValueEstimator, AdvantageEstimator
+from neroRL.nn.heads import MultiDiscreteActionPolicy, ValueEstimator, AdvantageEstimator, GroundTruthEstimator
 
 class ActorCriticSeperateWeights(ActorCriticBase):
     """A flexible actor-critic model with separate actor and critic weights that supports:
@@ -295,13 +295,14 @@ class ActorCriticSharedWeights(ActorCriticBase):
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, ground_truth_space, action_space_shape):
         """Model setup
 
         Arguments:
             config {dict} -- Model config
             vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
+            ground_truth_space {box} -- Dimensions of the ground truth space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
             use_decoder {bool} -- Whether to use a decoder for observation reconstruction or not (default: {False})
         """
@@ -319,6 +320,11 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Value function head/output
         self.critic = ValueEstimator(self.out_features_body, self.activ_fn)
 
+        # Ground truth estimator head if configured
+        self.ground_truth_estimator = None
+        if self.ground_truth_estimator_config is not None:
+            self.ground_truth_estimator = GroundTruthEstimator(self.memory_dim, ground_truth_space.shape[0], self.activ_fn)
+
         # Organize all modules inside a dictionary
         # This will be used for collecting gradient statistics inside the trainer
         self.actor_critic_modules = {
@@ -332,6 +338,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         if self.vis_decoder is not None:
             self.actor_critic_modules["vis_decoder"] = self.vis_decoder
+
+        if self.ground_truth_estimator is not None:
+            self.actor_critic_modules["ground_truth_estimator"] = self.ground_truth_estimator
 
         if self.transformer is not None:
             for b, block in enumerate(self.transformer.transformer_blocks):
@@ -375,9 +384,13 @@ class ActorCriticSharedWeights(ActorCriticBase):
             h, memory = self.transformer(h, memory, mask, memory_indices)
 
         # Store hidden representation for observation reconstruction
-        if self.decoder_config is not None:
+        if self.vis_decoder is not None:
             if self.decoder_config["attach_to"] == "memory":
                 self.decoder_h = h
+
+        # Store hidden representation for ground truth estimation
+        if self.ground_truth_estimator is not None:
+            self.ground_truth_estimator_h = h
 
         # Feed network body
         h = self.body(h)
@@ -399,8 +412,19 @@ class ActorCriticSharedWeights(ActorCriticBase):
             self.decoder_h = self.decoder_h.detach()
         y = self.vis_decoder(self.decoder_h)
         return y
+    
+    def estimate_ground_truth(self):
+        """Estimates the ground truth from the memory representation
+        
+        Returns:
+            {torch.tensor} -- Estimated ground truth"""
+        # Allow gradients to only flow through the estimator?
+        if self.ground_truth_estimator_config["detach_gradient"]:
+            self.ground_truth_estimator_h = self.ground_truth_estimator_h.detach()
+        y = self.ground_truth_estimator(self.ground_truth_estimator_h)
+        return y
 
-def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, device):
+def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, device):
     """Creates a shared or non-shared weights actor critic model.
 
     Arguments:
@@ -417,7 +441,7 @@ def create_actor_critic_model(model_config, share_parameters, visual_observation
     """
     if share_parameters: # check if the actor critic model should share its weights
         return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
-                            action_space_shape).to(device)
+                            ground_truth_space, action_space_shape).to(device)
     else:
         return ActorCriticSeperateWeights(model_config, visual_observation_space, vector_observation_space,
                             action_space_shape).to(device)

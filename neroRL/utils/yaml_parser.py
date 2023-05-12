@@ -98,6 +98,7 @@ class YamlParser:
             "beta_schedule": {"initial": 0.001},
             "clip_range_schedule": {"initial": 0.2},
             "obs_reconstruction_schedule": {"initial": 0.0},
+            "ground_truth_estimator_schedule": {"initial": 0.0}
         }
 
         decoupled_ppo_dict = {
@@ -288,6 +289,13 @@ class YamlParser:
                     self._config["model"]["obs_decoder"]["attach_to"] = "cnn"
                 if "detach_gradient" not in self._config["model"]["obs_decoder"]:
                     self._config["model"]["obs_decoder"]["detach_gradient"] = False
+
+            # Check if the model dict contains an ground_truth_estimator dict
+            # If no ground_truth_estimator dict is available, it is assumed that a ground truth estimator is not used
+            # In the other case check for completeness and apply defaults if necessary
+            if "ground_truth_estimator" in self._config["model"]:
+                if "detach_gradient" not in self._config["model"]["ground_truth_estimator"]:
+                    self._config["model"]["ground_truth_estimator"]["detach_gradient"] = False
 
             # Check DAAC if DecoupledPPO
             if "DAAC" in self._config["trainer"]:

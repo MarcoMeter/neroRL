@@ -53,10 +53,17 @@ class PPOTrainer(BaseTrainer):
             self.obs_recon_coef = self.obs_recon_schedule["initial"]
             self.bce_loss = nn.BCELoss()
 
+        # Setup ground truth estimation members
+        if self.use_ground_truth_estimation:
+            self.ground_truth_estimation_schedule = self.configs["trainer"]["ground_truth_estimator_schedule"]
+            self.ground_truth_estimation_coef = self.ground_truth_estimation_schedule["initial"]
+            self.mse_loss = nn.MSELoss()
+
     def create_model(self) -> None:
         self.use_obs_reconstruction = self.configs["trainer"]["obs_reconstruction_schedule"]["initial"] > 0.0
+        self.use_ground_truth_estimation = self.configs["trainer"]["ground_truth_estimator_schedule"]["initial"] > 0.0
         return create_actor_critic_model(self.configs["model"], self.configs["trainer"]["share_parameters"],
-        self.vis_obs_space, self.vec_obs_space, self.action_space_shape, self.sample_device)
+        self.vis_obs_space, self.vec_obs_space, self.ground_truth_space, self.action_space_shape, self.sample_device)
 
     def train(self):
         train_info = {}
@@ -91,12 +98,14 @@ class PPOTrainer(BaseTrainer):
             train_info[key] = (tag, np.mean(values))
 
         # Format specific values for logging inside the base class
+        formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
+            train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
+        
+        if self.use_ground_truth_estimation:
+            formatted_string += " gt_loss={:.3f}".format(train_info["gt_loss"][1])
+
         if self.use_obs_reconstruction:
-            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} r_loss={:.3f} entropy={:.3f}".format(
-                train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["r_loss"][1], train_info["entropy"][1])
-        else:
-            formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
-                train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
+            formatted_string += " r_loss={:.3f}".format(train_info["r_loss"][1])
 
         # Return the mean of the training statistics
         return train_info, formatted_string
@@ -193,6 +202,19 @@ class PPOTrainer(BaseTrainer):
         #     if self.current_update % 10 == 0 and self.current_update > 1:
         #         self.plot_obs_reconstruction(vis_obs, decoder_output)
 
+        # Add ground truth estimation loss
+        if self.use_ground_truth_estimation:
+            # Forward ground truth estimator
+            estimation = self.model.estimate_ground_truth()
+            target = samples["ground_truth"]
+            # Remove paddings if recurrence is used
+            if self.recurrence is not None:
+                estimation = estimation[samples["loss_mask"]]
+                target = target[samples["loss_mask"]]
+            # Compute ground truth estimation loss
+            estimation_loss = self.mse_loss(estimation, target)
+            loss += self.ground_truth_estimation_coef * estimation_loss
+
         # Compute gradients
         self.optimizer.zero_grad()
         loss.backward()
@@ -220,6 +242,9 @@ class PPOTrainer(BaseTrainer):
         if self.use_obs_reconstruction:
             out["r_loss"] = (Tag.LOSS, reconstruction_loss.cpu().data.numpy())
 
+        if self.use_ground_truth_estimation:
+            out["gt_loss"] = (Tag.LOSS, estimation_loss.cpu().data.numpy())
+
         return out
 
     def plot_obs_reconstruction(self, vis_obs, decoder_output):
@@ -245,6 +270,10 @@ class PPOTrainer(BaseTrainer):
         if self.use_obs_reconstruction:
             self.obs_recon_coef = polynomial_decay(self.obs_recon_schedule["initial"], self.obs_recon_schedule["final"], 
                                             self.obs_recon_schedule["max_decay_steps"], self.obs_recon_schedule["power"], update)
+            
+        if self.use_ground_truth_estimation:
+            self.ground_truth_estimation_coef = polynomial_decay(self.ground_truth_estimation_schedule["initial"], self.ground_truth_estimation_schedule["final"],
+                                            self.ground_truth_estimation_schedule["max_decay_steps"], self.ground_truth_estimation_schedule["power"], update)
         
         # Apply learning rate to optimizer
         for pg in self.optimizer.param_groups:
