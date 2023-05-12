@@ -40,7 +40,7 @@ class TrajectorySampler():
         # Setup timestep placeholder
         self.worker_current_episode_step = torch.zeros((self.n_workers, ), dtype=torch.long)
         
-        # Setup initial observations
+        # Setup initial observations and ground truth information
         if visual_observation_space is not None:
             self.vis_obs = np.zeros((self.n_workers,) + visual_observation_space.shape, dtype=np.float32)
         else:
@@ -57,7 +57,7 @@ class TrajectorySampler():
         # Reset workers
         for worker in self.workers:
             worker.child.send(("reset", None))
-        # Grab initial observations
+        # Grab initial observations and ground truth information
         for i, worker in enumerate(self.workers):
             vis_obs, vec_obs, info = worker.child.recv()
             if self.vis_obs is not None:
@@ -144,6 +144,7 @@ class TrajectorySampler():
             self.buffer.vis_obs[:, t] = torch.tensor(self.vis_obs)
         if self.vec_obs is not None:
             self.buffer.vec_obs[:, t] = torch.tensor(self.vec_obs)
+        # The ground truth information is not used as model input, but is used as label to an auxiliary loss during optimization
         if self.ground_truth is not None:
             self.buffer.ground_truth[:, t] = torch.tensor(self.ground_truth)
 

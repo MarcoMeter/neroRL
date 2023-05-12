@@ -65,7 +65,7 @@ def get_environment_specs(env_config, worker_id, realtime_mode = False):
         worker_id {int} -- Worker id that is necessary for socket-based environments like Unity
 
     Returns:
-        {tuple} -- Returns visual observation space, vector observations space, action space and max episode steps
+        {tuple} -- Returns visual observation space, vector observations spacem ground_truth_space, action space and max episode steps
     """
     dummy_env = wrap_environment(env_config, worker_id, realtime_mode)
     vis_obs, vec_obs, info = dummy_env.reset(env_config["reset_params"])

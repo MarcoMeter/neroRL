@@ -294,6 +294,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
             - Multi-discrete action spaces
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
+            - TransformerXL-based episodic memory
+            - Ground truth estimation
+            - Observation reconstruction
     """
     def __init__(self, config, vis_obs_space, vec_obs_shape, ground_truth_space, action_space_shape):
         """Model setup

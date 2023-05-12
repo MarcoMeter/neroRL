@@ -13,6 +13,9 @@ class ActorCriticBase(Module):
     """An actor-critic base model which defines the basic components and functionality of the final model:
             - Components: Visual encoder, vector encoder, recurrent layer, transformer, body, heads (value, policy, gae)
             - Functionality: Initialization of the recurrent cells and basic model
+            - Functionality: Initialization of the transformer memory
+            - (optional) Observation reconstruction decoder
+            - (optional) Ground truth estimator
     """
     def __init__(self, config):
         """Model setup
