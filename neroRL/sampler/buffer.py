@@ -3,13 +3,14 @@ import numpy as np
 
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent and transformer policies."""
-    def __init__(self, configs, visual_observation_space, vector_observation_space,
+    def __init__(self, configs, visual_observation_space, vector_observation_space, ground_truth_space,
                     action_space_shape, train_device, share_parameters, sampler):
         """
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. model, training, environment, ... configs)
             visual_observation_space {Box} -- Visual observation if available, else None
             vector_observation_space {tuple} -- Vector observation space if available, else None
+            ground_truth_space {Box} -- Ground truth space if available, else None
             action_space_shape {tuple} -- Shape of the action space
             train_device {torch.device} -- Single mini batches will be moved to this device for model optimization
             share_parameters {bool} -- Whether the policy and the value function share parameters or not
@@ -25,6 +26,7 @@ class Buffer():
         self.action_space_shape = action_space_shape
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
+        self.ground_truth_space = ground_truth_space
         self.share_parameters = share_parameters
         self.init_default_buffer_fields()
 
@@ -38,6 +40,8 @@ class Buffer():
             self.vec_obs = torch.zeros((self.num_workers, self.worker_steps,) + self.vector_observation_space)
         else:
             self.vec_obs = None
+        if self.ground_truth_space is not None:
+            self.ground_truth = torch.zeros((self.num_workers, self.worker_steps) + self.ground_truth_space.shape)
         self.rewards = np.zeros((self.num_workers, self.worker_steps), dtype=np.float32)
         self.actions = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)), dtype=torch.long)
         self.dones = np.zeros((self.num_workers, self.worker_steps), dtype=np.bool)

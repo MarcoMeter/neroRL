@@ -7,9 +7,9 @@ class RecurrentSampler(TrajectorySampler):
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones. The RecurrentSampler takes care of
     resetting and adding recurrent cell states (i.e. agent memory) to the buffer."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, sample_device, train_device) -> None:
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, model, sample_device, train_device) -> None:
         """Initializes the RecurrentSampler and launches its environment worker."""
-        super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, sample_device, train_device)
+        super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, model, sample_device, train_device)
         # Set member variables
         self.layer_type = configs["model"]["recurrence"]["layer_type"]
         self.reset_hidden_state = configs["model"]["recurrence"]["reset_hidden_state"]

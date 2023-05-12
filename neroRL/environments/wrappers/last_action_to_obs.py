@@ -42,6 +42,11 @@ class LastActionToObs(Env):
         return self._vector_observation_space
 
     @property
+    def ground_truth_space(self):
+        """Returns the space of the ground truth info space if available."""
+        return self._env.ground_truth_space
+
+    @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return self._env.action_space
@@ -69,7 +74,7 @@ class LastActionToObs(Env):
 
     def reset(self, reset_params = None):
         """Reset the environment. The provided reset_params is a dictionary featuring reset parameters of the environment such as the seed."""
-        vis_obs, vec_obs = self._env.reset(reset_params = reset_params)
+        vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
 
         # Use only zeros on the initial obsveration
         one_hot_action = np.zeros(self._num_actions, dtype=np.float32)
@@ -80,7 +85,7 @@ class LastActionToObs(Env):
         else:
             vec_obs = np.concatenate((vec_obs, one_hot_action), axis=0)
 
-        return vis_obs, vec_obs
+        return vis_obs, vec_obs, info
 
     def step(self, action):
         """Executes steps of the agent in the environment untill the "skip"-th frame is reached.

@@ -160,7 +160,7 @@ class ProcgenWrapper(Env):
             "rewards": [0.0], "actions": []
         }
 
-        return vis_obs, None
+        return vis_obs, None, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.

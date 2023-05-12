@@ -158,9 +158,9 @@ class ObstacleTowerWrapper(Env):
         }
 
         if self._retro_vis_obs:
-            return vis_obs, None
+            return vis_obs, None, {}
         else:
-            return vis_obs, vec_obs
+            return vis_obs, vec_obs, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.

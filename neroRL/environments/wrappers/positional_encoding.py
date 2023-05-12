@@ -45,6 +45,11 @@ class PositionalEncodingEnv(Env):
         return self._vector_observation_space
 
     @property
+    def ground_truth_space(self):
+        """Returns the space of the ground truth info space if available."""
+        return self._env.ground_truth_space
+
+    @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return self._env.action_space
@@ -82,7 +87,7 @@ class PositionalEncodingEnv(Env):
         """
         # Track the current step of the episode
         self.t = 0
-        vis_obs, vec_obs = self._env.reset(reset_params = reset_params)
+        vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
 
         # Concatenate positional encoding
         if vec_obs is not None:
@@ -90,7 +95,7 @@ class PositionalEncodingEnv(Env):
         else:
             vec_obs = self.pos_encoding[self.t]
 
-        return vis_obs, vec_obs
+        return vis_obs, vec_obs, info
 
     def step(self, action):
         """Executes one step of the agent.
