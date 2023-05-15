@@ -93,6 +93,7 @@ def main():
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
     model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
 
+    # Record data from playing the environment
     if play_env:
         play(configs["environment"], seed)
         
@@ -126,8 +127,9 @@ def main():
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
 
-    # Run all one episode
-    env_data =load_env_data("result.pkl")
+    # Load the environment data
+    env_data = load_env_data("result.pkl")
+    
     # Reset environment
     t = 0
     logger.info("Step 3: Resetting the environment")
@@ -181,6 +183,7 @@ def main():
             t += 1
             vis_obs, vec_obs, _, done, info = env_data["vis_obs"][t], env_data["vec_obs"][t], env_data["reward"][t], env_data["done"][t], env_data["info"][t]
 
+        # Forward the neural net one last time
         vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
         vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
         model(vis_obs, vec_obs, in_memory, mask, indices)
@@ -203,15 +206,35 @@ def main():
     env.close()
     
 def play(config, seed):
+    """Play the environment in realtime using the keyboard then serialize the data as a file.
+
+    Arguments:
+        config {dict} -- The config of the environment
+        seed {int} -- The seed to use
+    """
     if config["name"] == "SearingSpotlights-v0":
         play_ss(config, seed)
     
-def load_env_data(file_name:str):
+def load_env_data(file_name):
+    """Load the recorded data from a file.
+
+    Arguments:
+        file_name {string}: The name of the file to load the data from.
+
+    Returns:
+        {dict} The data loaded from the file.
+    """
     with open(file_name, 'rb') as handle:
         b = pickle.load(handle)
     return b
     
 def play_ss(config, seed):
+    """Play SearingSpotlights in realtime using the keyboard then serialize the data as a file.
+    
+    Arguments:
+        config {dict} -- The config of the environment
+        seed {int} -- The seed to use
+     """
 
     result = []
     env = wrap_environment(config, realtime_mode = True, record_trajectory = True, worker_id=None)
