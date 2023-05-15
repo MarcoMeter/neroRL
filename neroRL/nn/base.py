@@ -114,7 +114,8 @@ class ActorCriticBase(Module):
             in_features_next_layer = out_features
         
         # memory_dim is used to determine the input size of the ground truth estimator heaad if used
-        self.memory_dim = out_features
+        if self.transformer_config is not None or self.recurrence_config is not None:
+            self.memory_dim = out_features
 
         # Network body
         out_features = config["num_hidden_units"]
