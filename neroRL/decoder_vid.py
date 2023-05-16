@@ -67,6 +67,7 @@ def main():
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
         --play                     Play a the checkpoint environment by yourself to collect the data. [default: False]
+        --file_name=<path>         Path to the file containing the data. [default: ./result.pkl]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                              # defaults to False
@@ -76,7 +77,8 @@ def main():
     seed = int(options["--seed"])                                   # defaults to 0
     video_path = options["--video"]                                 # defaults to "video"
     frame_rate = options["--framerate"]                             # defaults to 6
-    play_env = options["--play"]                                        # defaults to False
+    play_env = options["--play"]                                    # defaults to False
+    file_name = options["--file_name"]                              # defaults to "./result.pkl"
     
 
     # Determine cuda availability
@@ -95,7 +97,7 @@ def main():
 
     # Record data from playing the environment
     if play_env:
-        play(configs["environment"], seed)
+        play(file_name, configs["environment"], seed)
         
     # Launch environment
     logger.info("Step 1: Launching environment")
@@ -128,7 +130,7 @@ def main():
     model.eval()
 
     # Load the environment data
-    env_data = load_env_data("result.pkl")
+    env_data = load_env_data(file_name)
     
     # Reset environment
     t = 0
@@ -205,15 +207,21 @@ def main():
 
     env.close()
     
-def play(config, seed):
+def play(file_name, config, seed):
     """Play the environment in realtime using the keyboard then serialize the data as a file.
 
     Arguments:
+        file_name {string}: The name of the file to be saved which contains the gameplay
         config {dict} -- The config of the environment
         seed {int} -- The seed to use
     """
     if config["name"] == "SearingSpotlights-v0":
-        play_ss(config, seed)
+        play_ss(file_name, config, seed)
+    if config["name"] == "MortarMayhem-v0":
+        play_mm(file_name, config, seed)
+    if config["name"] == "MysteryPath-v0":
+        play_mp(file_name, config, seed)
+    
     
 def load_env_data(file_name):
     """Load the recorded data from a file.
@@ -228,10 +236,11 @@ def load_env_data(file_name):
         b = pickle.load(handle)
     return b
     
-def play_ss(config, seed):
+def play_ss(file_name, config, seed):
     """Play SearingSpotlights in realtime using the keyboard then serialize the data as a file.
     
     Arguments:
+        file_name {string}: The name of the file to be saved which contains the gameplay
         config {dict} -- The config of the environment
         seed {int} -- The seed to use
      """
@@ -275,7 +284,109 @@ def play_ss(config, seed):
 
     result["imgs"] = env.get_episode_trajectory["vis_obs"]
     env.close()
-    with open('result.pkl', 'wb') as handle:
+    with open(file_name, 'wb') as handle:
+        pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
+def play_mm(file_name, config, seed):
+    """Play MortarMayhem-v0 in realtime using the keyboard then serialize the data as a file.
+    
+    Arguments:
+        file_name {string}: The name of the file to be saved which contains the gameplay
+        config {dict} -- The config of the environment
+        seed {int} -- The seed to use
+     """
+
+    result = []
+    env = wrap_environment(config, realtime_mode = True, record_trajectory = True, worker_id=None)
+    vis_obs, vec_obs = env.reset()
+    result = {"vis_obs": [vis_obs], "vec_obs": [vec_obs], "reset_info": [None], "actions": [None], "reward": [0], "done": [False], "info": [None], "seed": seed}
+    done = False
+
+    while not done:
+        actions = [0, 0]
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_UP] or keys[pygame.K_w]:
+            actions[1] = 1
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            actions[0] = 2
+        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+            actions[1] = 2
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            actions[0] = 1
+
+        vis_obs, vec_obs, reward, done, info = env.step(actions)
+        
+        result["vis_obs"].append(vis_obs)
+        result["vec_obs"].append(vec_obs)
+        result["reward"].append(reward)
+        result["done"].append(done)
+        result["info"].append(info)
+
+        # Process event-loop
+        for event in pygame.event.get():
+        # Quit
+            if event.type == pygame.QUIT:
+                done = True
+
+    print("episode reward: " + str(info["reward"]))
+    print("episode length: " + str(info["length"]))
+    print("success: " + str(bool(info["success"])))
+    print("commands completed: " + str(info["commands_completed"]))
+
+    result["imgs"] = env.get_episode_trajectory["vis_obs"]
+    env.close()
+    with open(file_name, 'wb') as handle:
+        pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
+def play_mp(file_name, config, seed):
+    """Play MysteryPath-v0 in realtime using the keyboard then serialize the data as a file.
+    
+    Arguments:
+        file_name {string}: The name of the file to be saved which contains the gameplay
+        config {dict} -- The config of the environment
+        seed {int} -- The seed to use
+     """
+
+    result = []
+    env = wrap_environment(config, realtime_mode = True, record_trajectory = True, worker_id=None)
+    vis_obs, vec_obs = env.reset()
+    result = {"vis_obs": [vis_obs], "vec_obs": [vec_obs], "reset_info": [None], "actions": [None], "reward": [0], "done": [False], "info": [None], "seed": seed}
+    done = False
+
+    while not done:
+        actions = [0, 0]
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_UP] or keys[pygame.K_w]:
+            actions[1] = 1
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            actions[0] = 2
+        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+            actions[1] = 2
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            actions[0] = 1
+
+        vis_obs, vec_obs, reward, done, info = env.step(actions)
+        
+        result["vis_obs"].append(vis_obs)
+        result["vec_obs"].append(vec_obs)
+        result["reward"].append(reward)
+        result["done"].append(done)
+        result["info"].append(info)
+
+        # Process event-loop
+        for event in pygame.event.get():
+        # Quit
+            if event.type == pygame.QUIT:
+                done = True
+
+    print("episode reward: " + str(info["reward"]))
+    print("episode length: " + str(info["length"]))
+    print("success: " + str(bool(info["success"])))
+    print("num fails: " + str(info["num_fails"]))
+
+    result["imgs"] = env.get_episode_trajectory["vis_obs"]
+    env.close()
+    with open(file_name, 'wb') as handle:
         pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
 
