@@ -106,7 +106,7 @@ def main():
     configs["environment"]["reset_params"]["start-seed"] = seed
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
-    visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
+    visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
     env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
 
     # Build or load model
@@ -117,7 +117,7 @@ def main():
     if "transformer" in model_config:
         model_config["transformer"]["max_episode_steps"] = max_episode_steps
     model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
-                            vector_observation_space, action_space_shape, device)
+                            vector_observation_space, ground_truth_space, action_space_shape, device)
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
@@ -137,7 +137,7 @@ def main():
         t = 0
         logger.info("Step 3: Resetting the environment")
         logger.info("Step 3: Using seed " + str(seed))
-        vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
+        vis_obs, vec_obs, info = env.reset(configs["environment"]["reset_params"])
         done = False
         
         # Init memory if applicable

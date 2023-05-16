@@ -112,7 +112,7 @@ class Evaluator():
                 worker.child.send(("reset", reset_params))
             # Grab initial observations
             for w, worker in enumerate(self.workers):
-                vis, vec = worker.child.recv()
+                vis, vec, info = worker.child.recv()
                 if vis_obs is not None:
                     vis_obs[w] = vis
                 if vec_obs is not None:

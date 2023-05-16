@@ -83,7 +83,7 @@ def main():
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     print("Step 2: Creating dummy environment of type " + configs["environment"]["type"])
-    visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
+    visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
     
     # Init evaluator
     print("Step 2: Environment Config")
@@ -101,7 +101,7 @@ def main():
     if configs["trainer"]["algorithm"] == "PPO":
         share_parameters = configs["trainer"]["share_parameters"]
     model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
-                            vector_observation_space, action_space_shape, device)
+                            vector_observation_space, ground_truth_space, action_space_shape, device)
     if "DAAC" in configs["trainer"]:
         model.add_gae_estimator_head(action_space_shape, device)
     model.eval()
