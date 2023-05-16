@@ -79,7 +79,7 @@ evaluation:
 
 sampler:
   n_workers: 16
-  worker_steps: 512
+  worker_steps: 256
 
 trainer:
   algorithm: "PPO"
