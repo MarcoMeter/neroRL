@@ -109,6 +109,9 @@ class Buffer():
         Flattens the training samples and stores them inside a dictionary.
         If a recurrent policy is used, the model's input data and actions are split into episodes or sequences beforehand.
         """
+        # Flag that indicates whether the GPU is out of memory
+        self.out_of_memory = False
+
         # Supply training samples
         samples = {"actions": self.actions} # actions are added at this point to ensure that these are padded while using recurrence
 
@@ -172,7 +175,18 @@ class Buffer():
                     sequences[i] = self._pad_sequence(sequence, max_sequence_length)
 
                 # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
-                samples[key] = torch.stack(sequences, axis=0)
+                try:
+                    samples[key] = torch.stack(sequences, axis=0)
+                except RuntimeError:
+                    self.out_of_memory = True
+                    print("OUT OF MEMORY - Stack Recurrence Sequences - Data Key: " + str(key) + " - Shape: " + str(sequences[0].shape), flush=True)
+                
+                if self.out_of_memory:
+                    # Send sequences to CPU
+                    sequences = [seq.cpu() for seq in sequences]
+                    # Stack sequences as tensor and send to GPU
+                    samples[key] = torch.stack(sequences, axis=0).to(self.train_device)
+                    self.out_of_memory = False
 
                 if (key == "hxs" or key == "cxs"):
                     # Select the very first recurrent cell state of a sequence and add it to the samples
