@@ -132,11 +132,11 @@ class Buffer():
             if self.max_episode_steps >= self.sampler.max_episode_length:
                 samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length]
                 samples["memory_indices"] = self.memory_indices[:, :, :self.sampler.max_episode_length]
-                self.memories = torch.stack(self.memories, dim=0)[:, :, :self.sampler.max_episode_length]
+                self.memories = torch.stack(self.memories, dim=0)[:, :self.sampler.max_episode_length]
             else:
                 samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length].clone()
                 samples["memory_indices"] = self.memory_indices[:, :, :self.sampler.max_episode_length].clone()
-                self.memories = torch.stack(self.memories, dim=0)[:, :, :self.sampler.max_episode_length].clone()
+                self.memories = torch.stack(self.memories, dim=0)[:, :self.sampler.max_episode_length].clone()
 
         # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
