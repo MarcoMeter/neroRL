@@ -264,6 +264,16 @@ class Buffer():
         # Concatenate the zeros to the sequence
         return torch.cat((sequence, padding), axis=0)
 
+    def _fill_memory_window(self, mini_batch, i, memory_index, mini_batch_indices, memories):
+        # Select memory
+        memory_index = memory_index[mini_batch_indices[i]]
+        memory = memories[memory_index]
+        # Select memory window
+        memory_indices = self.samples_flat["memory_indices"][mini_batch_indices[i]]
+        memory_window = memory[memory_indices] # maybe we could use the indices to execute a slice instead of a selection
+        # Add memory window to mini batch
+        mini_batch["memory_window"][i] = memory_window
+
     def mini_batch_generator(self, num_mini_batches):
         """A generator that returns a dictionary containing the data of a whole minibatch.
         This mini batch is completely shuffled.
@@ -288,16 +298,10 @@ class Buffer():
             if self.transformer_memory is not None:
                 # Init memory window tensor
                 mini_batch["memory_window"] = torch.zeros((mini_batch_size, self.memory_length, self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
+                memory_index = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1])
                 # Sequentially fill memory window tensor with the correct memory windows
                 for i in range(mini_batch_size):
-                    # Select memory
-                    memory_index = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1])[mini_batch_indices[i]]
-                    memory = self.memories[memory_index]
-                    # Select memory window
-                    memory_indices = mini_batch["memory_indices"][mini_batch_indices[i]]
-                    memory_window = memory[memory_indices] # maybe we could use the indices to execute a slice instead of a selection
-                    # Add memory window to mini batch
-                    mini_batch["memory_window"][i] = memory_window
+                    self._fill_memory_window(mini_batch, i, memory_index, mini_batch_indices, self.memories)
             yield mini_batch
 
     def recurrent_mini_batch_generator(self, num_mini_batches):
