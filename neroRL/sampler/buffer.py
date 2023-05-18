@@ -128,15 +128,12 @@ class Buffer():
         # Add data concerned with the episodic memory (i.e. transformer-based policy)
         if self.transformer_memory is not None:
             # Remove unnecessary padding from transformer buffer fields depending on the actual maximum episode length
-            samples["memory_index"] = self.memory_index
             if self.max_episode_steps >= self.sampler.max_episode_length:
                 samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length]
                 samples["memory_indices"] = self.memory_indices[:, :, :self.sampler.max_episode_length]
-                self.memories = torch.stack(self.memories, dim=0)[:, :self.sampler.max_episode_length]
             else:
                 samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length].clone()
                 samples["memory_indices"] = self.memory_indices[:, :, :self.sampler.max_episode_length].clone()
-                self.memories = torch.stack(self.memories, dim=0)[:, :self.sampler.max_episode_length].clone()
 
         # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
@@ -286,10 +283,21 @@ class Buffer():
             mini_batch_indices = indices[start: end]
             mini_batch = {}
             for key, value in self.samples_flat.items():
-                if key == "memory_index":
-                    mini_batch["memories"] = self.memories[value[mini_batch_indices]].to(self.train_device)
-                else:
-                    mini_batch[key] = value[mini_batch_indices].to(self.train_device)
+                mini_batch[key] = value[mini_batch_indices].to(self.train_device)
+            # Gather memory window
+            if self.transformer_memory is not None:
+                # Init memory window tensor
+                mini_batch["memory_window"] = torch.zeros((mini_batch_size, self.memory_length, self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
+                # Sequentially fill memory window tensor with the correct memory windows
+                for i in range(mini_batch_size):
+                    # Select memory
+                    memory_index = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1])[mini_batch_indices[i]]
+                    memory = self.memories[memory_index]
+                    # Select memory window
+                    memory_indices = mini_batch["memory_indices"][mini_batch_indices[i]]
+                    memory_window = memory[memory_indices] # maybe we could use the indices to execute a slice instead of a selection
+                    # Add memory window to mini batch
+                    mini_batch["memory_window"][i] = memory_window
             yield mini_batch
 
     def recurrent_mini_batch_generator(self, num_mini_batches):
