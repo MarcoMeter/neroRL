@@ -185,7 +185,7 @@ class Evaluator():
                                 vis_obs[w] = vis
                             if vec_obs is not None:
                                 vec_obs[w] = vec
-                            if info:
+                            if dones[w]:
                                 info["seed"] = seed
                                 episode_infos.append(info)
                                 # record video for this particular worker
