@@ -55,8 +55,8 @@ def main():
     # Docopt command line arguments
     _USAGE = """
     Usage:
-            python decoder_vid.py  [options]
-            python decoder_vid.py --help
+            nenjoy [options]
+            nenjoy --help
 
     Options:
         --config=<path>            Path to the config file [default: ].
@@ -67,7 +67,7 @@ def main():
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
         --play                     Play a the checkpoint environment by yourself to collect the data. [default: False]
-        --file_name=<path>         Path to the file containing the data. [default: ./result.pkl]
+        --file-name=<path>         Path to the file containing the data. [default: ./result.pkl]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                              # defaults to False
@@ -78,8 +78,7 @@ def main():
     video_path = options["--video"]                                 # defaults to "video"
     frame_rate = options["--framerate"]                             # defaults to 6
     play_env = options["--play"]                                    # defaults to False
-    file_name = options["--file_name"]                              # defaults to "./result.pkl"
-    
+    file_name = options["--file-name"]                              # defaults to "./result.pkl" 
 
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
