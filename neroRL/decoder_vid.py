@@ -55,8 +55,8 @@ def main():
     # Docopt command line arguments
     _USAGE = """
     Usage:
-            nenjoy [options]
-            nenjoy --help
+            python decoder_vid.py  [options]
+            python decoder_vid.py --help
 
     Options:
         --config=<path>            Path to the config file [default: ].
