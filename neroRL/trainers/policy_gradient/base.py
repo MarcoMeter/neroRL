@@ -127,7 +127,7 @@ class BaseTrainer():
 
         # Measure seconds needed for a whole update
         time_end = time.time()
-        update_duration = int(time_end - time_start)
+        update_duration = time_end - time_start
 
         return self.episode_info, training_stats, formatted_string, update_duration
     

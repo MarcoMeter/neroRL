@@ -84,6 +84,7 @@ class Training():
         self.monitor.log("Environment specs:")
         self.monitor.log("\t" + "Visual Observation Space: " + str(self.trainer.vis_obs_space))
         self.monitor.log("\t" + "Vector Observation Space: " + str(self.trainer.vec_obs_space))
+        self.monitor.log("\t" + "Ground Truth Space: " + str(self.trainer.ground_truth_space))
         self.monitor.log("\t" + "Action Space Shape: " + str(self.trainer.action_space_shape))
         self.monitor.log("\t" + "Max Episode Steps: " + str(self.trainer.max_episode_steps))
 
@@ -127,14 +128,14 @@ class Training():
             # Process training stats to print to console and write summaries
             episode_result = aggregate_episode_results(episode_infos)
             if episode_result:
-                self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
+                self.monitor.log((("{:4} sec={:3.1f} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
                     (" value={:3f} std={:.3f} adv={:.3f} std={:.3f}")).format(
                     update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
                     episode_result["length_mean"], episode_result["length_std"], training_stats["value_mean"][1], torch.std(self.trainer.sampler.buffer.values),
                     training_stats["advantage_mean"][1], torch.std(self.trainer.sampler.buffer.advantages)) +
                     " " + formatted_string)
             else:
-                self.monitor.log("{:4} sec={:2} value={:3f} std={:.3f} adv={:.3f} std={:.3f}".format(
+                self.monitor.log("{:4} sec={:3.1f} value={:3f} std={:.3f} adv={:.3f} std={:.3f}".format(
                     update, update_duration, torch.mean(self.trainer.sampler.buffer.values), torch.std(self.trainer.sampler.buffer.values),
                     torch.mean(self.trainer.sampler.buffer.advantages), torch.std(self.trainer.sampler.buffer.advantages)) +
                     " " + formatted_string)
