@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 
+from neroRL.utils.utils import batched_index_select
+
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent and transformer policies."""
     def __init__(self, configs, visual_observation_space, vector_observation_space, ground_truth_space,
@@ -264,8 +266,8 @@ class Buffer():
         # Concatenate the zeros to the sequence
         return torch.cat((sequence, padding), axis=0)
 
-    def _gather_memory_windows(self, mini_batch_size, mini_batch_indices):
-        memory_windows = torch.zeros((mini_batch_size, self.sampler.max_episode_length, self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
+    def _gather_memory_windows_loop(self, mini_batch_size, mini_batch_indices):
+        memory_windows = torch.zeros((mini_batch_size, min(self.sampler.max_episode_length, self.memory_length), self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
         memory_index_flat = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1])
         for i in range(mini_batch_size):
             # Select memory
@@ -277,6 +279,42 @@ class Buffer():
             # Add memory window to mini batch
             memory_windows[i][:memory_window.shape[0]] = memory_window
         return memory_windows
+    
+    def _gather_memory_windows_batched(self, mini_batch_size, mini_batch_indices):
+        memory_windows = torch.zeros((mini_batch_size, min(self.sampler.max_episode_length, self.memory_length), self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
+        memory_index_flat = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1])
+        step_size = 1024
+        # Stack memories and remove unnecessary padding
+        memories = torch.stack(self.memories)
+        memories = memories[:, :self.sampler.max_episode_length].clone()
+        for i in range(0, mini_batch_size, step_size):
+            # Slice mini batch indices
+            indices = mini_batch_indices[i:i+step_size]
+            # Select memories (memory overhead)
+            selected_memories = memories[memory_index_flat[indices]]
+            # Select and write memory windows (memory overhead)
+            memory_indices = self.samples_flat["memory_indices"][indices, :self.sampler.max_episode_length]
+            print(selected_memories.size())         # 512, 98, 3, 384
+            print(memory_indices.size())            # 512, 32
+            print(memory_indices.max())             # 102
+            print(selected_memories.size())         # 512, 98, 3, 384
+            print(self.sampler.max_episode_length)  # 98
+            memory_windows[i:i+step_size, :memory_windows.shape[1]] = batched_index_select(selected_memories, 1, memory_indices)
+        return memory_windows
+    
+    def _gather_memory_windows_cpu(self, mini_batch_size, mini_batch_indices):
+        memory_windows = torch.zeros((mini_batch_size, min(self.sampler.max_episode_length, self.memory_length), self.num_mem_layers, self.mem_layer_size)).cpu()
+        memory_index_flat = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1]).cpu()
+        # Stack memories and remove unnecessary padding
+        memories = torch.stack(self.memories).cpu()
+        memories = memories[:, :self.sampler.max_episode_length].clone()
+        # Select memories (memory overhead)
+        selected_memories = memories[memory_index_flat[mini_batch_indices.cpu()]]
+        # Select and write memory windows (memory overhead)
+        memory_indices = self.samples_flat["memory_indices"][mini_batch_indices].cpu()
+        memory_windows[:, :memory_windows.shape[1]] = batched_index_select(selected_memories, 1, memory_indices)
+        self.samples_flat["memory_indices"] = self.samples_flat["memory_indices"].to(self.train_device)
+        return memory_windows.to(self.train_device)
 
     def mini_batch_generator(self, num_mini_batches):
         """A generator that returns a dictionary containing the data of a whole minibatch.
@@ -300,7 +338,7 @@ class Buffer():
                 mini_batch[key] = value[mini_batch_indices].to(self.train_device)
             # Retrieve memory windows for the concerned mini batch, if TrXL is used
             if self.transformer_memory is not None:
-                mini_batch["memory_window"] = self._gather_memory_windows(mini_batch_size, mini_batch_indices)
+                mini_batch["memory_window"] = self._gather_memory_windows_batched(mini_batch_size, mini_batch_indices)
             yield mini_batch
 
     def recurrent_mini_batch_generator(self, num_mini_batches):
