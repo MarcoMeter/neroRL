@@ -283,7 +283,7 @@ class Buffer():
     def _gather_memory_windows_batched(self, mini_batch_size, mini_batch_indices):
         memory_windows = torch.zeros((mini_batch_size, min(self.sampler.max_episode_length, self.memory_length), self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
         memory_index_flat = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1])
-        step_size = 1024
+        step_size = 256
         # Stack memories and remove unnecessary padding
         memories = torch.stack(self.memories)
         memories = memories[:, :self.sampler.max_episode_length].clone()
@@ -294,11 +294,6 @@ class Buffer():
             selected_memories = memories[memory_index_flat[indices]]
             # Select and write memory windows (memory overhead)
             memory_indices = self.samples_flat["memory_indices"][indices, :self.sampler.max_episode_length]
-            print(selected_memories.size())         # 512, 98, 3, 384
-            print(memory_indices.size())            # 512, 32
-            print(memory_indices.max())             # 102
-            print(selected_memories.size())         # 512, 98, 3, 384
-            print(self.sampler.max_episode_length)  # 98
             memory_windows[i:i+step_size, :memory_windows.shape[1]] = batched_index_select(selected_memories, 1, memory_indices)
         return memory_windows
     
