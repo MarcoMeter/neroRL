@@ -95,9 +95,7 @@ class Buffer():
             self.vec_obs = self.vec_obs.to(device)
         if self.ground_truth_space is not None:
             self.ground_truth = self.ground_truth.to(device)
-        self.rewards = self.rewards.to(device)
         self.actions = self.actions.to(device)
-        self.dones = self.dones.to(device)
         self.log_probs = self.log_probs.to(device)
         self.values = self.values.to(device)
         self.advantages = self.advantages.to(device)
