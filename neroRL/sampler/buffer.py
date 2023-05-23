@@ -129,8 +129,7 @@ class Buffer():
         # TRANSFORMER SAMPLES
         # Add data concerned with the episodic memory (i.e. transformer-based policy)
         if self.transformer_memory is not None:
-            # Remove unnecessary padding from transformer buffer fields depending on the actual maximum episode length
-            # Stack memories and remove unnecessary padding
+            # Stack memories, add buffer fields to samples and remove unnecessary padding
             self.memories = torch.stack(self.memories)
             if self.max_episode_steps >= self.sampler.max_episode_length:
                 samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length]
@@ -140,6 +139,7 @@ class Buffer():
                 samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length].clone()
                 samples["memory_indices"] = self.memory_indices[:, :, :self.sampler.max_episode_length].clone()
                 self.memories = self.memories[:, :self.sampler.max_episode_length].clone()
+            samples["memory_index"] = self.memory_index
 
         # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
@@ -271,11 +271,20 @@ class Buffer():
         return torch.cat((sequence, padding), axis=0)
 
     def _gather_memory_windows_loop(self, mini_batch_size, mini_batch_indices):
+        """Gathers the memory windows for the concerned mini batch.
+        To avoid out of memory errors, the data is processed using a loop that processes single batch items.
+
+        Arguments:
+            mini_batch_size {int} -- Size of the mini batch that deterimines the number of memory windows to be gathered
+            mini_batch_indices {torch.tensor} -- Indices that determine the memory windows to be gathered
+
+        Returns:
+            torch.tensor -- The gathered memory windows for the concerned mini batch update
+        """
         memory_windows = torch.zeros((mini_batch_size, min(self.sampler.max_episode_length, self.memory_length), self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
-        memory_index_flat = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1])
         for i in range(mini_batch_size):
             # Select memory
-            memory_index = memory_index_flat[mini_batch_indices[i]]
+            memory_index = self.samples_flat["memory_index"][mini_batch_indices[i]]
             memory = self.memories[memory_index]
             # Slice memory window
             memory_indices = self.samples_flat["memory_indices"][mini_batch_indices[i]]
@@ -285,24 +294,43 @@ class Buffer():
         return memory_windows
     
     def _gather_memory_windows_batched(self, mini_batch_size, mini_batch_indices):
+        """Gathers the memory windows for the concerned mini batch.
+        To avoid out of memory errors, the data is processed using a loop that processes chunks.
+        This is the default function that is used.
+
+        Arguments:
+            mini_batch_size {int} -- Size of the mini batch that deterimines the number of memory windows to be gathered
+            mini_batch_indices {torch.tensor} -- Indices that determine the memory windows to be gathered
+
+        Returns:
+            torch.tensor -- The gathered memory windows for the concerned mini batch update
+        """
         memory_windows = torch.zeros((mini_batch_size, min(self.sampler.max_episode_length, self.memory_length), self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
-        memory_index_flat = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1])
         step_size = 256
         for i in range(0, mini_batch_size, step_size):
             # Slice mini batch indices
             indices = mini_batch_indices[i:i+step_size]
             # Select memories (memory overhead)
-            selected_memories = self.memories[memory_index_flat[indices]]
+            selected_memories = self.memories[self.samples_flat["memory_index"][indices]]
             # Select and write memory windows (memory overhead)
             memory_indices = self.samples_flat["memory_indices"][indices, :self.sampler.max_episode_length]
             memory_windows[i:i+step_size, :memory_windows.shape[1]] = batched_index_select(selected_memories, 1, memory_indices)
         return memory_windows
     
     def _gather_memory_windows_cpu(self, mini_batch_size, mini_batch_indices):
+        """Gathers the memory windows for the concerned mini batch.
+        To avoid out of memory errors, the data is sent to CPU, processed and then sent back to GPU.
+
+        Arguments:
+            mini_batch_size {int} -- Size of the mini batch that deterimines the number of memory windows to be gathered
+            mini_batch_indices {torch.tensor} -- Indices that determine the memory windows to be gathered
+
+        Returns:
+            torch.tensor -- The gathered memory windows for the concerned mini batch update
+        """
         memory_windows = torch.zeros((mini_batch_size, min(self.sampler.max_episode_length, self.memory_length), self.num_mem_layers, self.mem_layer_size)).cpu()
-        memory_index_flat = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1]).cpu()
         # Select memories (memory overhead)
-        selected_memories = self.memories[memory_index_flat[mini_batch_indices.cpu()]]
+        selected_memories = self.memories[self.samples_flat["memory_index"][mini_batch_indices].cpu()].cpu()
         # Select and write memory windows (memory overhead)
         memory_indices = self.samples_flat["memory_indices"][mini_batch_indices].cpu()
         memory_windows[:, :memory_windows.shape[1]] = batched_index_select(selected_memories, 1, memory_indices)
