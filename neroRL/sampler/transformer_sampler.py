@@ -69,6 +69,7 @@ class TransformerSampler(TrajectorySampler):
 
     def sample(self) -> list:
         """Samples training data (i.e. experience tuples) using n workers for t worker steps. But before, the memory buffer is initialized."""
+        self.buffer.move_buffer_fields_to_device(self.sample_device)
         self.buffer.memories = [self.memory[w] for w in range(self.n_workers)]
         for w in range(self.n_workers):
             self.buffer.memory_index[w] = w

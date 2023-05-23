@@ -83,6 +83,32 @@ class Buffer():
         self.memory_index = torch.zeros((self.num_workers, self.worker_steps), dtype=torch.long)
         # Indices to slice the memory window
         self.memory_indices = torch.zeros((self.num_workers, self.worker_steps, self.memory_length), dtype=torch.long)
+        
+    def move_buffer_fields_to_device(self, device):
+        """Moves all buffer fields to the specified device.
+            Arguments:
+                device {torch.device} -- Device to move the buffer fields to
+        """
+        if self.visual_observation_space is not None:
+            self.vis_obs = self.vis_obs.to(device)
+        if self.vector_observation_space is not None:
+            self.vec_obs = self.vec_obs.to(device)
+        if self.ground_truth_space is not None:
+            self.ground_truth = self.ground_truth.to(device)
+        self.rewards = self.rewards.to(device)
+        self.actions = self.actions.to(device)
+        self.dones = self.dones.to(device)
+        self.log_probs = self.log_probs.to(device)
+        self.values = self.values.to(device)
+        self.advantages = self.advantages.to(device)
+        if self.recurrence is not None:
+            self.hxs = self.hxs.to(device)
+            if self.cxs is not None:
+                self.cxs = self.cxs.to(device)
+        if self.transformer_memory is not None:
+            self.memory_mask = self.memory_mask.to(device)
+            self.memory_index = self.memory_index.to(device)
+            self.memory_indices = self.memory_indices.to(device)
 
     def calc_advantages(self, last_value, gamma, lamda):
         """Generalized advantage estimation (GAE)
@@ -205,6 +231,9 @@ class Buffer():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
             self.samples_flat[key] = value
+            
+        self.memory_index_flat = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1])
+        self.move_buffer_fields_to_device(device=torch.device("cpu"))
 
     def _arange_sequences(self, data, episode_done_indices):
         """Splits the povided data into episodes and then into sequences.
@@ -266,10 +295,9 @@ class Buffer():
 
     def _gather_memory_windows(self, mini_batch_size, mini_batch_indices):
         memory_windows = torch.zeros((mini_batch_size, self.sampler.max_episode_length, self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
-        memory_index_flat = self.memory_index.view(self.memory_index.shape[0] * self.memory_index.shape[1])
         for i in range(mini_batch_size):
             # Select memory
-            memory_index = memory_index_flat[mini_batch_indices[i]]
+            memory_index = self.memory_index_flat[mini_batch_indices[i]]
             memory = self.memories[memory_index]
             # Slice memory window
             memory_indices = self.samples_flat["memory_indices"][mini_batch_indices[i]]
