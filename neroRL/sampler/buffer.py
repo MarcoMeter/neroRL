@@ -129,16 +129,18 @@ class Buffer():
         # TRANSFORMER SAMPLES
         # Add data concerned with the episodic memory (i.e. transformer-based policy)
         if self.transformer_memory is not None:
+            # Determine max episode steps (also consideres ongoing episodes)
+            self.actual_max_episode_steps = self.memory_indices.max().item() + 1
             # Stack memories, add buffer fields to samples and remove unnecessary padding
             self.memories = torch.stack(self.memories)
-            if self.max_episode_steps >= self.sampler.max_episode_length:
-                samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length]
-                samples["memory_indices"] = self.memory_indices[:, :, :self.sampler.max_episode_length]
-                self.memories = self.memories[:, :self.sampler.max_episode_length]
+            if self.max_episode_steps >= self.actual_max_episode_steps:
+                samples["memory_mask"] = self.memory_mask[:, :, :self.actual_max_episode_steps]
+                samples["memory_indices"] = self.memory_indices[:, :, :self.actual_max_episode_steps]
+                self.memories = self.memories[:, :self.actual_max_episode_steps]
             else:
-                samples["memory_mask"] = self.memory_mask[:, :, :self.sampler.max_episode_length].clone()
-                samples["memory_indices"] = self.memory_indices[:, :, :self.sampler.max_episode_length].clone()
-                self.memories = self.memories[:, :self.sampler.max_episode_length].clone()
+                samples["memory_mask"] = self.memory_mask[:, :, :self.actual_max_episode_steps].clone()
+                samples["memory_indices"] = self.memory_indices[:, :, :self.actual_max_episode_steps].clone()
+                self.memories = self.memories[:, :self.actual_max_episode_steps].clone()
             samples["memory_index"] = self.memory_index
 
         # RECURRENCE SAMPLES
@@ -281,7 +283,7 @@ class Buffer():
         Returns:
             torch.tensor -- The gathered memory windows for the concerned mini batch update
         """
-        memory_windows = torch.zeros((mini_batch_size, min(self.sampler.max_episode_length, self.memory_length), self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
+        memory_windows = torch.zeros((mini_batch_size, min(self.actual_max_episode_steps, self.memory_length), self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
         for i in range(mini_batch_size):
             # Select memory
             memory_index = self.samples_flat["memory_index"][mini_batch_indices[i]]
@@ -305,7 +307,7 @@ class Buffer():
         Returns:
             torch.tensor -- The gathered memory windows for the concerned mini batch update
         """
-        memory_windows = torch.zeros((mini_batch_size, min(self.sampler.max_episode_length, self.memory_length), self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
+        memory_windows = torch.zeros((mini_batch_size, min(self.actual_max_episode_steps, self.memory_length), self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
         step_size = 256
         for i in range(0, mini_batch_size, step_size):
             # Slice mini batch indices
@@ -313,7 +315,7 @@ class Buffer():
             # Select memories (memory overhead)
             selected_memories = self.memories[self.samples_flat["memory_index"][indices]]
             # Select and write memory windows (memory overhead)
-            memory_indices = self.samples_flat["memory_indices"][indices, :self.sampler.max_episode_length]
+            memory_indices = self.samples_flat["memory_indices"][indices, :self.actual_max_episode_steps]
             memory_windows[i:i+step_size, :memory_windows.shape[1]] = batched_index_select(selected_memories, 1, memory_indices)
         return memory_windows
     
@@ -328,7 +330,7 @@ class Buffer():
         Returns:
             torch.tensor -- The gathered memory windows for the concerned mini batch update
         """
-        memory_windows = torch.zeros((mini_batch_size, min(self.sampler.max_episode_length, self.memory_length), self.num_mem_layers, self.mem_layer_size)).cpu()
+        memory_windows = torch.zeros((mini_batch_size, min(self.actual_max_episode_steps, self.memory_length), self.num_mem_layers, self.mem_layer_size)).cpu()
         # Select memories (memory overhead)
         selected_memories = self.memories[self.samples_flat["memory_index"][mini_batch_indices].cpu()].cpu()
         # Select and write memory windows (memory overhead)

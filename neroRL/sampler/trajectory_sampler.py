@@ -75,8 +75,6 @@ class TrajectorySampler():
             achieved reward and the episode length.
         """
         episode_infos = []
-        # Init max episode lenght
-        self.max_episode_length = 0
 
         # Sample actions from the model and collect experiences for training
         for t in range(self.worker_steps):
@@ -120,17 +118,11 @@ class TrajectorySampler():
                 if self.buffer.dones[w, t]:
                     # Store the information of the completed episode (e.g. total reward, episode length)
                     episode_infos.append(info)
-                    # Set max episode length
-                    self.max_episode_length = max(self.max_episode_length, info["length"])
                     # Reset the worker that concluded its episode
                     self.reset_worker(worker, w, t)
                 else:
                     # Increment worker timestep
                     self.worker_current_episode_step[w] +=1
-
-        # Ensure that max episode length is not smaller than the current worker episode steps and greater than 0
-        # This information is used to process the episodic TransformerXL memory
-        self.max_episode_length = min(self.worker_steps, max(self.max_episode_length, self.worker_current_episode_step.max().cpu().item()))
 
         return episode_infos
 
