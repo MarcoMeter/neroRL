@@ -95,7 +95,7 @@ def aggregate_episode_results(episode_infos):
         keys = episode_infos[0].keys()
         # Compute mean, std, min and max for each information, skip seed
         for key in keys:
-            if key == "seed":
+            if key == "seed" or key == "ground_truth":
                 continue
             results[key + "_mean"] = np.mean([info[key] for info in episode_infos])
             results[key + "_min"] = np.min([info[key] for info in episode_infos])

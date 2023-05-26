@@ -41,6 +41,8 @@ class VideoRecorder:
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
                                 self.fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
+        # Aggregate entropy, if it is desired for rendering
+        entropy = np.asarray(trajectory_data["entropies"]).mean(axis=1)
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
             env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
@@ -76,10 +78,10 @@ class VideoRecorder:
                 # hard-coded next_y because if too many actions are available, this plot does not fit
                 next_y = 230
                 fig = VideoRecorder.line_plot(trajectory_data["values"], "value", marker_pos=i)
+                # fig = VideoRecorder.line_plot(entropy, "entropy", marker_pos=i)
                 img = VideoRecorder.fig_to_ndarray(fig)[:,:,0:3] # Drop Alpha
                 img = VideoRecorder.image_resize(img, width=self.width, height=None)
                 debug_frame[next_y : next_y + img.shape[0], 0 : img.shape[1], :] = img
-
             else:
                 self.draw_text_overlay(debug_frame, 5, 60, "True", "episode done")
 
