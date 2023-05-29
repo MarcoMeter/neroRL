@@ -151,7 +151,7 @@ class TrajectorySampler():
         Returns:
             {tuple} -- policy {list of categorical distributions}, value {torch.tensor}
         """
-        policy, value, _, _ = self.model(vis_obs, vec_obs)
+        policy, value, _ = self.model(vis_obs, vec_obs)
         return policy, value
 
     def reset_worker(self, worker, id, t):
@@ -181,7 +181,7 @@ class TrajectorySampler():
         Returns:
             {torch.tensor} -- Last value
         """
-        _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
+        _, last_value, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
                                         None)
         return last_value

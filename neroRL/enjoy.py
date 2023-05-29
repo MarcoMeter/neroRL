@@ -169,7 +169,7 @@ def main():
                 else:
                     in_memory = memory
 
-                policy, value, new_memory, _ = model(vis_obs, vec_obs, in_memory, mask, indices)
+                policy, value, new_memory = model(vis_obs, vec_obs, in_memory, mask, indices)
                 
                 # Set memory if used
                 if "recurrence" in model_config:

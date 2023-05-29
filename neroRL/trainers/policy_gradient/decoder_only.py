@@ -72,7 +72,7 @@ class DecoderTrainer(PPOTrainer):
 
         # Forward model -> policy, value, memory, gae
         with torch.no_grad():
-            policy, value, _, _ = self.model(samples["vis_obs"] if self.vis_obs_space is not None else None,
+            policy, value, _ = self.model(samples["vis_obs"] if self.vis_obs_space is not None else None,
                                         samples["vec_obs"] if self.vec_obs_space is not None else None,
                                         memory = memory, mask = mask, memory_indices = memory_indices,
                                         sequence_length = self.sampler.buffer.actual_sequence_length)

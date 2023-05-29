@@ -115,7 +115,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Head: Policy branches
         pi = self.actor_policy(h)
 
-        return pi, value, memory, None
+        return pi, value, memory
     
     def reconstruct_observation(self):
         """Reconstructs the observation from the visual encoder features

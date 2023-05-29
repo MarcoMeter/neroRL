@@ -149,7 +149,7 @@ class Evaluator():
                                 in_memory = memory[w]
 
                             # Forward model
-                            policy, value, new_memory, _ = model(vis_obs_batch, vec_obs_batch, in_memory, mask, indices)
+                            policy, value, new_memory = model(vis_obs_batch, vec_obs_batch, in_memory, mask, indices)
 
                             # Set memory if used
                             if self.recurrence_config is not None:
