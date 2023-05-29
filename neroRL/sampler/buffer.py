@@ -58,9 +58,9 @@ class Buffer():
         num_layers = self.recurrence["num_layers"]
         hidden_state_size = self.recurrence["hidden_state_size"]
         layer_type = self.recurrence["layer_type"]
-        self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
+        self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
         if layer_type == "lstm":
-            self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
+            self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
 
     def init_transformer_buffer_fields(self, max_episode_steps):
         """Initializes the buffer fields and members that are needed for training transformer-based policies."""
