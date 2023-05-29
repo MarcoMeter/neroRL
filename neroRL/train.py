@@ -13,6 +13,7 @@ from signal import signal, SIGINT
 from neroRL.evaluator import Evaluator
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
 from neroRL.trainers.policy_gradient.decoder_only import DecoderTrainer
+from neroRL.trainers.policy_gradient.ground_truth_only import GroundTruthTrainer
 from neroRL.utils.monitor import TrainingMonitor
 from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 from neroRL.utils.yaml_parser import YamlParser
@@ -75,6 +76,8 @@ class Training():
             self.trainer = PPOTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
         elif configs["trainer"]["algorithm"] == "DecoderTrainer":
             self.trainer = DecoderTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
+        elif configs["trainer"]["algorithm"] == "GroundTruthTrainer":
+            self.trainer = GroundTruthTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
         else:
             assert(False), "Unsupported algorithm specified"
 

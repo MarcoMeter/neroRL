@@ -4,7 +4,7 @@ from torch import nn, optim
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
-from neroRL.utils.utils import compute_gradient_stats, batched_index_select
+from neroRL.utils.utils import compute_gradient_stats
 from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.monitor import Tag
 

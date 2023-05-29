@@ -68,10 +68,7 @@ model:
     gtrxl: False
     gtrxl_bias: 0.0
     gtrxl_swap: False
-  obs_decoder:
-    # Whether to attach the decoder to the cnn or the memory
-    attach_to: "memory" # "memory"
-    # Whether to detach the input to the decoder from the computational graph
+  ground_truth_estimator:
     detach_gradient: True
 
 sampler:
@@ -79,7 +76,7 @@ sampler:
   worker_steps: 256
 
 trainer:
-  algorithm: "DecoderTrainer"
+  algorithm: "GroundTruthTrainer"
   resume_at: 0
   updates: 30
   epochs: 1

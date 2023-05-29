@@ -107,6 +107,8 @@ class YamlParser:
                     trainer_dict = ppo_dict
                 elif self._config["trainer"]["algorithm"] == "DecoderTrainer":
                     trainer_dict = ppo_dict
+                elif self._config["trainer"]["algorithm"] == "GroundTruthTrainer":
+                    trainer_dict = ppo_dict
                 else:
                     assert(False), "Unsupported algorithm specified"
             else:
@@ -150,7 +152,7 @@ class YamlParser:
                 self._config[key] = trainer_dict
 
                 #  Check beta
-                if value["algorithm"] != "DecoderTrainer":
+                if "PPO" in value["algorithm"]:
                     if "final" not in value["beta_schedule"]:
                         trainer_dict["beta_schedule"]["final"] = trainer_dict["beta_schedule"]["initial"]
                     if "power" not in value["beta_schedule"]:
@@ -159,7 +161,7 @@ class YamlParser:
                         trainer_dict["beta_schedule"]["max_decay_steps"] = self._config[key]["updates"]
 
                 # Check decaying parameter schedules that have to be differentiated for the available algorithms
-                if value["algorithm"] == "PPO" or value["algorithm"] == "DecoderTrainer":
+                if value["algorithm"] == "PPO" or value["algorithm"] == "DecoderTrainer" or value["algorithm"] == "GroundTruthTrainer":
                     # Check learning rate
                     if "final" not in value["learning_rate_schedule"]:
                         trainer_dict["learning_rate_schedule"]["final"] = trainer_dict["learning_rate_schedule"]["initial"]
@@ -168,7 +170,7 @@ class YamlParser:
                     if "max_decay_steps" not in value["learning_rate_schedule"]:
                         trainer_dict["learning_rate_schedule"]["max_decay_steps"] = self._config[key]["updates"]
                     # Check clip range
-                    if value["algorithm"] != "DecoderTrainer":
+                    if "PPO" in value["algorithm"]:
                         if "final" not in value["clip_range_schedule"]:
                             trainer_dict["clip_range_schedule"]["final"] = trainer_dict["clip_range_schedule"]["initial"]
                         if "power" not in value["clip_range_schedule"]:

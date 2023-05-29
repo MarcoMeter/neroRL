@@ -9,9 +9,9 @@ from neroRL.utils.utils import compute_gradient_stats
 from neroRL.trainers.policy_gradient.base import BaseTrainer
 from neroRL.utils.decay_schedules import polynomial_decay
 
-class DecoderTrainer(BaseTrainer):
-    """Trainer for the observation reconstruction decoder only. This is used to analyze whether the model learned
-    useful representations. The decoder is trained to reconstruct the observations from the latent space.
+class GroundTruthTrainer(BaseTrainer):
+    """Trainer for the ground truth estimator only. This is used to analyze whether the model learned
+    useful skills. The estimator is trained to approximate ground truth information from the latent space.
     """
     def __init__(self, configs, sample_device, train_device, worker_id, run_id, out_path, seed=0, compile_model=False):
         super().__init__(configs, sample_device, train_device, worker_id, run_id, out_path, seed, compile_model)
@@ -24,12 +24,12 @@ class DecoderTrainer(BaseTrainer):
         assert (batch_size % self.n_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
         self.max_grad_norm = configs["trainer"]["max_grad_norm"]
 
-        # Init optimizer to only tune the decoder's parameters
-        self.optimizer = optim.Adam(self.model.vis_decoder.parameters(), lr=self.learning_rate)
-        # Obs reconstruction members
-        self.obs_recon_schedule = self.configs["trainer"]["obs_reconstruction_schedule"]
-        self.obs_recon_coef = self.obs_recon_schedule["initial"]
-        self.bce_loss = nn.BCELoss()
+        # Init optimizer to only tune the ground truth estimator's parameters
+        self.optimizer = optim.Adam(self.model.ground_truth_estimator.parameters(), lr=self.learning_rate)
+
+        # Ground truth estimation members
+        self.gt_estimator_schedule = self.configs["trainer"]["ground_truth_estimator_schedule"]
+        self.mse_loss = nn.MSELoss()
 
     def create_model(self) -> None:
         return create_actor_critic_model(self.configs["model"], self.vis_obs_space, self.vec_obs_space,
@@ -57,13 +57,13 @@ class DecoderTrainer(BaseTrainer):
         stats = {}
         for key, (tag, values) in train_info.items():
             stats[key] = (tag, np.mean(values))
-            if key == "r_loss":
+            if key == "gt_loss":
                 stats[key + "_min"] = (tag, np.min(values))
                 stats[key + "_max"] = (tag, np.max(values))
 
         # Format specific values for logging inside the base class
-        formatted_string = "r_loss={:.3f} r_loss_max={:.3f} r_loss_min={:.3f}".format(
-            stats["r_loss"][1], stats["r_loss_max"][1], stats["r_loss_min"][1])
+        formatted_string = "gt_loss={:.3f} gt_loss_max={:.3f} gt_loss_min={:.3f}".format(
+            stats["gt_loss"][1], stats["gt_loss_max"][1], stats["gt_loss_min"][1])
 
         # Return the mean of the training statistics
         return stats, formatted_string
@@ -91,46 +91,27 @@ class DecoderTrainer(BaseTrainer):
                                         memory = memory, mask = mask, memory_indices = memory_indices,
                                         sequence_length = self.sampler.buffer.actual_sequence_length)
 
-        # Observation reconstruction loss
-        # Forward decoder
-        decoder_output = self.model.reconstruct_observation()
-        vis_obs = samples["vis_obs"]
+        # Ground truth estimation loss
+        # Forward ground truth estimator
+        estimation = self.model.estimate_ground_truth()
+        target = samples["ground_truth"]
         # Remove paddings if recurrence is used
         if self.recurrence is not None:
-            decoder_output = decoder_output[samples["loss_mask"]]
-            vis_obs = vis_obs[samples["loss_mask"]]
-        # Compute reconstruction loss
-        reconstruction_loss = self.bce_loss(decoder_output, vis_obs)
-
-        # plot several images of vis_obs next to the reconstructed images
-        # if self.use_obs_reconstruction and self.vis_obs_space is not None:
-        #     if self.current_update % 30 == 0 and self.current_update > 1:
-        #         self.plot_obs_reconstruction(vis_obs, decoder_output)
-        # loss = reconstruction_loss
+            estimation = estimation[samples["loss_mask"]]
+            target = target[samples["loss_mask"]]
+        # Compute ground truth estimation loss
+        estimation_loss = self.mse_loss(estimation, target)
 
         # Compute gradients
         self.optimizer.zero_grad()
-        reconstruction_loss.backward()
+        estimation_loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.max_grad_norm)
         self.optimizer.step()
 
-        out = {**compute_gradient_stats({"vis_decoder": self.model.vis_decoder}),
-                "r_loss": (Tag.LOSS, reconstruction_loss.cpu().data.numpy())}
+        out = {**compute_gradient_stats({"gt_estimator": self.model.ground_truth_estimator}),
+                "gt_loss": (Tag.LOSS, estimation_loss.cpu().data.numpy())}
 
         return out
-    
-    def plot_obs_reconstruction(self, vis_obs, decoder_output):
-        import matplotlib.pyplot as plt
-        # plot the first 5 images of vis_obs next to the reconstructed images
-        vis_obs = vis_obs.cpu().data.numpy()
-        decoder_output = decoder_output.cpu().data.numpy()
-        for i in range(100):
-            fig, axes = plt.subplots(1, 2)
-            axes[0].imshow(vis_obs[i].transpose(1, 2, 0))
-            axes[1].imshow(decoder_output[i].transpose(1, 2, 0))
-            plt.savefig("./obs/obs_reconstruction_" + str(i) + ".png")
-            plt.close()
-        assert False
 
     def step_decay_schedules(self, update):
         self.learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"],
