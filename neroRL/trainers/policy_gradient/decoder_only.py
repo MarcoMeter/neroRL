@@ -4,7 +4,7 @@ import numpy as np
 from torch import nn, optim
 
 from neroRL.utils.monitor import Tag
-from neroRL.utils.utils import compute_gradient_stats, batched_index_select
+from neroRL.utils.utils import compute_gradient_stats
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
 from neroRL.utils.decay_schedules import polynomial_decay
 
@@ -66,7 +66,7 @@ class DecoderTrainer(PPOTrainer):
         # Case Transformer: the episodic memory is based on activations that were previously gathered throughout an episode
         if self.transformer is not None:
             # Slice memory windows from the whole sequence of episode memories
-            memory = batched_index_select(samples["memories"], 1, samples["memory_indices"])
+            memory = samples["memory_window"]
             mask = samples["memory_mask"]
             memory_indices = samples["memory_indices"]
 
