@@ -67,14 +67,13 @@ class PPOTrainer(BaseTrainer):
     def train(self):
         train_info = {}
 
+        # Normalize advantages batch-wise if desired
+        if self.configs["trainer"]["advantage_normalization"] == "batch":
+            advantages = self.sampler.buffer.samples_flat["advantages"]
+            self.sampler.buffer.samples_flat["normalized_advantages"] = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
         # Train policy and value function for e epochs using mini batches
         for epoch in range(self.epochs):
-            # Normalize advantages batch-wise if desired
-            # This is done during every epoch just in case refreshing the buffer is used
-            if self.configs["trainer"]["advantage_normalization"] == "batch":
-                advantages = self.sampler.buffer.samples_flat["advantages"]
-                self.sampler.buffer.samples_flat["normalized_advantages"] = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-
             # Retrieve the to be trained mini_batches via a generator
             # Use the recurrent mini batch generator for training a recurrent policy
             if self.recurrence is not None:
