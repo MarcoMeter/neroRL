@@ -12,7 +12,6 @@ from signal import signal, SIGINT
 
 from neroRL.evaluator import Evaluator
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
-from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
 from neroRL.trainers.policy_gradient.decoder_only import DecoderTrainer
 from neroRL.utils.monitor import TrainingMonitor
 from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
@@ -74,8 +73,6 @@ class Training():
         # Initialize trainer
         if configs["trainer"]["algorithm"] == "PPO":
             self.trainer = PPOTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
-        elif configs["trainer"]["algorithm"] == "DecoupledPPO":
-            self.trainer = DecoupledPPOTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
         elif configs["trainer"]["algorithm"] == "DecoderTrainer":
             self.trainer = DecoderTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
         else:

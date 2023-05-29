@@ -6,7 +6,7 @@ from neroRL.utils.utils import batched_index_select
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent and transformer policies."""
     def __init__(self, configs, visual_observation_space, vector_observation_space, ground_truth_space,
-                    action_space_shape, train_device, share_parameters, sampler):
+                    action_space_shape, train_device, sampler):
         """
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. model, training, environment, ... configs)
@@ -15,7 +15,6 @@ class Buffer():
             ground_truth_space {Box} -- Ground truth space if available, else None
             action_space_shape {tuple} -- Shape of the action space
             train_device {torch.device} -- Single mini batches will be moved to this device for model optimization
-            share_parameters {bool} -- Whether the policy and the value function share parameters or not
             sampler {TrajectorySampler} -- The used sampler
         """
         self.train_device = train_device
@@ -29,7 +28,6 @@ class Buffer():
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
         self.ground_truth_space = ground_truth_space
-        self.share_parameters = share_parameters
         self.init_default_buffer_fields()
 
     def init_default_buffer_fields(self):
@@ -60,14 +58,9 @@ class Buffer():
         num_layers = self.recurrence["num_layers"]
         hidden_state_size = self.recurrence["hidden_state_size"]
         layer_type = self.recurrence["layer_type"]
-        if self.share_parameters:
-            self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
-            if layer_type == "lstm":
-                self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
-        else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
-            self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
-            if layer_type == "lstm":
-                self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
+        self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
+        if layer_type == "lstm":
+            self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
 
     def init_transformer_buffer_fields(self, max_episode_steps):
         """Initializes the buffer fields and members that are needed for training transformer-based policies."""
@@ -405,60 +398,6 @@ class Buffer():
                     mini_batch[key] = value[mini_batch_padded_indices].to(self.train_device)
             start = end
             yield mini_batch
-
-    def refresh(self, model, gamma, lamda):
-        """Refreshes the buffer with the current model.
-
-        Arguments:
-            model {nn.Module} -- The model to retrieve the policy and value from
-            gamma {float} -- Discount factor
-            lamda {float} -- GAE regularization parameter
-        """
-        # Init recurrent cells
-        recurrent_cell = None
-        if self.recurrence is not None:
-            if self.recurrence["layer_type"] == "gru":
-                recurrent_cell = self.hxs[:, 0].unsqueeze(0).contiguous()
-            elif self.recurrence["layer_type"] == "lstm":
-                recurrent_cell = (self.hxs[:, 0].unsqueeze(0).contiguous(), self.cxs[:, 0].unsqueeze(0).contiguous())
-
-        # Refresh values and hidden_states with current model
-        for t in range(self.worker_steps):
-            # Gradients can be omitted for refreshing buffer
-            with torch.no_grad():
-                # Refresh hidden states
-                if self.recurrence is not None:
-                    if self.recurrence["layer_type"] == "gru":
-                        self.hxs[:, t] = recurrent_cell.squeeze(0)
-                    elif self.recurrence["layer_type"] == "lstm":
-                        self.hxs[:, t] = recurrent_cell[0].squeeze(0)
-                        self.cxs[:, t] = recurrent_cell[1].squeeze(0)
-
-                    # Forward the model to retrieve the policy (making decisions), 
-                    # the states' value of the value function and the recurrent hidden states (if available)
-                    vis_obs = self.vis_obs[:, t] if self.vis_obs is not None else None
-                    vec_obs = self.vec_obs[:, t] if self.vec_obs is not None else None
-                    policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
-                    # Refresh values
-                    self.values[:, t] = value
-                    
-                # Reset hidden states if necessary
-                for w in range(self.num_workers):
-                    if self.recurrence is not None and self.dones[w, t]:
-                        if self.recurrence["reset_hidden_state"]:
-                            hxs, cxs = model.init_recurrent_cell_states(1, self.train_device)
-                            if self.recurrence["layer_type"] == "gru":
-                                recurrent_cell[:, w] = hxs.contiguous()
-                            elif self.recurrence["layer_type"] == "lstm":
-                                recurrent_cell[0][:, w] = hxs.contiguous()
-                                recurrent_cell[1][:, w] = cxs.contiguous()
-
-        # Refresh advantages
-        _, last_value, _, _ = model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
-        self.calc_advantages(last_value, gamma, lamda)
-        
-        # Refresh batches
-        self.prepare_batch_dict() 
 
     def to(self, device):
         """Args:

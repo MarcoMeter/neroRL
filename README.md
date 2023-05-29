@@ -18,11 +18,6 @@ This is a research framework.
   - Discrete and Multi-Discrete Action Spaces
   - Vector and Visual Observation Spaces (either alone or simultaneously)
   - [Recurrent Policies using Truncated Backpropagation Through Time](https://github.com/MarcoMeter/recurrent-ppo-truncated-bptt)
-  - Shared and None-Shared Parameters across the Policy and the Value Function
-- Decoupled Proximal Policy Optimization
-  - Same features as PPO, but the parameters, as well as the gradients, are decoupled
-  - Decoupled Advantage Actor-Critic (DAAC, [Raileanu & Fergus, 2021](https://arxiv.org/abs/2102.10330))
-    - The actor network estimates the policy and the advantage function
 
 # Obstacle Tower Challenge
 Originally, this work started out by achieving the 7th place during the [Obstacle Tower Challenge](https://blogs.unity3d.com/2019/08/07/announcing-the-obstacle-tower-challenge-winners-and-open-source-release/) by using a relatively simple FFCNN. This [video](https://www.youtube.com/watch?v=P2rBDHBHxcM) presents some footage of the approach and the trained behavior:

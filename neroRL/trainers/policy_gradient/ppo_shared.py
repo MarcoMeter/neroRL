@@ -10,8 +10,7 @@ from neroRL.utils.monitor import Tag
 
 class PPOTrainer(BaseTrainer):
     """PPO implementation according to Schulman et al. 2017. It supports multi-discrete action spaces as well as visual 
-    and vector obsverations (either alone or simultaenously). Parameters can be shared or not. If gradients shall be decoupled,
-    go for the DecoupledPPOTrainer.
+    and vector obsverations (either alone or simultaenously).
     """
     def __init__(self, configs, sample_device, train_device, worker_id, run_id, out_path, seed = 0, compile_model = False):
         """
@@ -62,18 +61,14 @@ class PPOTrainer(BaseTrainer):
     def create_model(self) -> None:
         self.use_obs_reconstruction = self.configs["trainer"]["obs_reconstruction_schedule"]["initial"] > 0.0
         self.use_ground_truth_estimation = self.configs["trainer"]["ground_truth_estimator_schedule"]["initial"] > 0.0
-        return create_actor_critic_model(self.configs["model"], self.configs["trainer"]["share_parameters"],
-        self.vis_obs_space, self.vec_obs_space, self.ground_truth_space, self.action_space_shape, self.sample_device)
+        return create_actor_critic_model(self.configs["model"], self.vis_obs_space, self.vec_obs_space,
+                                         self.ground_truth_space, self.action_space_shape, self.sample_device)
 
     def train(self):
         train_info = {}
 
         # Train policy and value function for e epochs using mini batches
         for epoch in range(self.epochs):
-            # Refreshes buffer with current model for every refresh_buffer_epoch
-            if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
-                self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
-
             # Normalize advantages batch-wise if desired
             # This is done during every epoch just in case refreshing the buffer is used
             if self.configs["trainer"]["advantage_normalization"] == "batch":
@@ -226,10 +221,7 @@ class PPOTrainer(BaseTrainer):
         clip_fraction = (abs((ratio - 1.0)) > self.clip_range).float().mean()
 
         # Retrieve modules for monitoring the gradient norm
-        if self.model.share_parameters:
-            modules = self.model.actor_critic_modules
-        else:
-            modules = {**self.model.actor_modules, **self.model.critic_modules}
+        modules = self.model.actor_critic_modules
 
         out = {**compute_gradient_stats(modules),
                 "policy_loss": (Tag.LOSS, policy_loss.cpu().data.numpy()),

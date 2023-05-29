@@ -33,7 +33,7 @@ class TrajectorySampler():
 
         # Create Buffer
         self.buffer = Buffer(configs, visual_observation_space, vector_observation_space, ground_truth_space,
-                        action_space_shape, self.train_device, self.model.share_parameters, self)
+                        action_space_shape, self.train_device, self)
 
         # Launch workers
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]

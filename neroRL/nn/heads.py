@@ -67,45 +67,7 @@ class ValueEstimator(Module):
         """
         h = self.activ_fn(self.linear(h))
         return self.value(h).reshape(-1)
-
-class AdvantageEstimator(Module):
-    """Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330"""
-    def __init__(self, in_features, action_space_shape):
-        """
-        Arguments:
-            in_features {int} -- Number of to be fed features
-            action_space_shape {tuple} -- Dimensions of the action space
-        """
-        super().__init__()
-        # Set action space
-        self.action_space_shape = action_space_shape
-        # Calculate the total number of actions
-        self.total_num_actions = sum(action_space_shape)
-        # Advantage head
-        self.advantage = nn.Linear(in_features=in_features + self.total_num_actions, out_features=1)
-        nn.init.orthogonal_(self.advantage.weight, 0.01)
-
-    def forward(self, h, actions):
-        """
-        Arguments:
-            h {toch.tensor} -- The fed input data
-            actions {toch.tensor} -- The actions of the agent
-            device {torch.device} -- Current device
-
-        Returns:
-            {torch.tensor} -- Estimated advantage function
-        """
-        if actions is None:
-            one_hot_actions = torch.zeros(h.shape[0], self.total_num_actions).to(next(self.parameters()).device)
-            h = torch.cat((h, one_hot_actions), dim=1)
-        else:
-            for i in range(len(self.action_space_shape)):
-                action, num_actions = actions[:, i], self.action_space_shape[i]
-                one_hot_actions = F.one_hot(action.squeeze(-1), num_actions).float()
-                h = torch.cat((h, one_hot_actions), dim=1)
-        
-        return self.advantage(h).reshape(-1)
-    
+ 
 class GroundTruthEstimator(Module):
     """Estimation of the environment's ground truth information"""
     def __init__(self, in_features, out_features, activ_fn):

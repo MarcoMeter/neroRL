@@ -86,13 +86,8 @@ def main():
 
     # Build or load model
     logger.info("Step 2: Creating model")
-    share_parameters = False
-    if configs["trainer"]["algorithm"] == "PPO":
-        share_parameters = configs["trainer"]["algorithm"]
-    model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
+    model = create_actor_critic_model(model_config, visual_observation_space,
                             vector_observation_space, ground_truth_space, action_space_shape, device)
-    if "DAAC" in configs["trainer"]:
-        model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
         if not checkpoint:
             # If a checkpoint is not provided as an argument, it shall be retrieved from the config

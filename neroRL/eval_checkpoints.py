@@ -97,13 +97,8 @@ def main():
 
     # Init model
     print("Step 3: Initialize model")
-    share_parameters = False
-    if configs["trainer"]["algorithm"] == "PPO":
-        share_parameters = configs["trainer"]["share_parameters"]
-    model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
+    model = create_actor_critic_model(model_config, visual_observation_space,
                             vector_observation_space, ground_truth_space, action_space_shape, device)
-    if "DAAC" in configs["trainer"]:
-        model.add_gae_estimator_head(action_space_shape, device)
     model.eval()
 
     if torch.cuda.is_available():

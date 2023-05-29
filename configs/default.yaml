@@ -115,22 +115,15 @@ trainer:
   # Number of times that the whole batch of data is used for optimization using PPO
   # Each epoch trains on a random permutation of the sampled training batch
   epochs: 4
-  # Refreshes the buffer every n epochs (-1 = turned off). Stale advantages and hidden states are refreshed.
-  # This feature might be broken by now
-  refresh_buffer_epoch: -1
   # Number of mini batches that are trained throughout one epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
   n_mini_batches: 4
   # Wether to normalize the advantages on "minibatch" level, "batch" level or not at all ("no").
   advantage_normalization: "minibatch"
   # Coefficient of the loss of the value function (i.e. critic)
-  # It is only of use if model parameters are shared among the actor and the critic
   value_coefficient: 0.25
   # Strength of clipping the loss gradients
   max_grad_norm: 0.5
-  # Wether the actor and critic model should share its parameters
-  # Decoupled parameter training might be broken by now
-  share_parameters: True
   # Polynomial Decay Schedules
   # Learning Rate
   learning_rate_schedule:
@@ -151,8 +144,8 @@ trainer:
     power: 1.0
     max_decay_steps: 1000
   # Strength of the observation reconstruction loss
-  obs_reconstruction_schedule:
-    initial: 1.0
-    final: 1.0
-    power: 1.0
-    max_decay_steps: 1000
+  # obs_reconstruction_schedule:
+  #   initial: 1.0
+  #   final: 1.0
+  #   power: 1.0
+  #   max_decay_steps: 1000

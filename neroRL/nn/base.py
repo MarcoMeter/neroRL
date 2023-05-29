@@ -25,9 +25,6 @@ class ActorCriticBase(Module):
         """
         super().__init__()
 
-        # Whether the model uses shared parameters (i.e. weights) or not
-        self.share_parameters = False
-
         # Members for using a recurrent policy
         # The mean hxs and cxs can be used to sample a recurrent cell state upon initialization
         self.recurrence_config = config["recurrence"] if "recurrence" in config else None

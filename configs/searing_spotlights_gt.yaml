@@ -88,7 +88,6 @@ trainer:
   advantage_normalization: "no"
   value_coefficient: 0.5
   max_grad_norm: 0.25
-  share_parameters: True
   learning_rate_schedule:
     initial: 2.5e-4
     final: 1.0e-5

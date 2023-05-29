@@ -172,21 +172,15 @@ trainer:
   # Number of times that the whole batch of data is used for optimization using PPO
   # Each epoch trains on a random permutation of the sampled training batch
   epochs: 4
-  # Refreshes the buffer every n epochs (-1 = turned off). Stale advantages and hidden states are refreshed.
-  # This feature might be broken by now
-  refresh_buffer_epoch: -1
   # Number of mini batches that are trained throughout one epoch
   # In case of using a recurrent net, this has to be a multiple of n_workers.
   n_mini_batches: 4
   # Wether to normalize the advantages on "minibatch" level, "batch" level or not at all ("no").
   advantage_normalization: "minibatch"
   # Coefficient of the loss of the value function (i.e. critic)
-  # It is only of use if model parameters are shared among the actor and the critic
   value_coefficient: 0.25
   # Strength of clipping the loss gradients
   max_grad_norm: 0.5
-  # Wether the actor and critic model should share its parameters
-  share_parameters: True
   # Polynomial Decay Schedules
   # Learning Rate
   learning_rate_schedule:
@@ -210,80 +204,3 @@ trainer:
 
 These are basically all the hyperparameters, which can be configured for training an agent using PPO.
 Polynomial decay schedules can be applied to the clip_range, the entropy bonus coefficient and the learning rate.
-
-### DecoupledPPO
-
-The training with decoupled gradients and parameters might be broken by now.
-
-```
-trainer:
-  # Which algorithm to use. For now, PPO is supported.
-  algorithm: "DecoupledPPO"
-  # (Optional) Whether the policy shall estimate the advantage function (DAAC algorithm by Raileanu & Fergus, 2021)
-  DAAC:
-    # Coefficient of the advantage loss
-    adv_coefficient: 0.25
-  # On which step to resume the training. This affects the hyperparameter schedules only.
-  resume_at: 0
-  # Discount factor
-  gamma: 0.99
-  # Regularization parameter used when calculating the Generalized Advantage Estimation (GAE)
-  lamda: 0.95
-  # Number of PPO update cycles that shall be done (one whole cycle comprises n epochs of m mini_batch updates)
-  updates: 1000
-  # Number of times that the whole batch of data is used for optimizing the policy using PPO
-  # Each epoch trains on a random permutation of the sampled training batch
-  policy_epochs: 4
-  # Number of mini batches that are trained throughout one policy epoch
-  # In case of using a recurrent net, this has to be a multiple of n_workers.
-  n_policy_mini_batches: 4
-  # Number of times that the whole batch of data is used for optimizing the value function
-  # In contrast to policy epochs, the value function is updated once using the whole data set instead of mini batches.
-  value_epochs: 9
-  # Number of mini batches that are trained throughout one value epoch
-  # In case of using a recurrent net, this has to be a multiple of n_workers.
-  n_value_mini_batches: 1
-  # This interval determines when to optimize the value function based on how many update cycles have passed.
-  value_update_interval: 1
-  # Wether to normalize the advantages on "minibatch" level, "batch" level or not at all ("no").
-  advantage_normalization: "minibatch"
-  # Strength of clipping the norm of the policy loss gradients
-  max_policy_grad_norm: 0.5
-  # Strength of clipping the norm of the value loss gradients
-  max_value_grad_norm: 0.5
-  # Polynomial Decay Schedules
-  # Policy Learning Rate
-  policy_learning_rate_schedule:
-    initial: 3.0e-4
-    final: 3.0e-4
-    power: 1.0
-    max_decay_steps: 1000
-  # Value Learning Rate
-  value_learning_rate_schedule:
-    initial: 3.0e-4
-    final: 3.0e-4
-    power: 1.0
-    max_decay_steps: 1000
-  # Beta represents the entropy bonus coefficient
-  beta_schedule:
-    initial: 0.001
-    final: 0.0005
-    power: 1.0
-    max_decay_steps: 800
-  # Strength of clipping the loss of the policy
-  policy_clip_range_schedule:
-    initial: 0.2
-    final: 0.2
-    power: 1.0
-    max_decay_steps: 1000
-  # Strength of clipping the loss of the value function
-  value_clip_range_schedule:
-    initial: 0.2
-    final: 0.2
-    power: 1.0
-    max_decay_steps: 1000
-```
-
-DecoupledPPO decouples the gradients of the value function and the policy.
-Therfore, more control is gained over the behavior of the training algorithm, although this is more expensive to compute.
-This setup also supports the DAAC algorithm (Raileanu & Fergus, 2021).
