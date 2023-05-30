@@ -9,6 +9,7 @@ class Tag(Enum):
     GRADIENT_MEAN = "gradient_mean"
     LOSS = "loss"
     OTHER = "other"
+    ERROR = "error"
 
 import logging
 import os

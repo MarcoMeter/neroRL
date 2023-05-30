@@ -57,13 +57,13 @@ class GroundTruthTrainer(BaseTrainer):
         stats = {}
         for key, (tag, values) in train_info.items():
             stats[key] = (tag, np.mean(values))
-            if key == "gt_loss":
+            if key == "gt_loss" or key == "gt_error":
                 stats[key + "_min"] = (tag, np.min(values))
                 stats[key + "_max"] = (tag, np.max(values))
 
         # Format specific values for logging inside the base class
-        formatted_string = "gt_loss={:.3f} gt_loss_max={:.3f} gt_loss_min={:.3f}".format(
-            stats["gt_loss"][1], stats["gt_loss_max"][1], stats["gt_loss_min"][1])
+        formatted_string = "gt_loss={:.3f} gt_loss_max={:.3f} gt_loss_min={:.3f} error={:.3f} error_min={:.3f} error_max={:.3f}".format(
+            stats["gt_loss"][1], stats["gt_loss_max"][1], stats["gt_loss_min"][1], stats["gt_error"][1], stats["gt_error_min"][1], stats["gt_error_max"][1])
 
         # Return the mean of the training statistics
         return stats, formatted_string
@@ -102,6 +102,9 @@ class GroundTruthTrainer(BaseTrainer):
         # Compute ground truth estimation loss
         estimation_loss = self.mse_loss(estimation, target)
 
+        # Calculate the error for monitoring
+        error = torch.abs(estimation - target).mean()
+
         # Compute gradients
         self.optimizer.zero_grad()
         estimation_loss.backward()
@@ -109,7 +112,8 @@ class GroundTruthTrainer(BaseTrainer):
         self.optimizer.step()
 
         out = {**compute_gradient_stats({"gt_estimator": self.model.ground_truth_estimator}),
-                "gt_loss": (Tag.LOSS, estimation_loss.cpu().data.numpy())}
+                "gt_loss": (Tag.LOSS, estimation_loss.cpu().data.numpy()),
+                "gt_error": (Tag.ERROR, error.cpu().data.numpy())}
 
         return out
 
