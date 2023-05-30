@@ -59,7 +59,8 @@ class BaseTrainer():
         if compile_model:
             # Compile the model if not on Windows and if Pytorch version is >= 2.0
             if not platform.system() == "Windows" and torch.__version__ >= "2.0":
-                self.model = torch.compile(self.model, dynamic=True)
+                torch.set_float32_matmul_precision("high")
+                self.model = torch.compile(self.model, dynamic=True, mode="max-autotune")
 
         # Set model to train mode
         self.model.train()
