@@ -62,17 +62,19 @@ def main():
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
         --generate_website         Specifies wether a website shall be generated. [default: False]
+        --visualize_estimated_gt   Specifies wether the estimated ground truth shall be visualized(only works if a website or a video is generated). [default: False]
     """
     options = docopt(_USAGE)
-    untrained = options["--untrained"]                  # defaults to False
-    config_path = options["--config"]                   # defaults to an empty string
-    checkpoint_path = options["--checkpoint"]           # defaults to an empty string
-    worker_id = int(options["--worker-id"])             # defaults to 2
-    seed = int(options["--seed"])                       # defaults to 0
-    num_episodes = int(options["--num-episodes"])       # defauults to 1
-    video_path = options["--video"]                     # defaults to "video"
-    frame_rate = options["--framerate"]                 # defaults to 6
-    generate_website = options["--generate_website"]    # defaults to False
+    untrained = options["--untrained"]                              # defaults to False
+    config_path = options["--config"]                               # defaults to an empty string
+    checkpoint_path = options["--checkpoint"]                       # defaults to an empty string
+    worker_id = int(options["--worker-id"])                         # defaults to 2
+    seed = int(options["--seed"])                                   # defaults to 0
+    num_episodes = int(options["--num-episodes"])                   # defauults to 1
+    video_path = options["--video"]                                 # defaults to "video"
+    frame_rate = options["--framerate"]                             # defaults to 6
+    generate_website = options["--generate_website"]                # defaults to False
+    visualize_estimated_gt = options["--visualize_estimated_gt"]    # defaults to False
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = "--video" in " ".join(sys.argv)
@@ -149,10 +151,7 @@ def main():
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
 
         # Store data for video recording
-        probs = []
-        entropies = []
-        values = []
-        actions = []
+        actions, values, entropies, probs, est_gt = [], [], [], [], []
 
         # Play one episode
         with torch.no_grad():
@@ -192,6 +191,9 @@ def main():
                 probs.append(_probs)
                 entropies.append(entropy)
                 values.append(value.cpu().numpy())
+                # Collect estimated ground truth if needed
+                if visualize_estimated_gt:
+                    est_gt.append(model.estimate_ground_truth().cpu().numpy())
 
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
