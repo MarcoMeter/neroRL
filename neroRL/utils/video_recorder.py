@@ -86,9 +86,10 @@ class VideoRecorder:
                 self.draw_text_overlay(debug_frame, 5, 60, "True", "episode done")
 
             # Plot estimated ground truth
-            if "estimated_ground_truth" in trajectory_data:
+            if "estimated_ground_truth" in trajectory_data and i < len(trajectory_data["estimated_ground_truth"]):
                 # Get the point's position
                 position = trajectory_data["estimated_ground_truth"][i].clip(0, 1)
+                position = (int(position[0] * self.width), int(position[1] * self.height))
                 # Set the color of the point (in BGR format, here we use red color)
                 point_color = (0, 0, 255)
                 # Set the radius of the point (in pixels)

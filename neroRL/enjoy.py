@@ -193,7 +193,7 @@ def main():
                 values.append(value.cpu().numpy())
                 # Collect estimated ground truth if needed
                 if visualize_estimated_gt:
-                    est_gt.append(model.estimate_ground_truth().cpu().numpy())
+                    est_gt.append(model.estimate_ground_truth().squeeze().cpu().numpy())
 
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
