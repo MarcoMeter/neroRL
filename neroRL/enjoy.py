@@ -212,6 +212,8 @@ def main():
             trajectory_data["values"] = [items for items in values for _ in range(frame_skip)]
             trajectory_data["episode_reward"] = info["reward"]
             trajectory_data["seed"] = seed
+            trajectory_data["estimated_ground_truth"] = est_gt
+            
             # if frame_skip > 1:
             #     # remainder = info["length"] % frame_skip
             #     remainder = len(trajectory_data["probs"]) % frame_skip
