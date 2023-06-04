@@ -1,8 +1,11 @@
 import numpy as np
 import torch
+import torch.nn.functional as F
+
 from torch import nn
 from einops import rearrange
 from neroRL.nn.module import Module
+from neroRL.utils.utils import batched_index_select
 
 class MultiHeadAttention(nn.Module):
     """Multi Head Attention without dropout inspired by https://github.com/aladdinpersson/Machine-Learning-Collection
@@ -163,6 +166,8 @@ class TransformerBlock(Module):
             # Forward GRU gating
             h = self.gate1(query, attention)
         else:
+            if self.layer_norm == "pre":
+                attention = F.relu(attention)
             # Skip connection
             h = attention + query
         
@@ -184,6 +189,8 @@ class TransformerBlock(Module):
             # Forward GRU gating
             out = self.gate2(h, forward)
         else:
+            if self.layer_norm == "pre":
+                forward = F.relu(forward)
             # Skip connection
             out = forward + h
         
@@ -230,6 +237,10 @@ class Transformer(nn.Module):
         self.linear_embedding = nn.Linear(input_dim, self.embed_dim)
         nn.init.orthogonal_(self.linear_embedding.weight, np.sqrt(2))
 
+        # Fusion layer
+        self.fusion = nn.Linear(self.embed_dim * 2, self.embed_dim)
+        nn.init.orthogonal_(self.fusion.weight, np.sqrt(2))
+
         # Determine positional encoding
         if config["positional_encoding"] == "relative":
             self.pos_embedding = SinusoidalPosition(dim = self.embed_dim)
@@ -267,10 +278,26 @@ class Transformer(nn.Module):
             memories = memories + self.pos_embedding[memory_indices].unsqueeze(2)
             # memories[:,:,0] = memories[:,:,0] + self.pos_embedding[memory_indices] # add positional encoding only to first layer?
 
+        # Select the last memory item of the last TrXL block
+        max_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
+        last_memory_indices = torch.clamp(max_memory_indices, min=0, max=memories.size()[1] - 1)
+        last_memory_last_block = batched_index_select(memories[:, :, -1, :], 1, last_memory_indices.unsqueeze(0)).squeeze(0)
+
+        h = self.fusion(torch.cat((h, last_memory_last_block), dim=-1))
+        h = self.activation(h)
+
         # Forward transformer blocks
         out_memories = []
         for i, block in enumerate(self.transformer_blocks):
             out_memories.append(h.detach())
+            # Add positional encoding to query
+            if self.config["positional_encoding"] == "relative":
+                # apply mask to memory indices
+                masked_memory_indices = memory_indices * mask
+                # select max memory indices across dim 1
+                masked_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
+                pos_embedding = self.pos_embedding(self.max_episode_steps)[masked_memory_indices]
+                h = h + pos_embedding
             h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask) # args: value, key, query, mask
             h = h.squeeze()
             if len(h.shape) == 1:
