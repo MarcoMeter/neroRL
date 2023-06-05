@@ -66,6 +66,8 @@ class TransformerSampler(TrajectorySampler):
         2, 3, 4, 5
         3, 4, 5, 6
         """
+        # Setup placeholder for the output of TrXL
+        self.transformer_output = torch.zeros((self.n_workers, self.embed_dim))
 
     def sample(self) -> list:
         """Samples training data (i.e. experience tuples) using n workers for t worker steps. But before, the memory buffer is initialized."""
@@ -79,6 +81,7 @@ class TransformerSampler(TrajectorySampler):
         super().previous_model_input_to_buffer(t)
         self.buffer.memory_mask[:, t] = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)]
         self.buffer.memory_indices[:,t] = self.memory_indices[self.worker_current_episode_step]
+        self.buffer.mem_hidden_state[:,t] = self.transformer_output
 
     def forward_model(self, vis_obs, vec_obs, t):
         """Forwards the model to retrieve the policy and the value of the to be fed observations and memory window."""
@@ -86,9 +89,11 @@ class TransformerSampler(TrajectorySampler):
         sliced_memory = batched_index_select(self.memory, 1, self.buffer.memory_indices[:,t])
         # Forward
         policy, value, memory = self.model(vis_obs, vec_obs, memory = sliced_memory, mask = self.buffer.memory_mask[:, t],
-                                                memory_indices = self.buffer.memory_indices[:,t])
+                                                memory_indices = self.buffer.memory_indices[:,t], trxl_hidden = self.transformer_output)
         # Write the new memory item to the placeholder
         self.memory[self.worker_ids, self.worker_current_episode_step] = memory
+        # Write the transformer output to the placeholder
+        self.transformer_output = memory[:,-1, :]
         return policy, value
 
     def reset_worker(self, worker, id, t):
@@ -99,6 +104,8 @@ class TransformerSampler(TrajectorySampler):
         self.buffer.memories[mem_index] = self.buffer.memories[mem_index].clone()
         # Reset episodic memory
         self.memory[id] = self.model.init_transformer_memory(1, self.max_episode_steps, self.num_blocks, self.embed_dim).squeeze(0)
+        # Reset transformer output
+        self.transformer_output[id] = torch.zeros((self.embed_dim))
         if t < self.worker_steps - 1:
             # Save memory
             self.buffer.memories.append(self.memory[id])
@@ -114,5 +121,5 @@ class TransformerSampler(TrajectorySampler):
         _, last_value, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
                                         memory = sliced_memory, mask = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)],
-                                        memory_indices = self.buffer.memory_indices[:,-1])
+                                        memory_indices = self.buffer.memory_indices[:,-1], trxl_hidden = self.buffer.mem_hidden_state[:,-1])
         return last_value

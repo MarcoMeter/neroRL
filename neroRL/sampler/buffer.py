@@ -78,6 +78,8 @@ class Buffer():
         self.memory_index = torch.zeros((self.num_workers, self.worker_steps), dtype=torch.long)
         # Indices to slice the memory window
         self.memory_indices = torch.zeros((self.num_workers, self.worker_steps, self.memory_length), dtype=torch.long)
+        # TrXL hidden state output
+        self.mem_hidden_state = torch.zeros((self.num_workers, self.worker_steps, self.mem_layer_size))
 
     def calc_advantages(self, last_value, gamma, lamda):
         """Generalized advantage estimation (GAE)
@@ -135,6 +137,7 @@ class Buffer():
                 samples["memory_indices"] = self.memory_indices[:, :, :self.actual_max_episode_steps].clone()
                 self.memories = self.memories[:, :self.actual_max_episode_steps].clone()
             samples["memory_index"] = self.memory_index
+            samples["trxl_hidden_state"] = self.mem_hidden_state
 
         # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences

@@ -114,7 +114,7 @@ class PPOTrainer(BaseTrainer):
             training_stats {dict} -- Losses, entropy, kl-divergence and clip fraction
         """
         # Retrieve the agent's memory to feed the model
-        memory, mask, memory_indices = None, None, None
+        memory, mask, memory_indices, trxl_hidden_state = None, None, None, None
         # Case Recurrence: the recurrent cell state is treated as the memory. Only the initial hidden states are selected.
         if self.recurrence is not None:
             if self.recurrence["layer_type"] == "gru":
@@ -127,12 +127,13 @@ class PPOTrainer(BaseTrainer):
             memory = samples["memory_window"]
             mask = samples["memory_mask"]
             memory_indices = samples["memory_indices"]
+            trxl_hidden_state = samples["trxl_hidden_state"]
 
         # Forward model -> policy, value, memory, gae
         policy, value, _ = self.model(samples["vis_obs"] if self.vis_obs_space is not None else None,
                                     samples["vec_obs"] if self.vec_obs_space is not None else None,
                                     memory = memory, mask = mask, memory_indices = memory_indices,
-                                    sequence_length = self.sampler.buffer.actual_sequence_length)
+                                    sequence_length = self.sampler.buffer.actual_sequence_length, trxl_hidden = trxl_hidden_state)
         
         # Policy Loss
         # Retrieve and process log_probs from each policy branch

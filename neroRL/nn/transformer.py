@@ -254,7 +254,7 @@ class Transformer(nn.Module):
             TransformerBlock(self.embed_dim, self.num_heads, self.share_heads, config) 
             for _ in range(self.num_blocks)])
 
-    def forward(self, h, memories, mask, memory_indices):
+    def forward(self, h, memories, mask, memory_indices, hidden_state = None):
         """
         Arguments:
             h {torch.tensor} -- Input (query)
@@ -279,25 +279,26 @@ class Transformer(nn.Module):
             # memories[:,:,0] = memories[:,:,0] + self.pos_embedding[memory_indices] # add positional encoding only to first layer?
 
         # Select the last memory item of the last TrXL block
-        max_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
-        last_memory_indices = torch.clamp(max_memory_indices, min=0, max=memories.size()[1] - 1)
-        last_memory_last_block = batched_index_select(memories[:, :, -1, :], 1, last_memory_indices.unsqueeze(0)).squeeze(0)
+        # max_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
+        # last_memory_indices = torch.clamp(max_memory_indices - 1, min=0, max=memories.size()[1] - 1)
+        # last_memory_last_block = batched_index_select(memories[:, :, -1, :], 1, last_memory_indices.unsqueeze(0)).squeeze(0)
 
-        h = self.fusion(torch.cat((h, last_memory_last_block), dim=-1))
+        h = self.fusion(torch.cat((h, hidden_state), dim=-1))
         h = self.activation(h)
+
+        # # Add positional encoding to query
+        # if self.config["positional_encoding"] == "relative":
+        #     # apply mask to memory indices
+        #     masked_memory_indices = memory_indices * mask
+        #     # select max memory indices across dim 1
+        #     masked_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
+        #     pos_embedding = self.pos_embedding(self.max_episode_steps)[masked_memory_indices]
+        #     h = h + pos_embedding
 
         # Forward transformer blocks
         out_memories = []
         for i, block in enumerate(self.transformer_blocks):
             out_memories.append(h.detach())
-            # Add positional encoding to query
-            if self.config["positional_encoding"] == "relative":
-                # apply mask to memory indices
-                masked_memory_indices = memory_indices * mask
-                # select max memory indices across dim 1
-                masked_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
-                pos_embedding = self.pos_embedding(self.max_episode_steps)[masked_memory_indices]
-                h = h + pos_embedding
             h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask) # args: value, key, query, mask
             h = h.squeeze()
             if len(h.shape) == 1:
