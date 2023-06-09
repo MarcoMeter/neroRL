@@ -93,7 +93,7 @@ class VideoRecorder:
                 # Set the color of the point (in BGR format, here we use red color)
                 point_color = (0, 0, 255)
                 # Set the radius of the point (in pixels)
-                point_radius = 2
+                point_radius = 8
                 # Draw the point on the image/frame
                 cv2.circle(env_frame, position, point_radius, point_color, -1)
 
