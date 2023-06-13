@@ -183,6 +183,7 @@
           <button id="reset_button" onclick="reset()">Reset</button>
           <button id="back_button" onclick="back()">Back</button>
           <button id="next_button" onclick="next()">Next</button>
+          <button id="stats_button" onclick="statistic()">Transformer</button>
         </buttonrow>
 
         <!-- Set slider to control the figures -->
@@ -216,6 +217,9 @@
 
         // Play and pause button
         const play_pause_button = document.getElementById("play_pause_button");
+
+        // Const stats button
+        const stats_button = document.getElementById("stats_button");
 
         // Set time selector
         const time_selector = document.getElementById('time_selector');
@@ -378,6 +382,11 @@
           video_player.currentTime = video_player.currentTime + tS_step_size;
           pause();
           update();
+      }
+
+      function statistic() {
+        stats_button.innerHTML = "Transformer";
+        stats_button.innerHTML = "General";
       }
 
       /**
