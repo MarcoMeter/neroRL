@@ -97,7 +97,7 @@ def main():
     # Load config, environment, model, evaluation and training parameters
     if not config_path and not checkpoint_path:
         raise ValueError("Either a config or a checkpoint must be provided")
-    checkpoint = torch.load(checkpoint_path) if checkpoint_path else None
+    checkpoint = torch.load(checkpoint_path, map_location=device) if checkpoint_path else None
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
     model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
     # Determine whether frame skipping is desired (important for video recording)
@@ -121,7 +121,7 @@ def main():
         if not checkpoint:
             # If a checkpoint is not provided as an argument, it shall be retrieved from the config
             logger.info("Step 2: Loading model from " + model_config["model_path"])
-            checkpoint = torch.load(model_config["model_path"])
+            checkpoint = torch.load(model_config["model_path"], map_location=device)
         model.load_state_dict(checkpoint["model"])
         if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
