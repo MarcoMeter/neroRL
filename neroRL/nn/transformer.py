@@ -268,14 +268,28 @@ class Transformer(nn.Module):
             # memories[:,:,0] = memories[:,:,0] + self.pos_embedding[memory_indices] # add positional encoding only to first layer?
 
         # Forward transformer blocks
-        out_memories = []
+        out_memories, self.out_attention_weights, self.mask = [], [], mask
         for i, block in enumerate(self.transformer_blocks):
             out_memories.append(h.detach())
             h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask) # args: value, key, query, mask
             h = h.squeeze()
             if len(h.shape) == 1:
                 h = h.unsqueeze(0)
+            self.out_attention_weights.append(attention_weights)
         return h, torch.stack(out_memories, dim=1)
+    
+    def attention_weights(self):
+        """Returns the attention weights of the last forward pass.
+
+        Returns:
+            {np.array} -- Attention weights
+        """
+        out_attention_weights = torch.stack(self.out_attention_weights, dim=0)
+        out_attention_weights = out_attention_weights.squeeze()
+        out_attention_weights = out_attention_weights.mean(dim=1)
+        out_attention_weights = out_attention_weights.cpu().detach().numpy()
+        out_attention_weights = out_attention_weights[:, self.mask.squeeze().bool()]
+        return out_attention_weights
     
     def init_transformer_weights(self):
         if self.config["init_weights"] == "tfixup":
