@@ -190,12 +190,16 @@
         <h3 id="selector_header">Timeline</h3>
         <input id="time_selector" type="range" min="0" max="100" step="1" value="0" />
 
+
+        <!-- Set value plot and entropy plot -->
+        <div id="transformer"></div>
+
         <!-- Set value plot and entropy plot -->
         <div id="figures">
           <div id="value_func"></div>
           <div id="entropy_func"></div>
           <!-- Dropdown button with some options-->
-          <div class="dropdown">
+          <div class="dropdown" id="options">
             <button class="dropbtn">Options</button>
             <div class="dropdown-content" id="dropdown_content">
               <a href ="#" onclick="marker('value')">value_marker_toggle</a>
@@ -240,6 +244,9 @@
         // Set marker for plots
         var entropy_marker = true;
         var value_marker = true;
+
+        // Set the to be shown statistic
+        var statistic_type = 'general'
 
         // Set the to be shown action_space(s) for the entropy plot
         var entr_selected_action_space = null;
@@ -390,12 +397,14 @@
        */
        function statistic() {
         if (stats_button.innerHTML == "General") {
+          statistic_type = "general";
           stats_button.innerHTML = "Transformer";
         }
         else if (stats_button.innerHTML == "Transformer") {
+          statistic_type = "transformer";
           stats_button.innerHTML = "General";
-
         }
+        update();
       }
       /**
       * Opens the video in fullscreen
@@ -442,15 +451,111 @@
         step = Math.floor(video_player.currentTime); // Get step of video for plots
 
         // Update plots
-        set_scatter_line_plot('value_func', "Value Function", y_values_plot, step, value_marker);
+        if (statistic_type == "general"){
+          document.getElementById('transformer').style.display = 'none';
+          document.getElementById('value_func').style.display = 'block';
+          document.getElementById('entropy_func').style.display = 'block';
+          document.getElementById('options').style.display = 'block';
+          render_general_statistics();
+        }
+        else if (statistic_type == "transformer"){
+          document.getElementById('transformer').style.display = 'block';
+          document.getElementById('value_func').style.display = 'none';
+          document.getElementById('entropy_func').style.display = 'none';
+          document.getElementById('options').style.display = 'none';
+          render_transformer_statistics();
+        }
+      }
+
+      /**
+      * Renders the general statistics
+      */
+      function render_general_statistics() {
+          set_scatter_line_plot('value_func', "Value Function", y_values_plot, step, value_marker);
+          if(is_discrete) { // If action_space is discrete
+              set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
+              set_bar_action_plot(y_action[step][0], action[step][0], action_names);
+          }
+          else { // If action_space is multi discrete
+              set_scatter_lines_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
+              set_stacked_bar_action_plot(y_action[step], action[step], action_names);
+          }
+        }
+      
+      /*
+      * Renders the transformer statistics
+      */
+      function render_transformer_statistics() {
+        visualizeAttentionScores(y_attention_weights[step]);
         if(is_discrete) { // If action_space is discrete
-            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
-            set_bar_action_plot(y_action[step][0], action[step][0], action_names);
-        }
-        else { // If action_space is multi discrete
-            set_scatter_lines_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
+           set_bar_action_plot(y_action[step][0], action[step][0], action_names);
+          }
+          else { // If action_space is multi discrete
             set_stacked_bar_action_plot(y_action[step], action[step], action_names);
+            }
+          }
+
+
+      /**
+       * Renders attention scores
+      */
+      async function visualizeAttentionScores(attentionScores) {
+        const numHeads = attentionScores.length;
+        const sequenceLength = attentionScores[0].length;
+
+        let data = [];
+        let layout = {
+            height: 150 * numHeads,  // Adjust height here
+            width: window.innerWidth,  // Adjust width here
+            title: 'Attention Blocks',
+            grid: {rows: numHeads, columns: 1, pattern: 'independent'},
+            plot_bgcolor: '#000',
+            paper_bgcolor: '#000',
+            font: {
+                family: 'Montserrat',
+                size: 12,
+                color: '#fff'
+            },
+        };
+
+        // Iterate through each attention head
+        for (let headIdx = 0; headIdx < numHeads; headIdx++) {
+            // Get attention scores for the current head
+            let headScores = attentionScores[headIdx];
+
+            const headScoresPlot = {
+                z: [headScores],
+                type: 'heatmap',
+                showscale: true,  
+                colorscale: 'Hot',
+                zmin: 0,
+                zmax: 1,
+                xaxis: `x${headIdx + 1}`,
+                yaxis: `y${headIdx + 1}`
+            };
+
+            data.push(headScoresPlot);
+
+            layout[`xaxis${headIdx + 1}`] = {
+                tickmode: 'array',
+                tickvals: Array.from({length: sequenceLength}, (_, i) => i),
+                ticktext: Array.from({length: sequenceLength}, (_, i) => i)
+            };
+
+            layout[`yaxis${headIdx + 1}`] = {
+                title: `Block ${headIdx + 1}`,
+                ticks: 'outside',
+                tick0: 0,
+                dtick: 1,
+                ticklen: 8,
+                tickwidth: 4,
+                tickcolor: '#000'
+            };
         }
+
+        const config = {responsive: true};
+
+        Plotly.newPlot('transformer', data, layout, config);
       }
 
       /** 
