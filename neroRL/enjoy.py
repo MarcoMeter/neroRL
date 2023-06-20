@@ -61,7 +61,7 @@ def main():
         --num-episodes=<n>         The number of to be played episodes [default: 1].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
-        --generate_website         Specifies wether a website shall be generated. [default: False]
+        --website                  Specifies wether a website shall be generated. [default: False]
         --visualize_estimated_gt   Specifies wether the estimated ground truth shall be visualized(only works if a website or a video is generated). [default: False]
     """
     options = docopt(_USAGE)
@@ -73,7 +73,7 @@ def main():
     num_episodes = int(options["--num-episodes"])                   # defauults to 1
     video_path = options["--video"]                                 # defaults to "video"
     frame_rate = options["--framerate"]                             # defaults to 6
-    generate_website = options["--generate_website"]                # defaults to False
+    website = options["--website"]                                  # defaults to False
     visualize_estimated_gt = options["--visualize_estimated_gt"]    # defaults to False
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
@@ -83,7 +83,7 @@ def main():
         logger.info("Step 0: Only 1 episode will be played")
         num_episodes = 1
 
-    if generate_website:
+    if website:
         logger.info("Step 0: Only 1 episode will be played")
         num_episodes = 1
 
@@ -109,7 +109,7 @@ def main():
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
     visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
-    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
+    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or website)
 
     # Build or load model
     logger.info("Step 2: Creating model")
@@ -203,7 +203,7 @@ def main():
         logger.info("Episode Length: " + str(info["length"]))
 
         # Complete video data
-        if record_video or generate_website:
+        if record_video or website:
             trajectory_data = env.get_episode_trajectory
             trajectory_data["action_names"] = env.action_names
             trajectory_data["actions"] = [items for items in actions for _ in range(frame_skip)]
@@ -227,7 +227,7 @@ def main():
             if record_video:
                 video_recorder.render_video(trajectory_data)
             # Generate website
-            if generate_website:
+            if website:
                 video_recorder.generate_website(trajectory_data, configs)
 
     env.close()
