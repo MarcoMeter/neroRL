@@ -278,17 +278,18 @@ class Transformer(nn.Module):
             self.out_attention_weights.append(attention_weights)
         return h, torch.stack(out_memories, dim=1)
     
-    def attention_weights(self):
+    def get_attention_weights(self):
         """Returns the attention weights of the last forward pass.
 
         Returns:
-            {np.array} -- Attention weights
+            {list} -- Attention weights
         """
         out_attention_weights = torch.stack(self.out_attention_weights, dim=0)
         out_attention_weights = out_attention_weights.squeeze()
         out_attention_weights = out_attention_weights.mean(dim=1)
         out_attention_weights = out_attention_weights.cpu().detach().numpy()
         out_attention_weights = out_attention_weights[:, self.mask.squeeze().bool()]
+        out_attention_weights = out_attention_weights.tolist()
         return out_attention_weights
     
     def init_transformer_weights(self):

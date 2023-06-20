@@ -228,6 +228,7 @@
         // Set values for the plots
         var y_values = {{ yValues }};
         var y_entropy = {{ yEntropy }};
+        var y_attention_weights = {{ yAttentionWeights }};
         var y_action = {{ yAction }}; // action probs
         var action =  {{ action }};
         var action_names = {{ actionNames }};
@@ -315,8 +316,8 @@
           video_player.addEventListener('dblclick', function(e) {open_fullscreen(video_player);}); // Open video in fullscreen when video is double clicked
           video_player.playbackRate = {{ frameRate }}; // Set video playback rate to frame rate
           reset(); // Reset video to start
-      }, false)
-
+        }, false);
+      
       // Update video time if time selector is changed
       time_selector.addEventListener('input', () => {
           video_player.currentTime = time_selector.value
@@ -384,11 +385,18 @@
           update();
       }
 
-      function statistic() {
-        stats_button.innerHTML = "Transformer";
-        stats_button.innerHTML = "General";
-      }
+      /**
+       * Switches between general and transformer statistics
+       */
+       function statistic() {
+        if (stats_button.innerHTML == "General") {
+          stats_button.innerHTML = "Transformer";
+        }
+        else if (stats_button.innerHTML == "Transformer") {
+          stats_button.innerHTML = "General";
 
+        }
+      }
       /**
       * Opens the video in fullscreen
       */

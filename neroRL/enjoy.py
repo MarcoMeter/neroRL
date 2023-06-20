@@ -151,7 +151,7 @@ def main():
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
 
         # Store data for video recording
-        actions, values, entropies, probs, est_gt = [], [], [], [], []
+        actions, values, entropies, probs, est_gt, attention_weights = [], [], [], [], [], []
 
         # Play one episode
         with torch.no_grad():
@@ -175,6 +175,7 @@ def main():
                     memory = new_memory
                 if "transformer" in model_config:
                     memory[:, t] = new_memory
+                    attention_weights.append(model.transformer.get_attention_weights())
 
                 _actions = []
                 _probs = []
@@ -213,6 +214,7 @@ def main():
             trajectory_data["episode_reward"] = info["reward"]
             trajectory_data["seed"] = seed
             trajectory_data["estimated_ground_truth"] = est_gt
+            trajectory_data["attention_weights"] = attention_weights
             
             # if frame_skip > 1:
             #     # remainder = info["length"] % frame_skip
