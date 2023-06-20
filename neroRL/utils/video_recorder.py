@@ -170,6 +170,7 @@ class VideoRecorder:
                                             videoPath = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm",
                                             yValues=str(values),
                                             yEntropy=str(entropies),
+                                            yAttentionWeights=str(trajectory_data["attention_weights"]),
                                             yAction=str(action_probs),
                                             action=str(actions),
                                             actionNames=str(action_names) if action_names is not None else "null",
