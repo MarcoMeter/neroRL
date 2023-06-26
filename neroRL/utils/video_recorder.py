@@ -206,15 +206,15 @@ class VideoRecorder:
         
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(path + "video_seed_" + str(trajectory_data["seed"]) + "_" + video_id + ".webm",
-                                webm_fourcc, 1, (self.width * 2, self.height + self.info_height))
+                                webm_fourcc, 1, (self.width, self.height + self.info_height))
         
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
             env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
-            env_frame = cv2.resize(env_frame, (self.width * 2, self.height), interpolation=cv2.INTER_AREA)
+            env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
 
             # Setup info frame
-            info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
+            info_frame = np.zeros((self.info_height, self.width, 3), dtype=np.uint8)
             # Seed
             self.draw_text_overlay(info_frame, 8, 20, trajectory_data["seed"], "seed")
             # Current step
