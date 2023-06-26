@@ -132,6 +132,10 @@
         text-decoration: none;
         display: block;
       }
+
+      .gotostepcontainer {
+          margin-bottom: 10px;
+      }
       
       /* Style of the dropdown at hover */
       .dropdown-content a:hover {background-color: #ddd;}
@@ -178,9 +182,12 @@
 
         <br>
         <!-- Set buttons to control the figures -->
-        <buttonrow>
-          <label for="gotostep_text" title="This text box enables you to navigate to the specified step by pressing Enter. Furthermore, it retains your current step after you navigate to a different step.">Step:</label>
+        <div class="gotostepcontainer">
+          <label for="gotostep_text">Step:</label>
           <input type="text" id="gotostep_text" size="3" value="0" onkeydown="gotstep(event)">
+          <button id="return_button" type="return_button" onclick="return_to_step()">Return to step 0</button>
+        </div>
+        <buttonrow>
           <button id="play_pause_button" onclick="play_pause()" style="width:53px">Play</button>
           <button id="reset_button" onclick="reset()">Reset</button>
           <button id="back_button" onclick="back()">Back</button>
@@ -226,6 +233,8 @@
 
         // Set step input
         const gotostep_text = document.getElementById('gotostep_text');
+        var past_steps = [0];
+        var step = 0;
 
         // Const stats button
         const stats_button = document.getElementById("stats_button");
@@ -341,7 +350,9 @@
       * Update time selector and plots when video is playing
       */
       function timeListener() {
-        if(!video_player.paused) update();
+        if(!video_player.paused) {
+          update();
+        } 
       }
 
       /**
@@ -355,14 +366,27 @@
       }
 
       /**
+       * Returns to the previous frame step
+       */
+       function return_to_step() {
+        video_player.currentTime = past_steps.pop();
+        pause();
+        update();
+        gotostep_text.value = step;
+        return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
+      }
+
+      /**
        * Updates the plots and time selector
        */
        function gotstep(event) {
         if (event.keyCode === 13) {
+          past_steps.push(step);
           video_player.currentTime = Number(gotostep_text.value);
-          gotostep_text.value = step;
           pause();
           update();
+          gotostep_text.value = step;
+          return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
         }
       }
 
@@ -387,8 +411,10 @@
       */
       function reset() {
           video_player.currentTime = 0;
+          past_steps.push(step);
           pause();
           update();
+          return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
       }
 
       /**
@@ -396,8 +422,10 @@
       */
       function back() {
           video_player.currentTime = video_player.currentTime - tS_step_size
+          past_steps.push(step);
           pause();
           update();
+          return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
       }
 
       /**
@@ -405,8 +433,10 @@
       */
       function next() {
           video_player.currentTime = video_player.currentTime + tS_step_size;
+          past_steps.push(step);
           pause();
           update();
+          return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
       }
 
       /**
