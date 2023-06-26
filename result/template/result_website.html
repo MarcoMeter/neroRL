@@ -422,9 +422,9 @@
       */
       function back() {
           video_player.currentTime = video_player.currentTime - tS_step_size
-          past_steps.push(step);
           pause();
           update();
+          past_steps.push(step + 1);
           return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
       }
 
@@ -433,9 +433,9 @@
       */
       function next() {
           video_player.currentTime = video_player.currentTime + tS_step_size;
-          past_steps.push(step);
           pause();
           update();
+          past_steps.push(step - 1);
           return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
       }
 
