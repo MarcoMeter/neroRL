@@ -137,6 +137,10 @@
           margin-bottom: 10px;
       }
       
+      #score-container label, #score-container input {
+        display: inline-block;
+      }
+
       /* Style of the dropdown at hover */
       .dropdown-content a:hover {background-color: #ddd;}
       
@@ -200,8 +204,12 @@
         <input id="time_selector" type="range" min="0" max="100" step="1" value="0" />
 
 
-        <!-- Set value plot and entropy plot -->
+        <!-- Set transformer plot -->
         <div id="transformer"></div>
+        <div id="score-container">
+          <label for="top_n_scores">Top Scores:</label>
+          <input type="text" id="top_n_scores" size="3" value="-1" onkeydown="top_scores()">
+        </div>
 
         <!-- Set value plot and entropy plot -->
         <div id="figures">
@@ -235,6 +243,9 @@
         const gotostep_text = document.getElementById('gotostep_text');
         var past_steps = [0];
         var step = 0;
+
+        // Set number of scores input
+        const top_n_scores = document.getElementById('top_n_scores');
 
         // Const stats button
         const stats_button = document.getElementById("stats_button");
@@ -391,6 +402,13 @@
       }
 
       /**
+       * Updates the plots and time selector
+       */
+       function top_scores() {
+        if (event.keyCode === 13) update()
+      }
+
+      /**
       * Pauses video
       */
       function pause() {
@@ -500,6 +518,7 @@
         // Update plots
         if (statistic_type == "general"){
           document.getElementById('transformer').style.display = 'none';
+          document.getElementById('top_n_scores').style.display = 'none';
           document.getElementById('value_func').style.display = 'block';
           document.getElementById('entropy_func').style.display = 'block';
           document.getElementById('options').style.display = 'block';
@@ -507,6 +526,7 @@
         }
         else if (statistic_type == "transformer"){
           document.getElementById('transformer').style.display = 'block';
+          document.getElementById('top_n_scores').style.display = 'block';
           document.getElementById('value_func').style.display = 'none';
           document.getElementById('entropy_func').style.display = 'none';
           document.getElementById('options').style.display = 'none';
@@ -533,27 +553,26 @@
       * Renders the transformer statistics
       */
       function render_transformer_statistics() {
-        visualizeAttentionScores(y_attention_weights[step]);
+        var top_n = Number(top_n_scores.value);
+        if (top_n == -1) top_n = step;
+        visualizeAttentionScores(y_attention_weights[step], top_n);
         if(is_discrete) { // If action_space is discrete
            set_bar_action_plot(y_action[step][0], action[step][0], action_names);
           }
           else { // If action_space is multi discrete
             set_stacked_bar_action_plot(y_action[step], action[step], action_names);
             }
-          }
+        }
 
 
       /**
        * Renders attention scores
       */
-      async function visualizeAttentionScores(attentionScores) {
+      async function visualizeAttentionScores(attentionScores, n_values) {
         const numHeads = attentionScores.length;
-        const sequenceLength = attentionScores[0].length;
-
+        
         let data = [];
         let layout = {
-            height: 150 * numHeads,  // Adjust height here
-            width: window.innerWidth,  // Adjust width here
             title: 'Attention Blocks',
             grid: {rows: numHeads, columns: 1, pattern: 'independent'},
             plot_bgcolor: '#000',
@@ -565,20 +584,54 @@
             },
         };
 
+        // Flatten the array to find the max value across all arrays
+        let flatScores = attentionScores.flat();
+        let maxScore = Math.max(...flatScores);
+
         // Iterate through each attention head
         for (let headIdx = 0; headIdx < numHeads; headIdx++) {
             // Get attention scores for the current head
             let headScores = attentionScores[headIdx];
+            
+            // This array will keep up to the 10 highest scores
+            let topScores = [];
+
+            for (let i = 0; i < headScores.length; i++) {
+                // Insert current score into the top scores array
+                topScores.push({score: headScores[i], index: i});
+                
+                // Sort the top scores array
+                topScores.sort((a, b) => b.score - a.score);
+
+                // If there are more than 10 scores, remove the smallest
+                if (topScores.length > n_values) {
+                    topScores.pop();
+                }
+            }
+
+            // Sort the topScores array by index
+            topScores.sort((a, b) => a.index - b.index);
+
+            // Now topScores contains the top 10 scores sorted by their indices.
+            // You can extract the scores and their indices into separate arrays:
+            let filteredHeadScores = topScores.map(x => x.score);
+            let filteredTicks = topScores.map(x => x.index);
+
+
+            const sequenceLength = filteredHeadScores.length;
+
+            layout.height = 500;
+            layout.width = window.innerWidth;
 
             const headScoresPlot = {
-                z: [headScores],
+                z: [filteredHeadScores],
                 type: 'heatmap',
                 showscale: true,  
                 colorscale: 'Hot',
                 zmin: 0,
-                zmax: 1,
+                zmax: maxScore,
                 xaxis: `x${headIdx + 1}`,
-                yaxis: `y${headIdx + 1}`
+                yaxis: `y${headIdx + 1}`,
             };
 
             data.push(headScoresPlot);
@@ -586,7 +639,7 @@
             layout[`xaxis${headIdx + 1}`] = {
                 tickmode: 'array',
                 tickvals: Array.from({length: sequenceLength}, (_, i) => i),
-                ticktext: Array.from({length: sequenceLength}, (_, i) => i)
+                ticktext: filteredTicks
             };
 
             layout[`yaxis${headIdx + 1}`] = {
@@ -603,7 +656,7 @@
         const config = {responsive: true};
 
         Plotly.newPlot('transformer', data, layout, config);
-      }
+    }
 
       /** 
       * Sets a stacked bar plot for the multi discrete action distribution
