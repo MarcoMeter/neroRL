@@ -272,6 +272,8 @@
 
         // Set the to be shown statistic
         var statistic_type = 'general'
+        // Hide statistic type button if there is no attention weights
+        if(y_attention_weights.length == 0) stats_button.style.display = 'none';
 
         // Set the to be shown action_space(s) for the entropy plot
         var entr_selected_action_space = null;
