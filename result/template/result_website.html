@@ -573,16 +573,22 @@
         
         let data = [];
         let layout = {
-            title: 'Attention Blocks',
-            grid: {rows: numHeads, columns: 1, pattern: 'independent'},
-            plot_bgcolor: '#000',
-            paper_bgcolor: '#000',
-            font: {
-                family: 'Montserrat',
-                size: 12,
-                color: '#fff'
-            },
-        };
+          title: 'Attention Blocks',
+          grid: {
+              rows: numHeads, 
+              columns: 1, 
+              pattern: 'independent',
+              subplots: [...Array(numHeads).keys()].map(i => `xy${i + 1}`),
+              ygap: 0.4 // adjust this value according to your preference
+          },
+          plot_bgcolor: '#000',
+          paper_bgcolor: '#000',
+          font: {
+              family: 'Montserrat',
+              size: 12,
+              color: '#fff'
+          },
+      }
 
         // Flatten the array to find the max value across all arrays
         let flatScores = attentionScores.flat();
