@@ -102,3 +102,19 @@ def aggregate_episode_results(episode_infos):
             results[key + "_max"] = np.max([info[key] for info in episode_infos])
             results[key + "_std"] = np.std([info[key] for info in episode_infos])
     return results
+
+def load_and_apply_state_dict(model, state_dict):
+    """Loads a state dict but before applying it to the model, remove the prefix "_orig_mod." from the keys if applicable.
+
+    Arguments:
+        model {torch.nn.Module} -- Model to which the state dict should be loaded
+        state_dict {dict} -- State dict that should be loaded into the model
+    """
+    # Remove the prefix "_orig_mod." from the keys if applicable
+    new_state_dict = {}
+    for key, value in state_dict.items():
+        if key.startswith("_orig_mod."):
+            key = key[10:]
+        new_state_dict[key] = value
+    model.load_state_dict(new_state_dict)
+    return model

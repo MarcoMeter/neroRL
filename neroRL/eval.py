@@ -12,7 +12,7 @@ import sys
 
 from docopt import docopt
 
-from neroRL.utils.utils import aggregate_episode_results, get_environment_specs
+from neroRL.utils.utils import aggregate_episode_results, get_environment_specs, load_and_apply_state_dict
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
 from neroRL.nn.actor_critic import create_actor_critic_model
@@ -93,7 +93,7 @@ def main():
             # If a checkpoint is not provided as an argument, it shall be retrieved from the config
             logger.info("Step 2: Loading model from " + model_config["model_path"])
             checkpoint = torch.load(model_config["model_path"], map_location=device)
-        model.load_state_dict(checkpoint["model"])
+        model = load_and_apply_state_dict(model, checkpoint["model"])
         if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()

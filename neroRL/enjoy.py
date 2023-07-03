@@ -16,7 +16,7 @@ from docopt import docopt
 from gymnasium import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
-from neroRL.utils.utils import get_environment_specs
+from neroRL.utils.utils import get_environment_specs, load_and_apply_state_dict
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.video_recorder import VideoRecorder
 from neroRL.nn.actor_critic import create_actor_critic_model
@@ -61,18 +61,20 @@ def main():
         --num-episodes=<n>         The number of to be played episodes [default: 1].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
-        --generate_website         Specifies wether a website shall be generated. [default: False]
+        --website                  Specifies wether a website shall be generated. [default: False]
+        --visualize_estimated_gt   Specifies wether the estimated ground truth shall be visualized(only works if a website or a video is generated). [default: False]
     """
     options = docopt(_USAGE)
-    untrained = options["--untrained"]                  # defaults to False
-    config_path = options["--config"]                   # defaults to an empty string
-    checkpoint_path = options["--checkpoint"]           # defaults to an empty string
-    worker_id = int(options["--worker-id"])             # defaults to 2
-    seed = int(options["--seed"])                       # defaults to 0
-    num_episodes = int(options["--num-episodes"])       # defauults to 1
-    video_path = options["--video"]                     # defaults to "video"
-    frame_rate = options["--framerate"]                 # defaults to 6
-    generate_website = options["--generate_website"]    # defaults to False
+    untrained = options["--untrained"]                              # defaults to False
+    config_path = options["--config"]                               # defaults to an empty string
+    checkpoint_path = options["--checkpoint"]                       # defaults to an empty string
+    worker_id = int(options["--worker-id"])                         # defaults to 2
+    seed = int(options["--seed"])                                   # defaults to 0
+    num_episodes = int(options["--num-episodes"])                   # defauults to 1
+    video_path = options["--video"]                                 # defaults to "video"
+    frame_rate = options["--framerate"]                             # defaults to 6
+    website = options["--website"]                                  # defaults to False
+    visualize_estimated_gt = options["--visualize_estimated_gt"]    # defaults to False
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = "--video" in " ".join(sys.argv)
@@ -81,7 +83,7 @@ def main():
         logger.info("Step 0: Only 1 episode will be played")
         num_episodes = 1
 
-    if generate_website:
+    if website:
         logger.info("Step 0: Only 1 episode will be played")
         num_episodes = 1
 
@@ -95,7 +97,7 @@ def main():
     # Load config, environment, model, evaluation and training parameters
     if not config_path and not checkpoint_path:
         raise ValueError("Either a config or a checkpoint must be provided")
-    checkpoint = torch.load(checkpoint_path) if checkpoint_path else None
+    checkpoint = torch.load(checkpoint_path, map_location=device) if checkpoint_path else None
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
     model_config = checkpoint["configs"]["model"] if checkpoint else configs["model"]
     # Determine whether frame skipping is desired (important for video recording)
@@ -107,7 +109,7 @@ def main():
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
     visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
-    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
+    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or website)
 
     # Build or load model
     logger.info("Step 2: Creating model")
@@ -119,8 +121,8 @@ def main():
         if not checkpoint:
             # If a checkpoint is not provided as an argument, it shall be retrieved from the config
             logger.info("Step 2: Loading model from " + model_config["model_path"])
-            checkpoint = torch.load(model_config["model_path"])
-        model.load_state_dict(checkpoint["model"])
+            checkpoint = torch.load(model_config["model_path"], map_location=device)
+        model = load_and_apply_state_dict(model, checkpoint["model"])
         if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
     model.eval()
@@ -149,10 +151,7 @@ def main():
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
 
         # Store data for video recording
-        probs = []
-        entropies = []
-        values = []
-        actions = []
+        actions, values, entropies, probs, est_gt, attention_weights = [], [], [], [], [], []
 
         # Play one episode
         with torch.no_grad():
@@ -176,6 +175,7 @@ def main():
                     memory = new_memory
                 if "transformer" in model_config:
                     memory[:, t] = new_memory
+                    attention_weights.append(model.transformer.get_attention_weights())
 
                 _actions = []
                 _probs = []
@@ -192,6 +192,9 @@ def main():
                 probs.append(_probs)
                 entropies.append(entropy)
                 values.append(value.cpu().numpy())
+                # Collect estimated ground truth if needed
+                if visualize_estimated_gt:
+                    est_gt.append(model.estimate_ground_truth().squeeze().cpu().numpy())
 
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
@@ -201,7 +204,7 @@ def main():
         logger.info("Episode Length: " + str(info["length"]))
 
         # Complete video data
-        if record_video or generate_website:
+        if record_video or website:
             trajectory_data = env.get_episode_trajectory
             trajectory_data["action_names"] = env.action_names
             trajectory_data["actions"] = [items for items in actions for _ in range(frame_skip)]
@@ -210,6 +213,9 @@ def main():
             trajectory_data["values"] = [items for items in values for _ in range(frame_skip)]
             trajectory_data["episode_reward"] = info["reward"]
             trajectory_data["seed"] = seed
+            trajectory_data["estimated_ground_truth"] = est_gt
+            trajectory_data["attention_weights"] = attention_weights
+            
             # if frame_skip > 1:
             #     # remainder = info["length"] % frame_skip
             #     remainder = len(trajectory_data["probs"]) % frame_skip
@@ -223,7 +229,7 @@ def main():
             if record_video:
                 video_recorder.render_video(trajectory_data)
             # Generate website
-            if generate_website:
+            if website:
                 video_recorder.generate_website(trajectory_data, configs)
 
     env.close()

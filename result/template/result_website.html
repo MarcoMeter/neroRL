@@ -132,7 +132,15 @@
         text-decoration: none;
         display: block;
       }
+
+      .gotostepcontainer {
+          margin-bottom: 10px;
+      }
       
+      #score-container label, #score-container input {
+        display: inline-block;
+      }
+
       /* Style of the dropdown at hover */
       .dropdown-content a:hover {background-color: #ddd;}
       
@@ -178,23 +186,37 @@
 
         <br>
         <!-- Set buttons to control the figures -->
+        <div class="gotostepcontainer">
+          <label for="gotostep_text">Step:</label>
+          <input type="text" id="gotostep_text" size="3" value="0" onkeydown="gotstep(event)">
+          <button id="return_button" type="return_button" onclick="return_to_step()">Return to step 0</button>
+        </div>
         <buttonrow>
           <button id="play_pause_button" onclick="play_pause()" style="width:53px">Play</button>
           <button id="reset_button" onclick="reset()">Reset</button>
           <button id="back_button" onclick="back()">Back</button>
           <button id="next_button" onclick="next()">Next</button>
+          <button id="stats_button" onclick="statistic()">Transformer</button>
         </buttonrow>
 
         <!-- Set slider to control the figures -->
         <h3 id="selector_header">Timeline</h3>
         <input id="time_selector" type="range" min="0" max="100" step="1" value="0" />
 
+
+        <!-- Set transformer plot -->
+        <div id="transformer"></div>
+        <div id="score-container">
+          <label for="top_n_scores">Top Scores:</label>
+          <input type="text" id="top_n_scores" size="3" value="-1" onkeydown="top_scores()">
+        </div>
+
         <!-- Set value plot and entropy plot -->
         <div id="figures">
           <div id="value_func"></div>
           <div id="entropy_func"></div>
           <!-- Dropdown button with some options-->
-          <div class="dropdown">
+          <div class="dropdown" id="options">
             <button class="dropbtn">Options</button>
             <div class="dropdown-content" id="dropdown_content">
               <a href ="#" onclick="marker('value')">value_marker_toggle</a>
@@ -217,6 +239,17 @@
         // Play and pause button
         const play_pause_button = document.getElementById("play_pause_button");
 
+        // Set step input
+        const gotostep_text = document.getElementById('gotostep_text');
+        var past_steps = [0];
+        var step = 0;
+
+        // Set number of scores input
+        const top_n_scores = document.getElementById('top_n_scores');
+
+        // Const stats button
+        const stats_button = document.getElementById("stats_button");
+
         // Set time selector
         const time_selector = document.getElementById('time_selector');
         var tS_step_size = 1.0;
@@ -224,6 +257,7 @@
         // Set values for the plots
         var y_values = {{ yValues }};
         var y_entropy = {{ yEntropy }};
+        var y_attention_weights = {{ yAttentionWeights }};
         var y_action = {{ yAction }}; // action probs
         var action =  {{ action }};
         var action_names = {{ actionNames }};
@@ -235,6 +269,11 @@
         // Set marker for plots
         var entropy_marker = true;
         var value_marker = true;
+
+        // Set the to be shown statistic
+        var statistic_type = 'general'
+        // Hide statistic type button if there is no attention weights
+        if(y_attention_weights.length == 0) stats_button.style.display = 'none';
 
         // Set the to be shown action_space(s) for the entropy plot
         var entr_selected_action_space = null;
@@ -311,8 +350,8 @@
           video_player.addEventListener('dblclick', function(e) {open_fullscreen(video_player);}); // Open video in fullscreen when video is double clicked
           video_player.playbackRate = {{ frameRate }}; // Set video playback rate to frame rate
           reset(); // Reset video to start
-      }, false)
-
+        }, false);
+      
       // Update video time if time selector is changed
       time_selector.addEventListener('input', () => {
           video_player.currentTime = time_selector.value
@@ -324,7 +363,9 @@
       * Update time selector and plots when video is playing
       */
       function timeListener() {
-        if(!video_player.paused) update();
+        if(!video_player.paused) {
+          update();
+        } 
       }
 
       /**
@@ -335,6 +376,38 @@
           play();
         else 
           pause();
+      }
+
+      /**
+       * Returns to the previous frame step
+       */
+       function return_to_step() {
+        video_player.currentTime = past_steps.pop();
+        pause();
+        update();
+        gotostep_text.value = step;
+        return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
+      }
+
+      /**
+       * Updates the plots and time selector
+       */
+       function gotstep(event) {
+        if (event.keyCode === 13) {
+          past_steps.push(step);
+          video_player.currentTime = Number(gotostep_text.value);
+          pause();
+          update();
+          gotostep_text.value = step;
+          return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
+        }
+      }
+
+      /**
+       * Updates the plots and time selector
+       */
+       function top_scores() {
+        if (event.keyCode === 13) update()
       }
 
       /**
@@ -358,8 +431,10 @@
       */
       function reset() {
           video_player.currentTime = 0;
+          past_steps.push(step);
           pause();
           update();
+          return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
       }
 
       /**
@@ -369,6 +444,8 @@
           video_player.currentTime = video_player.currentTime - tS_step_size
           pause();
           update();
+          past_steps.push(step + 1);
+          return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
       }
 
       /**
@@ -378,8 +455,24 @@
           video_player.currentTime = video_player.currentTime + tS_step_size;
           pause();
           update();
+          past_steps.push(step - 1);
+          return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
       }
 
+      /**
+       * Switches between general and transformer statistics
+       */
+       function statistic() {
+        if (stats_button.innerHTML == "General") {
+          statistic_type = "general";
+          stats_button.innerHTML = "Transformer";
+        }
+        else if (stats_button.innerHTML == "Transformer") {
+          statistic_type = "transformer";
+          stats_button.innerHTML = "General";
+        }
+        update();
+      }
       /**
       * Opens the video in fullscreen
       */
@@ -425,16 +518,153 @@
         step = Math.floor(video_player.currentTime); // Get step of video for plots
 
         // Update plots
-        set_scatter_line_plot('value_func', "Value Function", y_values_plot, step, value_marker);
-        if(is_discrete) { // If action_space is discrete
-            set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
-            set_bar_action_plot(y_action[step][0], action[step][0], action_names);
+        if (statistic_type == "general"){
+          document.getElementById('transformer').style.display = 'none';
+          document.getElementById('top_n_scores').style.display = 'none';
+          document.getElementById('value_func').style.display = 'block';
+          document.getElementById('entropy_func').style.display = 'block';
+          document.getElementById('options').style.display = 'block';
+          render_general_statistics();
         }
-        else { // If action_space is multi discrete
-            set_scatter_lines_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
-            set_stacked_bar_action_plot(y_action[step], action[step], action_names);
+        else if (statistic_type == "transformer"){
+          document.getElementById('transformer').style.display = 'block';
+          document.getElementById('top_n_scores').style.display = 'block';
+          document.getElementById('value_func').style.display = 'none';
+          document.getElementById('entropy_func').style.display = 'none';
+          document.getElementById('options').style.display = 'none';
+          render_transformer_statistics();
         }
       }
+
+      /**
+      * Renders the general statistics
+      */
+      function render_general_statistics() {
+          set_scatter_line_plot('value_func', "Value Function", y_values_plot, step, value_marker);
+          if(is_discrete) { // If action_space is discrete
+              set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
+              set_bar_action_plot(y_action[step][0], action[step][0], action_names);
+          }
+          else { // If action_space is multi discrete
+              set_scatter_lines_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
+              set_stacked_bar_action_plot(y_action[step], action[step], action_names);
+          }
+        }
+      
+      /*
+      * Renders the transformer statistics
+      */
+      function render_transformer_statistics() {
+        var top_n = Number(top_n_scores.value);
+        if (top_n == -1) top_n = step;
+        visualizeAttentionScores(y_attention_weights[step], top_n);
+        if(is_discrete) { // If action_space is discrete
+           set_bar_action_plot(y_action[step][0], action[step][0], action_names);
+          }
+          else { // If action_space is multi discrete
+            set_stacked_bar_action_plot(y_action[step], action[step], action_names);
+            }
+        }
+
+
+      /**
+       * Renders attention scores
+      */
+      async function visualizeAttentionScores(attentionScores, n_values) {
+        const numHeads = attentionScores.length;
+        
+        let data = [];
+        let layout = {
+          title: 'Attention Blocks',
+          grid: {
+              rows: numHeads, 
+              columns: 1, 
+              pattern: 'independent',
+              subplots: [...Array(numHeads).keys()].map(i => `xy${i + 1}`),
+              ygap: 0.4 // adjust this value according to your preference
+          },
+          plot_bgcolor: '#000',
+          paper_bgcolor: '#000',
+          font: {
+              family: 'Montserrat',
+              size: 12,
+              color: '#fff'
+          },
+      }
+
+        // Flatten the array to find the max value across all arrays
+        let flatScores = attentionScores.flat();
+        let maxScore = Math.max(...flatScores);
+
+        // Iterate through each attention head
+        for (let headIdx = 0; headIdx < numHeads; headIdx++) {
+            // Get attention scores for the current head
+            let headScores = attentionScores[headIdx];
+            
+            // This array will keep up to the 10 highest scores
+            let topScores = [];
+
+            for (let i = 0; i < headScores.length; i++) {
+                // Insert current score into the top scores array
+                topScores.push({score: headScores[i], index: i});
+                
+                // Sort the top scores array
+                topScores.sort((a, b) => b.score - a.score);
+
+                // If there are more than 10 scores, remove the smallest
+                if (topScores.length > n_values) {
+                    topScores.pop();
+                }
+            }
+
+            // Sort the topScores array by index
+            topScores.sort((a, b) => a.index - b.index);
+
+            // Now topScores contains the top 10 scores sorted by their indices.
+            // You can extract the scores and their indices into separate arrays:
+            let filteredHeadScores = topScores.map(x => x.score);
+            let filteredTicks = topScores.map(x => x.index);
+
+
+            const sequenceLength = filteredHeadScores.length;
+
+            layout.height = 500;
+            layout.width = window.innerWidth;
+
+            const headScoresPlot = {
+                z: [filteredHeadScores],
+                type: 'heatmap',
+                showscale: true,  
+                colorscale: 'Hot',
+                zmin: 0,
+                zmax: maxScore,
+                xaxis: `x${headIdx + 1}`,
+                yaxis: `y${headIdx + 1}`,
+            };
+
+            data.push(headScoresPlot);
+
+            layout[`xaxis${headIdx + 1}`] = {
+                tickmode: 'array',
+                tickvals: Array.from({length: sequenceLength}, (_, i) => i),
+                ticktext: filteredTicks
+            };
+
+            layout[`yaxis${headIdx + 1}`] = {
+                title: `Block ${headIdx + 1}`,
+                ticks: 'outside',
+                tick0: 0,
+                dtick: 1,
+                ticklen: 8,
+                tickwidth: 4,
+                tickcolor: '#000'
+            };
+        }
+
+        const config = {responsive: true};
+
+        Plotly.newPlot('transformer', data, layout, config);
+    }
 
       /** 
       * Sets a stacked bar plot for the multi discrete action distribution
