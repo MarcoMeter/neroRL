@@ -4,7 +4,7 @@ from torch import nn, optim
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
-from neroRL.utils.utils import compute_gradient_stats
+from neroRL.utils.utils import compute_gradient_stats, load_and_apply_state_dict
 from neroRL.utils.decay_schedules import polynomial_decay
 from neroRL.utils.monitor import Tag
 
@@ -291,5 +291,5 @@ class PPOTrainer(BaseTrainer):
 
     def apply_checkpoint_data(self, checkpoint):
         super().apply_checkpoint_data(checkpoint)
-        self.model.load_state_dict(checkpoint["model"])
+        self.model = load_and_apply_state_dict(self.model, checkpoint["model"])
         self.optimizer.load_state_dict(checkpoint["optimizer"])
