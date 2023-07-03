@@ -518,36 +518,38 @@
         step = Math.floor(video_player.currentTime); // Get step of video for plots
 
         // Update plots
-        if (statistic_type == "general"){
-          document.getElementById('transformer').style.display = 'none';
-          document.getElementById('top_n_scores').style.display = 'none';
-          document.getElementById('value_func').style.display = 'block';
-          document.getElementById('entropy_func').style.display = 'block';
-          document.getElementById('options').style.display = 'block';
+        if (statistic_type == "general")
           render_general_statistics();
-        }
-        else if (statistic_type == "transformer"){
-          document.getElementById('transformer').style.display = 'block';
-          document.getElementById('top_n_scores').style.display = 'block';
-          document.getElementById('value_func').style.display = 'none';
-          document.getElementById('entropy_func').style.display = 'none';
-          document.getElementById('options').style.display = 'none';
+        else if (statistic_type == "transformer")
           render_transformer_statistics();
+
+        // Update action plot
+        if(is_discrete) { // If action_space is discrete
+           set_bar_action_plot(y_action[step][0], action[step][0], action_names);
         }
+        else { // If action_space is multi discrete
+            set_stacked_bar_action_plot(y_action[step], action[step], action_names);
+        }
+
       }
 
       /**
       * Renders the general statistics
       */
       function render_general_statistics() {
+        // Disables the transformer statistics and enables the general statistics
+          document.getElementById('transformer').style.display = 'none';
+          document.getElementById('top_n_scores').style.display = 'none';
+          document.getElementById('value_func').style.display = 'block';
+          document.getElementById('entropy_func').style.display = 'block';
+          document.getElementById('options').style.display = 'block';
+        // Updates the plots
           set_scatter_line_plot('value_func', "Value Function", y_values_plot, step, value_marker);
           if(is_discrete) { // If action_space is discrete
               set_scatter_line_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
-              set_bar_action_plot(y_action[step][0], action[step][0], action_names);
           }
           else { // If action_space is multi discrete
               set_scatter_lines_plot('entropy_func', "Entropy Function", y_entropy_plot, step, entropy_marker);
-              set_stacked_bar_action_plot(y_action[step], action[step], action_names);
           }
         }
       
@@ -555,15 +557,16 @@
       * Renders the transformer statistics
       */
       function render_transformer_statistics() {
+        // Disables the general statistics and enables the transformer statistics
+        document.getElementById('transformer').style.display = 'block';
+        document.getElementById('top_n_scores').style.display = 'block';
+        document.getElementById('value_func').style.display = 'none';
+        document.getElementById('entropy_func').style.display = 'none';
+        document.getElementById('options').style.display = 'none';
+        // Updates the plots
         var top_n = Number(top_n_scores.value);
         if (top_n == -1) top_n = step;
         visualizeAttentionScores(y_attention_weights[step], top_n);
-        if(is_discrete) { // If action_space is discrete
-           set_bar_action_plot(y_action[step][0], action[step][0], action_names);
-          }
-          else { // If action_space is multi discrete
-            set_stacked_bar_action_plot(y_action[step], action[step], action_names);
-            }
         }
 
 
