@@ -288,7 +288,7 @@ class Transformer(nn.Module):
         out_attention_weights = out_attention_weights.squeeze()
         out_attention_weights = out_attention_weights.mean(dim=1)
         out_attention_weights = out_attention_weights.cpu().detach().numpy()
-        out_attention_weights = out_attention_weights[:, self.mask.squeeze().bool()]
+        out_attention_weights = out_attention_weights[:, self.mask.squeeze().bool().cpu()]
         out_attention_weights = out_attention_weights.tolist()
         return out_attention_weights
     
