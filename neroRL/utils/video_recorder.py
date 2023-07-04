@@ -146,6 +146,11 @@ class VideoRecorder:
         # Render the trajectory data to a video
         self._render_environment_episode(trajectory_data, video_path, str(id))
         
+        # Render the trajectory data of gt to a video
+        if "estimated_ground_truth" in trajectory_data:
+            gt_id = self._generate_id()
+            self._render_environment_episode(trajectory_data, video_path, str(gt_id), True)
+        
         # Prepare the data for the website
         action_probs = []
         for probs in trajectory_data["probs"]:
@@ -162,12 +167,16 @@ class VideoRecorder:
         template_env = Environment(loader=FileSystemLoader(searchpath=self.website_path))
         template = template_env.get_template("./template/result_website.html")
         
+        # Path to the video
+        video_path = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm"
+        video_gt_path = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(gt_id) + ".webm" if "estimated_ground_truth" in trajectory_data else None
+        
         # Render the template
         with open(self.website_path + 'result_website_' + str(id) + '.html' , 'w') as output_file:
             output_file.write(template.render(envInfo=env_info,
                                             hyperInfo=hyper_info,
                                             modelInfo=model_info,
-                                            videoPath = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm",
+                                            videoPath = str([video_path, video_gt_path]),
                                             yValues=str(values),
                                             yEntropy=str(entropies),
                                             yAttentionWeights=str(trajectory_data["attention_weights"]),
@@ -193,12 +202,13 @@ class VideoRecorder:
         
         return str(id) 
 
-    def _render_environment_episode(self, trajectory_data, path, video_id):
+    def _render_environment_episode(self, trajectory_data, path, video_id, gt = False):
         """Renders an episode of an agent behaving in its environment.
         
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
             video_id {string} -- The id of the video.
+            gt {bool} -- If true the estimated ground truth is rendered.
         """
             
         # Set fourcc s.t. the video is saved as webm
@@ -228,7 +238,7 @@ class VideoRecorder:
                 self.draw_text_overlay(info_frame, 368, 20, "False", "episode done")
                 
             # Plot estimated ground truth
-            if "estimated_ground_truth" in trajectory_data and i < len(trajectory_data["estimated_ground_truth"]):
+            if gt and i < len(trajectory_data["estimated_ground_truth"]):
                 # Point colors
                 point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
                 # Iterate over all points

@@ -176,9 +176,10 @@
         <div id="figures" style="display: flex; align-items: flex-start;">
           <label for="video_speed">Frame Rate: </label>
           <input type="text" id="video_speed" size="3" value="6" style="margin-right: 10px;" onkeydown="set_video_speed(event)">
+          <input type="checkbox" id="show_ground_truth" onclick="show_ground_truth()"> Show Ground Truth </input>
           <div>
             <video id="video_player">
-              <source src="{{ videoPath }}" type="video/webm" />
+              <source src="" type="video/webm" />
             </video>
           </div>
           <div id="action_distr"></div>
@@ -235,6 +236,9 @@
         // Set video player
         const video_player = document.getElementById("video_player");
         const video_speed = document.getElementById("video_speed");
+        const video_path = {{ videoPath }};
+        video_player.querySelector("source").src = video_path[0];
+        video_player.load();
         var video_length = 0;
 
         // Play and pause button
@@ -394,6 +398,26 @@
           }
       }
     });
+
+    function show_ground_truth() {
+        // Get the checkbox element by its ID
+        var checkbox = document.getElementById("show_ground_truth");
+
+        var current_time = video_player.currentTime;
+        // Check if the checkbox is checked
+        if (checkbox.checked) {
+          // Show the ground truth
+          video_player.querySelector("source").src = video_path[1];
+          video_player.load();
+          video_player.currentTime = current_time;
+        } else {
+          // Hide the ground truth
+          video_player.querySelector("source").src = video_path[0];
+          video_player.load();
+          video_player.currentTime = current_time;
+        }
+      }
+
 
       /**
       * Update time selector and plots when video is playing
