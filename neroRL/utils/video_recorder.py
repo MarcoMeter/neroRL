@@ -147,7 +147,7 @@ class VideoRecorder:
         self._render_environment_episode(trajectory_data, video_path, str(id))
         
         # Render the trajectory data of gt to a video
-        if "estimated_ground_truth" in trajectory_data:
+        if len(trajectory_data["estimated_ground_truth"]) > 0:
             gt_id = self._generate_id()
             self._render_environment_episode(trajectory_data, video_path, str(gt_id), True)
         
@@ -168,15 +168,18 @@ class VideoRecorder:
         template = template_env.get_template("./template/result_website.html")
         
         # Path to the video
-        video_path = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm"
-        video_gt_path = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(gt_id) + ".webm" if "estimated_ground_truth" in trajectory_data else None
+        video_path = ["videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm"]
+        # Path to the video of the estimated ground truth if it exists
+        if len(trajectory_data["estimated_ground_truth"]) > 0:
+            video_gt_path = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(gt_id) + ".webm"
+            video_path.append(video_gt_path)
         
         # Render the template
         with open(self.website_path + 'result_website_' + str(id) + '.html' , 'w') as output_file:
             output_file.write(template.render(envInfo=env_info,
                                             hyperInfo=hyper_info,
                                             modelInfo=model_info,
-                                            videoPath = str([video_path, video_gt_path]),
+                                            videoPath = str(video_path),
                                             yValues=str(values),
                                             yEntropy=str(entropies),
                                             yAttentionWeights=str(trajectory_data["attention_weights"]),

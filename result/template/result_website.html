@@ -176,7 +176,8 @@
         <div id="figures" style="display: flex; align-items: flex-start;">
           <label for="video_speed">Frame Rate: </label>
           <input type="text" id="video_speed" size="3" value="6" style="margin-right: 10px;" onkeydown="set_video_speed(event)">
-          <input type="checkbox" id="show_ground_truth" onclick="show_ground_truth()"> Show Ground Truth </input>
+          <label for="show_ground_truth">Show Ground Truth</label>
+          <input type="checkbox" id="show_ground_truth" onclick="show_ground_truth()">
           <div>
             <video id="video_player">
               <source src="" type="video/webm" />
@@ -237,6 +238,11 @@
         const video_player = document.getElementById("video_player");
         const video_speed = document.getElementById("video_speed");
         const video_path = {{ videoPath }};
+        // Hide video player if there is no ground truth video
+        if (video_path.length == 1){
+          document.querySelector('label[for="show_ground_truth"]').style.display = 'none';
+          document.getElementById("show_ground_truth").style.display = 'none';
+        } 
         video_player.querySelector("source").src = video_path[0];
         video_player.load();
         var video_length = 0;
@@ -402,20 +408,24 @@
     function show_ground_truth() {
         // Get the checkbox element by its ID
         var checkbox = document.getElementById("show_ground_truth");
-
+        // Get video data to make the switch seamless
         var current_time = video_player.currentTime;
+        var play_back_rate = video_player.playbackRate;
+        var is_paused = video_player.paused;
         // Check if the checkbox is checked
-        if (checkbox.checked) {
-          // Show the ground truth
+        if (checkbox.checked) { // Show the ground truth
           video_player.querySelector("source").src = video_path[1];
-          video_player.load();
-          video_player.currentTime = current_time;
-        } else {
-          // Hide the ground truth
+        } else { // Hide the ground truth
           video_player.querySelector("source").src = video_path[0];
-          video_player.load();
-          video_player.currentTime = current_time;
         }
+        // Reload video
+        video_player.load();
+        video_player.currentTime = current_time;
+        video_player.playbackRate = play_back_rate;
+        if(is_paused)
+          pause();
+        else 
+          play();
       }
 
 
