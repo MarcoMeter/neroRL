@@ -628,6 +628,7 @@
         // Disables the transformer statistics and enables the general statistics
           document.getElementById('transformer').style.display = 'none';
           document.getElementById('top_n_scores').style.display = 'none';
+          document.querySelector('label[for="top_n_scores"]').style.display = 'none';
           document.getElementById('value_func').style.display = 'block';
           document.getElementById('entropy_func').style.display = 'block';
           document.getElementById('options').style.display = 'block';
@@ -648,6 +649,7 @@
         // Disables the general statistics and enables the transformer statistics
         document.getElementById('transformer').style.display = 'block';
         document.getElementById('top_n_scores').style.display = 'block';
+        document.querySelector('label[for="top_n_scores"]').style.display = 'block';
         document.getElementById('value_func').style.display = 'none';
         document.getElementById('entropy_func').style.display = 'none';
         document.getElementById('options').style.display = 'none';
