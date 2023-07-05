@@ -172,18 +172,29 @@
     </div>
 
     <div id="Media" class="mediatabcontent">
+      <br>
       <center>
-        <div id="figures" style="display: flex; align-items: flex-start;">
-          <label for="video_speed">Frame Rate: </label>
-          <input type="text" id="video_speed" size="3" value="6" style="margin-right: 10px;" onkeydown="set_video_speed(event)">
-          <label for="show_ground_truth">Show Ground Truth</label>
-          <input type="checkbox" id="show_ground_truth" onclick="show_ground_truth()">
-          <div>
-            <video id="video_player">
-              <source src="" type="video/webm" />
-            </video>
+        <div id="figures" style="display: flex; flex-direction: column;">
+          <div style="display: flex; flex-direction: row;">
+            <div style="display: flex; flex-direction: column;">
+              <div style="display: flex; flex-direction: row;">
+                <label for="video_speed">Frame Rate: </label>
+                <input type="text" id="video_speed" size="3" value="6" onkeydown="set_video_speed(event)">
+              </div>
+
+              <div style="display: flex; flex-direction: row;">
+                <label for="show_ground_truth">Show Ground Truth Estimation</label>
+                <input type="checkbox" id="show_ground_truth" onclick="show_ground_truth()">
+              </div>
+            </div>
+          
+            <div>
+              <video id="video_player">
+                <source src="" type="video/webm" />
+              </video>
+            </div>
+            <div id="action_distr"></div>
           </div>
-          <div id="action_distr"></div>
         </div>
 
         <br>
@@ -200,17 +211,16 @@
           <button id="next_button" onclick="next()">Next</button>
           <button id="stats_button" onclick="statistic()">Transformer</button>
         </buttonrow>
-
+        <br>
         <!-- Set slider to control the figures -->
-        <h3 id="selector_header">Timeline</h3>
         <input id="time_selector" type="range" min="0" max="100" step="1" value="0" style="width: 300px;"/>
 
         <!-- Set transformer plot -->
-        <div id="transformer"></div>
         <div id="score-container">
           <label for="top_n_scores">Top Scores:</label>
           <input type="text" id="top_n_scores" size="3" value="-1" onkeydown="top_scores()">
         </div>
+        <div id="transformer"></div>
 
         <!-- Set value plot and entropy plot -->
         <div id="figures">
@@ -656,7 +666,6 @@
         
         let data = [];
         let layout = {
-          title: 'Attention Blocks',
           grid: {
               rows: numHeads, 
               columns: 1, 
