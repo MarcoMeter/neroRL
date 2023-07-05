@@ -750,6 +750,9 @@
               size: 12,
               color: '#fff'
           },
+          margin: {
+              t: 0,  // reduce top margin
+          },
       }
 
         // Flatten the array to find the max value across all arrays
@@ -788,7 +791,7 @@
 
             const sequenceLength = filteredHeadScores.length;
 
-            layout.height = 500;
+            layout.height = 400;
             layout.width = window.innerWidth;
 
             const headScoresPlot = {
