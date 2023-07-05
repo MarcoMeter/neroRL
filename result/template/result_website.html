@@ -823,7 +823,16 @@
 
         const config = {responsive: true};
 
-        Plotly.newPlot('transformer', data, layout, config);
+        Plotly.newPlot('transformer', data, layout, config).then(function() {
+          var myPlot = document.getElementById('transformer');
+          myPlot.on('plotly_click', function(data){
+              past_steps.push(step);
+              video_player.currentTime = Number(data.points[0].x);
+              pause();
+              update();
+              return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
+          });
+      });
     }
 
       /** 
