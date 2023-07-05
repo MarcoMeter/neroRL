@@ -260,7 +260,7 @@
         var render_id = 0; var render_gt_id = 1; var render_decoder_id = 2; var render_decoder_gt_id = 3; var  render_agent_id = 4; var render_agent_gt_id = 5;
         var video_id = 0;
         // Hide video player if there is no ground truth video
-        if (video_path[render_gt_id].length == 0 || video_path[render_decoder_gt_id].length == 0 || video_path[render_agent_gt_id].length == 0){
+        if (video_path[render_gt_id].length == 0 && video_path[render_decoder_gt_id].length == 0 && video_path[render_agent_gt_id].length == 0){
           document.querySelector('label[for="show_ground_truth"]').style.display = 'none';
           document.getElementById("show_ground_truth").style.display = 'none';
         } 
