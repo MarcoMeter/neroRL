@@ -186,7 +186,17 @@
                 <label for="show_ground_truth">Show Ground Truth Estimation</label>
                 <input type="checkbox" id="show_ground_truth" onclick="show_ground_truth()">
               </div>
+
+              <div style="display: flex; flex-direction: row;">
+                <label for="show_decoder_video">Show Decoder Video</label>
+                <input type="checkbox" id="show_decoder_video" onclick="show_decoder_video()">
+              </div>
+
+            <div style="display: flex; flex-direction: row;">
+              <label for="show_agent_video">Show Agent Video</label>
+              <input type="checkbox" id="show_agent_video" onclick="show_agent_video()">
             </div>
+          </div>
           
             <div>
               <video id="video_player">
@@ -247,11 +257,22 @@
         const video_player = document.getElementById("video_player");
         const video_speed = document.getElementById("video_speed");
         const video_path = {{ videoPath }};
+        var render_id = 0; var render_gt_id = 1; var render_decoder_id = 2; var render_decoder_gt_id = 3; var  render_agent_id = 4; var render_agent_gt_id = 5;
+        var video_id = 0;
         // Hide video player if there is no ground truth video
-        if (video_path[1].length == 0){
+        if (video_path[render_gt_id].length == 0 || video_path[render_decoder_gt_id].length == 0 || video_path[render_agent_gt_id].length == 0){
           document.querySelector('label[for="show_ground_truth"]').style.display = 'none';
           document.getElementById("show_ground_truth").style.display = 'none';
         } 
+        if (video_path[render_decoder_id].length == 0){
+          document.querySelector('label[for="show_decoder_video"]').style.display = 'none';
+          document.getElementById("show_decoder_video").style.display = 'none';
+        }
+        if (video_path[render_decoder_id].length == 0){
+          document.querySelector('label[for="show_agent_video"]').style.display = 'none';
+          document.getElementById("show_agent_video").style.display = 'none';
+        }
+
         video_player.querySelector("source").src = video_path[0];
         video_player.load();
         var video_length = 0;
@@ -414,18 +435,62 @@
       }
     });
 
+    // Show ground truth if checkbox is checked
     function show_ground_truth() {
         // Get the checkbox element by its ID
         var checkbox = document.getElementById("show_ground_truth");
         
         // Check if the checkbox is checked
         if (checkbox.checked) { // Show the ground truth
-          set_video(video_path[1]);
-        } else { // Hide the ground truth
-          set_video(video_path[0]);
+          if (video_id == render_id) video_id = render_gt_id;
+          if (video_id == render_decoder_id) video_id = render_decoder_gt_id;
+          if (video_id == render_agent_id) video_id = render_agent_gt_id;
+          set_video(video_path[video_id]);
+        } else {
+          if (video_id == render_gt_id) video_id = render_id;
+          if (video_id == render_decoder_gt_id) video_id = render_decoder_id;
+          if (video_id == render_agent_gt_id) video_id = render_agent_id;
+          set_video(video_path[video_id]);
         }
       }
 
+    // Show decoder video if checkbox is checked
+    function show_decoder_video() {
+      var checkbox = document.getElementById("show_decoder_video");
+      document.getElementById("show_agent_video").checked = false;
+
+      if (checkbox.checked) { 
+          if (video_id == render_id) video_id = render_decoder_id;
+          if (video_id == render_gt_id) video_id = render_decoder_gt_id;
+          if (video_id == render_agent_id) video_id = render_decoder_id;
+          if (video_id == render_agent_gt_id) video_id = render_decoder_gt_id;
+          set_video(video_path[video_id]);
+        } else { // Hide decoder video
+          if (video_id == render_decoder_id) video_id = render_id;
+          if (video_id == render_decoder_gt_id) video_id = render_gt_id;
+          set_video(video_path[video_id]);
+        }
+    }
+
+    // Show agent video if checkbox is checked
+    function show_agent_video() {
+      var checkbox = document.getElementById("show_agent_video");
+      document.getElementById("show_decoder_video").checked  = false;
+
+      if (checkbox.checked) { 
+          if (video_id == render_id) video_id = render_agent_id;
+          if (video_id == render_gt_id) video_id = render_agent_gt_id;
+          if (video_id == render_decoder_id) video_id = render_agent_id;
+          if (video_id == render_decoder_gt_id) video_id = render_agent_gt_id;
+          set_video(video_path[video_id]);
+        } else { // Hide agent video
+          if (video_id == render_agent_id) video_id = render_id;
+          if (video_id == render_agent_gt_id) video_id = render_gt_id;
+          set_video(video_path[video_id]);
+        }
+    }
+
+    // Set the video to the given path
     function set_video(path) {
         // Get video data to make the switch seamless
         var current_time = video_player.currentTime;

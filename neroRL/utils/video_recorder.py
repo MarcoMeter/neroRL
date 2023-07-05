@@ -132,7 +132,7 @@ class VideoRecorder:
         """Generates a website that can be used to view the trajectory data.
         
         Arguments:
-            trajectory_data {dift} -- This dictionary provides all the necessary information to render a website.
+            trajectory_data {dict} -- This dictionary provides all the necessary information to render a website.
             config {dict} -- The configuration
         """
         # Create the video path for the website if it does not exist
@@ -140,27 +140,10 @@ class VideoRecorder:
         if not os.path.exists(video_path):
             os.makedirs(video_path)
             
-        # Generate an id
+        # Create an id for the website
         id = self._generate_id()
-        
-        # Render the trajectory data to a video
-        self._render_environment_episode("vis_obs", trajectory_data, video_path, str(id))
-        
-        # Render the trajectory data of gt to a video
-        if len(trajectory_data["estimated_ground_truth"]) > 0:
-            gt_id = self._generate_id()
-            self._render_environment_episode("vis_obs", trajectory_data, video_path, str(gt_id), True)
-            
-        if len(trajectory_data["decoder_frames"]) > 0:
-            # Generate an id
-            decoder_id = self._generate_id()
-            # Render the decoder trajectory data to a video
-            self._render_environment_episode("decoder_frames", trajectory_data, video_path, str(decoder_id))
-            
-            # Render the trajectory data of gt to a video
-            if len(trajectory_data["estimated_ground_truth"]) > 0:
-                decoder_gt_id = self._generate_id()
-                self._render_environment_episode("decoder_frames", trajectory_data, video_path, str(decoder_gt_id), True)
+        # Generate the videos for the website
+        video_paths = self._generate_website_videos(trajectory_data, video_path)
         
         # Prepare the data for the website
         action_probs = []
@@ -176,36 +159,14 @@ class VideoRecorder:
         
         # Load the template file
         template_env = Environment(loader=FileSystemLoader(searchpath=self.website_path))
-        template = template_env.get_template("./template/result_website.html")
-        
-        # Path to the video
-        video_path = ["videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm"]
-        # Path to the video of the estimated ground truth if it exists
-        if len(trajectory_data["estimated_ground_truth"]) > 0:
-            video_gt_path = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(gt_id) + ".webm"
-            video_path.append(video_gt_path)
-        else:
-            video_path.append("")
-            
-        # Path to the video of the decoder if it exists
-        if len(trajectory_data["decoder_frames"]) > 0:
-            video_decoder_path = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(decoder_id) + ".webm"
-            video_path.append(video_decoder_path)
-            if len(trajectory_data["estimated_ground_truth"]) > 0:
-                video_decoder_gt_path = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(decoder_gt_id) + ".webm"
-                video_path.append(video_decoder_gt_path) 
-            else:
-                video_path.append("")       
-        else:
-            video_path.append("")
-            video_path.append("")
+        template = template_env.get_template("./template/result_website.html")  
         
         # Render the template
         with open(self.website_path + 'result_website_' + str(id) + '.html' , 'w') as output_file:
             output_file.write(template.render(envInfo=env_info,
                                             hyperInfo=hyper_info,
                                             modelInfo=model_info,
-                                            videoPath = str(video_path),
+                                            videoPath = str(video_paths),
                                             yValues=str(values),
                                             yEntropy=str(entropies),
                                             yAttentionWeights=str(trajectory_data["attention_weights"]),
@@ -213,6 +174,38 @@ class VideoRecorder:
                                             action=str(actions),
                                             actionNames=str(action_names) if action_names is not None else "null",
                                             frameRate=str(self.frame_rate)))
+            
+    def _generate_website_videos(self, trajectory_data, video_path):
+        """Generates the videos for the website.
+
+        Arguments:
+            trajectory_data {dict} -- This dictionary provides all the necessary information to render a website.
+            video_path {string} -- The path where the videos should be saved.
+
+        Returns:
+            {list} -- A list of video paths.
+        """
+        video_paths = []
+        for key in ["vis_obs", "decoder_frames", "agent_frames"]:
+            if len(trajectory_data[key]) > 0:
+                # Generate an id
+                id = self._generate_id()
+                # Render the trajectory data to a video
+                self._render_environment_episode(key, trajectory_data, video_path, str(id))
+                # Add the video path to the list
+                video_paths.append("videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm")
+                # Render the trajectory data of gt to a video
+                if len(trajectory_data["estimated_ground_truth"]) > 0:
+                    gt_id = self._generate_id()
+                    self._render_environment_episode(key, trajectory_data, video_path, str(gt_id), True)
+                    video_paths.append("videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(gt_id) + ".webm")
+                else:
+                    video_paths.append("")
+            else:
+                video_paths.append("")
+                video_paths.append("")
+            
+        return video_paths
         
     def _generate_id(self):
         """Generates a unique id.
