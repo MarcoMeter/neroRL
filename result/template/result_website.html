@@ -248,7 +248,7 @@
         const video_speed = document.getElementById("video_speed");
         const video_path = {{ videoPath }};
         // Hide video player if there is no ground truth video
-        if (video_path.length == 1){
+        if (video_path[1].length == 0){
           document.querySelector('label[for="show_ground_truth"]').style.display = 'none';
           document.getElementById("show_ground_truth").style.display = 'none';
         } 
@@ -417,25 +417,28 @@
     function show_ground_truth() {
         // Get the checkbox element by its ID
         var checkbox = document.getElementById("show_ground_truth");
+        
+        // Check if the checkbox is checked
+        if (checkbox.checked) { // Show the ground truth
+          set_video(video_path[1]);
+        } else { // Hide the ground truth
+          set_video(video_path[0]);
+        }
+      }
+
+    function set_video(path) {
         // Get video data to make the switch seamless
         var current_time = video_player.currentTime;
         var play_back_rate = video_player.playbackRate;
         var is_paused = video_player.paused;
-        // Check if the checkbox is checked
-        if (checkbox.checked) { // Show the ground truth
-          video_player.querySelector("source").src = video_path[1];
-        } else { // Hide the ground truth
-          video_player.querySelector("source").src = video_path[0];
-        }
+        video_player.querySelector("source").src = path;
         // Reload video
         video_player.load();
         video_player.currentTime = current_time;
         video_player.playbackRate = play_back_rate;
-        if(is_paused)
-          pause();
-        else 
-          play();
-      }
+        if(is_paused) pause();
+        else play();
+    }
 
 
       /**

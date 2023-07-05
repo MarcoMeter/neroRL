@@ -144,12 +144,23 @@ class VideoRecorder:
         id = self._generate_id()
         
         # Render the trajectory data to a video
-        self._render_environment_episode(trajectory_data, video_path, str(id))
+        self._render_environment_episode("vis_obs", trajectory_data, video_path, str(id))
         
         # Render the trajectory data of gt to a video
         if len(trajectory_data["estimated_ground_truth"]) > 0:
             gt_id = self._generate_id()
-            self._render_environment_episode(trajectory_data, video_path, str(gt_id), True)
+            self._render_environment_episode("vis_obs", trajectory_data, video_path, str(gt_id), True)
+            
+        if len(trajectory_data["decoder_frames"]) > 0:
+            # Generate an id
+            decoder_id = self._generate_id()
+            # Render the decoder trajectory data to a video
+            self._render_environment_episode("decoder_frames", trajectory_data, video_path, str(decoder_id))
+            
+            # Render the trajectory data of gt to a video
+            if len(trajectory_data["estimated_ground_truth"]) > 0:
+                decoder_gt_id = self._generate_id()
+                self._render_environment_episode("decoder_frames", trajectory_data, video_path, str(decoder_gt_id), True)
         
         # Prepare the data for the website
         action_probs = []
@@ -173,6 +184,21 @@ class VideoRecorder:
         if len(trajectory_data["estimated_ground_truth"]) > 0:
             video_gt_path = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(gt_id) + ".webm"
             video_path.append(video_gt_path)
+        else:
+            video_path.append("")
+            
+        # Path to the video of the decoder if it exists
+        if len(trajectory_data["decoder_frames"]) > 0:
+            video_decoder_path = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(decoder_id) + ".webm"
+            video_path.append(video_decoder_path)
+            if len(trajectory_data["estimated_ground_truth"]) > 0:
+                video_decoder_gt_path = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(decoder_gt_id) + ".webm"
+                video_path.append(video_decoder_gt_path) 
+            else:
+                video_path.append("")       
+        else:
+            video_path.append("")
+            video_path.append("")
         
         # Render the template
         with open(self.website_path + 'result_website_' + str(id) + '.html' , 'w') as output_file:
@@ -205,7 +231,7 @@ class VideoRecorder:
         
         return str(id) 
 
-    def _render_environment_episode(self, trajectory_data, path, video_id, gt = False):
+    def _render_environment_episode(self, key, trajectory_data, path, video_id, gt = False):
         """Renders an episode of an agent behaving in its environment.
         
         Arguments:
@@ -221,9 +247,9 @@ class VideoRecorder:
         out = cv2.VideoWriter(path + "video_seed_" + str(trajectory_data["seed"]) + "_" + video_id + ".webm",
                                 webm_fourcc, 1, (self.width, self.height + self.info_height))
         
-        for i in range(len(trajectory_data["vis_obs"])):
+        for i in range(len(trajectory_data[key])):
             # Setup environment frame
-            env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
+            env_frame = trajectory_data[key][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
             env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
 
             # Setup info frame
@@ -235,7 +261,7 @@ class VideoRecorder:
             # Collected rewards so far
             self.draw_text_overlay(info_frame, 208, 20, round(sum(trajectory_data["rewards"][0:i]), 3), "total reward")
 
-            if i == len(trajectory_data["vis_obs"]) - 1:
+            if i == len(trajectory_data[key]) - 1:
                 self.draw_text_overlay(info_frame, 368, 20, "True", "episode done")
             else:
                 self.draw_text_overlay(info_frame, 368, 20, "False", "episode done")
@@ -263,7 +289,7 @@ class VideoRecorder:
             out.write(output_image)
         # Finish up the video
         out.release()
-
+        
     def draw_text_overlay(self, frame, x, y, value, label):
         """Draws text on a frame at some position to display a value and its associated label.
         The text will look like "label: value".
