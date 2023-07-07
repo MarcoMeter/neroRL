@@ -831,7 +831,7 @@
           myPlot.on('plotly_click', function(data){
             // Jump to the step that was clicked
               past_steps.push(step);
-              video_player.currentTime = Number(data.points[0].x);
+              video_player.currentTime = Number(data.points[0].xaxis.ticktext[data.points[0].x]);
               pause();
               update();
               return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 

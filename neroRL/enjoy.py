@@ -63,8 +63,8 @@ def main():
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
         --website                  Specifies wether a website shall be generated. [default: False]
         --visualize-estimated-gt   Specifies wether the estimated ground truth shall be visualized(only works if a website or a video is generated). [default: False]
-        --decoder-video            Specifies wether the decoder video shall be generated. [default: False]
-        --agent-video              Specifies wether the agent video shall be generated. [default: False]
+        --decoder-video            Specifies wether the decoder video for the website shall be generated. [default: False]
+        --agent-video              Specifies wether the agent video for the website shall be generated. [default: False]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                              # defaults to False
