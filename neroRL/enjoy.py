@@ -159,7 +159,7 @@ def main():
 
         # Play one episode
         with torch.no_grad():
-            while not done:
+            while True:
                 # Forward the neural net
                 vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                 vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
@@ -205,7 +205,10 @@ def main():
                 # Collect agent video if needed
                 if agent_video:
                     agent_frames.append(vis_obs.squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
-
+                # Break the loop if done
+                if done:
+                    break
+                
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
                 t += 1

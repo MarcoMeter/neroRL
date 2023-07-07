@@ -86,7 +86,7 @@ class VideoRecorder:
                 self.draw_text_overlay(debug_frame, 5, 60, "True", "episode done")
 
             # Plot estimated ground truth
-            if "estimated_ground_truth" in trajectory_data and i < len(trajectory_data["estimated_ground_truth"]):
+            if "estimated_ground_truth" in trajectory_data:
                 # Point colors
                 point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
                 # Iterate over all points
@@ -260,7 +260,7 @@ class VideoRecorder:
                 self.draw_text_overlay(info_frame, 368, 20, "False", "episode done")
                 
             # Plot estimated ground truth
-            if gt and i < len(trajectory_data["estimated_ground_truth"]):
+            if gt:
                 # Point colors
                 point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
                 # Iterate over all points
