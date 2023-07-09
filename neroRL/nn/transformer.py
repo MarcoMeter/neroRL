@@ -275,7 +275,6 @@ class Transformer(nn.Module):
             # Only if configured and if relative positional encoding is used
             if self.config["add_positional_encoding_to_query"]:
                 if self.config["positional_encoding"] == "relative":
-                    print("DOOOOOOOOO")
                     # apply mask to memory indices
                     masked_memory_indices = memory_indices * mask
                     # select max memory indices across dim 1
