@@ -18,7 +18,7 @@ from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 from neroRL.utils.yaml_parser import YamlParser
 
 class Training():
-    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model, low_mem) -> None:
+    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint) -> None:
         """
         Arguments:
             configs {dict} -- Environment, Model and Training configuration
@@ -199,6 +199,7 @@ def main():
         --seed=<n>      	        Specifies the seed to use during training. If set to smaller than 0, use a random seed. [default: -1]
         --compile                   Whether to compile the model or not (requires PyTorch >= 2.0.0). [default: False]
         --low-mem                   Whether to move one mini_batch at a time to GPU to save memory [default: False].
+        --checkpoint=<path>         Path to a checkpoint to resume training from [default: None].
     """
     # Debug CUDA
     # import os
@@ -211,6 +212,7 @@ def main():
     seed = int(options["--seed"])
     compile_model = options["--compile"]
     low_mem = options["--low-mem"]
+    checkpoint_path = options["--checkpoint"]
 
     # If a run-id was not assigned, use the config's name
     for i, arg in enumerate(sys.argv):
@@ -224,7 +226,7 @@ def main():
     configs = YamlParser(config_path).get_config()
 
     # Training program
-    training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem)
+    training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path)
     # import cProfile, pstats
     # profiler = cProfile.Profile()
     # profiler.enable()
