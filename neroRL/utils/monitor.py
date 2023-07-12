@@ -28,7 +28,7 @@ class TrainingMonitor():
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
-            file_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: None)
+            file_path {str} -- Determines the target directory for loading existing summaries, logs and model checkpoints. (default: None)
         """
         self.timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
         duplicate_suffix = ""
@@ -45,7 +45,7 @@ class TrainingMonitor():
         # Setup SummaryWriter
         summary_path = out_path + "summaries/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
         if file_path is not None:
-            self.writer = SummaryWriter(filename=file_path', filename_suffix='.v2')
+            self.writer = SummaryWriter(log_dir = file_path, filename_suffix='.v2')
         else:
             self.writer = SummaryWriter(summary_path)
 
