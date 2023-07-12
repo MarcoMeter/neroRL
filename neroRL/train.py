@@ -15,10 +15,11 @@ from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
 from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
 from neroRL.utils.monitor import TrainingMonitor
 from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from neroRL.utils.yaml_parser import YamlParser
 
 class Training():
-    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint) -> None:
+    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path, tensorboard_path) -> None:
         """
         Arguments:
             configs {dict} -- Environment, Model and Training configuration
@@ -28,6 +29,8 @@ class Training():
             seed {int} -- Seed for all number generators
             compile_model {bool} -- Whether to compile the model or not (only PyTorch >= 2.0.0)
             low_mem {bool} -- Whether to use low memory mode or not
+            checkpoint_path {str} -- Path to the checkpoint file
+            tensorboard_path {str} -- Path to the tensorboard event file
         """
         # Start time
         self.start_time = time.time()
@@ -60,7 +63,7 @@ class Training():
             torch.set_default_tensor_type("torch.FloatTensor")
 
         # Create training monitor
-        self.monitor = TrainingMonitor(out_path, run_id, worker_id)
+        self.monitor = TrainingMonitor(out_path, run_id, worker_id, tensorboard_path)
         self.monitor.write_hyperparameters(configs)
         self.monitor.log("Training Seed: " + str(self.seed))
         # Start logging the training setup
@@ -94,7 +97,10 @@ class Training():
             self.evaluator = None
 
         # Load checkpoint and apply data
-        if configs["model"]["load_model"]:
+        if len(checkpoint_path) > 0:
+            self.monitor.log("Load checkpoint: " + checkpoint_path)
+            self.trainer.load_checkpoint(checkpoint_path)
+        elif configs["model"]["load_model"]:
             self.monitor.log("Load checkpoint: " + configs["model"]["model_path"])
             self.trainer.load_checkpoint(configs["model"]["model_path"])
 
@@ -105,11 +111,42 @@ class Training():
 
         # Set variables
         self.configs = configs
-        self.resume_at = configs["trainer"]["resume_at"]
+        self.resume_at = configs["trainer"]["resume_at"] if len(tensorboard_path) == 0 else self._get_last_step(tensorboard_path)
         self.updates = configs["trainer"]["updates"]
         self.run_id = run_id
         self.worker_id = worker_id
         self.out_path = out_path
+        
+    def _get_last_step(self, path):
+        """
+        Returns the last step of the tensorboard event file at the given path.
+        
+        Arguments:
+            path {str} -- Path to the tensorboard event file
+        
+        Returns:
+            {int} -- The last step of the tensorboard event file
+        """
+        
+        # Initialize the EventAccumulator
+        event_acc = EventAccumulator(path)
+
+        # Load the EventAccumulator
+        event_acc.Reload()
+
+        # List of all scalars available in the EventAccumulator
+        # These are referred to as "tags"
+        tags = event_acc.Tags()['scalars']
+
+        # Example: Read the last step of the first tag
+        # This assumes all tags have the same number of steps
+        last_event = event_acc.Scalars(tags[0])[-1]
+
+        # Obtain the last step
+        last_step = last_event.step
+        
+        return last_step
+
 
     def run(self):
         """Run training loop"""
@@ -200,6 +237,7 @@ def main():
         --compile                   Whether to compile the model or not (requires PyTorch >= 2.0.0). [default: False]
         --low-mem                   Whether to move one mini_batch at a time to GPU to save memory [default: False].
         --checkpoint=<path>         Path to a checkpoint to resume training from [default: None].
+        --tensorboard=<path>        Path to a tensorboard summary to resume training from [default: None].
     """
     # Debug CUDA
     # import os
@@ -213,6 +251,7 @@ def main():
     compile_model = options["--compile"]
     low_mem = options["--low-mem"]
     checkpoint_path = options["--checkpoint"]
+    tensorboard_path = options["--tensorboard"]
 
     # If a run-id was not assigned, use the config's name
     for i, arg in enumerate(sys.argv):
@@ -226,7 +265,7 @@ def main():
     configs = YamlParser(config_path).get_config()
 
     # Training program
-    training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path)
+    training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path, tensorboard_path)
     # import cProfile, pstats
     # profiler = cProfile.Profile()
     # profiler.enable()
