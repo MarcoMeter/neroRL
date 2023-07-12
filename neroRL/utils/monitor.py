@@ -21,13 +21,14 @@ class TrainingMonitor():
     """The monitor is in charge of logging training statistics to console, file and tensorboard.
     It further arranges all needed directories for saving outputs like model checkpoints.
     """
-    def __init__(self, out_path, run_id, worker_id) -> None:
+    def __init__(self, out_path, run_id, worker_id, file_path = None) -> None:
         """
 
         Arguments:
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
+            file_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: None)
         """
         self.timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
         duplicate_suffix = ""
@@ -43,7 +44,10 @@ class TrainingMonitor():
 
         # Setup SummaryWriter
         summary_path = out_path + "summaries/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
-        self.writer = SummaryWriter(summary_path)
+        if file_path is not None:
+            self.writer = SummaryWriter(filename=file_path', filename_suffix='.v2')
+        else:
+            self.writer = SummaryWriter(summary_path)
 
         # Setup logger
         logging.basicConfig(level = logging.INFO, handlers=[])
