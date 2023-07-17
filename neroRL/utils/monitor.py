@@ -12,6 +12,7 @@ class Tag(Enum):
 
 import logging
 import os
+import re
 import time
 import sys
 import random
@@ -21,16 +22,19 @@ class TrainingMonitor():
     """The monitor is in charge of logging training statistics to console, file and tensorboard.
     It further arranges all needed directories for saving outputs like model checkpoints.
     """
-    def __init__(self, out_path, run_id, worker_id, file_path = None) -> None:
+    def __init__(self, out_path, run_id, worker_id, checkpoint_path = None) -> None:
         """
 
         Arguments:
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
-            file_path {str} -- Determines the target directory for loading existing summaries, logs and model checkpoints. (default: None)
+            checkpoint_path {str} -- The checkpoint path to extract the timestamp from. (default: {None})
         """
-        self.timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
+        if checkpoint_path is not None:
+            self.timestamp = "/" + re.search(r"(\d{8}-\d{6}_\d+)", checkpoint_path).group(1)
+        else: 
+            self.timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
         duplicate_suffix = ""
         log_path = out_path + "logs/" + run_id + self.timestamp[:-1] + ".log"
         # Check whether this path setup already exists
@@ -44,8 +48,8 @@ class TrainingMonitor():
 
         # Setup SummaryWriter
         summary_path = out_path + "summaries/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
-        if file_path is not None:
-            self.writer = SummaryWriter(log_dir = file_path, filename_suffix='.v2')
+        if checkpoint_path is not None:
+            self.writer = SummaryWriter(log_dir = summary_path, filename_suffix='.v2')
         else:
             self.writer = SummaryWriter(summary_path)
 

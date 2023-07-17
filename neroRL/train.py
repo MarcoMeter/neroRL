@@ -5,6 +5,7 @@ import random
 import sys
 import time
 import torch
+import re
 
 from docopt import docopt
 from pathlib import Path
@@ -19,7 +20,7 @@ from tensorboard.backend.event_processing.event_accumulator import EventAccumula
 from neroRL.utils.yaml_parser import YamlParser
 
 class Training():
-    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path, tensorboard_path) -> None:
+    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path) -> None:
         """
         Arguments:
             configs {dict} -- Environment, Model and Training configuration
@@ -30,7 +31,6 @@ class Training():
             compile_model {bool} -- Whether to compile the model or not (only PyTorch >= 2.0.0)
             low_mem {bool} -- Whether to use low memory mode or not
             checkpoint_path {str} -- Path to the checkpoint file
-            tensorboard_path {str} -- Path to the tensorboard event file
         """
         # Start time
         self.start_time = time.time()
@@ -63,7 +63,12 @@ class Training():
             torch.set_default_tensor_type("torch.FloatTensor")
 
         # Create training monitor
-        self.monitor = TrainingMonitor(out_path, run_id, worker_id, tensorboard_path)
+        summaries_path = ""
+        if len(checkpoint_path) > 0:
+            self.timestamp = "/" + re.search(r"(\d{8}-\d{6}_\d+)", checkpoint_path).group(1)
+            summaries_path = out_path + "summaries/" + run_id + self.timestamp
+            
+        self.monitor = TrainingMonitor(out_path, run_id, worker_id, checkpoint_path)
         self.monitor.write_hyperparameters(configs)
         self.monitor.log("Training Seed: " + str(self.seed))
         # Start logging the training setup
@@ -111,7 +116,7 @@ class Training():
 
         # Set variables
         self.configs = configs
-        self.resume_at = configs["trainer"]["resume_at"] if len(tensorboard_path) == 0 else self._get_last_step(tensorboard_path)
+        self.resume_at = configs["trainer"]["resume_at"] if len(summaries_path) == 0 else self._get_last_step(summaries_path)
         self.updates = configs["trainer"]["updates"]
         self.run_id = run_id
         self.worker_id = worker_id
@@ -237,7 +242,6 @@ def main():
         --compile                   Whether to compile the model or not (requires PyTorch >= 2.0.0). [default: False]
         --low-mem                   Whether to move one mini_batch at a time to GPU to save memory [default: False].
         --checkpoint=<path>         Path to a checkpoint to resume training from [default: None].
-        --tensorboard=<path>        Path to a tensorboard summary to resume training from [default: None].
     """
     # Debug CUDA
     # import os
@@ -251,7 +255,6 @@ def main():
     compile_model = options["--compile"]
     low_mem = options["--low-mem"]
     checkpoint_path = options["--checkpoint"]
-    tensorboard_path = options["--tensorboard"]
 
     # If a run-id was not assigned, use the config's name
     for i, arg in enumerate(sys.argv):
@@ -265,7 +268,7 @@ def main():
     configs = YamlParser(config_path).get_config()
 
     # Training program
-    training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path, tensorboard_path)
+    training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path)
     # import cProfile, pstats
     # profiler = cProfile.Profile()
     # profiler.enable()
