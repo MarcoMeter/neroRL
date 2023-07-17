@@ -63,8 +63,8 @@ class Training():
             torch.set_default_tensor_type("torch.FloatTensor")
 
         # Create training monitor
-        summaries_path = ""
-        if len(checkpoint_path) > 0:
+        summaries_path = None
+        if checkpoint_path is not None:
             self.timestamp = "/" + re.search(r"(\d{8}-\d{6}_\d+)", checkpoint_path).group(1)
             summaries_path = out_path + "summaries/" + run_id + self.timestamp
             
@@ -102,7 +102,7 @@ class Training():
             self.evaluator = None
 
         # Load checkpoint and apply data
-        if len(checkpoint_path) > 0:
+        if checkpoint_path is not None:
             self.monitor.log("Load checkpoint: " + checkpoint_path)
             self.trainer.load_checkpoint(checkpoint_path)
         elif configs["model"]["load_model"]:
@@ -116,7 +116,7 @@ class Training():
 
         # Set variables
         self.configs = configs
-        self.resume_at = configs["trainer"]["resume_at"] if len(summaries_path) == 0 else self._get_last_step(summaries_path)
+        self.resume_at = configs["trainer"]["resume_at"] if summaries_path is None else self._get_last_step(summaries_path) + 1
         self.updates = configs["trainer"]["updates"]
         self.run_id = run_id
         self.worker_id = worker_id
@@ -254,7 +254,7 @@ def main():
     seed = int(options["--seed"])
     compile_model = options["--compile"]
     low_mem = options["--low-mem"]
-    checkpoint_path = options["--checkpoint"]
+    checkpoint_path = options["--checkpoint"] if options["--checkpoint"] != "None" else None
 
     # If a run-id was not assigned, use the config's name
     for i, arg in enumerate(sys.argv):

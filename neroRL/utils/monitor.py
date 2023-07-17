@@ -38,7 +38,7 @@ class TrainingMonitor():
         duplicate_suffix = ""
         log_path = out_path + "logs/" + run_id + self.timestamp[:-1] + ".log"
         # Check whether this path setup already exists
-        if os.path.isfile(log_path):
+        if os.path.isfile(log_path) and checkpoint_path is None:
             # If so, add a random suffix to distinguish duplicate runs
             duplicate_suffix = "_" + str(random.randint(0, 1000))
             log_path = out_path + "logs/" + run_id + self.timestamp[:-1] + duplicate_suffix + ".log"
@@ -59,7 +59,8 @@ class TrainingMonitor():
         self.console = logging.StreamHandler()
         self.console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
         
-        self.logfile = logging.FileHandler(log_path, mode="w")
+        mode_logfile = "a" if checkpoint_path is not None else "w"
+        self.logfile = logging.FileHandler(log_path, mode=mode_logfile)
         self.logger.addHandler(self.console)
         self.logger.addHandler(self.logfile)
 
@@ -72,15 +73,15 @@ class TrainingMonitor():
             duplicate_suffix {str}: This suffix is added to the end of the path to distinguish duplicate runs.
         """
         # Create directories for storing checkpoints, logs and tensorboard summaries based on the current time and provided run_id
+        self.checkpoint_path = out_path + "checkpoints/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
         if not os.path.exists(out_path + "summaries"):
             os.makedirs(out_path + "summaries")
         if not os.path.exists(out_path + "checkpoints"):
             os.makedirs(out_path + "checkpoints")
         if not os.path.exists(out_path + "logs") or not os.path.exists(out_path + "logs/" + run_id):
             os.makedirs(out_path + "logs/" + run_id)
-
-        self.checkpoint_path = out_path + "checkpoints/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
-        os.makedirs(self.checkpoint_path)
+        if not os.path.exists(self.checkpoint_path):
+            os.makedirs(self.checkpoint_path)
 
     def log(self, message:str) -> None:
         """Prints a message to console and file
