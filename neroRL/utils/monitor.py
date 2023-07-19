@@ -32,7 +32,7 @@ class TrainingMonitor():
             checkpoint_path {str} -- The checkpoint path to extract the timestamp from. (default: {None})
         """
         if checkpoint_path is not None:
-            self.timestamp = "/" + re.search(r"(\d{8}-\d{6}_\d+)", checkpoint_path).group(1)
+            self.timestamp = "/" + re.search(r"(\d{8}-\d{6}_\d+)", checkpoint_path).group(1) + "/"
         else: 
             self.timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
         duplicate_suffix = ""
