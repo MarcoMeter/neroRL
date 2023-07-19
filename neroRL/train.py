@@ -265,7 +265,11 @@ def main():
             run_id = Path(config_path).stem
 
     # Load environment, model, evaluation and training parameters
-    configs = YamlParser(config_path).get_config() if checkpoint_path is None else torch.load(checkpoint_path)["configs"]
+    if checkpoint_path is None:
+        configs = YamlParser(config_path).get_config()#
+    else:
+        configs = torch.load(checkpoint_path)["configs"]
+        run_id = checkpoint_path.split("/")[2].split("_")[0]
 
     # Training program
     training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path)
