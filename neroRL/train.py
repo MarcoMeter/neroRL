@@ -67,6 +67,12 @@ class Training():
         if checkpoint_path is not None:
             self.timestamp = "/" + re.search(r"(\d{8}-\d{6}_\d+)", checkpoint_path).group(1)
             summaries_path = out_path + "summaries/" + run_id + self.timestamp
+            self.monitor.log("Load checkpoint: " + checkpoint_path)
+            self.trainer.load_checkpoint(checkpoint_path)
+            configs = torch.load(checkpoint_path)["configs"]
+        elif configs["model"]["load_model"]:
+            self.monitor.log("Load checkpoint: " + configs["model"]["model_path"])
+            self.trainer.load_checkpoint(configs["model"]["model_path"])
             
         self.monitor = TrainingMonitor(out_path, run_id, worker_id, checkpoint_path)
         self.monitor.write_hyperparameters(configs)
@@ -101,13 +107,6 @@ class Training():
         else:
             self.evaluator = None
 
-        # Load checkpoint and apply data
-        if checkpoint_path is not None:
-            self.monitor.log("Load checkpoint: " + checkpoint_path)
-            self.trainer.load_checkpoint(checkpoint_path)
-        elif configs["model"]["load_model"]:
-            self.monitor.log("Load checkpoint: " + configs["model"]["model_path"])
-            self.trainer.load_checkpoint(configs["model"]["model_path"])
 
         # Log the number of trainable parameters of the to-be-optimized model
         self.monitor.log("Number of trainable parameters: " + self.trainer.get_num_trainable_parameters_str())
@@ -265,7 +264,7 @@ def main():
             run_id = Path(config_path).stem
 
     # Load environment, model, evaluation and training parameters
-    configs = YamlParser(config_path).get_config()
+    configs = YamlParser(config_path).get_config() if checkpoint_path is None else None
 
     # Training program
     training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path)
