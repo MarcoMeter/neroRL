@@ -269,7 +269,7 @@ def main():
         configs = YamlParser(config_path).get_config()#
     else:
         configs = torch.load(checkpoint_path)["configs"]
-        run_id = checkpoint_path.split("/")[2].split("_")[0]
+        run_id = checkpoint_path.split("/")[-3].split("_")[0]
 
     # Training program
     training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path)
