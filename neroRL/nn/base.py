@@ -3,6 +3,7 @@ import torch
 from torch import nn
 
 from neroRL.nn.encoder import CNNEncoder, ResCNN, SmallImpalaCNN, LinVecEncoder
+from neroRL.nn.decoder import CNNDecoder
 from neroRL.nn.recurrent import GRU, LSTM
 from neroRL.nn.transformer import Transformer
 from neroRL.nn.body import HiddenLayer
@@ -12,6 +13,9 @@ class ActorCriticBase(Module):
     """An actor-critic base model which defines the basic components and functionality of the final model:
             - Components: Visual encoder, vector encoder, recurrent layer, transformer, body, heads (value, policy, gae)
             - Functionality: Initialization of the recurrent cells and basic model
+            - Functionality: Initialization of the transformer memory
+            - (optional) Observation reconstruction decoder
+            - (optional) Ground truth estimator
     """
     def __init__(self, config):
         """Model setup
@@ -20,9 +24,6 @@ class ActorCriticBase(Module):
             config {dict} -- Model config
         """
         super().__init__()
-
-        # Whether the model uses shared parameters (i.e. weights) or not
-        self.share_parameters = False
 
         # Members for using a recurrent policy
         # The mean hxs and cxs can be used to sample a recurrent cell state upon initialization
@@ -33,6 +34,12 @@ class ActorCriticBase(Module):
         # Members for using a transformer-based policy
         self.transformer_config = config["transformer"] if "transformer" in config else None
 
+        # Member for using a observation reconstruction decoder
+        self.decoder_config = config["obs_decoder"] if "obs_decoder" in config else None
+
+        # Member for using aa ground truth estimator
+        self.ground_truth_estimator_config = config["ground_truth_estimator"] if "ground_truth_estimator" in config else None
+
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
@@ -42,19 +49,21 @@ class ActorCriticBase(Module):
             - a visual encoder,
             - a vector encoder
             - a recurrent layer (optional)
-            - a transformer architecture (optinal)
-            - and a body
+            - a transformer architecture (optional)
+            - a body
+            - and a visual decoder
         specified by the model config.
 
         Arguments:
             config {dict} -- Model config
             vis_obs_space {box} -- Dimensions of the visual observation space
             vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
+            use_decoder {bool} -- Whether to use a decoder for observation reconstruction or not (default: {False})
         
         Returns:
-            {tuple} -- visual encoder, vector encoder, recurrent layer, transformer, body
+            {tuple} -- visual encoder, vector encoder, recurrent layer, transformer, body, vis_decoder
         """
-        vis_encoder, vec_encoder, recurrent_layer, transformer, body = None, None, None, None, None
+        vis_encoder, vec_encoder, recurrent_layer, transformer, body, vis_decoder = None, None, None, None, None, None
 
         # Observation encoder
         if vis_obs_space is not None:
@@ -65,6 +74,16 @@ class ActorCriticBase(Module):
             # Compute output size of the encoder
             conv_out_size = self.get_vis_enc_output(vis_encoder, vis_obs_shape)
             in_features_next_layer = conv_out_size
+
+            # Observation decoder when using observation reconstruction
+            if self.decoder_config is not None:
+                decoder_input_dim = conv_out_size
+                if config["obs_decoder"]["attach_to"] == "memory":
+                    if self.recurrence_config is not None:
+                        decoder_input_dim = self.recurrence_config["hidden_state_size"]
+                    elif self.transformer_config is not None:
+                        decoder_input_dim = self.transformer_config["embed_dim"]
+                vis_decoder = CNNDecoder(decoder_input_dim, vis_obs_shape, "memory" == config["obs_decoder"]["attach_to"])
 
             # Determine number of features for the next layer's input
             if vec_obs_shape is not None:
@@ -90,12 +109,16 @@ class ActorCriticBase(Module):
             out_features = self.transformer_config["embed_dim"]
             transformer = self.create_transformer_layer(self.transformer_config, in_features_next_layer)
             in_features_next_layer = out_features
+        
+        # memory_dim is used to determine the input size of the ground truth estimator heaad if used
+        if self.transformer_config is not None or self.recurrence_config is not None:
+            self.memory_dim = out_features
 
         # Network body
         out_features = config["num_hidden_units"]
         body = self.create_body(config, in_features_next_layer, out_features)
 
-        return vis_encoder, vec_encoder, recurrent_layer, transformer, body
+        return vis_encoder, vec_encoder, recurrent_layer, transformer, body, vis_decoder
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.

@@ -34,6 +34,11 @@ class FrameSkipEnv(Env):
         return self._env.vector_observation_space
 
     @property
+    def ground_truth_space(self):
+        """Returns the space of the ground truth info space if available."""
+        return self._env.ground_truth_space
+
+    @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return self._env.action_space
@@ -61,8 +66,8 @@ class FrameSkipEnv(Env):
 
     def reset(self, reset_params = None):
         """Reset the environment. The provided reset_params is a dictionary featuring reset parameters of the environment such as the seed."""
-        vis_obs, vec_obs = self._env.reset(reset_params = reset_params)
-        return vis_obs, vec_obs
+        vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
+        return vis_obs, vec_obs, info
 
     def step(self, action):
         """Executes steps of the agent in the environment untill the "skip"-th frame is reached.

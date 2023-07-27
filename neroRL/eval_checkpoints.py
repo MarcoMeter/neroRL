@@ -12,6 +12,7 @@ Each data point is a dictionary given the episode information:
 Depending on the environment, more information might be available.
 For example, Obstacle Tower has a floor key inside that dictionary.
 """
+import sys
 import torch
 import os
 import pickle
@@ -36,12 +37,21 @@ def main():
         --checkpoints=<path>       Path to the directory containing checkpoints [default: ].
         --config=<path>            Path to the config file [default: ].
         --name=<path>              Specifies the full path to save the output file [default: ./results.res].
+        --start-seed=<n>           Specifies the start of the seed range [default: 200000].
+        --num-seeds=<n>            Specifies the number of seeds to evaluate [default: 50].
+        --repetitions=<n>          Specifies the number of repetitions for each seed [default: 3].
     """
     options = docopt(_USAGE)
     worker_id = int(options["--worker-id"])         # defaults to 2.
     checkpoints_path = options["--checkpoints"]     # defaults to ""
     config_path = options["--config"]               # defaults to ""
-    name = options["--name"]                        # defaults to "result.res"
+    name = options["--name"]                        # defaults to "result.res
+
+    # Determine whether a seed configuration was passed as argument, if not, use the one from the config file
+    override_seed_config = False
+    args = " ".join(sys.argv)
+    if "--start-seed" in args and "--num-seeds" in args and "--repetitions" in args:
+        override_seed_config = True
 
     # Determine cuda availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -59,13 +69,21 @@ def main():
     if len(checkpoints) == 0:
         print("No checkpoints found in the given directory. Exiting...")
         return 0
-    checkpoint = torch.load(checkpoints[0])
+    checkpoint = torch.load(checkpoints[0], map_location=device)
     model_config = checkpoint["configs"]["model"]
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
 
+    # Override seed configuration if necessary
+    if override_seed_config:
+        if "explicit-seeds" in configs["evaluation"]["seeds"]:
+            del configs["evaluation"]["seeds"]["explicit-seeds"]
+        configs["evaluation"]["seeds"]["start-seed"] = int(options["--start-seed"])
+        configs["evaluation"]["seeds"]["num-seeds"] = int(options["--num-seeds"])
+        configs["evaluation"]["n_workers"] = int(options["--repetitions"])
+
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     print("Step 2: Creating dummy environment of type " + configs["environment"]["type"])
-    visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
+    visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
     
     # Init evaluator
     print("Step 2: Environment Config")
@@ -79,13 +97,8 @@ def main():
 
     # Init model
     print("Step 3: Initialize model")
-    share_parameters = False
-    if configs["trainer"]["algorithm"] == "PPO":
-        share_parameters = configs["trainer"]["share_parameters"]
-    model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
-                            vector_observation_space, action_space_shape, device)
-    if "DAAC" in configs["trainer"]:
-        model.add_gae_estimator_head(action_space_shape, device)
+    model = create_actor_critic_model(model_config, visual_observation_space,
+                            vector_observation_space, ground_truth_space, action_space_shape, device)
     model.eval()
 
     if torch.cuda.is_available():
@@ -101,7 +114,7 @@ def main():
     results = []
     current_checkpoint = 0
     for checkpoint in checkpoints:
-        loaded_checkpoint = torch.load(checkpoint)
+        loaded_checkpoint = torch.load(checkpoint, map_location=device)
         model.load_state_dict(loaded_checkpoint["model"])
         if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(loaded_checkpoint["hxs"], loaded_checkpoint["cxs"])

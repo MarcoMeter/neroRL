@@ -15,11 +15,11 @@ environment:
     # The view size of the agent, which has to be an odd number
     # The default value in minigrid is 7, which is not a good challenge in terms of agent memory
     view-size: 3
-    max-episode-steps: 64
+    max-episode-steps: 128
 
 model:
   load_model: False
-  model_path: "./checkpoints/mg_17r/20220112-065616_2/mg_17r-208.pt"
+  model_path: "./checkpoints/trxl/20230501-101334_2/trxl-499.pt"
   checkpoint_interval: 100
   activation: "relu"
   vis_encoder: "cnn"
@@ -31,13 +31,13 @@ model:
   transformer:
     num_blocks: 3
     embed_dim: 384
-    num_heads: 8
+    num_heads: 4
     share_heads: True
-    memory_length: 32
+    memory_length: 128
     positional_encoding: "" # options: "" "relative" "learned"
     layer_norm: "pre" # options: "" "pre" "post"
     init_weights: "xavier" # options: "xavier" "orthogonal" "tfixup" "kaiming"
-    gtrxl: True
+    gtrxl: False
     gtrxl_bias: 0.0
     gtrxl_swap: False
 
@@ -58,26 +58,24 @@ trainer:
   resume_at: 0
   gamma: 0.995
   lamda: 0.95
-  updates: 200
-  epochs: 5
-  refresh_buffer_epoch: -1
+  updates: 500
+  epochs: 3
   n_mini_batches: 8
-  advantage_normalization: "batch"
+  advantage_normalization: "no"
   value_coefficient: 0.5
-  max_grad_norm: 0.5
-  share_parameters: True
+  max_grad_norm: 0.25
   learning_rate_schedule:
-    initial: 3.5e-4
-    final: 1.0e-4
+    initial: 2.0e-4
+    final: 1.0e-5
     power: 1.0
-    max_decay_steps: 250
+    max_decay_steps: 1000
   beta_schedule:
-    initial: 0.001
-    final: 0.001
+    initial: 0.0001
+    final: 0.000001
     power: 1.0
     max_decay_steps: 1000
   clip_range_schedule:
-    initial: 0.2
-    final: 0.2
+    initial: 0.1
+    final: 0.1
     power: 1.0
     max_decay_steps: 1000

@@ -32,7 +32,6 @@ class BaseTrainer():
         self.run_id = run_id
         self.configs = configs
         self.resume_at = configs["trainer"]["resume_at"]
-        self.refresh_buffer_epoch = -1 #configs["trainer"]["refresh_buffer_epoch"]
         self.gamma = configs["trainer"]["gamma"]
         self.lamda = configs["trainer"]["lamda"]
         self.updates = configs["trainer"]["updates"]
@@ -45,7 +44,7 @@ class BaseTrainer():
         self.seed = seed
 
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
-        self.vis_obs_space, self.vec_obs_space, self.action_space_shape, self.max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1)
+        self.vis_obs_space, self.vec_obs_space, self.ground_truth_space, self.action_space_shape, self.max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1)
         if self.transformer is not None:
             # Add max episode steps to the transformer config
             configs["model"]["transformer"]["max_episode_steps"] = self.max_episode_steps
@@ -60,7 +59,8 @@ class BaseTrainer():
         if compile_model:
             # Compile the model if not on Windows and if Pytorch version is >= 2.0
             if not platform.system() == "Windows" and torch.__version__ >= "2.0":
-                self.model = torch.compile(self.model, dynamic=True)
+                torch.set_float32_matmul_precision("high")
+                self.model = torch.compile(self.model, dynamic=True, mode="max-autotune")
 
         # Set model to train mode
         self.model.train()
@@ -68,15 +68,15 @@ class BaseTrainer():
         # Setup Sampler
         # Instantiate sampler for memory-less / markvoivan policies
         if self.recurrence is None and self.transformer is None:
-            self.sampler = TrajectorySampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space,
+            self.sampler = TrajectorySampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space, self.ground_truth_space,
                                         self.action_space_shape, self.model, self.sample_device, self.train_device)
         # Instantiate sampler for recurrent policies
         elif self.recurrence is not None:
-            self.sampler = RecurrentSampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space,
+            self.sampler = RecurrentSampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space, self.ground_truth_space,
                                         self.action_space_shape, self.model, self.sample_device, self.train_device)
         # Instantiate sampler for transformer policoes
         elif self.transformer is not None:
-            self.sampler = TransformerSampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space,
+            self.sampler = TransformerSampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space, self.ground_truth_space,
                     self.action_space_shape, self.max_episode_steps, self.model, self.sample_device, self.train_device)
 
         # List that stores the most recent episodes for training statistics
@@ -120,22 +120,14 @@ class BaseTrainer():
             "advantage_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.advantages).cpu().item()),
             "value_mean": (Tag.EPISODE, torch.mean(self.sampler.buffer.values).cpu().item()),
             "sequence_length": (Tag.OTHER, self.sampler.buffer.actual_sequence_length),
-            }
-
-        # Free VRAM
-        del(self.sampler.buffer.samples_flat)
-        if self.train_device == "cuda":
-            torch.cuda.empty_cache()
-        # mem = torch.cuda.mem_get_info(device=None)
-        # mem = (mem[1] - mem[0]) / 1024 / 1024
-        # print(mem)
+        }
         
         # Store recent episode infos
         self.episode_info.extend(sample_episode_info)
 
         # Measure seconds needed for a whole update
         time_end = time.time()
-        update_duration = int(time_end - time_start)
+        update_duration = time_end - time_start
 
         return self.episode_info, training_stats, formatted_string, update_duration
     

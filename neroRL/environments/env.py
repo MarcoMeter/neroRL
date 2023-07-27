@@ -23,6 +23,11 @@ class Env(ABC):
         """Returns the shape of the vector component of the observation space as a tuple."""
         raise NotImplementedError("This abstract property has to be implemented by a child.")
 
+    @property
+    def ground_truth_space(self):
+        """Returns the space of the ground truth info space if available."""
+        return None
+
     @abstractproperty
     def action_space(self):
         """Returns the shape of the action space of the agent."""

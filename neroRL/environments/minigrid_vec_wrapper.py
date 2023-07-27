@@ -129,7 +129,7 @@ class MinigridVecWrapper(Env):
             "vis_obs": [self._env.render(tile_size = 96).astype(np.uint8)], "vec_obs": [None],
             "rewards": [0.0], "actions": []
         } if self._record else None # The render function seems to be very very costly, so don't use this even once during training or evaluation
-        return None, vec_obs
+        return None, vec_obs, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.

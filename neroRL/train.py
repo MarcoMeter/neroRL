@@ -13,7 +13,8 @@ from signal import signal, SIGINT
 
 from neroRL.evaluator import Evaluator
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
-from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
+from neroRL.trainers.policy_gradient.decoder_only import DecoderTrainer
+from neroRL.trainers.policy_gradient.ground_truth_only import GroundTruthTrainer
 from neroRL.utils.monitor import TrainingMonitor
 from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
@@ -81,14 +82,17 @@ class Training():
         # Initialize trainer
         if configs["trainer"]["algorithm"] == "PPO":
             self.trainer = PPOTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
-        elif configs["trainer"]["algorithm"] == "DecoupledPPO":
-            self.trainer = DecoupledPPOTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
+        elif configs["trainer"]["algorithm"] == "DecoderTrainer":
+            self.trainer = DecoderTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
+        elif configs["trainer"]["algorithm"] == "GroundTruthTrainer":
+            self.trainer = GroundTruthTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
         else:
             assert(False), "Unsupported algorithm specified"
 
         self.monitor.log("Environment specs:")
         self.monitor.log("\t" + "Visual Observation Space: " + str(self.trainer.vis_obs_space))
         self.monitor.log("\t" + "Vector Observation Space: " + str(self.trainer.vec_obs_space))
+        self.monitor.log("\t" + "Ground Truth Space: " + str(self.trainer.ground_truth_space))
         self.monitor.log("\t" + "Action Space Shape: " + str(self.trainer.action_space_shape))
         self.monitor.log("\t" + "Max Episode Steps: " + str(self.trainer.max_episode_steps))
 
@@ -166,14 +170,14 @@ class Training():
             # Process training stats to print to console and write summaries
             episode_result = aggregate_episode_results(episode_infos)
             if episode_result:
-                self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
+                self.monitor.log((("{:4} sec={:3.1f} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
                     (" value={:3f} std={:.3f} adv={:.3f} std={:.3f}")).format(
                     update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
                     episode_result["length_mean"], episode_result["length_std"], training_stats["value_mean"][1], torch.std(self.trainer.sampler.buffer.values),
                     training_stats["advantage_mean"][1], torch.std(self.trainer.sampler.buffer.advantages)) +
                     " " + formatted_string)
             else:
-                self.monitor.log("{:4} sec={:2} value={:3f} std={:.3f} adv={:.3f} std={:.3f}".format(
+                self.monitor.log("{:4} sec={:3.1f} value={:3f} std={:.3f} adv={:.3f} std={:.3f}".format(
                     update, update_duration, torch.mean(self.trainer.sampler.buffer.values), torch.std(self.trainer.sampler.buffer.values),
                     torch.mean(self.trainer.sampler.buffer.advantages), torch.std(self.trainer.sampler.buffer.advantages)) +
                     " " + formatted_string)

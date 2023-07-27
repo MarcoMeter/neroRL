@@ -62,6 +62,14 @@ class MemoryGymWrapper(Env):
     def vector_observation_space(self):
         """Returns the shape of the vector component of the observation space as a tuple."""
         return self._vector_observation_space
+    
+    @property
+    def ground_truth_space(self):
+        """Returns the space of the ground truth info space if available."""
+        if self._env.has_ground_truth_info:
+            return self._env.ground_truth_space
+        else:
+            return None
 
     @property
     def action_space(self):
@@ -118,7 +126,7 @@ class MemoryGymWrapper(Env):
         options.pop("seed", None)
 
         # Reset the environment to retrieve the initial observation
-        obs, _ = self._env.reset(seed=self._seed, options=options)
+        obs, info = self._env.reset(seed=self._seed, options=options)
         if type(self._env.observation_space) is spaces.Dict:
             vis_obs = obs["visual_observation"]
             vec_obs = obs["vector_observation"]
@@ -136,7 +144,7 @@ class MemoryGymWrapper(Env):
             "rewards": [0.0], "actions": []
         } if self._record else None
 
-        return vis_obs, vec_obs
+        return vis_obs, vec_obs, info
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -151,10 +159,15 @@ class MemoryGymWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
-        if isinstance(action, int):
-            action = [action]
+        # Flatten action in single discrete action space
+        if isinstance(action, list):
+            if len(action) == 1:
+                action = action[0]
+        
+        # Step the environment
         obs, reward, done, truncation, info = self._env.step(action)
 
+        # Process visual and vector observation if applicable
         if type(self._env.observation_space) is spaces.Dict:
             vis_obs = obs["visual_observation"]
             vec_obs = obs["vector_observation"]

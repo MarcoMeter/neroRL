@@ -36,9 +36,9 @@ def init_recurrent_cell(recurrence_config, model, device):
         recurrent_cell = (hxs, cxs)
     return recurrent_cell
 
-def init_transformer_memory(trxl_conf, model, device):
+def init_transformer_memory(trxl_conf, model):
     memory_mask = torch.tril(torch.ones((trxl_conf["memory_length"], trxl_conf["memory_length"])), diagonal=-1)
-    memory = model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device)
+    memory = model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"])
     # Setup memory window indices
     repetitions = torch.repeat_interleave(torch.arange(0, trxl_conf["memory_length"]).unsqueeze(0), trxl_conf["memory_length"] - 1, dim = 0).long()
     memory_indices = torch.stack([torch.arange(i, i + trxl_conf["memory_length"]) for i in range(trxl_conf["max_episode_steps"] - trxl_conf["memory_length"] + 1)]).long()
@@ -75,14 +75,11 @@ def main():
     generate_website = options["--generate_website"]    # defaults to False
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
-    record_video = False
-    for i, arg in enumerate(sys.argv):
-        if "--video" in arg:
-            record_video = True
-            logger.info("Step 0: Video recording enabled. Video will be saved to " + video_path)
-            logger.info("Step 0: Only 1 episode will be played")
-            num_episodes = 1
-            break
+    record_video = "--video" in " ".join(sys.argv)
+    if record_video:
+        logger.info("Step 0: Video recording enabled. Video will be saved to " + video_path + ".mp4")
+        logger.info("Step 0: Only 1 episode will be played")
+        num_episodes = 1
 
     if generate_website:
         logger.info("Step 0: Only 1 episode will be played")
@@ -109,20 +106,15 @@ def main():
     configs["environment"]["reset_params"]["start-seed"] = seed
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
-    visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
+    visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
     env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
 
     # Build or load model
     logger.info("Step 2: Creating model")
-    share_parameters = False
-    if configs["trainer"]["algorithm"] == "PPO":
-        share_parameters = configs["trainer"]["share_parameters"]
     if "transformer" in model_config:
         model_config["transformer"]["max_episode_steps"] = max_episode_steps
-    model = create_actor_critic_model(model_config, share_parameters, visual_observation_space,
-                            vector_observation_space, action_space_shape, device)
-    if "DAAC" in configs["trainer"]:
-        model.add_gae_estimator_head(action_space_shape, device)
+    model = create_actor_critic_model(model_config, visual_observation_space,
+                            vector_observation_space, ground_truth_space, action_space_shape, device)
     if not untrained:
         if not checkpoint:
             # If a checkpoint is not provided as an argument, it shall be retrieved from the config
@@ -140,7 +132,7 @@ def main():
         t = 0
         logger.info("Step 3: Resetting the environment")
         logger.info("Step 3: Using seed " + str(seed))
-        vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
+        vis_obs, vec_obs, info = env.reset(configs["environment"]["reset_params"])
         done = False
         
         # Init memory if applicable
@@ -150,7 +142,7 @@ def main():
             memory = init_recurrent_cell(model_config["recurrence"], model, device)
         # Init transformer memory
         if "transformer" in model_config:
-            memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model, device)
+            memory, memory_mask, memory_indices = init_transformer_memory(model_config["transformer"], model)
             memory_length = model_config["transformer"]["memory_length"]
 
         # Play episode
@@ -177,7 +169,7 @@ def main():
                 else:
                     in_memory = memory
 
-                policy, value, new_memory, _ = model(vis_obs, vec_obs, in_memory, mask, indices)
+                policy, value, new_memory = model(vis_obs, vec_obs, in_memory, mask, indices)
                 
                 # Set memory if used
                 if "recurrence" in model_config:

@@ -7,9 +7,9 @@ class RecurrentSampler(TrajectorySampler):
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones. The RecurrentSampler takes care of
     resetting and adding recurrent cell states (i.e. agent memory) to the buffer."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, sample_device, train_device) -> None:
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, model, sample_device, train_device) -> None:
         """Initializes the RecurrentSampler and launches its environment worker."""
-        super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, sample_device, train_device)
+        super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, model, sample_device, train_device)
         # Set member variables
         self.layer_type = configs["model"]["recurrence"]["layer_type"]
         self.reset_hidden_state = configs["model"]["recurrence"]["reset_hidden_state"]
@@ -36,7 +36,7 @@ class RecurrentSampler(TrajectorySampler):
     def forward_model(self, vis_obs, vec_obs, t):
         """Forwards the model to retrieve the policy and the value of the to be fed observations and recurrent cell state."""
         # The recurrent cell state is the agent's memory
-        policy, value, self.recurrent_cell, _ = self.model(vis_obs, vec_obs, self.recurrent_cell)
+        policy, value, self.recurrent_cell = self.model(vis_obs, vec_obs, self.recurrent_cell)
         return policy, value
 
     def reset_worker(self, worker, id, t):
@@ -52,7 +52,7 @@ class RecurrentSampler(TrajectorySampler):
 
     def get_last_value(self):
         """Returns the last value of the current observation and recurrent cell state to compute GAE."""
-        _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
+        _, last_value, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
                                         self.recurrent_cell)
         return last_value

@@ -58,7 +58,7 @@ class Evaluator():
                 recurrent_cell.append((hxs, cxs))
         return recurrent_cell
 
-    def init_transformer_memory(self, trxl_conf, model, device):
+    def init_transformer_memory(self, trxl_conf, model):
         self.memory_length = trxl_conf["memory_length"]
         memory_mask = torch.tril(torch.ones((self.memory_length, self.memory_length)), diagonal=-1)
         repetitions = torch.repeat_interleave(torch.arange(0, self.memory_length).unsqueeze(0), self.memory_length - 1, dim = 0).long()
@@ -66,7 +66,7 @@ class Evaluator():
         memory_indices = torch.cat((repetitions, memory_indices))
         memory = []
         for _ in range(self.n_workers):
-            memory.append(model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"], device))
+            memory.append(model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"]))
         return memory, memory_mask, memory_indices
 
     def evaluate(self, model, device):
@@ -102,7 +102,7 @@ class Evaluator():
                 memory = self.init_recurrent_cell(self.recurrence_config, model, device)
             # Initialize the transformer memory
             if self.transformer_config is not None:
-                memory, memory_mask, memory_indices = self.init_transformer_memory(self.transformer_config, model, device)
+                memory, memory_mask, memory_indices = self.init_transformer_memory(self.transformer_config, model)
             
             # Reset workers and set evaluation seed
             for worker in self.workers:
@@ -112,7 +112,7 @@ class Evaluator():
                 worker.child.send(("reset", reset_params))
             # Grab initial observations
             for w, worker in enumerate(self.workers):
-                vis, vec = worker.child.recv()
+                vis, vec, info = worker.child.recv()
                 if vis_obs is not None:
                     vis_obs[w] = vis
                 if vec_obs is not None:
@@ -149,7 +149,7 @@ class Evaluator():
                                 in_memory = memory[w]
 
                             # Forward model
-                            policy, value, new_memory, _ = model(vis_obs_batch, vec_obs_batch, in_memory, mask, indices)
+                            policy, value, new_memory = model(vis_obs_batch, vec_obs_batch, in_memory, mask, indices)
 
                             # Set memory if used
                             if self.recurrence_config is not None:
@@ -185,7 +185,7 @@ class Evaluator():
                                 vis_obs[w] = vis
                             if vec_obs is not None:
                                 vec_obs[w] = vec
-                            if info:
+                            if dones[w]:
                                 info["seed"] = seed
                                 episode_infos.append(info)
                                 # record video for this particular worker

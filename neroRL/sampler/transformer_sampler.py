@@ -7,7 +7,7 @@ class TransformerSampler(TrajectorySampler):
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones. The TransformerSampler takes care of
     resetting and adding the agents' episodic memroies and memory masks to the buffer."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps, model, sample_device, train_device) -> None:
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps, model, sample_device, train_device) -> None:
         """Initializes the TrajectorSampler and launches its environment workers.
 
         Arguments:
@@ -15,12 +15,13 @@ class TransformerSampler(TrajectorySampler):
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments.
             visual_observation_space {box} -- Dimensions of the visual observation space (None if not available)
             vector_observation_space {tuple} -- Dimensions of the vector observation space (None if not available)
+            ground_truth_space {box} -- Dimensions of the ground truth space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
             max_episode_steps {int} -- Maximum number of steps one episode can last
             model {nn.Module} -- The model to retrieve the policy and value from
             device {torch.device} -- The device that is used for retrieving the data from the model
         """
-        super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, sample_device, train_device)
+        super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, model, sample_device, train_device)
         # Set member variables
         self.max_episode_steps = max_episode_steps
         self.memory_length = configs["model"]["transformer"]["memory_length"]
@@ -84,7 +85,7 @@ class TransformerSampler(TrajectorySampler):
         # Retrieve the memory window from the entire episode
         sliced_memory = batched_index_select(self.memory, 1, self.buffer.memory_indices[:,t])
         # Forward
-        policy, value, memory, _ = self.model(vis_obs, vec_obs, memory = sliced_memory, mask = self.buffer.memory_mask[:, t],
+        policy, value, memory = self.model(vis_obs, vec_obs, memory = sliced_memory, mask = self.buffer.memory_mask[:, t],
                                                 memory_indices = self.buffer.memory_indices[:,t])
         # Write the new memory item to the placeholder
         self.memory[self.worker_ids, self.worker_current_episode_step] = memory
@@ -110,7 +111,7 @@ class TransformerSampler(TrajectorySampler):
         end = torch.clip(self.worker_current_episode_step, self.memory_length)
         indices = torch.stack([torch.arange(start[b],end[b]) for b in range(self.n_workers)]).long()
         sliced_memory = batched_index_select(self.memory, 1, indices) # Retrieve the memory window from the entire episode
-        _, last_value, _, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
+        _, last_value, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
                                         torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
                                         memory = sliced_memory, mask = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)],
                                         memory_indices = self.buffer.memory_indices[:,-1])
