@@ -272,8 +272,11 @@ def main():
     if checkpoint_path is None:
         configs = YamlParser(config_path).get_config()#
     else:
-        configs = torch.load(checkpoint_path)["configs"]
+        checkpoint = torch.load(checkpoint_path)
+        configs = checkpoint["configs"]
+        seed = checkpoint["seed"]
         run_id = checkpoint_path.split("/")[-3]
+        
         
     # Training program
     training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path)
