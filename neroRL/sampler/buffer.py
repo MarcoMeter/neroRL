@@ -235,7 +235,7 @@ class Buffer():
                 else:
                     # If the sequence length is not set to a proper value, sequences will be based on episodes
                     sequences.append(episode)
-                    max_length = len(episode) if len(episode) > max_length else max_length
+                max_length = len(episode) if len(episode) > max_length else max_length
                 start_index = done_index + 1
         return sequences, max_length
 

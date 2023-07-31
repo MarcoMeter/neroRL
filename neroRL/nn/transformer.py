@@ -268,14 +268,39 @@ class Transformer(nn.Module):
             # memories[:,:,0] = memories[:,:,0] + self.pos_embedding[memory_indices] # add positional encoding only to first layer?
 
         # Forward transformer blocks
-        out_memories = []
+        out_memories, self.out_attention_weights, self.mask = [], [], mask
         for i, block in enumerate(self.transformer_blocks):
             out_memories.append(h.detach())
+            # Add positional encoding to the query
+            # Only if configured and if relative positional encoding is used
+            if self.config["add_positional_encoding_to_query"]:
+                if self.config["positional_encoding"] == "relative":
+                    # apply mask to memory indices
+                    masked_memory_indices = memory_indices * mask
+                    # select max memory indices across dim 1
+                    masked_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
+                    pos_embedding = self.pos_embedding(self.max_episode_steps)[masked_memory_indices]
+                    h = h + pos_embedding
             h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask) # args: value, key, query, mask
             h = h.squeeze()
             if len(h.shape) == 1:
                 h = h.unsqueeze(0)
+            self.out_attention_weights.append(attention_weights)
         return h, torch.stack(out_memories, dim=1)
+    
+    def get_attention_weights(self):
+        """Returns the attention weights of the last forward pass.
+
+        Returns:
+            {list} -- Attention weights
+        """
+        out_attention_weights = torch.stack(self.out_attention_weights, dim=0)
+        out_attention_weights = out_attention_weights.squeeze()
+        out_attention_weights = out_attention_weights.mean(dim=1)
+        out_attention_weights = out_attention_weights.cpu().detach().numpy()
+        out_attention_weights = out_attention_weights[:, self.mask.squeeze().bool().cpu()]
+        out_attention_weights = out_attention_weights.tolist()
+        return out_attention_weights
     
     def init_transformer_weights(self):
         if self.config["init_weights"] == "tfixup":

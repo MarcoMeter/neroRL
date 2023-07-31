@@ -85,6 +85,22 @@ class VideoRecorder:
             else:
                 self.draw_text_overlay(debug_frame, 5, 60, "True", "episode done")
 
+            # Plot estimated ground truth
+            if "estimated_ground_truth" in trajectory_data and i < len(trajectory_data["estimated_ground_truth"]):
+                # Point colors
+                point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
+                # Iterate over all points
+                for j in range(0, len(trajectory_data["estimated_ground_truth"][i]), 2):
+                    # Get the position of the point
+                    x, y = trajectory_data["estimated_ground_truth"][i][j].clip(0, 1), trajectory_data["estimated_ground_truth"][i][j + 1].clip(0, 1)
+                    position = (int(x * self.width), int(y * self.height))
+                    # Set the color of the point (in BGR format, here we use red color)
+                    point_color = point_colors[j // 2]
+                    # Set the radius of the point (in pixels)
+                    point_radius = 8
+                    # Draw the point on the image/frame
+                    cv2.circle(env_frame, position, point_radius, point_color, -1)
+
             # Concatenate environment and debug frames
             output_image = np.hstack((env_frame, debug_frame))
             output_image = np.vstack((info_frame, output_image))
@@ -154,6 +170,7 @@ class VideoRecorder:
                                             videoPath = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm",
                                             yValues=str(values),
                                             yEntropy=str(entropies),
+                                            yAttentionWeights=str(trajectory_data["attention_weights"]),
                                             yAction=str(action_probs),
                                             action=str(actions),
                                             actionNames=str(action_names) if action_names is not None else "null",
@@ -189,15 +206,15 @@ class VideoRecorder:
         
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(path + "video_seed_" + str(trajectory_data["seed"]) + "_" + video_id + ".webm",
-                                webm_fourcc, 1, (self.width * 2, self.height + self.info_height))
+                                webm_fourcc, 1, (self.width, self.height + self.info_height))
         
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
             env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
-            env_frame = cv2.resize(env_frame, (self.width * 2, self.height), interpolation=cv2.INTER_AREA)
+            env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
 
             # Setup info frame
-            info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
+            info_frame = np.zeros((self.info_height, self.width, 3), dtype=np.uint8)
             # Seed
             self.draw_text_overlay(info_frame, 8, 20, trajectory_data["seed"], "seed")
             # Current step

@@ -19,7 +19,7 @@ import pickle
 import numpy as np
 from docopt import docopt
 
-from neroRL.utils.utils import get_environment_specs
+from neroRL.utils.utils import get_environment_specs, load_and_apply_state_dict
 from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
@@ -115,7 +115,7 @@ def main():
     current_checkpoint = 0
     for checkpoint in checkpoints:
         loaded_checkpoint = torch.load(checkpoint, map_location=device)
-        model.load_state_dict(loaded_checkpoint["model"])
+        model = load_and_apply_state_dict(model, loaded_checkpoint["model"])
         if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(loaded_checkpoint["hxs"], loaded_checkpoint["cxs"])
         _, res = evaluator.evaluate(model, device)
@@ -162,4 +162,3 @@ def get_sorted_checkpoints(dirpath):
 
 if __name__ == "__main__":
     main()
-    
