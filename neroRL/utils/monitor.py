@@ -49,6 +49,7 @@ class TrainingMonitor():
 
         # Setup SummaryWriter
         summary_path = out_path + "summaries/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
+        # If a checkpoint path is provided, then add a suffix to the summary path to distinguish duplicate runs
         if checkpoint_path is not None:
             self.writer = SummaryWriter(log_dir = summary_path, filename_suffix='.v2')
         else:
@@ -60,6 +61,7 @@ class TrainingMonitor():
         self.console = logging.StreamHandler()
         self.console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
         
+        # If a checkpoint path is provided, then append to the existing log file
         mode_logfile = "a" if checkpoint_path is not None else "w"
         self.logfile = logging.FileHandler(log_path, mode=mode_logfile)
         self.logger.addHandler(self.console)

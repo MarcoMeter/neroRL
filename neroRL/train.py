@@ -64,6 +64,7 @@ class Training():
             torch.set_default_tensor_type("torch.FloatTensor")
 
         # Create training monitor
+        # If a checkpoint was provided, the summaries_path is extracted from the checkpoint path
         summaries_path = None
         if checkpoint_path is not None:
             self.timestamp = "/" + re.search(r"(\d{8}-\d{6}_\d+)", checkpoint_path).group(1)
@@ -127,8 +128,7 @@ class Training():
         self.out_path = out_path
         
     def _get_last_step(self, path):
-        """
-        Returns the last step of the tensorboard event file at the given path.
+        """Returns the last step of the tensorboard event file at the given path.
         
         Arguments:
             path {str} -- Path to the tensorboard event file
@@ -147,7 +147,7 @@ class Training():
         # These are referred to as "tags"
         tags = event_acc.Tags()['scalars']
 
-        # Example: Read the last step of the first tag
+        # Read the last step of the first tag
         # This assumes all tags have the same number of steps
         last_event = event_acc.Scalars(tags[0])[-1]
 
@@ -270,8 +270,9 @@ def main():
 
     # Load environment, model, evaluation and training parameters
     if checkpoint_path is None:
-        configs = YamlParser(config_path).get_config()#
+        configs = YamlParser(config_path).get_config()
     else:
+        # Load configs, seed and run-id from checkpoint
         checkpoint = torch.load(checkpoint_path)
         configs = checkpoint["configs"]
         seed = checkpoint["seed"]
