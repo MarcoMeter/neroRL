@@ -24,8 +24,7 @@ class TrainingMonitor():
     It further arranges all needed directories for saving outputs like model checkpoints.
     """
     def __init__(self, out_path, run_id, worker_id, checkpoint_path = None) -> None:
-        """
-
+        """Initializes the monitor.
         Arguments:
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
