@@ -105,6 +105,33 @@ class GroundTruthTrainer(BaseTrainer):
         # Calculate the error for monitoring
         error = torch.abs(estimation - target).mean()
 
+        # retrieve entire pos encoding table
+        # from neroRL.nn.transformer import SinusoidalPosition
+        # result = torch.zeros((estimation.shape[0], 1024, 384))
+        # self.pos_embedding = SinusoidalPosition(dim = 384)
+        # pos_encoding = self.pos_embedding(1024)
+        # # subtract estimate from every pos encoding
+        # for i in range(estimation.shape[0]):
+        #     result[i] = pos_encoding - estimation[i]
+        # result = torch.abs(result)
+        # t_estimate = torch.argmin(result.mean(dim = 2), dim = 1)
+        # # set dtype to float32
+        # t_estimate = t_estimate.type(torch.FloatTensor)
+
+        # # calc t_target
+        # for i in range(target.shape[0]):
+        #     result[i] = pos_encoding - target[i]
+        # result = torch.abs(result)
+        # t_target = torch.argmin(result.mean(dim = 2), dim = 1)
+        # # set dtype to float32
+        # t_target = t_target.type(torch.FloatTensor)
+
+        # # t_error = torch.abs(t_estimate - t_target).mean()
+        # print(torch.abs(t_estimate - t_target).min())
+        # print(torch.abs(t_estimate - t_target).mean())
+        # print(torch.abs(t_estimate - t_target).max())
+
+
         # Compute gradients
         self.optimizer.zero_grad()
         estimation_loss.backward()
