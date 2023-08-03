@@ -17,7 +17,6 @@ from neroRL.trainers.policy_gradient.decoder_only import DecoderTrainer
 from neroRL.trainers.policy_gradient.ground_truth_only import GroundTruthTrainer
 from neroRL.utils.monitor import TrainingMonitor
 from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
-from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from neroRL.utils.yaml_parser import YamlParser
 
 class Training():
@@ -64,12 +63,6 @@ class Training():
             torch.set_default_tensor_type("torch.FloatTensor")
 
         # Create training monitor
-        # If a checkpoint was provided, the summaries_path is extracted from the checkpoint path
-        summaries_path = None
-        if checkpoint_path is not None:
-            self.timestamp = "/" + re.search(r"(\d{8}-\d{6}_\d+)", checkpoint_path).group(1)
-            summaries_path = out_path + "summaries/" + run_id + self.timestamp
-            
         self.monitor = TrainingMonitor(out_path, run_id, worker_id, checkpoint_path)
         self.monitor.write_hyperparameters(configs)
         self.monitor.log("Training Seed: " + str(self.seed))
@@ -121,41 +114,11 @@ class Training():
 
         # Set variables
         self.configs = configs
-        self.resume_at = configs["trainer"]["resume_at"] if summaries_path is None else self._get_last_step(summaries_path) + 1
+        self.resume_at = configs["trainer"]["resume_at"] if checkpoint_path is None else int(re.search(r'-(\d+)\.pt', checkpoint_path).group(1)) + 1
         self.updates = configs["trainer"]["updates"]
         self.run_id = run_id
         self.worker_id = worker_id
         self.out_path = out_path
-        
-    def _get_last_step(self, path):
-        """Returns the last step of the tensorboard event file at the given path.
-        
-        Arguments:
-            path {str} -- Path to the tensorboard event file
-        
-        Returns:
-            {int} -- The last step of the tensorboard event file
-        """
-        
-        # Initialize the EventAccumulator
-        event_acc = EventAccumulator(path)
-
-        # Load the EventAccumulator
-        event_acc.Reload()
-
-        # List of all scalars available in the EventAccumulator
-        # These are referred to as "tags"
-        tags = event_acc.Tags()['scalars']
-
-        # Read the last step of the first tag
-        # This assumes all tags have the same number of steps
-        last_event = event_acc.Scalars(tags[0])[-1]
-
-        # Obtain the last step
-        last_step = last_event.step
-        
-        return last_step
-
 
     def run(self):
         """Run training loop"""
