@@ -1,5 +1,6 @@
 import cv2
 import os
+import re
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -216,14 +217,14 @@ class VideoRecorder:
         result_website_names, video_names = os.listdir(self.website_path), os.listdir(self.website_path + "videos/")
         file_names = result_website_names + video_names
         
-        id = 0
-        for file_name in file_names: # Find the highest not used id
-            file_name_prx = file_name.split(".")[0] # Remove suffix of the file name
-            if file_name_prx[-len(str(id)):] == str(id): # If the id exists
-                id += 1 # Increment id
-        
-        return str(id) 
+        ids = [0]
+        for file_name in file_names:
+            file_name_prx = file_name.split(".")[0].split("_")[-1]
+            if re.match(r'\d+$', file_name_prx):
+                ids.append(int(file_name_prx))
 
+        id = max(ids) + 1
+        return str(id)
     def _render_environment_episode(self, key, trajectory_data, path, video_id, gt = False):
         """Renders an episode of an agent behaving in its environment.
         
