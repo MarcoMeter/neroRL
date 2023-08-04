@@ -3,26 +3,33 @@
 ## Dependencies
 
 - Python >= 3.9
-- (Optional) CUDA >= 11.7
+- (Optional) CUDA 11.7
 
 ## Install PyTorch
 
 Install PyTorch as described [here](https://pytorch.org/get-started/locally/).
-neroRL is tested with PyTorch version 2.0.0 and CUDA 11.7
+neroRL is tested with PyTorch version 2.0.1
+
+`pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117`
 
 ## Install neroRL
 
-If the source code is not needed, simply install the PyPi package. Depending on the to be used environment add a tag (procgen, obstacle-tower, ml-agents, random-maze) for the extra requirements. This specification is due to the various gym versions that are utilized by those envionments.
+`pip3 install neroRL`
 
-`pip install neroRL[procgen]`
+## Install neroRL for different environments that have conflicting dependencies
 
-Otherwise clone this repository and use the setup.py
+`pip3 install neroRL[ml-agents]`
+`pip3 install neroRL[obstacle-tower]`
+`pip3 install neroRL[procgen]`
+`pip3 install neroRL[random-maze]`
 
-`git clone https://github.com/MarcoMeter/neroRL.git`
+## Install from source
 
-`cd neroRL`
-
-`pip install -e .[procgen]`
+```
+git clone https://github.com/MarcoMeter/neroRL
+cd neroRL
+pip3 install -e .
+```
 
 ## Obstacle Tower Environment
 
