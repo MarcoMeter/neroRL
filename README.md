@@ -43,6 +43,24 @@ alt="Rising to the Obstacle Tower Challenge" width="240" height="180" border="10
 
 Recently we published a [paper](https://arxiv.org/abs/2004.00567) at CoG 2020 (best paper candidate) that analyzes the taken approach. Additionally the model was trained on 3 level designs and was evaluated on the two left out ones. The results can be reproduced using the [obstacle-tower-challenge](https://github.com/MarcoMeter/neroRL/tree/obstacle-tower-challenge) branch.
 
+```bibtex
+@inproceedings{pleines2020otc,
+author    = {Marco Pleines and
+             Jenia Jitsev and
+             Mike Preuss and
+             Frank Zimmer},
+title     = {Obstacle Tower Without Human Demonstrations: How Far a Deep Feed-Forward
+             Network Goes with Reinforcement Learning},
+booktitle = {{IEEE} Conference on Games, CoG 2020, Osaka, Japan, August 24-27,
+             2020},
+pages     = {447--454},
+publisher = {{IEEE}},
+year      = {2020},
+url       = {https://doi.org/10.1109/CoG47356.2020.9231802},
+doi       = {10.1109/CoG47356.2020.9231802},
+}
+```
+
 # Getting Started
 
 To get started check out the [docs](/docs/)!
