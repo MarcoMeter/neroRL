@@ -231,7 +231,6 @@ class Buffer():
                     for start in range(0, len(episode), self.sequence_length):
                         end = start + self.sequence_length
                         sequences.append(episode[start:end])
-                    max_length = self.sequence_length
                 else:
                     # If the sequence length is not set to a proper value, sequences will be based on episodes
                     sequences.append(episode)

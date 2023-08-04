@@ -4,7 +4,7 @@ An abstract definition of the model's architecture is shown in the figure below.
 Each component marked as bold can be customized and referenced inside the configuration file.
 The next section gives a more detailed view on the model when trained on Obstacle Tower.
 
-<p align="center"><img src="img/general_model_architecture.png" alt="general_architecture"></p>
+<p align="center"><img src="img/general_model_architecture.png" alt="general_architecture" width=600></p>
 
 ## Example: Obstacle Tower
 
