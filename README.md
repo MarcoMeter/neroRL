@@ -45,14 +45,10 @@ Recently we published a [paper](https://arxiv.org/abs/2004.00567) at CoG 2020 (b
 
 ```bibtex
 @inproceedings{pleines2020otc,
-author    = {Marco Pleines and
-             Jenia Jitsev and
-             Mike Preuss and
-             Frank Zimmer},
+author    = {Marco Pleines and Jenia Jitsev and Mike Preuss and Frank Zimmer},
 title     = {Obstacle Tower Without Human Demonstrations: How Far a Deep Feed-Forward
              Network Goes with Reinforcement Learning},
-booktitle = {{IEEE} Conference on Games, CoG 2020, Osaka, Japan, August 24-27,
-             2020},
+booktitle = {{IEEE} Conference on Games, CoG 2020, Osaka, Japan, August 24-27, 2020},
 pages     = {447--454},
 publisher = {{IEEE}},
 year      = {2020},
