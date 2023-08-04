@@ -18,6 +18,21 @@ This is a research framework.
   - Discrete and Multi-Discrete Action Spaces
   - Vector and Visual Observation Spaces (either alone or simultaneously)
   - [Recurrent Policies using Truncated Backpropagation Through Time](https://github.com/MarcoMeter/recurrent-ppo-truncated-bptt)
+  - [Episodic Memory based on Transformer-XL](https://github.com/MarcoMeter/episodic-transformer-memory-ppo)
+
+# Memory Gym ICLR 2022 Paper
+
+This repository is used to achieve the results on the Memory Gym Environments given the following paper:
+
+```bibtex
+@inproceedings{pleines2023memory,
+title={Memory Gym: Partially Observable Challenges to Memory-Based Agents},
+author={Marco Pleines and Matthias Pallasch and Frank Zimmer and Mike Preuss},
+booktitle={International Conference on Learning Representations},
+year={2023},
+url={https://openreview.net/forum?id=jHc8dCx6DDr}
+}
+```
 
 # Obstacle Tower Challenge
 Originally, this work started out by achieving the 7th place during the [Obstacle Tower Challenge](https://blogs.unity3d.com/2019/08/07/announcing-the-obstacle-tower-challenge-winners-and-open-source-release/) by using a relatively simple FFCNN. This [video](https://www.youtube.com/watch?v=P2rBDHBHxcM) presents some footage of the approach and the trained behavior:
