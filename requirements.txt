@@ -1,7 +1,7 @@
 einops
-gymnasium==0.26.3
+gymnasium==0.29.0
 minigrid==2.1.0
-memory-gym==0.3.5
+memory-gym==1.0.0
 dm-env==1.5
 pycolab==1.2
 docopt

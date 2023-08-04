@@ -107,7 +107,7 @@ class ObstacleTowerWrapper(Env):
     @property
     def max_episode_steps(self):
         """Returns the maximum number of steps that an episode can last."""
-        return 2048
+        return 2560
 
     @property
     def get_episode_trajectory(self):
@@ -158,9 +158,9 @@ class ObstacleTowerWrapper(Env):
         }
 
         if self._retro_vis_obs:
-            return vis_obs, None
+            return vis_obs, None, {}
         else:
-            return vis_obs, vec_obs
+            return vis_obs, vec_obs, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.

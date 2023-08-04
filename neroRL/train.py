@@ -5,6 +5,7 @@ import random
 import sys
 import time
 import torch
+import re
 
 from docopt import docopt
 from pathlib import Path
@@ -12,13 +13,14 @@ from signal import signal, SIGINT
 
 from neroRL.evaluator import Evaluator
 from neroRL.trainers.policy_gradient.ppo_shared import PPOTrainer
-from neroRL.trainers.policy_gradient.ppo_decoupled import DecoupledPPOTrainer
+from neroRL.trainers.policy_gradient.decoder_only import DecoderTrainer
+from neroRL.trainers.policy_gradient.ground_truth_only import GroundTruthTrainer
 from neroRL.utils.monitor import TrainingMonitor
 from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 from neroRL.utils.yaml_parser import YamlParser
 
 class Training():
-    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model, low_mem) -> None:
+    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path) -> None:
         """
         Arguments:
             configs {dict} -- Environment, Model and Training configuration
@@ -28,6 +30,7 @@ class Training():
             seed {int} -- Seed for all number generators
             compile_model {bool} -- Whether to compile the model or not (only PyTorch >= 2.0.0)
             low_mem {bool} -- Whether to use low memory mode or not
+            checkpoint_path {str} -- Path to the checkpoint file
         """
         # Start time
         self.start_time = time.time()
@@ -60,7 +63,7 @@ class Training():
             torch.set_default_tensor_type("torch.FloatTensor")
 
         # Create training monitor
-        self.monitor = TrainingMonitor(out_path, run_id, worker_id)
+        self.monitor = TrainingMonitor(out_path, run_id, worker_id, checkpoint_path)
         self.monitor.write_hyperparameters(configs)
         self.monitor.log("Training Seed: " + str(self.seed))
         # Start logging the training setup
@@ -73,14 +76,17 @@ class Training():
         # Initialize trainer
         if configs["trainer"]["algorithm"] == "PPO":
             self.trainer = PPOTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
-        elif configs["trainer"]["algorithm"] == "DecoupledPPO":
-            self.trainer = DecoupledPPOTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
+        elif configs["trainer"]["algorithm"] == "DecoderTrainer":
+            self.trainer = DecoderTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
+        elif configs["trainer"]["algorithm"] == "GroundTruthTrainer":
+            self.trainer = GroundTruthTrainer(configs, self.sample_device, self.train_device, worker_id, run_id, out_path, self.seed, compile_model)
         else:
             assert(False), "Unsupported algorithm specified"
 
         self.monitor.log("Environment specs:")
         self.monitor.log("\t" + "Visual Observation Space: " + str(self.trainer.vis_obs_space))
         self.monitor.log("\t" + "Vector Observation Space: " + str(self.trainer.vec_obs_space))
+        self.monitor.log("\t" + "Ground Truth Space: " + str(self.trainer.ground_truth_space))
         self.monitor.log("\t" + "Action Space Shape: " + str(self.trainer.action_space_shape))
         self.monitor.log("\t" + "Max Episode Steps: " + str(self.trainer.max_episode_steps))
 
@@ -94,7 +100,10 @@ class Training():
             self.evaluator = None
 
         # Load checkpoint and apply data
-        if configs["model"]["load_model"]:
+        if checkpoint_path is not None:
+            self.monitor.log("Load checkpoint: " + checkpoint_path)
+            self.trainer.load_checkpoint(checkpoint_path)
+        elif configs["model"]["load_model"]:
             self.monitor.log("Load checkpoint: " + configs["model"]["model_path"])
             self.trainer.load_checkpoint(configs["model"]["model_path"])
 
@@ -105,7 +114,7 @@ class Training():
 
         # Set variables
         self.configs = configs
-        self.resume_at = configs["trainer"]["resume_at"]
+        self.resume_at = configs["trainer"]["resume_at"] if checkpoint_path is None else int(re.search(r'-(\d+)\.pt', checkpoint_path).group(1)) + 1
         self.updates = configs["trainer"]["updates"]
         self.run_id = run_id
         self.worker_id = worker_id
@@ -124,14 +133,14 @@ class Training():
             # Process training stats to print to console and write summaries
             episode_result = aggregate_episode_results(episode_infos)
             if episode_result:
-                self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
+                self.monitor.log((("{:4} sec={:3.1f} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
                     (" value={:3f} std={:.3f} adv={:.3f} std={:.3f}")).format(
                     update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
                     episode_result["length_mean"], episode_result["length_std"], training_stats["value_mean"][1], torch.std(self.trainer.sampler.buffer.values),
                     training_stats["advantage_mean"][1], torch.std(self.trainer.sampler.buffer.advantages)) +
                     " " + formatted_string)
             else:
-                self.monitor.log("{:4} sec={:2} value={:3f} std={:.3f} adv={:.3f} std={:.3f}".format(
+                self.monitor.log("{:4} sec={:3.1f} value={:3f} std={:.3f} adv={:.3f} std={:.3f}".format(
                     update, update_duration, torch.mean(self.trainer.sampler.buffer.values), torch.std(self.trainer.sampler.buffer.values),
                     torch.mean(self.trainer.sampler.buffer.advantages), torch.std(self.trainer.sampler.buffer.advantages)) +
                     " " + formatted_string)
@@ -199,6 +208,7 @@ def main():
         --seed=<n>      	        Specifies the seed to use during training. If set to smaller than 0, use a random seed. [default: -1]
         --compile                   Whether to compile the model or not (requires PyTorch >= 2.0.0). [default: False]
         --low-mem                   Whether to move one mini_batch at a time to GPU to save memory [default: False].
+        --checkpoint=<path>         Path to a checkpoint to resume training from [default: None].
     """
     # Debug CUDA
     # import os
@@ -211,6 +221,7 @@ def main():
     seed = int(options["--seed"])
     compile_model = options["--compile"]
     low_mem = options["--low-mem"]
+    checkpoint_path = options["--checkpoint"] if options["--checkpoint"] != "None" else None
 
     # If a run-id was not assigned, use the config's name
     for i, arg in enumerate(sys.argv):
@@ -221,10 +232,18 @@ def main():
             run_id = Path(config_path).stem
 
     # Load environment, model, evaluation and training parameters
-    configs = YamlParser(config_path).get_config()
-
+    if checkpoint_path is None:
+        configs = YamlParser(config_path).get_config()
+    else:
+        # Load configs, seed and run-id from checkpoint
+        checkpoint = torch.load(checkpoint_path)
+        configs = checkpoint["configs"]
+        seed = checkpoint["seed"]
+        run_id = checkpoint_path.split("/")[-3]
+        
+        
     # Training program
-    training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem)
+    training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path)
     # import cProfile, pstats
     # profiler = cProfile.Profile()
     # profiler.enable()

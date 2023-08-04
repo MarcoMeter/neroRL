@@ -1,11 +1,11 @@
 import cv2
 import os
+import re
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import ruamel
 from jinja2 import Environment, FileSystemLoader
-import torch
 
 class VideoRecorder:
     """The VideoRecorder can be used to capture videos of the agent's behavior using enjoy.py or eval.py.
@@ -42,6 +42,8 @@ class VideoRecorder:
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
                                 self.fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
+        # Aggregate entropy, if it is desired for rendering
+        entropy = np.asarray(trajectory_data["entropies"]).mean(axis=1)
         for i in range(len(trajectory_data["vis_obs"])):
             # Setup environment frame
             env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
@@ -77,12 +79,28 @@ class VideoRecorder:
                 # hard-coded next_y because if too many actions are available, this plot does not fit
                 next_y = 230
                 fig = VideoRecorder.line_plot(trajectory_data["values"], "value", marker_pos=i)
+                # fig = VideoRecorder.line_plot(entropy, "entropy", marker_pos=i)
                 img = VideoRecorder.fig_to_ndarray(fig)[:,:,0:3] # Drop Alpha
                 img = VideoRecorder.image_resize(img, width=self.width, height=None)
                 debug_frame[next_y : next_y + img.shape[0], 0 : img.shape[1], :] = img
-
             else:
                 self.draw_text_overlay(debug_frame, 5, 60, "True", "episode done")
+
+            # Plot estimated ground truth
+            if "estimated_ground_truth" in trajectory_data:
+                # Point colors
+                point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
+                # Iterate over all points
+                for j in range(0, len(trajectory_data["estimated_ground_truth"][i]), 2):
+                    # Get the position of the point
+                    x, y = trajectory_data["estimated_ground_truth"][i][j].clip(0, 1), trajectory_data["estimated_ground_truth"][i][j + 1].clip(0, 1)
+                    position = (int(x * self.width), int(y * self.height))
+                    # Set the color of the point (in BGR format, here we use red color)
+                    point_color = point_colors[j // 2]
+                    # Set the radius of the point (in pixels)
+                    point_radius = 8
+                    # Draw the point on the image/frame
+                    cv2.circle(env_frame, position, point_radius, point_color, -1)
 
             # Concatenate environment and debug frames
             output_image = np.hstack((env_frame, debug_frame))
@@ -115,7 +133,7 @@ class VideoRecorder:
         """Generates a website that can be used to view the trajectory data.
         
         Arguments:
-            trajectory_data {dift} -- This dictionary provides all the necessary information to render a website.
+            trajectory_data {dict} -- This dictionary provides all the necessary information to render a website.
             config {dict} -- The configuration
         """
         # Create the video path for the website if it does not exist
@@ -123,11 +141,10 @@ class VideoRecorder:
         if not os.path.exists(video_path):
             os.makedirs(video_path)
             
-        # Generate an id
+        # Create an id for the website
         id = self._generate_id()
-        
-        # Render the trajectory data to a video
-        self._render_environment_episode(trajectory_data, video_path, str(id))
+        # Generate the videos for the website
+        video_paths = self._generate_website_videos(trajectory_data, video_path)
         
         # Prepare the data for the website
         action_probs = []
@@ -143,20 +160,53 @@ class VideoRecorder:
         
         # Load the template file
         template_env = Environment(loader=FileSystemLoader(searchpath=self.website_path))
-        template = template_env.get_template("./template/result_website.html")
+        template = template_env.get_template("./template/result_website.html")  
         
         # Render the template
         with open(self.website_path + 'result_website_' + str(id) + '.html' , 'w') as output_file:
             output_file.write(template.render(envInfo=env_info,
                                             hyperInfo=hyper_info,
                                             modelInfo=model_info,
-                                            videoPath = "videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm",
+                                            videoPath = str(video_paths),
                                             yValues=str(values),
                                             yEntropy=str(entropies),
+                                            yAttentionWeights=str(trajectory_data["attention_weights"]),
                                             yAction=str(action_probs),
                                             action=str(actions),
                                             actionNames=str(action_names) if action_names is not None else "null",
                                             frameRate=str(self.frame_rate)))
+            
+    def _generate_website_videos(self, trajectory_data, video_path):
+        """Generates the videos for the website.
+
+        Arguments:
+            trajectory_data {dict} -- This dictionary provides all the necessary information to render a website.
+            video_path {string} -- The path where the videos should be saved.
+
+        Returns:
+            {list} -- A list of video paths.
+        """
+        video_paths = []
+        for key in ["vis_obs", "decoder_frames", "agent_frames"]:
+            if len(trajectory_data[key]) > 0:
+                # Generate an id
+                id = self._generate_id()
+                # Render the trajectory data to a video
+                self._render_environment_episode(key, trajectory_data, video_path, str(id))
+                # Add the video path to the list
+                video_paths.append("videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(id) + ".webm")
+                # Render the trajectory data of gt to a video
+                if len(trajectory_data["estimated_ground_truth"]) > 0:
+                    gt_id = self._generate_id()
+                    self._render_environment_episode(key, trajectory_data, video_path, str(gt_id), True)
+                    video_paths.append("videos/video_seed_" + str(trajectory_data["seed"]) + "_" + str(gt_id) + ".webm")
+                else:
+                    video_paths.append("")
+            else:
+                video_paths.append("")
+                video_paths.append("")
+            
+        return video_paths
         
     def _generate_id(self):
         """Generates a unique id.
@@ -167,20 +217,22 @@ class VideoRecorder:
         result_website_names, video_names = os.listdir(self.website_path), os.listdir(self.website_path + "videos/")
         file_names = result_website_names + video_names
         
-        id = 0
-        for file_name in file_names: # Find the highest not used id
-            file_name_prx = file_name.split(".")[0] # Remove suffix of the file name
-            if file_name_prx[-len(str(id)):] == str(id): # If the id exists
-                id += 1 # Increment id
-        
-        return str(id) 
+        ids = [0]
+        for file_name in file_names:
+            file_name_prx = file_name.split(".")[0].split("_")[-1]
+            if re.match(r'\d+$', file_name_prx):
+                ids.append(int(file_name_prx))
 
-    def _render_environment_episode(self, trajectory_data, path, video_id):
+        id = max(ids) + 1
+        return str(id)
+    
+    def _render_environment_episode(self, key, trajectory_data, path, video_id, gt = False):
         """Renders an episode of an agent behaving in its environment.
         
         Arguments:
             trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
             video_id {string} -- The id of the video.
+            gt {bool} -- If true the estimated ground truth is rendered.
         """
             
         # Set fourcc s.t. the video is saved as webm
@@ -188,15 +240,15 @@ class VideoRecorder:
         
         # Init VideoWriter, the frame rate is defined by each environment individually
         out = cv2.VideoWriter(path + "video_seed_" + str(trajectory_data["seed"]) + "_" + video_id + ".webm",
-                                webm_fourcc, 1, (self.width * 2, self.height + self.info_height))
+                                webm_fourcc, 1, (self.width, self.height + self.info_height))
         
-        for i in range(len(trajectory_data["vis_obs"])):
+        for i in range(len(trajectory_data[key])):
             # Setup environment frame
-            env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
-            env_frame = cv2.resize(env_frame, (self.width * 2, self.height), interpolation=cv2.INTER_AREA)
+            env_frame = trajectory_data[key][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
+            env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
 
             # Setup info frame
-            info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
+            info_frame = np.zeros((self.info_height, self.width, 3), dtype=np.uint8)
             # Seed
             self.draw_text_overlay(info_frame, 8, 20, trajectory_data["seed"], "seed")
             # Current step
@@ -204,10 +256,26 @@ class VideoRecorder:
             # Collected rewards so far
             self.draw_text_overlay(info_frame, 208, 20, round(sum(trajectory_data["rewards"][0:i]), 3), "total reward")
 
-            if i == len(trajectory_data["vis_obs"]) - 1:
+            if i == len(trajectory_data[key]) - 1:
                 self.draw_text_overlay(info_frame, 368, 20, "True", "episode done")
             else:
                 self.draw_text_overlay(info_frame, 368, 20, "False", "episode done")
+                
+            # Plot estimated ground truth
+            if gt:
+                # Point colors
+                point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
+                # Iterate over all points
+                for j in range(0, len(trajectory_data["estimated_ground_truth"][i]), 2):
+                    # Get the position of the point
+                    x, y = trajectory_data["estimated_ground_truth"][i][j].clip(0, 1), trajectory_data["estimated_ground_truth"][i][j + 1].clip(0, 1)
+                    position = (int(x * self.width), int(y * self.height))
+                    # Set the color of the point (in BGR format, here we use red color)
+                    point_color = point_colors[j // 2]
+                    # Set the radius of the point (in pixels)
+                    point_radius = 8
+                    # Draw the point on the image/frame
+                    cv2.circle(env_frame, position, point_radius, point_color, -1)
             
             # Concatenate environment and debug frames
             output_image = np.vstack((info_frame, env_frame))
@@ -216,7 +284,7 @@ class VideoRecorder:
             out.write(output_image)
         # Finish up the video
         out.release()
-
+        
     def draw_text_overlay(self, frame, x, y, value, label):
         """Draws text on a frame at some position to display a value and its associated label.
         The text will look like "label: value".

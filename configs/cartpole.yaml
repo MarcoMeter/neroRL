@@ -52,11 +52,9 @@ trainer:
   lamda: 0.95
   updates: 200
   epochs: 4
-  refresh_buffer_epoch: -1
   n_mini_batches: 4
   value_coefficient: 0.25
   max_grad_norm: 0.5
-  share_parameters: True
   learning_rate_schedule:
     initial: 1.0e-4
     final: 1.0e-4

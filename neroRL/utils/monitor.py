@@ -9,9 +9,11 @@ class Tag(Enum):
     GRADIENT_MEAN = "gradient_mean"
     LOSS = "loss"
     OTHER = "other"
+    ERROR = "error"
 
 import logging
 import os
+import re
 import time
 import sys
 import random
@@ -21,19 +23,22 @@ class TrainingMonitor():
     """The monitor is in charge of logging training statistics to console, file and tensorboard.
     It further arranges all needed directories for saving outputs like model checkpoints.
     """
-    def __init__(self, out_path, run_id, worker_id) -> None:
-        """
-
+    def __init__(self, out_path, run_id, worker_id, checkpoint_path = None) -> None:
+        """Initializes the monitor.
         Arguments:
             out_path {str} -- Determines the target directory for saving summaries, logs and model checkpoints. (default: "./")
             run_id {string} -- The run_id is used to tag the training runs (directory names to store summaries and checkpoints) (default: {"default"})
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments (default: {1})
+            checkpoint_path {str} -- The checkpoint path to extract the timestamp from. (default: {None})
         """
-        self.timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
+        if checkpoint_path is not None:
+            self.timestamp = "/" + re.search(r"(\d{8}-\d{6}_\d+)", checkpoint_path).group(1) + "/"
+        else: 
+            self.timestamp = time.strftime("/%Y%m%d-%H%M%S"+ "_" + str(worker_id) + "/")
         duplicate_suffix = ""
         log_path = out_path + "logs/" + run_id + self.timestamp[:-1] + ".log"
         # Check whether this path setup already exists
-        if os.path.isfile(log_path):
+        if os.path.isfile(log_path) and checkpoint_path is None:
             # If so, add a random suffix to distinguish duplicate runs
             duplicate_suffix = "_" + str(random.randint(0, 1000))
             log_path = out_path + "logs/" + run_id + self.timestamp[:-1] + duplicate_suffix + ".log"
@@ -43,7 +48,11 @@ class TrainingMonitor():
 
         # Setup SummaryWriter
         summary_path = out_path + "summaries/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
-        self.writer = SummaryWriter(summary_path)
+        # If a checkpoint path is provided, then add a suffix to the summary path to distinguish duplicate runs
+        if checkpoint_path is not None:
+            self.writer = SummaryWriter(log_dir = summary_path, filename_suffix='.v2')
+        else:
+            self.writer = SummaryWriter(summary_path)
 
         # Setup logger
         logging.basicConfig(level = logging.INFO, handlers=[])
@@ -51,7 +60,9 @@ class TrainingMonitor():
         self.console = logging.StreamHandler()
         self.console.setFormatter(logging.Formatter("%(asctime)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
         
-        self.logfile = logging.FileHandler(log_path, mode="w")
+        # If a checkpoint path is provided, then append to the existing log file
+        mode_logfile = "a" if checkpoint_path is not None else "w"
+        self.logfile = logging.FileHandler(log_path, mode=mode_logfile)
         self.logger.addHandler(self.console)
         self.logger.addHandler(self.logfile)
 
@@ -64,15 +75,15 @@ class TrainingMonitor():
             duplicate_suffix {str}: This suffix is added to the end of the path to distinguish duplicate runs.
         """
         # Create directories for storing checkpoints, logs and tensorboard summaries based on the current time and provided run_id
+        self.checkpoint_path = out_path + "checkpoints/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
         if not os.path.exists(out_path + "summaries"):
             os.makedirs(out_path + "summaries")
         if not os.path.exists(out_path + "checkpoints"):
             os.makedirs(out_path + "checkpoints")
         if not os.path.exists(out_path + "logs") or not os.path.exists(out_path + "logs/" + run_id):
             os.makedirs(out_path + "logs/" + run_id)
-
-        self.checkpoint_path = out_path + "checkpoints/" + run_id + self.timestamp[:-1] + duplicate_suffix + "/"
-        os.makedirs(self.checkpoint_path)
+        if not os.path.exists(self.checkpoint_path):
+            os.makedirs(self.checkpoint_path)
 
     def log(self, message:str) -> None:
         """Prints a message to console and file

@@ -7,7 +7,7 @@ from neroRL.nn.module import Module
 
 class CNNEncoder(Module):
     """
-    A simple three layer CNN which serves as a visual encoder.
+    A simple three layer CNN which serves as a visual encoder. Also known as Atari CNN.
     """
     def __init__(self, vis_obs_space, config, activ_fn):
         """Initializes a three layer convolutional neural network.
@@ -24,25 +24,11 @@ class CNNEncoder(Module):
 
         vis_obs_shape = vis_obs_space.shape
         # Visual Encoder made of 3 convolutional layers
-        self.conv1 = nn.Conv2d(in_channels=vis_obs_shape[0],
-                            out_channels=32,
-                            kernel_size=8,
-                            stride=4,
-                            padding=0)
+        self.conv1 = nn.Conv2d(vis_obs_shape[0], 32, kernel_size=8, stride=4, padding=0)
         nn.init.orthogonal_(self.conv1.weight, np.sqrt(2))
-
-        self.conv2 = nn.Conv2d(in_channels=32,
-                            out_channels=64,
-                            kernel_size=4,
-                            stride=2,
-                            padding=0)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=0)
         nn.init.orthogonal_(self.conv2.weight, np.sqrt(2))
-
-        self.conv3 = nn.Conv2d(in_channels=64,
-                            out_channels=64,
-                            kernel_size=3,
-                            stride=1,
-                            padding=0)
+        self.conv3 = nn.Conv2d(64, out_channels=64, kernel_size=3, stride=1, padding=0)
         nn.init.orthogonal_(self.conv3.weight, np.sqrt(2))
 
         # Compute the output size of the encoder
@@ -62,6 +48,7 @@ class CNNEncoder(Module):
         h = self.activ_fn(self.conv1(vis_obs))
         h = self.activ_fn(self.conv2(h))
         h = self.activ_fn(self.conv3(h))
+        self.h = h
         # Flatten the output of the convolutional layers
         h = h.reshape((-1, self.conv_enc_size))
 

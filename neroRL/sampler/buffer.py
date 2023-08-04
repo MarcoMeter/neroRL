@@ -1,18 +1,20 @@
 import torch
 import numpy as np
 
+from neroRL.utils.utils import batched_index_select
+
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent and transformer policies."""
-    def __init__(self, configs, visual_observation_space, vector_observation_space,
-                    action_space_shape, train_device, share_parameters, sampler):
+    def __init__(self, configs, visual_observation_space, vector_observation_space, ground_truth_space,
+                    action_space_shape, train_device, sampler):
         """
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. model, training, environment, ... configs)
             visual_observation_space {Box} -- Visual observation if available, else None
             vector_observation_space {tuple} -- Vector observation space if available, else None
+            ground_truth_space {Box} -- Ground truth space if available, else None
             action_space_shape {tuple} -- Shape of the action space
             train_device {torch.device} -- Single mini batches will be moved to this device for model optimization
-            share_parameters {bool} -- Whether the policy and the value function share parameters or not
             sampler {TrajectorySampler} -- The used sampler
         """
         self.train_device = train_device
@@ -25,7 +27,7 @@ class Buffer():
         self.action_space_shape = action_space_shape
         self.visual_observation_space = visual_observation_space
         self.vector_observation_space = vector_observation_space
-        self.share_parameters = share_parameters
+        self.ground_truth_space = ground_truth_space
         self.init_default_buffer_fields()
 
     def init_default_buffer_fields(self):
@@ -38,9 +40,11 @@ class Buffer():
             self.vec_obs = torch.zeros((self.num_workers, self.worker_steps,) + self.vector_observation_space)
         else:
             self.vec_obs = None
+        if self.ground_truth_space is not None:
+            self.ground_truth = torch.zeros((self.num_workers, self.worker_steps) + self.ground_truth_space.shape)
         self.rewards = np.zeros((self.num_workers, self.worker_steps), dtype=np.float32)
         self.actions = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)), dtype=torch.long)
-        self.dones = np.zeros((self.num_workers, self.worker_steps), dtype=np.bool)
+        self.dones = np.zeros((self.num_workers, self.worker_steps), dtype=bool)
         self.log_probs = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)))
         self.values = torch.zeros((self.num_workers, self.worker_steps))
         self.advantages = torch.zeros((self.num_workers, self.worker_steps))
@@ -54,14 +58,9 @@ class Buffer():
         num_layers = self.recurrence["num_layers"]
         hidden_state_size = self.recurrence["hidden_state_size"]
         layer_type = self.recurrence["layer_type"]
-        if self.share_parameters:
-            self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
-            if layer_type == "lstm":
-                self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
-        else: # if parameters are not shared then add two extra dimensions for adding enough capacity to store the hidden states of the actor and critic model
-            self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
-            if layer_type == "lstm":
-                self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size, 2))
+        self.hxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
+        if layer_type == "lstm":
+            self.cxs = torch.zeros((self.num_workers, self.worker_steps, num_layers, hidden_state_size))
 
     def init_transformer_buffer_fields(self, max_episode_steps):
         """Initializes the buffer fields and members that are needed for training transformer-based policies."""
@@ -105,6 +104,9 @@ class Buffer():
         Flattens the training samples and stores them inside a dictionary.
         If a recurrent policy is used, the model's input data and actions are split into episodes or sequences beforehand.
         """
+        # Flag that indicates whether the GPU is out of memory
+        self.out_of_memory = False
+
         # Supply training samples
         samples = {"actions": self.actions} # actions are added at this point to ensure that these are padded while using recurrence
 
@@ -114,15 +116,25 @@ class Buffer():
             samples["vis_obs"] = self.vis_obs
         if self.vec_obs is not None:
             samples["vec_obs"] = self.vec_obs
+        if self.ground_truth_space is not None:
+            samples["ground_truth"] = self.ground_truth
 
         # TRANSFORMER SAMPLES
         # Add data concerned with the episodic memory (i.e. transformer-based policy)
         if self.transformer_memory is not None:
+            # Determine max episode steps (also consideres ongoing episodes)
+            self.actual_max_episode_steps = self.memory_indices.max().item() + 1
+            # Stack memories, add buffer fields to samples and remove unnecessary padding
+            self.memories = torch.stack(self.memories)
+            if self.max_episode_steps >= self.actual_max_episode_steps:
+                samples["memory_mask"] = self.memory_mask[:, :, :self.actual_max_episode_steps]
+                samples["memory_indices"] = self.memory_indices[:, :, :self.actual_max_episode_steps]
+                self.memories = self.memories[:, :self.actual_max_episode_steps]
+            else:
+                samples["memory_mask"] = self.memory_mask[:, :, :self.actual_max_episode_steps].clone()
+                samples["memory_indices"] = self.memory_indices[:, :, :self.actual_max_episode_steps].clone()
+                self.memories = self.memories[:, :self.actual_max_episode_steps].clone()
             samples["memory_index"] = self.memory_index
-            samples["memory_mask"] = self.memory_mask
-            samples["memory_indices"] = self.memory_indices
-            # Convert the memories to a tensor
-            self.memories = torch.stack(self.memories, dim=0)
 
         # RECURRENCE SAMPLES
         # Add data concerned with the memory based on recurrence and arrange the entire training data into sequences
@@ -161,7 +173,18 @@ class Buffer():
                     sequences[i] = self._pad_sequence(sequence, max_sequence_length)
 
                 # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
-                samples[key] = torch.stack(sequences, axis=0)
+                try:
+                    samples[key] = torch.stack(sequences, axis=0)
+                except RuntimeError:
+                    self.out_of_memory = True
+                    print("OUT OF MEMORY - Stack Recurrence Sequences - Data Key: " + str(key) + " - Shape: " + str(sequences[0].shape), flush=True)
+                
+                if self.out_of_memory:
+                    # Send sequences to CPU
+                    sequences = [seq.cpu() for seq in sequences]
+                    # Stack sequences as tensor and send to GPU
+                    samples[key] = torch.stack(sequences, axis=0).to(self.train_device)
+                    self.out_of_memory = False
 
                 if (key == "hxs" or key == "cxs"):
                     # Select the very first recurrent cell state of a sequence and add it to the samples
@@ -208,11 +231,10 @@ class Buffer():
                     for start in range(0, len(episode), self.sequence_length):
                         end = start + self.sequence_length
                         sequences.append(episode[start:end])
-                    max_length = self.sequence_length
                 else:
                     # If the sequence length is not set to a proper value, sequences will be based on episodes
                     sequences.append(episode)
-                    max_length = len(episode) if len(episode) > max_length else max_length
+                max_length = len(episode) if len(episode) > max_length else max_length
                 start_index = done_index + 1
         return sequences, max_length
 
@@ -242,6 +264,73 @@ class Buffer():
         # Concatenate the zeros to the sequence
         return torch.cat((sequence, padding), axis=0)
 
+    def _gather_memory_windows_loop(self, mini_batch_size, mini_batch_indices):
+        """Gathers the memory windows for the concerned mini batch.
+        To avoid out of memory errors, the data is processed using a loop that processes single batch items.
+
+        Arguments:
+            mini_batch_size {int} -- Size of the mini batch that deterimines the number of memory windows to be gathered
+            mini_batch_indices {torch.tensor} -- Indices that determine the memory windows to be gathered
+
+        Returns:
+            torch.tensor -- The gathered memory windows for the concerned mini batch update
+        """
+        memory_windows = torch.zeros((mini_batch_size, min(self.actual_max_episode_steps, self.memory_length), self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
+        for i in range(mini_batch_size):
+            # Select memory
+            memory_index = self.samples_flat["memory_index"][mini_batch_indices[i]]
+            memory = self.memories[memory_index]
+            # Slice memory window
+            memory_indices = self.samples_flat["memory_indices"][mini_batch_indices[i]]
+            memory_window = memory[memory_indices[0] : memory_indices[-1] + 1]
+            # Add memory window to mini batch
+            memory_windows[i][:memory_window.shape[0]] = memory_window
+        return memory_windows
+    
+    def _gather_memory_windows_batched(self, mini_batch_size, mini_batch_indices):
+        """Gathers the memory windows for the concerned mini batch.
+        To avoid out of memory errors, the data is processed using a loop that processes chunks.
+        This is the default function that is used.
+
+        Arguments:
+            mini_batch_size {int} -- Size of the mini batch that deterimines the number of memory windows to be gathered
+            mini_batch_indices {torch.tensor} -- Indices that determine the memory windows to be gathered
+
+        Returns:
+            torch.tensor -- The gathered memory windows for the concerned mini batch update
+        """
+        memory_windows = torch.zeros((mini_batch_size, min(self.actual_max_episode_steps, self.memory_length), self.num_mem_layers, self.mem_layer_size)).to(self.train_device)
+        step_size = 256
+        for i in range(0, mini_batch_size, step_size):
+            # Slice mini batch indices
+            indices = mini_batch_indices[i:i+step_size]
+            # Select memories (memory overhead)
+            selected_memories = self.memories[self.samples_flat["memory_index"][indices]]
+            # Select and write memory windows (memory overhead)
+            memory_indices = self.samples_flat["memory_indices"][indices, :self.actual_max_episode_steps]
+            memory_windows[i:i+step_size, :memory_windows.shape[1]] = batched_index_select(selected_memories, 1, memory_indices)
+        return memory_windows
+    
+    def _gather_memory_windows_cpu(self, mini_batch_size, mini_batch_indices):
+        """Gathers the memory windows for the concerned mini batch.
+        To avoid out of memory errors, the data is sent to CPU, processed and then sent back to GPU.
+
+        Arguments:
+            mini_batch_size {int} -- Size of the mini batch that deterimines the number of memory windows to be gathered
+            mini_batch_indices {torch.tensor} -- Indices that determine the memory windows to be gathered
+
+        Returns:
+            torch.tensor -- The gathered memory windows for the concerned mini batch update
+        """
+        memory_windows = torch.zeros((mini_batch_size, min(self.actual_max_episode_steps, self.memory_length), self.num_mem_layers, self.mem_layer_size)).cpu()
+        # Select memories (memory overhead)
+        selected_memories = self.memories[self.samples_flat["memory_index"][mini_batch_indices].cpu()].cpu()
+        # Select and write memory windows (memory overhead)
+        memory_indices = self.samples_flat["memory_indices"][mini_batch_indices].cpu()
+        memory_windows[:, :memory_windows.shape[1]] = batched_index_select(selected_memories, 1, memory_indices)
+        self.samples_flat["memory_indices"] = self.samples_flat["memory_indices"].to(self.train_device)
+        return memory_windows.to(self.train_device)
+
     def mini_batch_generator(self, num_mini_batches):
         """A generator that returns a dictionary containing the data of a whole minibatch.
         This mini batch is completely shuffled.
@@ -261,10 +350,10 @@ class Buffer():
             mini_batch_indices = indices[start: end]
             mini_batch = {}
             for key, value in self.samples_flat.items():
-                if key == "memory_index":
-                    mini_batch["memories"] = self.memories[value[mini_batch_indices]].to(self.train_device)
-                else:
-                    mini_batch[key] = value[mini_batch_indices].to(self.train_device)
+                mini_batch[key] = value[mini_batch_indices].to(self.train_device)
+            # Retrieve memory windows for the concerned mini batch, if TrXL is used
+            if self.transformer_memory is not None:
+                mini_batch["memory_window"] = self._gather_memory_windows_batched(mini_batch_size, mini_batch_indices)
             yield mini_batch
 
     def recurrent_mini_batch_generator(self, num_mini_batches):
@@ -308,60 +397,6 @@ class Buffer():
                     mini_batch[key] = value[mini_batch_padded_indices].to(self.train_device)
             start = end
             yield mini_batch
-
-    def refresh(self, model, gamma, lamda):
-        """Refreshes the buffer with the current model.
-
-        Arguments:
-            model {nn.Module} -- The model to retrieve the policy and value from
-            gamma {float} -- Discount factor
-            lamda {float} -- GAE regularization parameter
-        """
-        # Init recurrent cells
-        recurrent_cell = None
-        if self.recurrence is not None:
-            if self.recurrence["layer_type"] == "gru":
-                recurrent_cell = self.hxs[:, 0].unsqueeze(0).contiguous()
-            elif self.recurrence["layer_type"] == "lstm":
-                recurrent_cell = (self.hxs[:, 0].unsqueeze(0).contiguous(), self.cxs[:, 0].unsqueeze(0).contiguous())
-
-        # Refresh values and hidden_states with current model
-        for t in range(self.worker_steps):
-            # Gradients can be omitted for refreshing buffer
-            with torch.no_grad():
-                # Refresh hidden states
-                if self.recurrence is not None:
-                    if self.recurrence["layer_type"] == "gru":
-                        self.hxs[:, t] = recurrent_cell.squeeze(0)
-                    elif self.recurrence["layer_type"] == "lstm":
-                        self.hxs[:, t] = recurrent_cell[0].squeeze(0)
-                        self.cxs[:, t] = recurrent_cell[1].squeeze(0)
-
-                    # Forward the model to retrieve the policy (making decisions), 
-                    # the states' value of the value function and the recurrent hidden states (if available)
-                    vis_obs = self.vis_obs[:, t] if self.vis_obs is not None else None
-                    vec_obs = self.vec_obs[:, t] if self.vec_obs is not None else None
-                    policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
-                    # Refresh values
-                    self.values[:, t] = value
-                    
-                # Reset hidden states if necessary
-                for w in range(self.num_workers):
-                    if self.recurrence is not None and self.dones[w, t]:
-                        if self.recurrence["reset_hidden_state"]:
-                            hxs, cxs = model.init_recurrent_cell_states(1, self.train_device)
-                            if self.recurrence["layer_type"] == "gru":
-                                recurrent_cell[:, w] = hxs.contiguous()
-                            elif self.recurrence["layer_type"] == "lstm":
-                                recurrent_cell[0][:, w] = hxs.contiguous()
-                                recurrent_cell[1][:, w] = cxs.contiguous()
-
-        # Refresh advantages
-        _, last_value, _, _ = model(self.sampler.last_vis_obs(), self.sampler.last_vec_obs(), self.sampler.last_recurrent_cell())
-        self.calc_advantages(last_value, gamma, lamda)
-        
-        # Refresh batches
-        self.prepare_batch_dict() 
 
     def to(self, device):
         """Args:

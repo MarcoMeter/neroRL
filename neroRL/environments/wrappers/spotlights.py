@@ -99,6 +99,11 @@ class SpotlightsEnv(Env):
         return self._env.vector_observation_space
 
     @property
+    def ground_truth_space(self):
+        """Returns the space of the ground truth info space if available."""
+        return self._env.ground_truth_space
+
+    @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return self._env.action_space
@@ -136,7 +141,7 @@ class SpotlightsEnv(Env):
             {numpy.ndarray} -- Resized visual observation
             {numpy.ndarray} -- Vector observation
         """
-        vis_obs, vec_obs = self._env.reset(reset_params = reset_params)
+        vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
         self._obs = []
 
         # Setup spotlights
@@ -174,7 +179,7 @@ class SpotlightsEnv(Env):
         self.screen.blit(self.spotlight_surface, (0, 0))
         vis_obs = pygame.surfarray.array3d(pygame.display.get_surface()).astype(np.float32) / 255.0
         self._obs.append((vis_obs * 255).astype(np.uint8))
-        return vis_obs, vec_obs
+        return vis_obs, vec_obs, info
 
     def step(self, action):
         """Executes one step of the agent.

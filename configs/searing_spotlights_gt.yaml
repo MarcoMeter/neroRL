@@ -62,11 +62,7 @@ model:
     hidden_state_init: "zero"
     reset_hidden_state: True
     residual: False
-  # Observation reconstruction decoder
-  obs_decoder:
-    # Whether to attach the decoder to the cnn or the memory
-    attach_to: "memory" # "cnn"
-    # Whether to detach the input to the decoder from the computational graph
+  ground_truth_estimator:
     detach_gradient: False
 
 evaluation:
@@ -107,7 +103,7 @@ trainer:
     final: 0.1
     power: 1.0
     max_decay_steps: 20000
-  obs_reconstruction_schedule:
+  ground_truth_estimator_schedule:
     initial: 1.0
     final: 1.0
     power: 1.0

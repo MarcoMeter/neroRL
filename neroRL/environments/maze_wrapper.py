@@ -55,7 +55,7 @@ class MazeWrapper(Env):
     def vector_observation_space(self):
         """Returns the shape of the vector component of the observation space as a tuple."""
         return None
-    
+
     @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
@@ -115,7 +115,7 @@ class MazeWrapper(Env):
         # Prepare trajectory recording
         #self._trajectory = None # The render function seems to be very very costly, so don't use this even once during training or evaluation
 
-        return vis_obs, None
+        return vis_obs, None, {}
     
     def step(self, action):
         """Runs one timestep of the environment's dynamics.

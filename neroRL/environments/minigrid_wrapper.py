@@ -226,7 +226,7 @@ class MinigridWrapper(Env):
             "rewards": [0.0], "actions": []
         } if self._record else None # The render function seems to be very very costly, so don't use this even once during training or evaluation
 
-        return vis_obs, None
+        return vis_obs, None, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.

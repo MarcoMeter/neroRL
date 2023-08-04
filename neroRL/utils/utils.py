@@ -65,19 +65,20 @@ def get_environment_specs(env_config, worker_id, realtime_mode = False):
         worker_id {int} -- Worker id that is necessary for socket-based environments like Unity
 
     Returns:
-        {tuple} -- Returns visual observation space, vector observations space, action space and max episode steps
+        {tuple} -- Returns visual observation space, vector observations spacem ground_truth_space, action space and max episode steps
     """
     dummy_env = wrap_environment(env_config, worker_id, realtime_mode)
-    vis_obs, vec_obs = dummy_env.reset(env_config["reset_params"])
+    vis_obs, vec_obs, info = dummy_env.reset(env_config["reset_params"])
     max_episode_steps = dummy_env.max_episode_steps
     visual_observation_space = dummy_env.visual_observation_space
     vector_observation_space = dummy_env.vector_observation_space
+    ground_truth_space = dummy_env.ground_truth_space
     if isinstance(dummy_env.action_space, spaces.Discrete):
         action_space_shape = (dummy_env.action_space.n,)
     else:
         action_space_shape = tuple(dummy_env.action_space.nvec)
     dummy_env.close()
-    return visual_observation_space, vector_observation_space, action_space_shape, max_episode_steps
+    return visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps
 
 def aggregate_episode_results(episode_infos):
     """Takes in a list of episode info dictionaries. All episode results (episode reward, length, success, ...) are
@@ -94,10 +95,26 @@ def aggregate_episode_results(episode_infos):
         keys = episode_infos[0].keys()
         # Compute mean, std, min and max for each information, skip seed
         for key in keys:
-            if key == "seed":
+            if key == "seed" or key == "ground_truth":
                 continue
             results[key + "_mean"] = np.mean([info[key] for info in episode_infos])
             results[key + "_min"] = np.min([info[key] for info in episode_infos])
             results[key + "_max"] = np.max([info[key] for info in episode_infos])
             results[key + "_std"] = np.std([info[key] for info in episode_infos])
     return results
+
+def load_and_apply_state_dict(model, state_dict):
+    """Loads a state dict but before applying it to the model, remove the prefix "_orig_mod." from the keys if applicable.
+
+    Arguments:
+        model {torch.nn.Module} -- Model to which the state dict should be loaded
+        state_dict {dict} -- State dict that should be loaded into the model
+    """
+    # Remove the prefix "_orig_mod." from the keys if applicable
+    new_state_dict = {}
+    for key, value in state_dict.items():
+        if key.startswith("_orig_mod."):
+            key = key[10:]
+        new_state_dict[key] = value
+    model.load_state_dict(new_state_dict)
+    return model
