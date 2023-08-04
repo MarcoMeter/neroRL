@@ -273,15 +273,14 @@ class Transformer(nn.Module):
             out_memories.append(h.detach())
             # Add positional encoding to the query
             # Only if configured and if relative positional encoding is used
-            if "add_positional_encoding_to_query" in self.config:
-                if self.config["add_positional_encoding_to_query"]:
-                    if self.config["positional_encoding"] == "relative":
-                        # apply mask to memory indices
-                        masked_memory_indices = memory_indices * mask
-                        # select max memory indices across dim 1
-                        masked_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
-                        pos_embedding = self.pos_embedding(self.max_episode_steps)[masked_memory_indices]
-                        h = h + pos_embedding
+            if self.config["add_positional_encoding_to_query"]:
+                if self.config["positional_encoding"] == "relative":
+                    # apply mask to memory indices
+                    masked_memory_indices = memory_indices * mask
+                    # select max memory indices across dim 1
+                    masked_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
+                    pos_embedding = self.pos_embedding(self.max_episode_steps)[masked_memory_indices]
+                    h = h + pos_embedding
             h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask) # args: value, key, query, mask
             h = h.squeeze()
             if len(h.shape) == 1:

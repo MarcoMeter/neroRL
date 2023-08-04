@@ -162,4 +162,3 @@ def get_sorted_checkpoints(dirpath):
 
 if __name__ == "__main__":
     main()
-    

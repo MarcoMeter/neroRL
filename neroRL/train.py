@@ -5,6 +5,7 @@ import random
 import sys
 import time
 import torch
+import re
 
 from docopt import docopt
 from pathlib import Path
@@ -19,7 +20,7 @@ from neroRL.utils.utils import aggregate_episode_results, set_library_seeds
 from neroRL.utils.yaml_parser import YamlParser
 
 class Training():
-    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model, low_mem) -> None:
+    def __init__(self, configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path) -> None:
         """
         Arguments:
             configs {dict} -- Environment, Model and Training configuration
@@ -29,6 +30,7 @@ class Training():
             seed {int} -- Seed for all number generators
             compile_model {bool} -- Whether to compile the model or not (only PyTorch >= 2.0.0)
             low_mem {bool} -- Whether to use low memory mode or not
+            checkpoint_path {str} -- Path to the checkpoint file
         """
         # Start time
         self.start_time = time.time()
@@ -61,7 +63,7 @@ class Training():
             torch.set_default_tensor_type("torch.FloatTensor")
 
         # Create training monitor
-        self.monitor = TrainingMonitor(out_path, run_id, worker_id)
+        self.monitor = TrainingMonitor(out_path, run_id, worker_id, checkpoint_path)
         self.monitor.write_hyperparameters(configs)
         self.monitor.log("Training Seed: " + str(self.seed))
         # Start logging the training setup
@@ -98,7 +100,10 @@ class Training():
             self.evaluator = None
 
         # Load checkpoint and apply data
-        if configs["model"]["load_model"]:
+        if checkpoint_path is not None:
+            self.monitor.log("Load checkpoint: " + checkpoint_path)
+            self.trainer.load_checkpoint(checkpoint_path)
+        elif configs["model"]["load_model"]:
             self.monitor.log("Load checkpoint: " + configs["model"]["model_path"])
             self.trainer.load_checkpoint(configs["model"]["model_path"])
 
@@ -109,7 +114,7 @@ class Training():
 
         # Set variables
         self.configs = configs
-        self.resume_at = configs["trainer"]["resume_at"]
+        self.resume_at = configs["trainer"]["resume_at"] if checkpoint_path is None else int(re.search(r'-(\d+)\.pt', checkpoint_path).group(1)) + 1
         self.updates = configs["trainer"]["updates"]
         self.run_id = run_id
         self.worker_id = worker_id
@@ -203,6 +208,7 @@ def main():
         --seed=<n>      	        Specifies the seed to use during training. If set to smaller than 0, use a random seed. [default: -1]
         --compile                   Whether to compile the model or not (requires PyTorch >= 2.0.0). [default: False]
         --low-mem                   Whether to move one mini_batch at a time to GPU to save memory [default: False].
+        --checkpoint=<path>         Path to a checkpoint to resume training from [default: None].
     """
     # Debug CUDA
     # import os
@@ -215,6 +221,7 @@ def main():
     seed = int(options["--seed"])
     compile_model = options["--compile"]
     low_mem = options["--low-mem"]
+    checkpoint_path = options["--checkpoint"] if options["--checkpoint"] != "None" else None
 
     # If a run-id was not assigned, use the config's name
     for i, arg in enumerate(sys.argv):
@@ -225,10 +232,18 @@ def main():
             run_id = Path(config_path).stem
 
     # Load environment, model, evaluation and training parameters
-    configs = YamlParser(config_path).get_config()
-
+    if checkpoint_path is None:
+        configs = YamlParser(config_path).get_config()
+    else:
+        # Load configs, seed and run-id from checkpoint
+        checkpoint = torch.load(checkpoint_path)
+        configs = checkpoint["configs"]
+        seed = checkpoint["seed"]
+        run_id = checkpoint_path.split("/")[-3]
+        
+        
     # Training program
-    training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem)
+    training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path)
     # import cProfile, pstats
     # profiler = cProfile.Profile()
     # profiler.enable()

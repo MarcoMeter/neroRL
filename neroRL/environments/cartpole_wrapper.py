@@ -124,7 +124,7 @@ class CartPoleWrapper(Env):
                 "rewards": [0.0], "actions": [], "frame_rate": 20
             }
 
-        return vis_obs, vec_obs * self._obs_mask
+        return vis_obs, vec_obs * self._obs_mask, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
