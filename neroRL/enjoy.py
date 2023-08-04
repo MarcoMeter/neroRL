@@ -62,7 +62,9 @@ def main():
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
         --website                  Specifies wether a website shall be generated. [default: False]
-        --visualize_estimated_gt   Specifies wether the estimated ground truth shall be visualized(only works if a website or a video is generated). [default: False]
+        --visualize-estimated-gt   Specifies wether the estimated ground truth shall be visualized(only works if a website or a video is generated). [default: False]
+        --decoder-video            Specifies wether the decoder video for the website shall be generated. [default: False]
+        --agent-video              Specifies wether the agent video for the website shall be generated. [default: False]
     """
     options = docopt(_USAGE)
     untrained = options["--untrained"]                              # defaults to False
@@ -74,7 +76,9 @@ def main():
     video_path = options["--video"]                                 # defaults to "video"
     frame_rate = options["--framerate"]                             # defaults to 6
     website = options["--website"]                                  # defaults to False
-    visualize_estimated_gt = options["--visualize_estimated_gt"]    # defaults to False
+    visualize_estimated_gt = options["--visualize-estimated-gt"]    # defaults to False
+    decoder_video = options["--decoder-video"]                      # defaults to False
+    agent_video = options["--agent-video"]                          # defaults to False
 
     # Determine whether to record a video. A video is only recorded if the video flag is used.
     record_video = "--video" in " ".join(sys.argv)
@@ -151,11 +155,11 @@ def main():
         logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
 
         # Store data for video recording
-        actions, values, entropies, probs, est_gt, attention_weights = [], [], [], [], [], []
+        actions, values, entropies, probs, est_gt, attention_weights, decoder_frames, agent_frames = [], [], [], [], [], [], [], []
 
         # Play one episode
         with torch.no_grad():
-            while not done:
+            while True:
                 # Forward the neural net
                 vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
                 vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
@@ -195,7 +199,16 @@ def main():
                 # Collect estimated ground truth if needed
                 if visualize_estimated_gt:
                     est_gt.append(model.estimate_ground_truth().squeeze().cpu().numpy())
-
+                # Collect decoder video if needed
+                if decoder_video:
+                    decoder_frames.append(model.reconstruct_observation().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
+                # Collect agent video if needed
+                if agent_video:
+                    agent_frames.append(vis_obs.squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
+                # Break the loop if done
+                if done:
+                    break
+                
                 # Step environment
                 vis_obs, vec_obs, _, done, info = env.step(_actions)
                 t += 1
@@ -215,6 +228,8 @@ def main():
             trajectory_data["seed"] = seed
             trajectory_data["estimated_ground_truth"] = est_gt
             trajectory_data["attention_weights"] = attention_weights
+            trajectory_data["decoder_frames"] = decoder_frames
+            trajectory_data["agent_frames"] = agent_frames
             
             # if frame_skip > 1:
             #     # remainder = info["length"] % frame_skip
