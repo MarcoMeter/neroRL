@@ -48,7 +48,7 @@ setup(
             ''  
         ],
         "procgen":          ["gym==0.15.3", "procgen"],
-        "obstacle-tower":   ["gym==0.18.3", "mlagents-envs==0.17.0", "protobuf==3.20.3"],
+        "obstacle-tower":   ["mlagents-envs==0.17.0", "protobuf==3.20.3"],
         "ml-agents":        ["gym==0.18.3", "mlagents-envs==0.28.0"],
         "random-maze":      ["gym==0.21.0", "mazelab @ git+https://github.com/zuoxingdong/mazelab@master", "scikit-image==0.18.0"],
     },
