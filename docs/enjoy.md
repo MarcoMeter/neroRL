@@ -1,6 +1,6 @@
 # Enjoy (i.e. watch) a model
 
-To watch an agent exploit its trained model, execute the `nenjoy` command or directly run `python neroRL/enjoy.py` given the source code.
+To watch an agent exploit its trained policy, execute the `nenjoy` command or directly run `python neroRL/enjoy.py` given the source code.
 Some already trained models can be found inside the `models` directory!
 
 ```
@@ -18,7 +18,10 @@ Some already trained models can be found inside the `models` directory!
         --num-episodes=<n>         The number of to be played episodes [default: 1].
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
-        --generate_website         Specifies wether a website shall be generated. [default: False]
+        --website                  Specifies wether a website shall be generated. [default: False]
+        --visualize-estimated-gt   Specifies wether the estimated ground truth shall be visualized (only works if a website or a video is generated). [default: False]
+        --decoder-video            Specifies wether the decoder video for the website shall be generated. [default: False]
+        --agent-video              Specifies wether the agent video for the website shall be generated. [default: False]
     """
 ```
 
@@ -51,6 +54,17 @@ If a video shall be rendered, this flag can be used to modify the video's frame 
 
 ## --generate_website
 As an alternative to rendering a video, a website can be generated that visualizes further information such as the value and the entropy. Note that only one episode will be played. The website's template can be found at `result/template/result_website.html`.
+
+## --visualize-estimated-gt
+This is only available to few Memory Gym environments.
+If visualizable ground truth information is available, it is rendered onto the website's video.
+
+## --decoder-video
+If a observation reconstruction decoder head is available, its video can also be rendered for the purpose of the website.
+
+## --agent-video
+The website usually uses the render function as source.
+For the website, another video can be rendered that shows the agent's observations.
 
 ## Example
 
