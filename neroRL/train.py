@@ -30,7 +30,7 @@ class Training():
             seed {int} -- Seed for all number generators
             compile_model {bool} -- Whether to compile the model or not (only PyTorch >= 2.0.0)
             low_mem {bool} -- Whether to use low memory mode or not
-            checkpoint_path {str} -- Path to the checkpoint file
+            checkpoint_path {str} -- Path to the checkpoint file that is used to resume training
         """
         # Start time
         self.start_time = time.time()
@@ -114,7 +114,7 @@ class Training():
 
         # Set variables
         self.configs = configs
-        self.resume_at = configs["trainer"]["resume_at"] if checkpoint_path is None else int(re.search(r'-(\d+)\.pt', checkpoint_path).group(1)) + 1
+        self.resume_at = configs["trainer"]["resume_at"]# if checkpoint_path is None else int(re.search(r'-(\d+)\.pt', checkpoint_path).group(1)) + 1
         self.updates = configs["trainer"]["updates"]
         self.run_id = run_id
         self.worker_id = worker_id
@@ -209,6 +209,7 @@ def main():
         --compile                   Whether to compile the model or not (requires PyTorch >= 2.0.0). [default: False]
         --low-mem                   Whether to move one mini_batch at a time to GPU to save memory [default: False].
         --checkpoint=<path>         Path to a checkpoint to resume training from [default: None].
+        --num-updates=<n>           Number of additional updates to train for if training shall resume from a checkpoint [default: 0].
     """
     # Debug CUDA
     # import os
@@ -221,7 +222,9 @@ def main():
     seed = int(options["--seed"])
     compile_model = options["--compile"]
     low_mem = options["--low-mem"]
+    # Resume training variables
     checkpoint_path = options["--checkpoint"] if options["--checkpoint"] != "None" else None
+    num_extra_updates = int(options["--num-updates"])
 
     # If a run-id was not assigned, use the config's name
     for i, arg in enumerate(sys.argv):
@@ -239,9 +242,10 @@ def main():
         checkpoint = torch.load(checkpoint_path)
         configs = checkpoint["configs"]
         seed = checkpoint["seed"]
-        run_id = checkpoint_path.split("/")[-3]
-        
-        
+        run_id = checkpoint["run_id"]
+        configs["trainer"]["resume_at"] = checkpoint["update"] + 1
+        configs["trainer"]["updates"] = configs["trainer"]["updates"] + num_extra_updates
+
     # Training program
     training = Training(configs, run_id, worker_id, out_path, seed, compile_model, low_mem, checkpoint_path)
     # import cProfile, pstats
