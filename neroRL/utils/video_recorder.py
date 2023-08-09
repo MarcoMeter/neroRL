@@ -157,6 +157,7 @@ class VideoRecorder:
         env_info = self._config_to_html(configs["environment"])
         model_info = self._config_to_html(configs["model"])
         hyper_info = self._config_to_html(configs["trainer"])
+        sampler_info = self._config_to_html(configs["sampler"])
         
         # Load the template file
         template_env = Environment(loader=FileSystemLoader(searchpath=self.website_path))
@@ -167,6 +168,7 @@ class VideoRecorder:
             output_file.write(template.render(envInfo=env_info,
                                             hyperInfo=hyper_info,
                                             modelInfo=model_info,
+                                            samplerInfo=sampler_info,
                                             videoPath = str(video_paths),
                                             yValues=str(values),
                                             yEntropy=str(entropies),
