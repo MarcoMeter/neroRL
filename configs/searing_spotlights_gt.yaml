@@ -62,6 +62,7 @@ model:
     hidden_state_init: "zero"
     reset_hidden_state: True
     residual: False
+    embed: True
   ground_truth_estimator:
     detach_gradient: False
 

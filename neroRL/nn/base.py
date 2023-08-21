@@ -262,9 +262,9 @@ class ActorCriticBase(Module):
             {Module} -- The created recurrent layer
         """
         if config["layer_type"] == "gru":
-            return GRU(input_shape, hidden_state_size, config["num_layers"], self.activ_fn, config["residual"])
+            return GRU(input_shape, hidden_state_size, config["num_layers"], self.activ_fn, config["residual"], config["embed"])
         elif config["layer_type"] == "lstm":
-            return LSTM(input_shape, hidden_state_size, config["num_layers"], self.activ_fn, config["residual"])
+            return LSTM(input_shape, hidden_state_size, config["num_layers"], self.activ_fn, config["residual"], config["embed"])
 
     def create_transformer_layer(self, config, input_shape):
         """Creates and returns a transformer module based on the provided config.

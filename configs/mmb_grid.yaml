@@ -39,6 +39,7 @@ model:
     hidden_state_init: "zero"
     reset_hidden_state: True
     residual: False
+    embed: True
 
 evaluation:
   evaluate: False

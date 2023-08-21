@@ -60,6 +60,8 @@ model:
   #   reset_hidden_state: True
   #   # Wether residual connections should be used for the recurrent layer
   #   residual: False
+  #   # Whether to embed the input before feeding it to the recurrent layer (the embedding dimension is the same as the hidden state size)
+  #   embed: True
   # Set the to be used vector encoder
   vec_encoder: "linear" # "linear", "none"
   num_vec_encoder_units: 128

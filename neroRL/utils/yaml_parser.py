@@ -199,6 +199,8 @@ class YamlParser:
                     self._config["model"]["recurrence"]["reset_hidden_state"] = True
                 if "residual" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["residual"] = False 
+                if "embed" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["embed"] = True
 
             # Check if the model dict contains a transformer dict
             # If no transformer dict is available, it is assumed that a transformer-based policy is not used

@@ -8,7 +8,7 @@ class GRU(Module):
     A gated recurrent unit (GRU) module. Before feeding the input to the GRU layer, it is first transformed by a linear layer.
     A residual connection can be added around the GRU layer.
     """
-    def __init__(self, input_dim, hidden_dim, num_layers, activ_fn, residual = False):
+    def __init__(self, input_dim, hidden_dim, num_layers, activ_fn, residual = False, embed = True):
         """
         Initializes the gated recurrent unit.
 
@@ -18,18 +18,24 @@ class GRU(Module):
             num_layers {int} -- The number of GRU layers
             activ_fn {torch.nn} -- Activation function
             residual {bool} -- Whether to use a residual connection around the GRU layer
+            embed {bool} -- Whether to use a linear layer before feeding the input to the GRU layer
         """
         super().__init__()
         self.activ_fn  = activ_fn
         self.residual = residual
+        self.embed = embed
 
-        # Linear input transformation layer
-        self.linear_transform = nn.Linear(input_dim, hidden_dim)
-        # Init linear layer
-        nn.init.orthogonal_(self.linear_transform.weight, np.sqrt(2))
+        if embed:
+            # Linear input transformation layer
+            self.linear_transform = nn.Linear(input_dim, hidden_dim)
+            # Init linear layer
+            nn.init.orthogonal_(self.linear_transform.weight, np.sqrt(2))
+            in_dim = hidden_dim
+        else:
+            in_dim = input_dim
 
         # GRU layer
-        self.recurrent_layer = nn.GRU(hidden_dim, hidden_dim, num_layers, batch_first=True)
+        self.recurrent_layer = nn.GRU(in_dim, hidden_dim, num_layers, batch_first=True)
         # Init GRU
         for name, param in self.recurrent_layer.named_parameters():
             if "bias" in name:
@@ -49,8 +55,10 @@ class GRU(Module):
             {numpy.ndarray/torch.tensor} -- Feature output tensor
             {torch.tensor} -- Memory cell of the recurrent layer
         """
-        # Feed and activate innput transformation layer
-        h = self.activ_fn(self.linear_transform(h))
+        if self.embed:
+            # Feed and activate innput transformation layer
+            h = self.activ_fn(self.linear_transform(h))
+        
         h_identity = h
         
         # (batch_size, num_layers, hidden_size) => (num_layers, batch_size, hidden_size) 
@@ -86,7 +94,7 @@ class LSTM(Module):
     A long short-term memory (LSTM) module. Before feeding the input to the LSTM layer, it is transformed by a linear layer.
     A residual connection can be added around the LSTM layer.
     """
-    def __init__(self, input_dim, hidden_dim, num_layers, activ_fn, residual = False):
+    def __init__(self, input_dim, hidden_dim, num_layers, activ_fn, residual = False, embed = True):
         """
         Initializes the long short-term memory network.
 
@@ -96,18 +104,24 @@ class LSTM(Module):
             num_layers {int} -- The number of GRU layers
             activ_fn {torch.nn.functional} -- Activation function
             residual {bool} -- Whether to use a residual connection
+            embed {bool} -- Whether to use a linear layer before feeding the input to the LSTM layer
         """
         super().__init__()
         self.activ_fn  = activ_fn
         self.residual = residual
+        self.embed = embed
         
-        # Linear input transformation layer
-        self.linear_transform = nn.Linear(input_dim, hidden_dim)
-        # Init linear layer
-        nn.init.orthogonal_(self.linear_transform.weight, np.sqrt(2))
+        if embed:
+            # Linear input transformation layer
+            self.linear_transform = nn.Linear(input_dim, hidden_dim)
+            # Init linear layer
+            nn.init.orthogonal_(self.linear_transform.weight, np.sqrt(2))
+            in_dim = hidden_dim
+        else:
+            in_dim = input_dim
 
         # LSTM layer
-        self.recurrent_layer = nn.LSTM(hidden_dim, hidden_dim, num_layers, batch_first=True)
+        self.recurrent_layer = nn.LSTM(in_dim, hidden_dim, num_layers, batch_first=True)
         # Init LSTM layer
         for name, param in self.recurrent_layer.named_parameters():
             if "bias" in name:
@@ -127,8 +141,10 @@ class LSTM(Module):
             {numpy.ndarray/torch.tensor} -- Feature output tensor
             {torch.tensor} -- Memory cell of the recurrent layer
         """
-        # Feed and activate innput transformation layer
-        h = self.activ_fn(self.linear_transform(h))
+        if self.embed:
+            # Feed and activate input transformation layer
+            h = self.activ_fn(self.linear_transform(h))
+        
         h_identity = h
 
         # (batch_size, num_layers, hidden_size) => (num_layers, batch_size, hidden_size) 
