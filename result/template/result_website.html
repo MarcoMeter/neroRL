@@ -150,6 +150,7 @@
     <!--- Define tabs -->
     <div class="tab">
       <button class="tablinks" onclick="openTab(event, 'Environment')">Environment</button>
+      <button class="tablinks" onclick="openTab(event, 'Sampler')">Sampler</button>
       <button class="tablinks" onclick="openTab(event, 'Hyperparameters')">Hyperparameters</button>
       <button class="tablinks" onclick="openTab(event, 'Model')">Model</button>
       <button class="tablinks" onclick="openTab(event, 'Media')" id="defaultOpen">Media</button>
@@ -164,6 +165,11 @@
     <div id="Model" class="tabcontent">
       <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
       {{ modelInfo }}
+    </div>
+
+    <div id="Sampler" class="tabcontent">
+      <span onclick="this.parentElement.style.display='none'" class="topright">&times</span>
+      {{ samplerInfo }}
     </div>
 
     <div id="Hyperparameters" class="tabcontent">
