@@ -36,6 +36,7 @@ class MemoryGymWrapper(Env):
             self._default_reset_params = reset_params
 
         render_mode = None if not realtime_mode else "debug_rgb_array"
+        self._env_name = env_name
         self._env = gym.make(env_name, disable_env_checker = True, render_mode = render_mode)
 
         self._realtime_mode = realtime_mode
@@ -89,7 +90,9 @@ class MemoryGymWrapper(Env):
     @property
     def action_names(self):
         """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
-        if isinstance(self.action_space, spaces.MultiDiscrete):
+        if self._env_name == "Endless-MysteryPath-v0":
+            return [["no-op", "move forward", "rotate left", "rotate right"]]
+        elif isinstance(self.action_space, spaces.MultiDiscrete):
             return [["no-op", "left", "right"], ["no-op", "up", "down"]]
         else:
             return [["no-op", "rotate left", "rotate right", "move forward"]]
