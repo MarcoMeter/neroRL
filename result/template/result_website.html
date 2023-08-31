@@ -1137,6 +1137,18 @@
 
           // Plot the value function
           Plotly.newPlot(id, line_scatter_plot_data_value, line__scatter_plot_layout_value);
+
+          // Add event handler for clicking on a marker
+          // Add event handler for clicking on a marker
+          document.getElementById(id).on('plotly_click', function(data){
+            past_steps.push(step);
+            video_player.currentTime = Number(data.points[0].x);
+            pause();
+            update();
+            return_button.innerHTML = "Return to step " + past_steps[past_steps.length - 1]; 
+          });
+
+
       }
     
     /**
