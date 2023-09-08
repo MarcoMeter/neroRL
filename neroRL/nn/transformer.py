@@ -415,6 +415,8 @@ class RelMultiHeadAttn(nn.Module):
         self.keys = nn.Linear(self.d_head, self.d_head, bias=False)
         self.queries = nn.Linear(self.d_head, self.d_head, bias=False)
 
+        self.fc_out = nn.Linear(self.n_head * self.d_head, self.d_model)
+
         self.scale = 1 / (self.d_head  ** 0.5)
 
     def _rel_shift(self, x):
@@ -483,8 +485,10 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         # [qlen x bsz x n_head x d_head]
         attn_vec = attn_vec.contiguous().view(
             attn_vec.size(1), attn_vec.size(0), self.n_head * self.d_head)
+        
+        out = self.fc_out(attn_vec)
 
-        return attn_vec, attn_prob
+        return out, attn_prob
     
 class PositionalEmbedding(nn.Module):
     def __init__(self, demb):
