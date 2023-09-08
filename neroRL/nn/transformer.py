@@ -234,7 +234,7 @@ class Transformer(nn.Module):
         self.max_episode_steps = config["max_episode_steps"]
         self.activation = activation
 
-        self.pos_emb = PositionalEmbedding(self.embed_dim)
+        self.pos_emb = SinusoidalPosition(self.embed_dim)
         self.r_w_bias = nn.Parameter(torch.Tensor(self.num_heads, self.head_dim))
         self.r_r_bias = nn.Parameter(torch.Tensor(self.num_heads, self.head_dim))
 
@@ -278,9 +278,7 @@ class Transformer(nn.Module):
         # elif self.config["positional_encoding"] == "learned":
         #     # memories = memories + self.pos_embedding[memory_indices].unsqueeze(2) # add positional encoding to the input for every layer
         #     memories[:,:,0] = memories[:,:,0] + self.pos_embedding[memory_indices] # add positional encoding only to first layer
-
-        pos_seq = torch.arange(self.window_length, -1, -1.0, device=h.device, dtype=h.dtype)
-        pos_emb = self.pos_emb(pos_seq)
+        pos_emb = self.pos_emb(self.window_length)
 
         # Forward transformer blocks
         mask = torch.cat([mask, torch.ones(mask.size(0), 1)], 1).bool()
@@ -490,20 +488,3 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
 
         return out, attn_prob
     
-class PositionalEmbedding(nn.Module):
-    def __init__(self, demb):
-        super(PositionalEmbedding, self).__init__()
-
-        self.demb = demb
-
-        inv_freq = 1 / (10000 ** (torch.arange(0.0, demb, 2.0) / demb))
-        self.register_buffer('inv_freq', inv_freq)
-
-    def forward(self, pos_seq, bsz=None):
-        sinusoid_inp = torch.ger(pos_seq, self.inv_freq)
-        pos_emb = torch.cat([sinusoid_inp.sin(), sinusoid_inp.cos()], dim=-1)
-
-        if bsz is not None:
-            return pos_emb[:,None,:].expand(-1, bsz, -1)
-        else:
-            return pos_emb
