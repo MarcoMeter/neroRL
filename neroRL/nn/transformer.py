@@ -42,7 +42,7 @@ class MultiHeadAttention(nn.Module):
         # Linear transformation of the absolute positional encoding without activation
         self.r_net = nn.Linear(embed_dim, embed_dim, bias=False)
 
-    def forward(self, values, keys, query, mask): # r, r_w_bias, r_r_bias
+    def forward(self, values, keys, query, mask):
         """
         Arguments:
             values {torch.tensor} -- Values in shape of (N, L, D)
@@ -452,8 +452,6 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         w_head_k = self.keys(keys)              # bsz x klen x n_head x d_head
         w_head_q = self.queries(query)          # bsz x qlen x n_head x d_head
 
-        # w_head_q = w_head_q[-qlen:]
-
         w_head_q = w_head_q.view(qlen, bsz, self.n_head, self.d_head)           # qlen x bsz x n_head x d_head
         w_head_k = w_head_k.view(klen, bsz, self.n_head, self.d_head)           # qlen x bsz x n_head x d_head
         w_head_v = w_head_v.view(klen, bsz, self.n_head, self.d_head)           # qlen x bsz x n_head x d_head
@@ -474,7 +472,7 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         attn_score.mul_(self.scale)
 
         #### compute attention probability
-        attn_score = attn_score.float().masked_fill(attn_mask.T.bool()[None,:,:,None], -float('inf')).type_as(attn_score)
+        attn_score = attn_score.float().masked_fill(attn_mask.T[None,:,:,None] == 0, -float('inf')).type_as(attn_score)
 
         # [qlen x klen x bsz x n_head]
         attn_prob = F.softmax(attn_score, dim=1)
@@ -504,4 +502,4 @@ class PositionalEmbedding(nn.Module):
         if bsz is not None:
             return pos_emb[:,None,:].expand(-1, bsz, -1)
         else:
-            return pos_emb[:,None,:]
+            return pos_emb
