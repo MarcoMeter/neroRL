@@ -223,6 +223,7 @@ class Transformer(nn.Module):
         self.embed_dim = config["embed_dim"]
         self.num_heads = config["num_heads"]
         self.share_heads = config["share_heads"]
+        self.memory_length = config["memory_length"]
         self.max_episode_steps = config["max_episode_steps"]
         self.activation = activation
 
@@ -231,10 +232,17 @@ class Transformer(nn.Module):
         nn.init.orthogonal_(self.linear_embedding.weight, np.sqrt(2))
 
         # Determine positional encoding
-        if config["positional_encoding"] == "relative":
+        if config["positional_encoding"] == "relative" or config["positional_encoding"] == "1024" or config["positional_encoding"] == "2048":
             self.pos_embedding = SinusoidalPosition(dim = self.embed_dim)
         elif config["positional_encoding"] == "learned":
             self.pos_embedding = nn.Parameter(torch.randn(self.max_episode_steps, self.embed_dim)) # (batch size, max episoded steps, num layers, layer size)
+        elif config["positional_encoding"] == "custom":
+            length = self.max_episode_steps // self.memory_length
+            length += 1 if self.max_episode_steps % self.memory_length > 0 else 0
+            self.lpe = nn.Parameter(torch.randn(length, self.embed_dim))
+            # Init orthogonal
+            nn.init.orthogonal_(self.lpe, np.sqrt(2))
+            self.ape = SinusoidalPosition(dim = self.embed_dim)
         else:
             pass    # No positional encoding is used
         
@@ -263,9 +271,25 @@ class Transformer(nn.Module):
             pos_embedding = self.pos_embedding(self.max_episode_steps)[memory_indices]
             memories = memories + pos_embedding.unsqueeze(2)
             # memories[:,:,0] = memories[:,:,0] + pos_embedding # add positional encoding only to first layer?
+        elif self.config["positional_encoding"] == "1024":
+            pos_embedding = self.pos_embedding(1024)[memory_indices]
+            memories = memories + pos_embedding.unsqueeze(2)
+            # memories[:,:,0] = memories[:,:,0] + pos_embedding # add positional encoding only to first layer?
+        elif self.config["positional_encoding"] == "2048":
+            pos_embedding = self.pos_embedding(2048)[memory_indices]
+            memories = memories + pos_embedding.unsqueeze(2)
+            # memories[:,:,0] = memories[:,:,0] + pos_embedding # add positional encoding only to first layer?
         elif self.config["positional_encoding"] == "learned":
             memories = memories + self.pos_embedding[memory_indices].unsqueeze(2)
             # memories[:,:,0] = memories[:,:,0] + self.pos_embedding[memory_indices] # add positional encoding only to first layer?
+        elif self.config["positional_encoding"] == "custom":
+            batch_size = h.shape[0]
+            ape_emb = self.ape(self.memory_length) # memory_length, embed_dim
+            # repeat ape_emb for batch size
+            ape_emb = ape_emb.unsqueeze(0).repeat(batch_size, 1, 1) # batch_size, memory_length, embed_dim
+            # use memory indices to select the correct entries of the learned position encoding lpe
+            lpe_emb = self.lpe[memory_indices // self.memory_length] # memory_length, embed_dim
+            memories[:,:,0] = memories[:,:,0] + ape_emb + lpe_emb
 
         # Forward transformer blocks
         out_memories, self.out_attention_weights, self.mask = [], [], mask
