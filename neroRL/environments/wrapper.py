@@ -49,6 +49,9 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
     elif config["type"] == "RandomMaze":
         from neroRL.environments.maze_wrapper import MazeWrapper
         env = MazeWrapper(config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
+    elif config["type"] == "PoCMemoryEnv":
+        from neroRL.environments.poc_memory_env_wrapper import PocMemoryEnvWrapper
+        return PocMemoryEnvWrapper(config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
         
 
     # Wrap environment
