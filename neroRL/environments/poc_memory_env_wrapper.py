@@ -116,7 +116,7 @@ class PocMemoryEnvWrapper(Env):
             if self.freeze: # Check if agent is allowed to move
                 self._step_count += 1
                 self._rewards.append(reward)
-                return obs, reward, done, info
+                return None, obs, reward, done, info
 
         else:
             self._position += self._step_size if action == 1 else -self._step_size
