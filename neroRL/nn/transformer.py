@@ -305,6 +305,18 @@ class Transformer(nn.Module):
                     masked_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
                     pos_embedding = self.pos_embedding(self.max_episode_steps)[masked_memory_indices]
                     h = h + pos_embedding
+                elif self.config["positional_encoding"] == "custom":
+                    # apply mask to memory indices
+                    masked_memory_indices = memory_indices * mask
+                    # select max memory indices across dim 1
+                    masked_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
+                    # select ape
+                    ape_emb = self.ape(self.memory_length) # memory_length, embed_dim
+                    ape_emb = ape_emb[masked_memory_indices % self.memory_length] # embed_dim
+                    # use memory indices to select the correct entries of the learned position encoding lpe
+                    lpe_emb = self.lpe[masked_memory_indices // self.memory_length]
+                    h = h + ape_emb + lpe_emb
+
             h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask) # args: value, key, query, mask
             h = h.squeeze()
             if len(h.shape) == 1:
