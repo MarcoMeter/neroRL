@@ -278,7 +278,7 @@ class Transformer(nn.Module):
         # elif self.config["positional_encoding"] == "learned":
         #     # memories = memories + self.pos_embedding[memory_indices].unsqueeze(2) # add positional encoding to the input for every layer
         #     memories[:,:,0] = memories[:,:,0] + self.pos_embedding[memory_indices] # add positional encoding only to first layer
-        pos_emb = self.pos_emb(self.window_length)
+        pos_emb = self.pos_emb(self.window_length + 1)
 
         # Forward transformer blocks
         mask = torch.cat([mask, torch.ones(mask.size(0), 1)], 1).bool()
