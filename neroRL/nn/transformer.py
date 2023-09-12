@@ -413,7 +413,7 @@ class RelMultiHeadAttn(nn.Module):
         self.keys = nn.Linear(self.d_head, self.d_head, bias=False)
         self.queries = nn.Linear(self.d_head, self.d_head, bias=False)
 
-        self.fc_out = nn.Linear(self.n_head * self.d_head, self.d_model)
+        self.fc_out = nn.Linear(self.n_head * self.d_head, self.d_model, bias=False)
 
         self.scale = 1 / (self.d_head  ** 0.5)
 
@@ -452,9 +452,9 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         w_head_k = self.keys(keys)              # bsz x klen x n_head x d_head
         w_head_q = self.queries(query)          # bsz x qlen x n_head x d_head
 
-        w_head_q = w_head_q.view(qlen, bsz, self.n_head, self.d_head)           # qlen x bsz x n_head x d_head
-        w_head_k = w_head_k.view(klen, bsz, self.n_head, self.d_head)           # qlen x bsz x n_head x d_head
-        w_head_v = w_head_v.view(klen, bsz, self.n_head, self.d_head)           # qlen x bsz x n_head x d_head
+        w_head_q = w_head_q.swapaxes(0, 1)           # qlen x bsz x n_head x d_head
+        w_head_k = w_head_k.swapaxes(0, 1)          # qlen x bsz x n_head x d_head
+        w_head_v = w_head_v.swapaxes(0, 1)           # qlen x bsz x n_head x d_head
 
         r_head_k = self.r_net(r)
         r_head_k = r_head_k.view(rlen, self.n_head, self.d_head)                # qlen x n_head x d_head
@@ -482,9 +482,10 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
 
         # [qlen x bsz x n_head x d_head]
         attn_vec = attn_vec.contiguous().view(
-            attn_vec.size(1), attn_vec.size(0), self.n_head * self.d_head)
+            attn_vec.size(0), attn_vec.size(1), self.n_head * self.d_head)
         
         out = self.fc_out(attn_vec)
+        
+        out = out.swapaxes(0, 1)
 
         return out, attn_prob
-    
