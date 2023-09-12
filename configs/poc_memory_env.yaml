@@ -32,7 +32,7 @@ model:
     num_heads: 4
     share_heads: True
     memory_length: 32
-    positional_encoding: "" # options: "" "relative" "learned"
+    positional_encoding: "" # options: "" "relative" "absolute" "learned"
     add_positional_encoding_to_query: False # Only supported for relative positional encoding
     layer_norm: "pre" # options: "" "pre" "post"
     init_weights: "xavier" # options: "xavier" "orthogonal" "tfixup" "kaiming"

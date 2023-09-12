@@ -12,7 +12,7 @@ class PositionalEncodingEnv(Env):
         """
         self._env = env
 
-        # Prepare relative positional encoding
+        # Prepare absolute positional encoding
         sequence_length = 512
         n = 10000
         d = 16

@@ -29,8 +29,8 @@ model:
     embed_dim: 384
     num_heads: 4
     share_heads: True
-    memory_length: 32
-    positional_encoding: "" # options: "" "relative" "learned"
+    memory_length: 48
+    positional_encoding: "relative" # options: "" "relative" "absolute" "learned"
     add_positional_encoding_to_query: False # Only supported for relative positional encoding
     layer_norm: "pre" # options: "" "pre" "post"
     init_weights: "xavier" # options: "xavier" "orthogonal" "tfixup" "kaiming"
@@ -48,24 +48,24 @@ evaluation:
 
 sampler:
   n_workers: 16
-  worker_steps: 256
+  worker_steps: 512
 
 trainer:
   algorithm: "PPO"
   resume_at: 0
-  gamma: 0.99
+  gamma: 0.995
   lamda: 0.95
   updates: 200
   epochs: 3
-  n_mini_batches: 4
+  n_mini_batches: 8
   advantage_normalization: "no"
   value_coefficient: 0.25
-  max_grad_norm: 0.5
+  max_grad_norm: 0.25
   learning_rate_schedule:
-    initial: 1.0e-4
+    initial: 2.0e-4
     final: 1.0e-4
     power: 1.0
-    max_decay_steps: 50
+    max_decay_steps: 100
   beta_schedule:
     initial: 0.00001
     final: 0.000001

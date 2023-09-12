@@ -121,8 +121,10 @@ class TransformerBlock(Module):
         super(TransformerBlock, self).__init__()
 
         # Attention
-        # self.attention = MultiHeadAttention(embed_dim, num_heads, share_heads)
-        self.attention = RelPartialLearnableMultiHeadAttn(embed_dim, num_heads)
+        if config["positional_encoding"] in ["", "absolute", "learned"]:
+            self.attention = MultiHeadAttention(embed_dim, num_heads, share_heads)
+        elif config["positional_encoding"] == "relative":
+            self.attention = RelPartialLearnableMultiHeadAttn(embed_dim, num_heads)
 
         # Setup GTrXL if used
         self.use_gtrxl = config["gtrxl"]
@@ -234,21 +236,19 @@ class Transformer(nn.Module):
         self.max_episode_steps = config["max_episode_steps"]
         self.activation = activation
 
-        self.pos_emb = SinusoidalPosition(self.embed_dim)
-        self.r_w_bias = nn.Parameter(torch.Tensor(self.num_heads, self.head_dim))
-        self.r_r_bias = nn.Parameter(torch.Tensor(self.num_heads, self.head_dim))
-
         # Input embedding layer
         self.linear_embedding = nn.Linear(input_dim, self.embed_dim)
         nn.init.orthogonal_(self.linear_embedding.weight, np.sqrt(2))
 
-        # # Determine positional encoding
-        # if config["positional_encoding"] == "relative":
-        #     self.pos_embedding = SinusoidalPosition(dim = self.embed_dim)
-        # elif config["positional_encoding"] == "learned":
-        #     self.pos_embedding = nn.Parameter(torch.randn(self.max_episode_steps, self.embed_dim)) # (batch size, max episoded steps, num layers, layer size)
-        # else:
-        #     pass    # No positional encoding is used
+        # Determine positional encoding
+        if config["positional_encoding"] == "absolute":
+            self.pos_embedding = SinusoidalPosition(dim = self.embed_dim)
+        elif config["positional_encoding"] == "learned":
+            self.pos_embedding = nn.Parameter(torch.randn(self.max_episode_steps, self.embed_dim)) # (batch size, max episoded steps, num layers, layer size)
+        elif config["positional_encoding"] == "relative":
+            self.pos_embedding = SinusoidalPosition(dim = self.embed_dim)
+            self.r_w_bias = nn.Parameter(torch.Tensor(self.num_heads, self.head_dim))
+            self.r_r_bias = nn.Parameter(torch.Tensor(self.num_heads, self.head_dim))
         
         # Instantiate transformer blocks
         self.transformer_blocks = nn.ModuleList([
@@ -271,14 +271,15 @@ class Transformer(nn.Module):
         h = self.activation(self.linear_embedding(h))
 
         # Add positional encoding to every transformer block input
-        # if self.config["positional_encoding"] == "relative":
-        #     pos_embedding = self.pos_embedding(self.max_episode_steps)[memory_indices]
-        #     # memories = memories + pos_embedding.unsqueeze(2) # add positional encoding to the input for every layer
-        #     memories[:,:,0] = memories[:,:,0] + pos_embedding # add positional encoding only to first layer
-        # elif self.config["positional_encoding"] == "learned":
-        #     # memories = memories + self.pos_embedding[memory_indices].unsqueeze(2) # add positional encoding to the input for every layer
-        #     memories[:,:,0] = memories[:,:,0] + self.pos_embedding[memory_indices] # add positional encoding only to first layer
-        pos_emb = self.pos_emb(self.window_length + 1)
+        if self.config["positional_encoding"] == "absolute":
+            pos_embedding = self.pos_embedding(self.max_episode_steps)[memory_indices]
+            # memories = memories + pos_embedding.unsqueeze(2) # add positional encoding to the input for every layer
+            memories[:,:,0] = memories[:,:,0] + pos_embedding # add positional encoding only to first layer
+        elif self.config["positional_encoding"] == "learned":
+            # memories = memories + self.pos_embedding[memory_indices].unsqueeze(2) # add positional encoding to the input for every layer
+            memories[:,:,0] = memories[:,:,0] + self.pos_embedding[memory_indices] # add positional encoding only to first layer
+        elif self.config["positional_encoding"] == "relative":
+            pos_embbeding = self.pos_embedding(self.window_length + 1)
 
         # Forward transformer blocks
         mask = torch.cat([mask, torch.ones(mask.size(0), 1)], 1).bool()
@@ -286,16 +287,16 @@ class Transformer(nn.Module):
         for i, block in enumerate(self.transformer_blocks):
             out_memories.append(h.detach())
             # Add positional encoding to the query
-            # Only if configured and if relative positional encoding is used
-            # if self.config["add_positional_encoding_to_query"]:
-            #     if self.config["positional_encoding"] == "relative":
-            #         # apply mask to memory indices
-            #         masked_memory_indices = memory_indices * mask
-            #         # select max memory indices across dim 1
-            #         masked_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
-            #         pos_embedding = self.pos_embedding(self.max_episode_steps)[masked_memory_indices]
-            #         h = h + pos_embedding
-            h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask, pos_emb, self.r_w_bias, self.r_r_bias) # args: value, key, query, mask
+            # Only if configured and if absolute positional encoding is used
+            if self.config["add_positional_encoding_to_query"]:
+                if self.config["positional_encoding"] == "absolute":
+                    # apply mask to memory indices
+                    masked_memory_indices = memory_indices * mask
+                    # select max memory indices across dim 1
+                    masked_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
+                    pos_embedding = self.pos_embedding(self.max_episode_steps)[masked_memory_indices]
+                    h = h + pos_embedding
+            h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask, pos_embbeding, self.r_w_bias, self.r_r_bias) # args: value, key, query, mask
             h = h.squeeze()
             if len(h.shape) == 1:
                 h = h.unsqueeze(0)
@@ -400,9 +401,8 @@ class GRUGate(torch.nn.Module):
             h = self.tanh(self.Wg(x) + self.Ug(torch.mul(r, y)))
             return torch.mul(1 - z, y) + torch.mul(z, h)
         
-
-
 class RelMultiHeadAttn(nn.Module):
+    """Adopted from https://github.com/kimiyoung/transformer-xl"""
     def __init__(self, d_model, n_head):
         super(RelMultiHeadAttn, self).__init__()
         self.n_head = n_head
