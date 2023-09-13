@@ -39,10 +39,7 @@ class MultiHeadAttention(nn.Module):
             
         self.fc_out = nn.Linear(self.num_heads * self.head_size, embed_dim)
 
-        # Linear transformation of the absolute positional encoding without activation
-        self.r_net = nn.Linear(embed_dim, embed_dim, bias=False)
-
-    def forward(self, values, keys, query, mask):
+    def forward(self, values, keys, query, mask, *args):
         """
         Arguments:
             values {torch.tensor} -- Values in shape of (N, L, D)
@@ -142,7 +139,7 @@ class TransformerBlock(Module):
         # Feed forward projection
         self.fc = nn.Sequential(nn.Linear(embed_dim, embed_dim), nn.ReLU())
 
-    def forward(self, value, key, query, mask, r, r_w_bias, r_r_bias):
+    def forward(self, value, key, query, mask, r = None, r_w_bias = None, r_r_bias = None):
         """
         Arguments:
             values {torch.tensor} -- Value in shape of (N, L, D)
@@ -154,6 +151,19 @@ class TransformerBlock(Module):
             torch.tensor -- Output
             torch.tensor -- Attention weights
         """
+        # Insert query into values
+        # value = torch.cat([value, torch.zeros(value.shape[0], 1, value.shape[2])], dim=1) # zero pad
+        value = torch.cat([value, query], dim=1)
+        # Pad mask
+        mask = torch.cat([mask, torch.zeros(mask.shape[0], 1).bool()], dim=1)
+        insertion_ids = torch.sum(mask, dim=1).long() - 1
+        ids = torch.arange(value.shape[1]).long().unsqueeze(0).repeat(value.shape[0], 1)
+        ids.scatter_(1, insertion_ids.unsqueeze(1), ids[:,-1].unsqueeze(1))
+
+        # Use advanced indexing to rearrange or select rows based on ids
+        batch_dim = torch.arange(value.shape[0]).long().unsqueeze(1).repeat(1, value.shape[1])
+        value = value[batch_dim, ids]
+
         # Apply pre-layer norm across the attention input
         if self.layer_norm == "pre":
             query_ = self.norm1(query)
@@ -162,7 +172,6 @@ class TransformerBlock(Module):
             query_ = query
 
         # Forward MultiHeadAttention
-        value = torch.cat([value, query_], dim=1)
         key = value
         attention, attention_weights = self.attention(value, key, query_, mask, r, r_w_bias, r_r_bias)
 
@@ -282,7 +291,6 @@ class Transformer(nn.Module):
             pos_embbeding = self.pos_embedding(self.window_length + 1)
 
         # Forward transformer blocks
-        mask = torch.cat([mask, torch.ones(mask.size(0), 1)], 1).bool()
         out_memories, self.out_attention_weights, self.mask = [], [], mask
         for i, block in enumerate(self.transformer_blocks):
             out_memories.append(h.detach())
@@ -296,7 +304,10 @@ class Transformer(nn.Module):
                     masked_memory_indices = torch.max(memory_indices * mask, dim=1).values.long()
                     pos_embedding = self.pos_embedding(self.max_episode_steps)[masked_memory_indices]
                     h = h + pos_embedding
-            h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask, pos_embbeding, self.r_w_bias, self.r_r_bias) # args: value, key, query, mask
+            if self.config["positional_encoding"] == "relative":
+                h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask, pos_embbeding, self.r_w_bias, self.r_r_bias) # args: value, key, query, mask
+            else:
+                h, attention_weights = block(memories[:, :, i], memories[:, :, i], h.unsqueeze(1), mask) # args: value, key, query, mask
             h = h.squeeze()
             if len(h.shape) == 1:
                 h = h.unsqueeze(0)

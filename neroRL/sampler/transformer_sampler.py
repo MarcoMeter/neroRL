@@ -42,7 +42,7 @@ class TransformerSampler(TrajectorySampler):
         # Once an episode is completed (max episode steps reached or environment termination), it is added to the buffer.
         self.memory = self.model.init_transformer_memory(self.n_workers, self.max_episode_steps, self.num_blocks, self.embed_dim)
         # Setup the memory mask that reflects the desired memory (i.e. context) length for the transformer architecture
-        self.memory_mask = torch.tril(torch.ones((self.memory_length, self.memory_length)), diagonal=-1)
+        self.memory_mask = torch.tril(torch.ones((self.memory_length, self.memory_length)))#, diagonal=-1)
         """ e.g. memory mask tensor looks like this if memory_length = 6
         0, 0, 0, 0, 0, 0
         1, 0, 0, 0, 0, 0
