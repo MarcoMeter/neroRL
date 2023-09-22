@@ -179,7 +179,7 @@ def main():
                     memory = new_memory
                 if "transformer" in model_config:
                     memory[:, t] = new_memory
-                    # attention_weights.append(model.transformer.get_attention_weights())
+                    attention_weights.append(model.transformer.get_attention_weights())
 
                 _actions = []
                 _probs = []

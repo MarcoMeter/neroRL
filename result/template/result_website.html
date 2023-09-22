@@ -729,7 +729,7 @@
         document.getElementById('options').style.display = 'none';
         // Updates the plots
         var top_n = Number(top_n_scores.value);
-        if (top_n == -1) top_n = step;
+        if (top_n == -1) top_n = step + 1;
         visualizeAttentionScores(y_attention_weights[step], top_n);
         }
 

@@ -156,6 +156,7 @@ class TransformerBlock(Module):
         value = torch.cat([value, query], dim=1)
         # Pad mask
         mask = torch.cat([mask, torch.zeros(mask.shape[0], 1).bool()], dim=1)
+        self.mask = mask
         insertion_ids = (torch.sum(mask, dim=1).long() - 1)
         ids = torch.arange(value.shape[1]).long().unsqueeze(0).repeat(value.shape[0], 1)
         ids_2 = torch.clone(ids)
@@ -292,7 +293,7 @@ class Transformer(nn.Module):
             pos_embbeding = self.pos_embedding(self.window_length + 1)
 
         # Forward transformer blocks
-        out_memories, self.out_attention_weights, self.mask = [], [], mask
+        out_memories, self.out_attention_weights = [], []
         for i, block in enumerate(self.transformer_blocks):
             out_memories.append(h.detach())
             # Add positional encoding to the query
@@ -313,6 +314,8 @@ class Transformer(nn.Module):
             if len(h.shape) == 1:
                 h = h.unsqueeze(0)
             self.out_attention_weights.append(attention_weights)
+            # Store the mask
+            self.mask = block.mask
         return h, torch.stack(out_memories, dim=1)
     
     def get_attention_weights(self):
@@ -321,6 +324,7 @@ class Transformer(nn.Module):
         Returns:
             {list} -- Attention weights
         """
+        
         out_attention_weights = torch.stack(self.out_attention_weights, dim=0)
         out_attention_weights = out_attention_weights.squeeze()
         out_attention_weights = out_attention_weights.mean(dim=1)
@@ -504,5 +508,7 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         out = self.fc_out(attn_vec)
         
         out = out.swapaxes(0, 1)
+        # attention shape: (bsz, n_head, qlen, klen)
+        attn_prob = attn_prob.permute(2, 3, 0, 1) 
 
         return out, attn_prob
