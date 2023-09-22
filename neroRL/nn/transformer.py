@@ -156,9 +156,10 @@ class TransformerBlock(Module):
         value = torch.cat([value, query], dim=1)
         # Pad mask
         mask = torch.cat([mask, torch.zeros(mask.shape[0], 1).bool()], dim=1)
-        insertion_ids = torch.sum(mask, dim=1).long() - 1
+        insertion_ids = (torch.sum(mask, dim=1).long() - 1)
         ids = torch.arange(value.shape[1]).long().unsqueeze(0).repeat(value.shape[0], 1)
-        ids.scatter_(1, insertion_ids.unsqueeze(1), ids[:,-1].unsqueeze(1))
+        ids_2 = torch.clone(ids)
+        ids.scatter_(1, insertion_ids.unsqueeze(1), ids_2[:,-1].unsqueeze(1))
 
         # Use advanced indexing to rearrange or select rows based on ids
         batch_dim = torch.arange(value.shape[0]).long().unsqueeze(1).repeat(1, value.shape[1])
@@ -459,13 +460,18 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         keys = keys.reshape(bsz, klen, self.n_head, self.d_head)
         query = query.reshape(bsz, qlen, self.n_head, self.d_head)
 
-        w_head_v = self.values(values)          # bsz x klen x n_head x d_head
-        w_head_k = self.keys(keys)              # bsz x klen x n_head x d_head
-        w_head_q = self.queries(query)          # bsz x qlen x n_head x d_head
+        w_head_v = self.values(values.squeeze(0))          # bsz x klen x n_head x d_head
+        w_head_k = self.keys(keys.squeeze(0))              # bsz x klen x n_head x d_head
+        w_head_q = self.queries(query.squeeze(0))          # bsz x qlen x n_head x d_head
 
-        w_head_q = w_head_q.swapaxes(0, 1)           # qlen x bsz x n_head x d_head
-        w_head_k = w_head_k.swapaxes(0, 1)          # qlen x bsz x n_head x d_head
-        w_head_v = w_head_v.swapaxes(0, 1)           # qlen x bsz x n_head x d_head
+        if bsz > 1:
+            w_head_q = w_head_q.swapaxes(0, 1)           # qlen x bsz x n_head x d_head
+            w_head_k = w_head_k.swapaxes(0, 1)          # qlen x bsz x n_head x d_head
+            w_head_v = w_head_v.swapaxes(0, 1)           # qlen x bsz x n_head x d_head
+        else:
+            w_head_q = w_head_q.unsqueeze(0).swapaxes(0, 1)           # qlen x bsz x n_head x d_head
+            w_head_k = w_head_k.unsqueeze(0).swapaxes(0, 1)          # qlen x bsz x n_head x d_head
+            w_head_v = w_head_v.unsqueeze(0).swapaxes(0, 1)           # qlen x bsz x n_head x d_head
 
         r_head_k = self.r_net(r)
         r_head_k = r_head_k.view(rlen, self.n_head, self.d_head)                # qlen x n_head x d_head

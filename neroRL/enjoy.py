@@ -37,7 +37,7 @@ def init_recurrent_cell(recurrence_config, model, device):
     return recurrent_cell
 
 def init_transformer_memory(trxl_conf, model):
-    memory_mask = torch.tril(torch.ones((trxl_conf["memory_length"], trxl_conf["memory_length"])), diagonal=-1)
+    memory_mask = torch.tril(torch.ones((trxl_conf["memory_length"], trxl_conf["memory_length"])))#, diagonal=-1)
     memory = model.init_transformer_memory(1, trxl_conf["max_episode_steps"], trxl_conf["num_blocks"], trxl_conf["embed_dim"])
     # Setup memory window indices
     repetitions = torch.repeat_interleave(torch.arange(0, trxl_conf["memory_length"]).unsqueeze(0), trxl_conf["memory_length"] - 1, dim = 0).long()
@@ -179,7 +179,7 @@ def main():
                     memory = new_memory
                 if "transformer" in model_config:
                     memory[:, t] = new_memory
-                    attention_weights.append(model.transformer.get_attention_weights())
+                    # attention_weights.append(model.transformer.get_attention_weights())
 
                 _actions = []
                 _probs = []

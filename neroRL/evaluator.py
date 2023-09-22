@@ -60,7 +60,7 @@ class Evaluator():
 
     def init_transformer_memory(self, trxl_conf, model):
         self.memory_length = trxl_conf["memory_length"]
-        memory_mask = torch.tril(torch.ones((self.memory_length, self.memory_length)), diagonal=-1)
+        memory_mask = torch.tril(torch.ones((self.memory_length, self.memory_length)))#, diagonal=-1)
         repetitions = torch.repeat_interleave(torch.arange(0, self.memory_length).unsqueeze(0), self.memory_length - 1, dim = 0).long()
         memory_indices = torch.stack([torch.arange(i, i + self.memory_length) for i in range(trxl_conf["max_episode_steps"] - self.memory_length + 1)]).long()
         memory_indices = torch.cat((repetitions, memory_indices))
