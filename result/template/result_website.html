@@ -14,6 +14,7 @@
         background-color: #000;
         color: white;
         font-family: "Montserrat", sans-serif;
+        min-width: 1737px;
       }
 
       /* Set the width and hight of the video*/
@@ -412,34 +413,38 @@
       window.addEventListener('keydown', function(event) {
           if (event.key === 'Tab') {
               if (statistic_type == "transformer") {
-                statistic_plot_id = (statistic_plot_id + 1) % 3;
-                // Set action plot if statistic_plot_id is 0
-                if(statistic_plot_id == 0){
-                  // Update action plot
-                  if(is_discrete) { // If action_space is discrete
-                    set_bar_action_plot(y_action[step][0], action[step][0], action_names);
-                  }
-                  else { // If action_space is multi discrete
-                      set_stacked_bar_action_plot(y_action[step], action[step], action_names);
-                  }
-                }
-                // Set value plot if statistic_plot_id is 1
-                if (statistic_plot_id == 1) {
-                  set_scatter_line_plot('action_distr', "Value Function", y_values_plot, step, value_marker);
-                }
-
-              // Set entropy plot if statistic_plot_id is 2
-              if (statistic_plot_id == 2) {
-                  if(is_discrete) { // If action_space is discrete
-                      set_scatter_line_plot('action_distr', "Entropy Function", y_entropy_plot, step, entropy_marker);
-                  }
-                  else { // If action_space is multi discrete
-                      set_scatter_lines_plot('action_distr', "Entropy Function", y_entropy_plot, step, entropy_marker);
-                  }
-              }
-          }
+                updateStatisticPlot();
+        }
       }
     });
+
+    function updateStatisticPlot() {
+          // Set action plot if statistic_plot_id is 0
+          if(statistic_plot_id == 0){
+              // Update action plot
+              if(is_discrete) { // If action_space is discrete
+                  set_bar_action_plot(y_action[step][0], action[step][0], action_names);
+              }
+              else { // If action_space is multi discrete
+                  set_stacked_bar_action_plot(y_action[step], action[step], action_names);
+              }
+          }
+          // Set value plot if statistic_plot_id is 1
+          if (statistic_plot_id == 1) {
+              set_scatter_line_plot('action_distr', "Value Function", y_values_plot, step, value_marker);
+          }
+
+          // Set entropy plot if statistic_plot_id is 2
+          if (statistic_plot_id == 2) {
+              if(is_discrete) { // If action_space is discrete
+                  set_scatter_line_plot('action_distr', "Entropy Function", y_entropy_plot, step, entropy_marker);
+              }
+              else { // If action_space is multi discrete
+                  set_scatter_lines_plot('action_distr', "Entropy Function", y_entropy_plot, step, entropy_marker);
+              }
+          }
+        }
+
 
     // Show ground truth if checkbox is checked
     function show_ground_truth() {
@@ -731,6 +736,7 @@
         var top_n = Number(top_n_scores.value);
         if (top_n == -1) top_n = step + 1;
         visualizeAttentionScores(y_attention_weights[step], top_n);
+        updateStatisticPlot();
         }
 
 
