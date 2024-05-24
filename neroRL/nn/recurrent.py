@@ -64,7 +64,7 @@ class GRU(Module):
         # (batch_size, num_layers, hidden_size) => (num_layers, batch_size, hidden_size) 
         recurrent_cell = recurrent_cell.swapaxes(0, 1).contiguous()
         if sequence_length == 1:
-                # Case: sampling training data or model optimization using fake recurrence
+                # Case: sampling training data (inference)
                 h, recurrent_cell = self.recurrent_layer(h.unsqueeze(1), recurrent_cell)
                 h = h.squeeze(1) # Remove sequence length dimension
         else:
@@ -150,7 +150,7 @@ class LSTM(Module):
         # (batch_size, num_layers, hidden_size) => (num_layers, batch_size, hidden_size) 
         recurrent_cell = (recurrent_cell[0].swapaxes(0, 1).contiguous(), recurrent_cell[1].swapaxes(0, 1).contiguous())
         if sequence_length == 1:
-                # Case: sampling training data or model optimization using fake recurrence
+                # Case: sampling training data (inference)
                 h, recurrent_cell = self.recurrent_layer(h.unsqueeze(1), recurrent_cell)
                 h = h.squeeze(1) # Remove sequence length dimension
         else:

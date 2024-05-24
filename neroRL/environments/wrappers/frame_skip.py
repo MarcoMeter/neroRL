@@ -12,9 +12,6 @@ class FrameSkipEnv(Env):
         """
         self._env = env
         self._skip = skip
-        self._max_episode_steps = self._env.max_episode_steps // skip
-        if self._max_episode_steps % skip > 0:
-            self._max_episode_steps += 1
         # Store skipped frames in the case of video recording (what if the environment does not provide visual obs?)
         self.skipped_frames = deque(maxlen = self._skip)
 
@@ -67,6 +64,9 @@ class FrameSkipEnv(Env):
     def reset(self, reset_params = None):
         """Reset the environment. The provided reset_params is a dictionary featuring reset parameters of the environment such as the seed."""
         vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
+        self._max_episode_steps = self.unwrapped.max_episode_steps // self._skip
+        if self._max_episode_steps % self._skip > 0:
+            self._max_episode_steps += 1
         return vis_obs, vec_obs, info
 
     def step(self, action):

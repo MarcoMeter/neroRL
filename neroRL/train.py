@@ -5,7 +5,6 @@ import random
 import sys
 import time
 import torch
-import re
 
 from docopt import docopt
 from pathlib import Path
@@ -38,7 +37,7 @@ class Training():
         # Handle Ctrl + C event, which aborts and shuts down the training process in a controlled manner
         signal(SIGINT, self.close)
 
-        # Sampled seed if a value smaller than 0 was submitted
+        # Sample seed if a value smaller than 0 was submitted
         self.seed = seed
         if seed < 0:
             self.seed = random.randint(0, 2 ** 31 - 1)
