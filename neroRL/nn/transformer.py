@@ -151,11 +151,11 @@ class TransformerBlock(Module):
         if self.layer_norm == "pre":
             query_ = self.norm1(query)
             value = self.norm_kv(value)
+            key = value
         else:
             query_ = query
 
         # Forward MultiHeadAttention
-        key = value
         attention, attention_weights = self.attention(value, key, query_, mask)
 
         # GRU Gate or skip connection
