@@ -151,11 +151,11 @@ class TransformerBlock(Module):
         if self.layer_norm == "pre":
             query_ = self.norm1(query)
             value = self.norm_kv(value)
-            key = value
         else:
             query_ = query
 
         # Forward MultiHeadAttention
+        key = value
         attention, attention_weights = self.attention(value, key, query_, mask)
 
         # GRU Gate or skip connection
@@ -194,7 +194,7 @@ class TransformerBlock(Module):
         return out, attention_weights
 
 class SinusoidalPosition(nn.Module):
-    """Relative positional encoding"""
+    """Absolute positional encoding"""
     def __init__(self, dim, min_timescale = 2., max_timescale = 1e4):
         super().__init__()
         freqs = torch.arange(0, dim, min_timescale)
@@ -208,7 +208,7 @@ class SinusoidalPosition(nn.Module):
         return pos_emb
 
 class Transformer(nn.Module):
-    """Transformer encoder architecture without dropout. Positional encoding can be either "relative", "learned" or "" (none)."""
+    """Transformer encoder architecture without dropout. Positional encoding can be either "absolute", "learned" or "" (none)."""
     def __init__(self, config, input_dim, activation) -> None:
         """Sets up the input embedding, positional encoding and the transformer blocks.
 
@@ -231,7 +231,7 @@ class Transformer(nn.Module):
         nn.init.orthogonal_(self.linear_embedding.weight, np.sqrt(2))
 
         # Determine positional encoding
-        if config["positional_encoding"] == "relative":
+        if config["positional_encoding"] == "absolute":
             self.pos_embedding = SinusoidalPosition(dim = self.embed_dim)
         elif config["positional_encoding"] == "learned":
             self.pos_embedding = nn.Parameter(torch.randn(self.max_episode_steps, self.embed_dim)) # (batch size, max episoded steps, num layers, layer size)
@@ -259,7 +259,7 @@ class Transformer(nn.Module):
         h = self.activation(self.linear_embedding(h))
 
         # Add positional encoding to every transformer block input
-        if self.config["positional_encoding"] == "relative":
+        if self.config["positional_encoding"] == "absolute":
             pos_embedding = self.pos_embedding(self.max_episode_steps)[memory_indices]
             memories = memories + pos_embedding.unsqueeze(2)
             # memories[:,:,0] = memories[:,:,0] + pos_embedding # add positional encoding only to first layer?
@@ -272,9 +272,9 @@ class Transformer(nn.Module):
         for i, block in enumerate(self.transformer_blocks):
             out_memories.append(h.detach())
             # Add positional encoding to the query
-            # Only if configured and if relative positional encoding is used
+            # Only if configured and if absolute positional encoding is used
             if self.config["add_positional_encoding_to_query"]:
-                if self.config["positional_encoding"] == "relative":
+                if self.config["positional_encoding"] == "absolute":
                     # apply mask to memory indices
                     masked_memory_indices = memory_indices * mask
                     # select max memory indices across dim 1

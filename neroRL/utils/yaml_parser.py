@@ -217,7 +217,7 @@ class YamlParser:
                 if "memory_length" not in self._config["model"]["transformer"]:
                     self._config["model"]["transformer"]["memory_length"] = 512
                 if "positional_encoding" not in self._config["model"]["transformer"]:
-                    self._config["model"]["transformer"]["positional_encoding"] = "relative"
+                    self._config["model"]["transformer"]["positional_encoding"] = "absolute"
                 if "add_positional_encoding_to_query" not in self._config["model"]["transformer"]:
                     self._config["model"]["transformer"]["add_positional_encoding_to_query"] = False
                 if "layer_norm" not in self._config["model"]["transformer"]:

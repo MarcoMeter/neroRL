@@ -1,29 +1,27 @@
-# https://github.com/maximecb/gym-minigrid
+# https://github.com/openai/gym
 
 environment:
-  type: "Minigrid"
-  name: "MiniGrid-MemoryS9-v0"
+  type: "PoCMemoryEnv"
+  name: "PoCMemoryEnv-v0"
   frame_skip: 1
   last_action_to_obs: False
   last_reward_to_obs: False
   obs_stacks: 1
-  grayscale: False
-  resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
-    num-seeds: 1000
-    # The view size of the agent, which has to be an odd number
-    # The default value in minigrid is 7, which is not a good challenge in terms of agent memory
-    view-size: 3
-    max-episode-steps: 128
+    num-seeds: 100
+    global: False
+    step_size: 0.2
+    freeze: True
+    max_episode_steps: 32
 
 model:
   load_model: False
-  model_path: "./checkpoints/trxl/20230501-101334_2/trxl-499.pt"
-  checkpoint_interval: 100
+  model_path: "./checkpoints/poc_memory_env/20210722-103713_2/poc_memory_env-199.pt"
+  checkpoint_interval: 25
   activation: "relu"
   vis_encoder: "cnn"
-  vec_encoder_layer: "linear"
+  vec_encoder: "linear"
   num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
@@ -33,7 +31,7 @@ model:
     embed_dim: 384
     num_heads: 4
     share_heads: True
-    memory_length: 128
+    memory_length: 32
     positional_encoding: "" # options: "" "absolute" "learned"
     add_positional_encoding_to_query: False # Only supported for absolute positional encoding
     layer_norm: "pre" # options: "" "pre" "post"
@@ -48,7 +46,7 @@ evaluation:
   seeds:
     start-seed: 100000
     num-seeds: 10
-  interval: 100
+  interval: 50
 
 sampler:
   n_workers: 16
@@ -57,26 +55,26 @@ sampler:
 trainer:
   algorithm: "PPO"
   resume_at: 0
-  gamma: 0.995
+  gamma: 0.99
   lamda: 0.95
-  updates: 500
+  updates: 200
   epochs: 3
-  n_mini_batches: 8
+  n_mini_batches: 4
   advantage_normalization: "no"
-  value_coefficient: 0.5
-  max_grad_norm: 0.25
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
   learning_rate_schedule:
-    initial: 2.0e-4
-    final: 1.0e-5
+    initial: 1.0e-4
+    final: 1.0e-4
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 50
   beta_schedule:
-    initial: 0.0001
+    initial: 0.00001
     final: 0.000001
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 50
   clip_range_schedule:
-    initial: 0.1
-    final: 0.1
+    initial: 0.2
+    final: 0.2
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 50
