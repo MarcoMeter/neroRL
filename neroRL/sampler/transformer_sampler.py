@@ -19,7 +19,8 @@ class TransformerSampler(TrajectorySampler):
             action_space_shape {tuple} -- Dimensions of the action space
             max_episode_steps {int} -- Maximum number of steps one episode can last
             model {nn.Module} -- The model to retrieve the policy and value from
-            device {torch.device} -- The device that is used for retrieving the data from the model
+            sample_device {torch.device} -- The device that is used for retrieving the data from the model
+            train_device {torch.device} -- The device that is used for training the model
         """
         super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, model, sample_device, train_device)
         # Set member variables
