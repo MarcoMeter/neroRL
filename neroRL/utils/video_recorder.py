@@ -88,19 +88,20 @@ class VideoRecorder:
 
             # Plot estimated ground truth
             if "estimated_ground_truth" in trajectory_data:
-                # Point colors
-                point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
-                # Iterate over all points
-                for j in range(0, len(trajectory_data["estimated_ground_truth"][i]), 2):
-                    # Get the position of the point
-                    x, y = trajectory_data["estimated_ground_truth"][i][j].clip(0, 1), trajectory_data["estimated_ground_truth"][i][j + 1].clip(0, 1)
-                    position = (int(x * self.width), int(y * self.height))
-                    # Set the color of the point (in BGR format, here we use red color)
-                    point_color = point_colors[j // 2]
-                    # Set the radius of the point (in pixels)
-                    point_radius = 8
-                    # Draw the point on the image/frame
-                    cv2.circle(env_frame, position, point_radius, point_color, -1)
+                if len(trajectory_data["estimated_ground_truth"]) > 0:
+                    # Point colors
+                    point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
+                    # Iterate over all points
+                    for j in range(0, len(trajectory_data["estimated_ground_truth"][i]), 2):
+                        # Get the position of the point
+                        x, y = trajectory_data["estimated_ground_truth"][i][j].clip(0, 1), trajectory_data["estimated_ground_truth"][i][j + 1].clip(0, 1)
+                        position = (int(x * self.width), int(y * self.height))
+                        # Set the color of the point (in BGR format, here we use red color)
+                        point_color = point_colors[j // 2]
+                        # Set the radius of the point (in pixels)
+                        point_radius = 8
+                        # Draw the point on the image/frame
+                        cv2.circle(env_frame, position, point_radius, point_color, -1)
 
             # Concatenate environment and debug frames
             output_image = np.hstack((env_frame, debug_frame))

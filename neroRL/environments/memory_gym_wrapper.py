@@ -35,7 +35,7 @@ class MemoryGymWrapper(Env):
         else:
             self._default_reset_params = reset_params
 
-        render_mode = None if not realtime_mode else "debug_rgb_array"
+        render_mode = None if not realtime_mode else "human"
         self._env_name = env_name
         self._env = gym.make(env_name, disable_env_checker = True, render_mode = render_mode)
 
@@ -147,7 +147,7 @@ class MemoryGymWrapper(Env):
             "rewards": [0.0], "actions": []
         } if self._record else None
 
-        return vis_obs, vec_obs, info
+        return vis_obs / 255.0, vec_obs, info
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -188,7 +188,7 @@ class MemoryGymWrapper(Env):
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
 
-        return vis_obs, vec_obs, reward, done, info
+        return vis_obs / 255.0, vec_obs, reward, done, info
 
     def close(self):
         """Shuts down the environment."""
