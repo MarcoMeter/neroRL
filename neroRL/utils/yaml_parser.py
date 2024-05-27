@@ -212,8 +212,6 @@ class YamlParser:
                     self._config["model"]["transformer"]["embed_dim"] = 512
                 if "num_heads" not in self._config["model"]["transformer"]:
                     self._config["model"]["transformer"]["num_heads"] = 8
-                if "share_heads" not in self._config["model"]["transformer"]:
-                    self._config["model"]["transformer"]["share_heads"] = True
                 if "memory_length" not in self._config["model"]["transformer"]:
                     self._config["model"]["transformer"]["memory_length"] = 512
                 if "positional_encoding" not in self._config["model"]["transformer"]:

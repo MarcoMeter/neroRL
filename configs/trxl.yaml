@@ -29,12 +29,11 @@ model:
   num_hidden_layers: 1
   num_hidden_units: 384
   transformer:
-    num_blocks: 3
-    embed_dim: 384
+    num_blocks: 2
+    embed_dim: 256
     num_heads: 4
-    share_heads: True
-    memory_length: 128
-    positional_encoding: "" # options: "" "absolute" "learned"
+    memory_length: 64
+    positional_encoding: "absolute" # options: "" "absolute" "learned"
     add_positional_encoding_to_query: False # Only supported for absolute positional encoding
     layer_norm: "pre" # options: "" "pre" "post"
     init_weights: "xavier" # options: "xavier" "orthogonal" "tfixup" "kaiming"

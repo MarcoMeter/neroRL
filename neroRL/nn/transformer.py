@@ -7,17 +7,15 @@ from neroRL.nn.module import Module
 class MultiHeadAttention(nn.Module):
     """Multi Head Attention without dropout inspired by https://github.com/aladdinpersson/Machine-Learning-Collection
     https://youtu.be/U0s0f995w14"""
-    def __init__(self, embed_dim, num_heads, share_heads):
+    def __init__(self, embed_dim, num_heads):
         """
         Arguments:
             embed_dim {int} -- Size of the embedding dimension
             num_heads {int} -- Number of attention heads
-            share_heads {bool} -- Whether to share the weights of the heads
         """
         super(MultiHeadAttention, self).__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
-        self.share_heads = share_heads
         self.head_size = embed_dim // num_heads
 
         assert (
@@ -25,25 +23,18 @@ class MultiHeadAttention(nn.Module):
         ), "Embedding dimension needs to be divisible by the number of heads"
 
         # Create the linear layers for the keys, values and queries
-        if self.share_heads:
-            # If we share the weights of the heads, we only need one set of linear layers
-            self.values = nn.Linear(self.head_size, self.head_size, bias=False)
-            self.keys = nn.Linear(self.head_size, self.head_size, bias=False)
-            self.queries = nn.Linear(self.head_size, self.head_size, bias=False)
-        else:
-            # If we don't share the weights of the heads, we need as many sets of linear layers as there are heads
-            self.values = nn.ModuleList([nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)])
-            self.keys = nn.ModuleList([nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)])
-            self.queries = nn.ModuleList([nn.Linear(self.head_size, self.head_size, bias=False) for _ in range(self.num_heads)])
+        self.values = nn.Linear(embed_dim, embed_dim, bias=False)
+        self.keys = nn.Linear(embed_dim, embed_dim, bias=False)
+        self.queries = nn.Linear(embed_dim, embed_dim, bias=False)
             
-        self.fc_out = nn.Linear(self.num_heads * self.head_size, embed_dim)
+        self.fc_out = nn.Linear(embed_dim, embed_dim)
 
-    def forward(self, values, keys, query, mask):
+    def forward(self, values, keys, queries, mask):
         """
         Arguments:
             values {torch.tensor} -- Values in shape of (N, L, D)
             keys {torch.tensor} -- Keys in shape of (N, L, D)
-            query {torch.tensor} -- Queries in shape of (N, L, D)
+            queries {torch.tensor} -- Queries in shape of (N, L, D)
             mask {torch.tensor} -- Attention mask in shape of (N, L)
 
         Returns:
@@ -51,28 +42,18 @@ class MultiHeadAttention(nn.Module):
             {torch.tensor} -- Attention weights
         """
         # Get number of training examples and sequence lengths
-        N = query.shape[0]
-        value_len, key_len, query_len = values.shape[1], keys.shape[1], query.shape[1]
+        N = queries.shape[0]
+        value_len, key_len, query_len = values.shape[1], keys.shape[1], queries.shape[1]
+
+        values = self.values(values)  # (N, value_len, embed_dim)
+        keys = self.keys(keys)  # (N, key_len, embed_dim)
+        queries = self.queries(queries)  # (N, query_len, embed_dim)
+
 
         # Split the embedding into self.num_heads different pieces
         values = values.reshape(N, value_len, self.num_heads, self.head_size)
         keys = keys.reshape(N, key_len, self.num_heads, self.head_size)
-        query = query.reshape(N, query_len, self.num_heads, self.head_size)
-
-        if self.share_heads:
-            values = self.values(values)  # (N, value_len, heads, head_dim)
-            keys = self.keys(keys)  # (N, key_len, heads, head_dim)
-            queries = self.queries(query)  # (N, query_len, heads, heads_dim)
-        else:
-            # Apply the linear layer separately to each head
-            values = [self.values[i](values[:, :, i].unsqueeze(2)) for i in range(self.num_heads)]
-            keys = [self.keys[i](keys[:, :, i].unsqueeze(2)) for i in range(self.num_heads)]
-            queries = [self.queries[i](query[:, :, i].unsqueeze(2)) for i in range(self.num_heads)]
-            
-            # Concatenate the different heads
-            values = torch.cat(values, dim=2) # (N, value_len, heads, head_dim)
-            keys = torch.cat(keys, dim=2) # (N, value_len, heads, head_dim)
-            queries = torch.cat(queries, dim=2) # (N, value_len, heads, head_dim)
+        queries = queries.reshape(N, query_len, self.num_heads, self.head_size)
 
         # Einsum does matrix mult. for query*keys for each training example
         energy = torch.einsum("nqhd,nkhd->nhqk", [queries, keys])
@@ -105,19 +86,18 @@ class MultiHeadAttention(nn.Module):
         return out, attention
         
 class TransformerBlock(Module):
-    def __init__(self, embed_dim, num_heads, share_heads, config):
+    def __init__(self, embed_dim, num_heads, config):
         """Transformer Block made of LayerNorms, Multi Head Attention and one fully connected feed forward projection.
 
         Arguments:
             embed_dim {int} -- Size of the embeddding dimension
             num_heads {int} -- Number of attention headds
-            share_heads {bool} -- Whether to share the weights of the heads
             config {dict} -- General config
         """
         super(TransformerBlock, self).__init__()
 
         # Attention
-        self.attention = MultiHeadAttention(embed_dim, num_heads, share_heads)
+        self.attention = MultiHeadAttention(embed_dim, num_heads)
 
         # Setup GTrXL if used
         self.use_gtrxl = config["gtrxl"]
@@ -222,7 +202,6 @@ class Transformer(nn.Module):
         self.num_blocks = config["num_blocks"]
         self.embed_dim = config["embed_dim"]
         self.num_heads = config["num_heads"]
-        self.share_heads = config["share_heads"]
         self.max_episode_steps = config["max_episode_steps"]
         self.activation = activation
 
@@ -240,7 +219,7 @@ class Transformer(nn.Module):
         
         # Instantiate transformer blocks
         self.transformer_blocks = nn.ModuleList([
-            TransformerBlock(self.embed_dim, self.num_heads, self.share_heads, config) 
+            TransformerBlock(self.embed_dim, self.num_heads, config) 
             for _ in range(self.num_blocks)])
 
     def forward(self, h, memories, mask, memory_indices):

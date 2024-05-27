@@ -30,7 +30,6 @@ model:
     num_blocks: 3
     embed_dim: 384
     num_heads: 4
-    share_heads: True
     memory_length: 32
     positional_encoding: "" # options: "" "absolute" "learned"
     add_positional_encoding_to_query: False # Only supported for absolute positional encoding
