@@ -35,7 +35,7 @@ class MemoryGymWrapper(Env):
         else:
             self._default_reset_params = reset_params
 
-        render_mode = None if not realtime_mode else "human"
+        render_mode = "debug_rgb_array" if not realtime_mode else "human"
         self._env_name = env_name
         self._env = gym.make(env_name, disable_env_checker = True, render_mode = render_mode)
 
