@@ -20,7 +20,7 @@ The recurrent policy implementation is based on our [baseline/reference implemen
 
 - Padding
     - zeros are added to the end of a sequence
-    - every kind of data (e.g. observations, advantages, values, log probabilities, ...) is padded
+    - Only model input data undergoes padding
 
 - Recurrent cell state initialization choices:
     - zero
@@ -28,7 +28,7 @@ The recurrent policy implementation is based on our [baseline/reference implemen
     - mean
         - the mean of the hidden states of the collected training data
     - sample
-        - sampled from agaussian distribution
+        - sampled from a gaussian distribution
         - based on the mean of the hidden states of the collected training data
         - the standard deviation is set to 0.01
        

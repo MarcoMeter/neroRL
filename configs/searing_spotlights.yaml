@@ -1,0 +1,115 @@
+environment:
+  type: "MemoryGym"
+  name: "SearingSpotlights-v0"
+  frame_skip: 1
+  last_action_to_obs: True
+  last_reward_to_obs: True
+  obs_stacks: 1
+  grayscale: False
+  resize_vis_obs: [84, 84]
+  reset_params:
+    start-seed: 0
+    num-seeds: 100000
+    max_steps: 256
+    initial_spawns: 4
+    num_spawns: 30
+    initial_spawn_interval: 30
+    spawn_interval_threshold: 10
+    spawn_interval_decay: 0.95
+    spot_min_radius: 7.5
+    spot_max_radius: 13.75
+    spot_min_speed: 0.0025
+    spot_max_speed: 0.0075
+    spot_damage: 1.0
+    visual_feedback: True
+    black_background: False
+    hide_chessboard: False
+    light_dim_off_duration: 6
+    light_threshold: 255
+    num_coins: [1]
+    coin_scale: 0.375
+    coins_visible: False
+    use_exit: True
+    exit_visible: False
+    exit_scale: 0.5
+    agent_speed: 2.5
+    agent_health: 5
+    agent_scale: 0.25
+    agent_visible: False
+    sample_agent_position: True
+    reward_inside_spotlight: 0.0
+    reward_outside_spotlight: 0.0
+    reward_death: 0.0
+    reward_exit: 1.0
+    reward_max_steps: 0.0
+    reward_coin: 0.25
+
+model:
+  load_model: False
+  model_path: ""
+  checkpoint_interval: 500
+  activation: "relu"
+  vis_encoder: "cnn"
+  vec_encoder: "linear"
+  num_vec_encoder_units: 128
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 384
+  recurrence:
+    layer_type: "gru"
+    sequence_length: -1
+    hidden_state_size: 384
+    hidden_state_init: "zero"
+    reset_hidden_state: True
+    residual: False
+    embed: True
+  # Observation reconstruction decoder
+  obs_decoder:
+    # Whether to attach the decoder to the cnn or the memory
+    attach_to: "memory" # "cnn"
+    # Whether to detach the input to the decoder from the computational graph
+    detach_gradient: False
+
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds:
+    start-seed: 100000
+    num-seeds: 30
+  interval: 200
+
+sampler:
+  n_workers: 16
+  worker_steps: 256
+
+trainer:
+  algorithm: "PPO"
+  resume_at: 0
+  gamma: 0.995
+  lamda: 0.95
+  updates: 20000
+  epochs: 3
+  n_mini_batches: 8
+  advantage_normalization: "no"
+  value_coefficient: 0.5
+  max_grad_norm: 0.25
+  learning_rate_schedule:
+    initial: 2.5e-4
+    final: 1.0e-5
+    power: 1.0
+    max_decay_steps: 20000
+  beta_schedule:
+    initial: 0.0001
+    final: 0.000001
+    power: 1.0
+    max_decay_steps: 20000
+  clip_range_schedule:
+    initial: 0.1
+    final: 0.1
+    power: 1.0
+    max_decay_steps: 20000
+  obs_reconstruction_schedule:
+    initial: 1.0
+    final: 1.0
+    power: 1.0
+    max_decay_steps: 20000

@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym import error, spaces
+from gymnasium import error, spaces
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.base_env import ActionTuple
 from mlagents_envs.side_channel.environment_parameters_channel import (EnvironmentParametersChannel,)
@@ -50,7 +50,7 @@ class UnityWrapper(Env):
         self._record = record_trajectory
 
         # Launch the environment's executable
-        self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+        self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
         # If the Unity Editor chould be used instead of a build
         # self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
 
@@ -76,7 +76,7 @@ class UnityWrapper(Env):
         self._num_vis_obs, self._num_vec_obs = 0, 0
         self._vec_obs_indices = []
         for index, obs in enumerate(self._behavior_spec.observation_specs):
-            if len(obs) > 1:
+            if len(obs[0]) > 1:
                 self._num_vis_obs = self._num_vis_obs + 1
                 self._vis_obs_index = index
             else:
@@ -98,7 +98,7 @@ class UnityWrapper(Env):
         # Set vector observation space property
         if self._num_vec_obs > 0:
             # Determine the length of vec obs by summing the length of each distinct one
-            vec_obs_length = sum([self._behavior_spec.observation_specs[i][0] for i in self._vec_obs_indices])
+            vec_obs_length = sum([self._behavior_spec.observation_specs[i][0][0] for i in self._vec_obs_indices])
             self._vector_observatoin_space = (vec_obs_length, )
         else:
             self._vector_observatoin_space = None
@@ -121,8 +121,18 @@ class UnityWrapper(Env):
         return self._action_space
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
     def action_names(self):
         return None
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return 2048
 
     @property
     def get_episode_trajectory(self):
@@ -166,11 +176,11 @@ class UnityWrapper(Env):
 
         # Sample the to be used seed
         if reset_params["start-seed"] > -1:
-            seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+            self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
         else:
             # Use unlimited seeds
-            seed = -1
-        self.reset_parameters.set_float_parameter("seed", seed)
+            self._seed = -1
+        self.reset_parameters.set_float_parameter("seed", self._seed)
 
         # Reset and verify the environment
         self._env.reset()
@@ -182,11 +192,12 @@ class UnityWrapper(Env):
 
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [vis_obs * 255], "vec_obs": [vec_obs],
+            "vis_obs": [vis_obs * 255] if vis_obs is not None else [vis_obs],
+            "vec_obs": [vec_obs],
             "rewards": [0.0], "actions": []
         }
 
-        return vis_obs, vec_obs
+        return vis_obs, vec_obs, {}
 
     def step(self, action):
         """Runs one timestep of the environment"s dynamics.
@@ -215,7 +226,10 @@ class UnityWrapper(Env):
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(vis_obs * 255)
+            if vis_obs is not None:
+                self._trajectory["vis_obs"].append(vis_obs * 255)
+            else:
+                self._trajectory["vis_obs"].append(vis_obs)
             self._trajectory["vec_obs"].append(vec_obs)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)

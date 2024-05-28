@@ -1,7 +1,7 @@
 import numpy as np
-import gym
+import gymnasium as gym
 import time
-from gym import error, spaces
+from random import randint
 from neroRL.environments.env import Env
 
 class CartPoleWrapper(Env):
@@ -23,16 +23,21 @@ class CartPoleWrapper(Env):
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"mask-velocity": False}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "mask-velocity": False}
         else:
             self._default_reset_params = reset_params
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
+        render_mode = None
+        if realtime_mode:
+            render_mode = "human"
+        if record_trajectory:
+            render_mode = "rgb_array"
 
         # Initialize environment
         self._env_name = env_name
-        self._env = gym.make(self._env_name)
+        self._env = gym.make(self._env_name, render_mode = render_mode)
 
         # Prepare observation space
         self._vector_observation_space = self._env.observation_space.shape
@@ -60,6 +65,16 @@ class CartPoleWrapper(Env):
         return self._env.action_space
 
     @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return self._env._max_episode_steps
+
+    @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
     def action_names(self):
         """Returns a list of action names."""
         return ["move right", "move left"]
@@ -84,6 +99,10 @@ class CartPoleWrapper(Env):
         # Set default reset parameters if none were provided
         if reset_params is None:
             reset_params = self._default_reset_params
+
+        # Sample seed
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+
         # Create mask to hide the velocity of the cart and the pole if requested by the reset params
         self._obs_mask = np.ones(4, dtype=np.float32) if not self._default_reset_params["mask-velocity"] else np.asarray([1,0,1,0], dtype=np.float32)
 
@@ -92,20 +111,20 @@ class CartPoleWrapper(Env):
 
         # Retrieve the agent's initial observation
         vis_obs = None
-        vec_obs = self._env.reset()
+        vec_obs, _ = self._env.reset(seed=self._seed)
 
         # Render environment?
         if self._realtime_mode:
-            self._env.render(mode="human")
+            self._env.render()
 
         # Prepare trajectory recording
         if self._record:
             self._trajectory = {
-                "vis_obs": [self._env.render(mode="rgb_array")], "vec_obs": [vec_obs],
+                "vis_obs": [self._env.render()], "vec_obs": [vec_obs],
                 "rewards": [0.0], "actions": [], "frame_rate": 20
             }
 
-        return vis_obs, vec_obs * self._obs_mask
+        return vis_obs, vec_obs * self._obs_mask, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -121,7 +140,7 @@ class CartPoleWrapper(Env):
             {dict} -- Further information (e.g. episode length) retrieved from the environment once an episode completed
         """
         # Execute action
-        obs, reward, done, info = self._env.step(action[0])
+        obs, reward, done, truncation, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the agent's current observation
         vis_obs = None
@@ -129,24 +148,24 @@ class CartPoleWrapper(Env):
 
         # Render environment?
         if self._realtime_mode:
-            self._env.render(mode="human")
+            self._env.render()
             time.sleep(0.033)
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(self._env.render(mode="rgb_array"))
+            self._trajectory["vis_obs"].append(self._env.render())
             self._trajectory["vec_obs"].append(vec_obs)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
 
         # Wrap up episode information once completed (i.e. done)
-        if done:
+        if done or truncation:
             info = {"reward": sum(self._rewards),
                     "length": len(self._rewards)}
         else:
             info = None
 
-        return vis_obs, vec_obs * self._obs_mask, reward / 100.0, done, info
+        return vis_obs, vec_obs * self._obs_mask, reward / 100.0, done or truncation, info
 
     def close(self):
         """Shuts down the environment."""

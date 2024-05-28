@@ -16,29 +16,44 @@ model:
   model_path: "./checkpoints/hallway/20201016-160738_2/hallway-951.pt"
   checkpoint_interval: 50
   activation: "leaky_relu"
+  vis_encoder: "cnn"
+  vec_encoder: "linear"
+  num_vec_encoder_units: 128
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
   recurrence:
     layer_type: "lstm"
+    num_layers: 1
     sequence_length: 16
     hidden_state_size: 256
     hidden_state_init: "zero"
     reset_hidden_state: True
+    residual: False
+    embed: True
 
 evaluation:
   evaluate: False
   n_workers: 3
-  seeds: [1001, 1002, 1003, 1004, 1005]
+  seeds:
+    start-seed: 100000
+    num-seeds: 10
   interval: 10
+
+sampler:
+  n_workers: 16
+  worker_steps: 512
 
 trainer:
   algorithm: "PPO"
+  resume_at: 0
   gamma: 0.99
   lamda: 0.95
   updates: 2000
   epochs: 3
-  n_workers: 16
-  worker_steps: 512
-  n_mini_batch: 8
-  resume_at: 0
+  n_mini_batches: 8
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
   learning_rate_schedule:
     initial: 3.0e-4
     final: 3.0e-6

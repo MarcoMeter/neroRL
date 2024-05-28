@@ -1,0 +1,116 @@
+environment:
+  type: "Procgen"
+  name: "procgen:procgen-bossfight-v0"
+  frame_skip: 1
+  last_action_to_obs: False
+  last_reward_to_obs: False
+  obs_stacks: 1
+  grayscale: False
+  resize_vis_obs: [64, 64]
+  spotlight_perturbation:
+    start-seed: 0
+    num-seeds: 100000
+    # Whether to use the same seed as the environment
+    use-environment-seed: False
+    # Number of to be spawned spotlights initially
+    initial_spawns: 4
+    # Number of spotlights that are spawned throughout the episode at a decayed interval
+    num_spawns: 30
+    # Number of steps before spawning one spotlight
+    initial_spawn_interval: 30
+    # Lower threshold for the spotlights spawn interval
+    spawn_interval_threshold: 10
+    # Decay rate of the spawn interval
+    spawn_interval_decay: 0.95
+    # Minimum radius of the spotlights
+    spot_min_radius: 7.5
+    # Maximum radius of the spotlights
+    spot_max_radius: 13.75
+    # Minimum speed of the spotlights
+    spot_min_speed: 0.0025
+    # Maximum speed of the spotlights
+    spot_max_speed: 0.0075
+    # Opacity of the spotlights perturbation surface (0 refers to completely transparent)
+    spotlight_opacity: 120
+    # Whether to apply a color key to replace black with white
+    black_to_white_filter: True
+    # Whether to render the spotlight surface as dark shadow or as white fog
+    shadow_theme: True
+  reset_params:
+    start-seed: 1
+    num-seeds: 1
+    # More detailed information about reset parameters: https://github.com/openai/procgen#environment-options
+    # Paint player velocity info in the top left corner. Only supported by certain games.
+    paint_vel_info: False
+    # Use randomly generated assets in place of human designed assets.
+    use_generated_assets: False
+    # Determines whether observations are centered on the agent or display the full level. Override at your own risk.
+    center_agent: False
+    # When you reach the end of a level, the episode is ended and a new level is selected.
+    use_sequential_levels: False
+    # What variant of the levels to use, the options are "easy", "hard", "extreme", "memory", "exploration".
+    distribution_mode: "easy"
+    # Normally games use human designed backgrounds, if this flag is set to False, games will use pure black backgrounds.
+    use_backgrounds: False
+    # Some games select assets from multiple themes, if this flag is set to True, those games will only use a single theme.
+    restrict_themes: False
+    # If set to True, games will use monochromatic rectangles instead of human designed assets.
+    use_monochrome_assets: False
+
+model:
+  load_model: False
+  model_path: "./checkpoints/bossfight/20220911-182708_2/bossfight-632.pt"
+  checkpoint_interval: 500
+  activation: "relu"
+  vis_encoder: "cnn"
+  vec_encoder: "linear"
+  num_vec_encoder_units: 128
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 256
+  recurrence:
+    layer_type: "gru"
+    sequence_length: 128
+    hidden_state_size: 512
+    hidden_state_init: "zero"
+    reset_hidden_state: True
+    residual: False
+    embed: True
+
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds:
+    start-seed: 100000
+    num-seeds: 10
+  interval: 50
+
+sampler:
+  n_workers: 16
+  worker_steps: 256
+
+trainer:
+  algorithm: "PPO"
+  resume_at: 0
+  gamma: 0.99
+  lamda: 0.95
+  updates: 12500
+  epochs: 3
+  n_mini_batches: 4
+  value_coefficient: 0.5
+  max_grad_norm: 0.5
+  learning_rate_schedule:
+    initial: 3.0e-4
+    final: 1.0e-5
+    power: 1.0
+    max_decay_steps: 12500
+  beta_schedule:
+    initial: 0.001
+    final: 0.00001
+    power: 1.0
+    max_decay_steps: 12500
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 12500

@@ -1,74 +1,78 @@
 environment:
-  type: "Unity"
-  name: "./UnityBuilds/MortarMayhem/MortarMayhem"
+  type: "MemoryGym"
+  name: "MortarMayhem-v0"
   frame_skip: 1
-  last_action_to_obs: True
-  last_reward_to_obs: True
+  last_action_to_obs: False
+  last_reward_to_obs: False
   obs_stacks: 1
   grayscale: False
   resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
-    num-seeds: 100
-    # The dimensions of the environment (min: 3, max: 5, default: 5)
-    arena-size: 5
-    # The number of commands that are enabled (min: 4, max: 9, default: 4)
-    # Available commands: Up, Down, Left, Right, Stay, Up Left, Up Right, Down Left, Down Right 
-    allowed-commands: 4
-    # The number of commands that the agent has to watch and execute (min: 1, default: 3)
-    command-count: 3
-    # The number of agent steps that each command is visible (min: 1, default: 12)
-    command-duration: 12
-    # The number of steps between showing each command (min: 0, default: 2)
-    command-delay: 2
-    # Whether to use an alternative command visualization (defalut: False)
-    use-command-alternative: False
-    # The number of agent steps that the explosion is being visualized (min: 1, default: 8)
-    explosion-duration: 8
-    # The number of agent steps between explosions (min: 0, default: 8)
-    explosion-delay: 8
-    # The reward that the agent receives upon failing
-    reward-command-failure: -0.1
-    # The reward that the agent receives for moving to the commanded tile
-    reward-command-success: 0.1
-    # The reward that the agent receives for executing each command correctly
-    reward-episode-success: 0.0
+    num-seeds: 1000
+    agent_scale: 0.25
+    agent_speed: 2.5
+    arena_size: 5
+    allowed_commands: 9
+    command_count: [5]
+    command_show_duration: [3]
+    command_show_delay: [1]
+    explosion_duration: [6]
+    explosion_delay: [18]
+    reward_command_failure: -0.1
+    reward_command_success: 0.1
+    reward_episode_success: 0.0
 
 model:
   load_model: False
-  model_path: "./models/mortar_mayhem-6450.pt"
+  model_path: ""
   checkpoint_interval: 200
   activation: "relu"
+  vis_encoder: "cnn"
+  vec_encoder: "linear"
+  num_vec_encoder_units: 128
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
   recurrence:
     layer_type: "gru"
+    num_layers: 1
     sequence_length: -1
     hidden_state_size: 512
     hidden_state_init: "zero"
     reset_hidden_state: True
+    residual: False
+    embed: True
 
 evaluation:
-  evaluate: True
+  evaluate: False
   n_workers: 3
-  seeds: [1001, 1002, 1003, 1004, 1005]
+  seeds:
+    start-seed: 100000
+    num-seeds: 10
   interval: 200
+
+sampler:
+  n_workers: 16
+  worker_steps: 512
 
 trainer:
   algorithm: "PPO"
+  resume_at: 0
   gamma: 0.99
   lamda: 0.95
-  updates: 5000
+  updates: 10000
   epochs: 3
-  n_workers: 16
-  worker_steps: 256
-  n_mini_batch: 8
-  resume_at: 0
+  n_mini_batches: 8
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
   learning_rate_schedule:
     initial: 3.0e-4
-    final: 3.0e-6
+    final: 3.0e-4
     power: 1.0
     max_decay_steps: 10000
   beta_schedule:
-    initial: 0.001
+    initial: 0.0001
     final: 0.0001
     power: 1.0
     max_decay_steps: 10000
@@ -76,4 +80,4 @@ trainer:
     initial: 0.2
     final: 0.2
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 10000

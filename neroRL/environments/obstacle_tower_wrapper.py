@@ -1,6 +1,5 @@
 import numpy as np
-import gym
-from gym import error, spaces
+from gymnasium import spaces
 from random import randint
 
 from neroRL.environments.obstacle_tower_env import ObstacleTowerEnv
@@ -91,6 +90,11 @@ class ObstacleTowerWrapper(Env):
             return spaces.MultiDiscrete((2,3,2))
 
     @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
     def action_names(self):
         """Returns a list of action names."""
         if self._flat_action_space:
@@ -99,6 +103,11 @@ class ObstacleTowerWrapper(Env):
                     "Move Forward + Rotate Right", "Move Forward + Rotate Right + Jump"]
         else:
             return [["No-Op", "Forward"], ["No-Op", "Rotate CC", "Rotate C"], ["No-Op", "Jump"]]
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return 2560
 
     @property
     def get_episode_trajectory(self):
@@ -130,7 +139,8 @@ class ObstacleTowerWrapper(Env):
         # Track current floor
         self._current_floor = self._starting_floor
         # Sample seed
-        self._env.seed(randint(start_seed, start_seed + num_seeds - 1))
+        self._seed = randint(start_seed, start_seed + num_seeds - 1)
+        self._env.seed(self._seed)
         # Reset the environment and retrieve the initial observation
         obs = self._env.reset()
         # Retrieve the RGB frame of the agent's vision and the vector observation
@@ -148,9 +158,9 @@ class ObstacleTowerWrapper(Env):
         }
 
         if self._retro_vis_obs:
-            return vis_obs, None
+            return vis_obs, None, {}
         else:
-            return vis_obs, vec_obs
+            return vis_obs, vec_obs, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.

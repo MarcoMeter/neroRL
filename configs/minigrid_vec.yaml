@@ -12,35 +12,54 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
+    # The view size of the agent, which has to be an odd number
+    # The default value in minigrid is 7, which is not a good challenge in terms of agent memory
+    view-size: 3
+    max-episode-steps: 64
 
 model:
   load_model: False
   model_path: "./models/good_minigrid-900.pt"
   checkpoint_interval: 100
   activation: "relu"
+  vis_encoder: "cnn"
+  vec_encoder: "linear"
+  num_vec_encoder_units: 128
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
   recurrence:
     layer_type: "gru"
+    num_layers: 1
     sequence_length: 16
     hidden_state_size: 32
     hidden_state_init: "zero"
     reset_hidden_state: False
+    residual: False
+    embed: True
 
 evaluation:
   evaluate: False
   n_workers: 3
-  seeds: [1001, 1002, 1003, 1004, 1005]
+  seeds:
+    start-seed: 100000
+    num-seeds: 10
   interval: 10
+
+sampler:
+  n_workers: 16
+  worker_steps: 256
 
 trainer:
   algorithm: "PPO"
+  resume_at: 0
   gamma: 0.99
   lamda: 0.95
   updates: 1000
   epochs: 4
-  n_workers: 16
-  worker_steps: 256
-  n_mini_batch: 8
-  resume_at: 0
+  n_mini_batches: 8
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
   learning_rate_schedule:
     initial: 2.5e-4
     final: 3.0e-6

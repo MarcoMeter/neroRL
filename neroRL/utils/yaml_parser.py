@@ -1,4 +1,3 @@
-import sys
 from ruamel.yaml import YAML
 
 class YamlParser:
@@ -13,13 +12,21 @@ class YamlParser:
     def __init__(self, path = "./configs/default.yaml"):
         """Loads and prepares the specified config file.
         
-        Keyword Arguments:
+        Arguments:
             path {str} -- Yaml file path to the to be loaded config (default: {"./configs/default.yaml"})
         """
         # Load the config file
-        stream = open(path, "r")
-        yaml = YAML()
-        yaml_args = yaml.load_all(stream)
+        try:
+            stream = open(path, "r")
+            yaml = YAML()
+            yaml_args = yaml.load_all(stream)
+        except Exception:
+            print("Config file not found: {}".format(path))
+            if path == "./configs/default.yaml": # Only generate default config if default config is requested and not found
+                print("Default config will be generated.")
+                yaml_args = []
+            else:
+                raise Exception("Config file not found.")
         
         # Final contents of the config file will be added to a dictionary
         self._config = {}
@@ -29,9 +36,9 @@ class YamlParser:
             self._config = dict(data)
 
         # Process config, like adding missing keys with default values
-        self.process_config()
+        self._process_config()
 
-    def process_config(self):
+    def _process_config(self):
         """Ensures that the config is complete. If incomplete, default values will be applied to missing entries.
         """
         # Default parameters
@@ -44,37 +51,70 @@ class YamlParser:
             "obs_stacks": 1,
             "grayscale": False,
             "resize_vis_obs": [84, 84],
-            "reset_params": {"start-seed": 0, "num-seeds": 100}
+            "positional_encoding": False,
+            "reset_params": {"start-seed": 0, "num-seeds": 100},
+            "reward_normalization": 0
         }
 
         model_dict = {
             "load_model": False,
             "model_path": "",
             "checkpoint_interval": 50,
-            "activation": "relu"
+            "activation": "relu",
+            "vis_encoder": "cnn",
+            "vec_encoder": "linear",
+            "num_vec_encoder_units": 128,
+            "hidden_layer": "default",
+            "num_hidden_layers": 2,
+            "num_hidden_units": 512
         }
 
         eval_dict = {
             "evaluate": False,
             "n_workers": 3,
-            "seeds": [1001, 1002, 1003, 1004, 1005],
+            "seeds": {"start-seed": 100000, "num-seeds": 10},
             "interval": 50
         }
 
-        trainer_dict = {
+        sampler_dict = {
+            "n_workers": 16,
+            "worker_steps": 256
+        }
+
+        ppo_dict = {
             "algorithm": "PPO",
             "resume_at": 0,
             "gamma": 0.99,
             "lamda": 0.95,
             "updates": 1000,
             "epochs": 4,
-            "n_workers": 16,
-            "worker_steps": 256,
-            "n_mini_batch": 4,
+            "n_mini_batches": 4,
+            "advantage_normalization": "minibatch",
+            "value_coefficient": 0.25,
+            "max_grad_norm": 0.5,
             "learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},
-            "clip_range_schedule": {"initial": 0.2}
+            "clip_range_schedule": {"initial": 0.2},
+            "obs_reconstruction_schedule": {"initial": 0.0},
+            "ground_truth_estimator_schedule": {"initial": 0.0}
         }
+
+        # Determine which algorithm is used to process the corresponding default config parameters
+        # PPO is used as default, if the algorithm cannot be determined.
+        if "trainer" in self._config:
+            if "algorithm" in self._config["trainer"]:
+                if self._config["trainer"]["algorithm"] == "PPO":
+                    trainer_dict = ppo_dict
+                elif self._config["trainer"]["algorithm"] == "DecoderTrainer":
+                    trainer_dict = ppo_dict
+                elif self._config["trainer"]["algorithm"] == "GroundTruthTrainer":
+                    trainer_dict = ppo_dict
+                else:
+                    assert(False), "Unsupported algorithm specified"
+            else:
+                trainer_dict = ppo_dict
+        else:
+            trainer_dict = ppo_dict
 
         # Check if keys of the parent dictionaries are available, if not apply defaults from above
         if not "environment" in self._config:
@@ -83,6 +123,8 @@ class YamlParser:
             self._config["model"] = model_dict
         if not "evaluation" in self._config:
             self._config["evaluation"] = eval_dict
+        if not "sampler" in self._config:
+            self._config["sampler"] = sampler_dict
         if not "trainer" in self._config:
             self._config["trainer"] = trainer_dict
 
@@ -100,31 +142,43 @@ class YamlParser:
                 for k, v in value.items():
                     eval_dict[k] = v
                 self._config[key] = eval_dict
+            elif key == "sampler":
+                for k, v in value.items():
+                    sampler_dict[k] = v
+                self._config[key] = sampler_dict
             elif key == "trainer":
                 for k, v in value.items():
                     trainer_dict[k] = v
                 self._config[key] = trainer_dict
-                # Check final hyperparameter
-                if "final" not in value["learning_rate_schedule"]:
-                    trainer_dict["learning_rate_schedule"]["final"] = trainer_dict["learning_rate_schedule"]["initial"]
-                if "final" not in value["beta_schedule"]:
-                    trainer_dict["beta_schedule"]["final"] = trainer_dict["beta_schedule"]["initial"]
-                if "final" not in value["clip_range_schedule"]:
-                    trainer_dict["clip_range_schedule"]["final"] = trainer_dict["clip_range_schedule"]["initial"]
-                # Check power
-                if "power" not in value["learning_rate_schedule"]:
-                    trainer_dict["learning_rate_schedule"]["power"] = 1.0
-                if "power" not in value["beta_schedule"]:
-                    trainer_dict["beta_schedule"]["power"] = 1.0
-                if "power" not in value["clip_range_schedule"]:
-                    trainer_dict["clip_range_schedule"]["power"] = 1.0
-                # Check max_decay_steps
-                if "max_decay_steps" not in value["learning_rate_schedule"]:
-                    trainer_dict["learning_rate_schedule"]["max_decay_steps"] = self._config[key]["updates"]
-                if "max_decay_steps" not in value["beta_schedule"]:
-                    trainer_dict["beta_schedule"]["max_decay_steps"] = self._config[key]["updates"]
-                if "max_decay_steps" not in value["clip_range_schedule"]:
-                    trainer_dict["clip_range_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+
+                #  Check beta
+                if "PPO" in value["algorithm"]:
+                    if "final" not in value["beta_schedule"]:
+                        trainer_dict["beta_schedule"]["final"] = trainer_dict["beta_schedule"]["initial"]
+                    if "power" not in value["beta_schedule"]:
+                        trainer_dict["beta_schedule"]["power"] = 1.0        
+                    if "max_decay_steps" not in value["beta_schedule"]:
+                        trainer_dict["beta_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+
+                # Check decaying parameter schedules that have to be differentiated for the available algorithms
+                if value["algorithm"] == "PPO" or value["algorithm"] == "DecoderTrainer" or value["algorithm"] == "GroundTruthTrainer":
+                    # Check learning rate
+                    if "final" not in value["learning_rate_schedule"]:
+                        trainer_dict["learning_rate_schedule"]["final"] = trainer_dict["learning_rate_schedule"]["initial"]
+                    if "power" not in value["learning_rate_schedule"]:
+                        trainer_dict["learning_rate_schedule"]["power"] = 1.0
+                    if "max_decay_steps" not in value["learning_rate_schedule"]:
+                        trainer_dict["learning_rate_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+                    # Check clip range
+                    if "PPO" in value["algorithm"]:
+                        if "final" not in value["clip_range_schedule"]:
+                            trainer_dict["clip_range_schedule"]["final"] = trainer_dict["clip_range_schedule"]["initial"]
+                        if "power" not in value["clip_range_schedule"]:
+                            trainer_dict["clip_range_schedule"]["power"] = 1.0
+                        if "max_decay_steps" not in value["clip_range_schedule"]:
+                            trainer_dict["clip_range_schedule"]["max_decay_steps"] = self._config[key]["updates"]
+
+                # Apply trainer config
                 self._config[key] = trainer_dict
             
             # Check if the model dict contains a recurrence dict
@@ -133,6 +187,8 @@ class YamlParser:
             if "recurrence" in self._config["model"]:
                 if "layer_type" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["layer_type"] = "gru"
+                if "num_layers" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["num_layers"] = 1
                 if "sequence_length" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["sequence_length"] = 32
                 if "hidden_state_size" not in self._config["model"]["recurrence"]:
@@ -141,6 +197,53 @@ class YamlParser:
                     self._config["model"]["recurrence"]["hidden_state_init"] = "zero"
                 if "reset_hidden_state" not in self._config["model"]["recurrence"]:
                     self._config["model"]["recurrence"]["reset_hidden_state"] = True
+                if "residual" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["residual"] = False 
+                if "embed" not in self._config["model"]["recurrence"]:
+                    self._config["model"]["recurrence"]["embed"] = True
+
+            # Check if the model dict contains a transformer dict
+            # If no transformer dict is available, it is assumed that a transformer-based policy is not used
+            # In the other case check for completeness and apply defaults if necessary
+            if "transformer" in self._config["model"]:
+                if "num_blocks" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["num_blocks"] = 1
+                if "embed_dim" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["embed_dim"] = 512
+                if "num_heads" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["num_heads"] = 8
+                if "memory_length" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["memory_length"] = 512
+                if "positional_encoding" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["positional_encoding"] = "absolute"
+                if "add_positional_encoding_to_query" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["add_positional_encoding_to_query"] = False
+                if "layer_norm" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["layer_norm"] = "pre"
+                if "init_weights" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["init_weights"] = "xavier"
+                if "gtrxl" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["gtrxl"] = False
+                if "gtrxl_bias" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["gtrxl_bias"] = 0.0
+                if "gtrxl_swap" not in self._config["model"]["transformer"]:
+                    self._config["model"]["transformer"]["gtrxl_swap"] = False
+
+            # Check if the model dict contains an obs_decoder dict
+            # If no obs_decoder dict is available, it is assumed that an observation decoder is not used
+            # In the other case check for completeness and apply defaults if necessary
+            if "obs_decoder" in self._config["model"]:
+                if "attach_to" not in self._config["model"]["obs_decoder"]:
+                    self._config["model"]["obs_decoder"]["attach_to"] = "cnn"
+                if "detach_gradient" not in self._config["model"]["obs_decoder"]:
+                    self._config["model"]["obs_decoder"]["detach_gradient"] = False
+
+            # Check if the model dict contains an ground_truth_estimator dict
+            # If no ground_truth_estimator dict is available, it is assumed that a ground truth estimator is not used
+            # In the other case check for completeness and apply defaults if necessary
+            if "ground_truth_estimator" in self._config["model"]:
+                if "detach_gradient" not in self._config["model"]["ground_truth_estimator"]:
+                    self._config["model"]["ground_truth_estimator"]["detach_gradient"] = False
 
     def get_config(self):
         """ 
@@ -149,19 +252,18 @@ class YamlParser:
         """
         return self._config
 
-class GridSearchYamlParser:
-    """The GridSearchYamlParser parses a yaml file containing parameters for tuning hyperparameters based on grid search.
-    The data is parsed during initialization.
-    Retrieve the parameters using the get_config function.
+class OptunaYamlParser:
+    """The OptunaYamlParser parses a yaml file containing parameters for tuning hyperparameters.
+    The data is parsed during initialization. Retrieve the parameters using the get_config function.
 
     The data can be accessed like:
-    parser.get_config()["search_space"]["worker_steps"]
+    parser.get_config()["search_type"]["search_parameter"]
     """
 
-    def __init__(self, path = "./configs/tune/example.yaml"):
+    def __init__(self, path = "./configs/tune/optuna.yaml"):
         """Loads and prepares the specified config file.
         
-        Keyword Arguments:
+        Arguments:
             path {str} -- Yaml file path to the to be loaded config (default: {"./configs/tune/search.yaml"})
         """
         # Load the config file

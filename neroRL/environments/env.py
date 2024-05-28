@@ -23,9 +23,24 @@ class Env(ABC):
         """Returns the shape of the vector component of the observation space as a tuple."""
         raise NotImplementedError("This abstract property has to be implemented by a child.")
 
+    @property
+    def ground_truth_space(self):
+        """Returns the space of the ground truth info space if available."""
+        return None
+
     @abstractproperty
     def action_space(self):
         """Returns the shape of the action space of the agent."""
+        raise NotImplementedError("This abstract property has to be implemented by a child.")
+
+    @abstractproperty
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        raise NotImplementedError("This abstract property has to be implemented by a child.")
+
+    @abstractproperty
+    def seed(self):
+        """Returns the seed of the current episode."""
         raise NotImplementedError("This abstract property has to be implemented by a child.")
 
     @abstractproperty

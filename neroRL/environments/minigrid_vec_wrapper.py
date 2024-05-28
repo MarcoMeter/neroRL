@@ -1,11 +1,12 @@
 import time
 import numpy as np
-import gym_minigrid
-import gym
-from gym import error, spaces
+import minigrid
+import gymnasium as gym
+from gymnasium import error, spaces
 from random import randint
 from neroRL.environments.env import Env
-from gym_minigrid.wrappers import ViewSizeWrapper
+from minigrid.wrappers import *
+from minigrid.core.constants import OBJECT_TO_IDX
 
 class MinigridVecWrapper(Env):
     """This class wraps Gym Minigrid environments.
@@ -23,19 +24,34 @@ class MinigridVecWrapper(Env):
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "view-size": 3, "max-episode-steps": 96}
         else:
             self._default_reset_params = reset_params
 
-        self._env = gym.make(env_name)
-        self.agent_view_size = 3
-        self._env = ViewSizeWrapper(self._env, self.agent_view_size)
+        self._max_episode_steps = self._default_reset_params["max-episode-steps"]
+        render_mode = None
+        if realtime_mode:
+            render_mode = "human"
+        if record_trajectory:
+            render_mode = "rgb_array"
+
+        # Instantiate the environment and apply various wrappers
+        self._env = gym.make(env_name, render_mode=render_mode, agent_view_size=self._default_reset_params["view-size"])
+        self._view_size = self._default_reset_params["view-size"]
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
 
         # Prepare observation space
-        self._vector_observation_space = (self.agent_view_size**2*5,)
+        self._vector_observation_space = (self._view_size**2*6,)
+
+        # Set action space
+        if "Memory" in env_name:
+            self._action_space = spaces.Discrete(4)
+            self._action_names = [["left", "right", "forward", "no-ops"]] # pickup is used as a no-ops action
+        else:
+            self._action_space = self._env.action_space
+            self._action_names = [["left", "right", "forward", "pickup", "drop", "toggle", "done"]]
 
     @property
     def unwrapped(self):
@@ -55,14 +71,22 @@ class MinigridVecWrapper(Env):
     @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
-        return spaces.Discrete(3)
-        # return self._env.action_space
+        return self._action_space
+
+    @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
 
     @property
     def action_names(self):
         """Returns a list of action names."""
-        return [["left", "right", "forward"]]
-        # return [["left", "right", "forward", "toggle", "pickup", "drop", "done"]]
+        return self._action_names
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return self._max_episode_steps
 
     @property
     def get_episode_trajectory(self):
@@ -87,25 +111,25 @@ class MinigridVecWrapper(Env):
         else:
             reset_params = reset_params
         # Set seed
-        self._env.seed(randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1))
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
         # Track rewards of an entire episode
         self._rewards = []
         # Reset the environment and retrieve the initial observation
-        obs = self._env.reset()
+        obs, _ = self._env.reset(seed=self._seed)
 
         # Vector observation
         vec_obs = self.process_obs(obs["image"])
 
         # Render environment?
         if self._realtime_mode:
-            self._env.render(tile_size = 96)
+            self._env.render()
 
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [None],
+            "vis_obs": [self._env.render(tile_size = 96).astype(np.uint8)], "vec_obs": [None],
             "rewards": [0.0], "actions": []
-        }
-        return None, vec_obs
+        } if self._record else None # The render function seems to be very very costly, so don't use this even once during training or evaluation
+        return None, vec_obs, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -120,7 +144,7 @@ class MinigridVecWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
-        obs, reward, done, info = self._env.step(action[0])
+        obs, reward, done, truncated, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
         # vis_obs = self._env.get_obs_render(obs["image"], tile_size=12)  / 255.
@@ -129,18 +153,22 @@ class MinigridVecWrapper(Env):
 
         # Render the environment in realtime
         if self._realtime_mode:
-            self._env.render(tile_size = 96)
+            self._env.render()
             time.sleep(0.5)
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(self._env.render(tile_size = 96, mode="rgb_array").astype(np.uint8))
+            self._trajectory["vis_obs"].append(self._env.render().astype(np.uint8))
             self._trajectory["vec_obs"].append(None)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
         
+        # Check time limit
+        if len(self._rewards) == self._max_episode_steps:
+            done = True
+
         # Wrap up episode information once completed (i.e. done)
-        if done:
+        if done or truncated:
             success = 1.0 if sum(self._rewards) > 0 else 0.0
             info = {"reward": sum(self._rewards),
                     "length": len(self._rewards),
@@ -148,7 +176,7 @@ class MinigridVecWrapper(Env):
         else:
             info = None
 
-        return None, vec_obs, reward, done, info
+        return None, vec_obs, reward, done or truncated, info
 
     def close(self):
         """Shuts down the environment."""
@@ -158,19 +186,21 @@ class MinigridVecWrapper(Env):
         one_hot_obs = []
         for i in range(obs.shape[0]):
             for j in range(obs.shape[1]):
-                # print(obs[i,j,0])
-                # if i == 1 and j == 2:
-                #     one_hot_obs.append([1, 0, 0, 0, 0]) # agent tile
-                # else:
-                if obs[i,j,0] == 1:
-                    one_hot_obs.append([0, 1, 0, 0, 0]) # walkable tile
-                elif obs[i,j,0] == 2:
-                    one_hot_obs.append([0, 0, 1, 0, 0]) # blocked tile
-                elif obs[i,j,0] == 5:
-                    one_hot_obs.append([0, 0, 0, 1, 0]) # key tile
-                elif obs[i,j,0] == 6:
-                    one_hot_obs.append([0, 0, 0, 0, 1]) # circle tile
-                else:
-                    one_hot_obs.append([0, 0, 0, 0, 0]) # anything else
-        # return flattened one-hot encoded observation
-        return np.asarray(one_hot_obs, dtype=np.float32).reshape(-1)
+                if obs[i,j,0] == OBJECT_TO_IDX["agent"]: # The agent is only visible when using the FullyObsWrapper
+                    one_hot_obs.append([1, 0, 0, 0, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["empty"]:
+                    one_hot_obs.append([0, 1, 0, 0, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["wall"]:
+                    one_hot_obs.append([0, 0, 1, 0, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["key"]:
+                    one_hot_obs.append([0, 0, 0, 1, 0, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["ball"]:
+                    one_hot_obs.append([0, 0, 0, 0, 1, 0])
+                elif obs[i,j,0] == OBJECT_TO_IDX["lava"]:
+                    one_hot_obs.append([0, 0, 0, 0, 0, 1])
+                else: # anything else
+                    one_hot_obs.append([0, 0, 0, 0, 0, 0])
+
+        # Flatten the observation encoding
+        one_hot_encoding = np.asarray(one_hot_obs, dtype=np.float32).reshape(-1)
+        return one_hot_encoding

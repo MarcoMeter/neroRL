@@ -1,0 +1,73 @@
+environment:
+  type: "MemoryGym"
+  name: "MortarMayhemB-Grid-v0"
+  frame_skip: 1
+  last_action_to_obs: True
+  last_reward_to_obs: True
+  obs_stacks: 1
+  grayscale: False
+  positional_encoding: True
+  resize_vis_obs: [84, 84]
+  reset_params:
+    start-seed: 0
+    num-seeds: 100000
+    agent_scale: 0.25
+    arena_size: 5
+    allowed_commands: 5
+    command_count: [10]
+    explosion_duration: [2]
+    explosion_delay: [6]
+    reward_command_failure: 0.0
+    reward_command_success: 0.1
+    reward_episode_success: 0.0
+
+model:
+  load_model: False
+  model_path: ""
+  checkpoint_interval: 200
+  activation: "relu"
+  vis_encoder: "cnn"
+  vec_encoder: "linear"
+  num_vec_encoder_units: 128
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
+
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds:
+    start-seed: 100000
+    num-seeds: 30
+  interval: 200
+
+sampler:
+  n_workers: 16
+  worker_steps: 512
+
+trainer:
+  algorithm: "PPO"
+  resume_at: 0
+  gamma: 0.99
+  lamda: 0.95
+  updates: 10000
+  epochs: 3
+  n_mini_batches: 8
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
+  advantage_normalization: "no"
+  learning_rate_schedule:
+    initial: 3.0e-4
+    final: 1.0e-4
+    power: 1.0
+    max_decay_steps: 10000
+  beta_schedule:
+    initial: 0.0001
+    final: 0.00001
+    power: 1.0
+    max_decay_steps: 10000
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 10000

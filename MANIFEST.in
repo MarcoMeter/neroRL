@@ -1,0 +1,5 @@
+recursive-include . *.md
+recursive-include . *.yaml
+recursive-include . *.txt
+recursive-include . *.html
+include LICENSE

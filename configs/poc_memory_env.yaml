@@ -1,0 +1,79 @@
+# https://github.com/openai/gym
+
+environment:
+  type: "PoCMemoryEnv"
+  name: "PoCMemoryEnv-v0"
+  frame_skip: 1
+  last_action_to_obs: False
+  last_reward_to_obs: False
+  obs_stacks: 1
+  reset_params:
+    start-seed: 0
+    num-seeds: 100
+    global: False
+    step_size: 0.2
+    freeze: True
+    max_episode_steps: 32
+
+model:
+  load_model: False
+  model_path: "./checkpoints/poc_memory_env/20210722-103713_2/poc_memory_env-199.pt"
+  checkpoint_interval: 25
+  activation: "relu"
+  vis_encoder: "cnn"
+  vec_encoder: "linear"
+  num_vec_encoder_units: 128
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 384
+  transformer:
+    num_blocks: 3
+    embed_dim: 384
+    num_heads: 4
+    memory_length: 32
+    positional_encoding: "" # options: "" "absolute" "learned"
+    add_positional_encoding_to_query: False # Only supported for absolute positional encoding
+    layer_norm: "pre" # options: "" "pre" "post"
+    init_weights: "xavier" # options: "xavier" "orthogonal" "tfixup" "kaiming"
+    gtrxl: False
+    gtrxl_bias: 0.0
+    gtrxl_swap: False
+
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds:
+    start-seed: 100000
+    num-seeds: 10
+  interval: 50
+
+sampler:
+  n_workers: 16
+  worker_steps: 256
+
+trainer:
+  algorithm: "PPO"
+  resume_at: 0
+  gamma: 0.99
+  lamda: 0.95
+  updates: 200
+  epochs: 3
+  n_mini_batches: 4
+  advantage_normalization: "no"
+  value_coefficient: 0.25
+  max_grad_norm: 0.5
+  learning_rate_schedule:
+    initial: 1.0e-4
+    final: 1.0e-4
+    power: 1.0
+    max_decay_steps: 50
+  beta_schedule:
+    initial: 0.00001
+    final: 0.000001
+    power: 1.0
+    max_decay_steps: 50
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 50

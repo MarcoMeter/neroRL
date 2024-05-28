@@ -1,6 +1,6 @@
 import numpy as np
 from collections import deque
-from gym import spaces
+from gymnasium import spaces
 from neroRL.environments.env import Env
 
 class StackedObservationEnv(Env):
@@ -56,9 +56,24 @@ class StackedObservationEnv(Env):
         return self._vector_observation_space
 
     @property
+    def ground_truth_space(self):
+        """Returns the space of the ground truth info space if available."""
+        return self._env.ground_truth_space
+
+    @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return self._env.action_space
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return self._env.max_episode_steps
+
+    @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._env._seed
 
     @property
     def action_names(self):
@@ -81,7 +96,7 @@ class StackedObservationEnv(Env):
             {numpy.ndarray} -- Stacked visual observation
             {numpy.ndarray} -- Stacked vector observation
         """
-        vis_obs, vec_obs = self._env.reset(reset_params = reset_params)
+        vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
 
         for _ in range(self._num_stacks):
             self._vis_obs_stack.append(vis_obs)
@@ -91,7 +106,7 @@ class StackedObservationEnv(Env):
         vis_obs = self._process_vis_obs_stack(self._vis_obs_stack)
         vec_obs = self._process_vec_obs_stack(self._vec_obs_stack)
 
-        return vis_obs, vec_obs
+        return vis_obs, vec_obs, info
 
     def step(self, action):
         """Executes one step of the agent.

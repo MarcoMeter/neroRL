@@ -1,15 +1,18 @@
 import time
 import numpy as np
-import gym_minigrid
-import gym
-from gym import error, spaces
+import minigrid
+import gymnasium as gym
+from gymnasium import error, spaces
 from random import randint
 from neroRL.environments.env import Env
-from gym_minigrid.wrappers import ViewSizeWrapper
+from minigrid.wrappers import *
 
 class MinigridWrapper(Env):
     """This class wraps Gym Minigrid environments.
     https://github.com/maximecb/gym-minigrid
+    Custom Environments:
+        MiniGrid-MortarAB-v0
+        MiniGrid-MortarB-v0
     Available Environments:
         Empty
             - MiniGrid-Empty-5x5-v0
@@ -112,12 +115,21 @@ class MinigridWrapper(Env):
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "view-size": 3, "max-episode-steps": 96}
         else:
             self._default_reset_params = reset_params
 
-        self._env = gym.make(env_name)
-        self._env = ViewSizeWrapper(self._env, 3)
+        self._max_episode_steps = self._default_reset_params["max-episode-steps"]
+        render_mode = None
+        if realtime_mode:
+            render_mode = "human"
+        if record_trajectory:
+            render_mode = "rgb_array"
+
+        # Instantiate the environment and apply various wrappers
+        self._env = gym.make(env_name, render_mode=render_mode, agent_view_size=self._default_reset_params["view-size"], tile_size=28)
+        self._env = RGBImgPartialObsWrapper(self._env, tile_size=28)
+        self._env = ImgObsWrapper(self._env)
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
@@ -128,6 +140,14 @@ class MinigridWrapper(Env):
                 high = 1.0,
                 shape = (84, 84, 3),
                 dtype = np.float32)
+
+        # Set action space
+        if "Memory" in env_name:
+            self._action_space = spaces.Discrete(4)
+            self._action_names = [["left", "right", "forward", "no-ops"]] # pickup is used as a no-ops action
+        else:
+            self._action_space = self._env.action_space
+            self._action_names = [["left", "right", "forward", "pickup", "drop", "toggle", "done"]]
 
     @property
     def unwrapped(self):
@@ -147,19 +167,26 @@ class MinigridWrapper(Env):
     @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
-        return spaces.Discrete(3)
-        # return self._env.action_space
+        return self._action_space
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return self._max_episode_steps
+
+    @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
 
     @property
     def action_names(self):
         """Returns a list of action names."""
-        return [["left", "right", "forward"]]
-        # return [["left", "right", "forward", "toggle", "pickup", "drop", "done"]]
+        return self._action_names
 
     @property
     def get_episode_trajectory(self):
-        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
-        """
+        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions)."""
         self._trajectory["action_names"] = self.action_names
         return self._trajectory if self._trajectory else None
 
@@ -178,27 +205,28 @@ class MinigridWrapper(Env):
             reset_params = self._default_reset_params
         else:
             reset_params = reset_params
+            
         # Set seed
-        self._env.seed(randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1))
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+        
         # Track rewards of an entire episode
         self._rewards = []
         # Reset the environment and retrieve the initial observation
-        obs = self._env.reset()
-        # Retrieve the RGB frame of the agent"s vision
-        vis_obs = self._env.get_obs_render(obs["image"], tile_size=28)
-        vis_obs = vis_obs.astype(np.float32) / 255.
+        obs, _ = self._env.reset(seed=self._seed)
+        # Retrieve the RGB frame of the agent's vision
+        vis_obs = obs.astype(np.float32) / 255.
 
         # Render environment?
         if self._realtime_mode:
-            self._env.render(tile_size = 96, mode = "human")
+            self._env.render()
 
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [self._env.render(tile_size = 96, mode = "rgb_array").astype(np.uint8)], "vec_obs": [None],
+            "vis_obs": [self._env.render().astype(np.uint8)], "vec_obs": [None],
             "rewards": [0.0], "actions": []
-        }
+        } if self._record else None # The render function seems to be very very costly, so don't use this even once during training or evaluation
 
-        return vis_obs, None
+        return vis_obs, None, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -213,25 +241,29 @@ class MinigridWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
-        obs, reward, done, info = self._env.step(action[0])
+        obs, reward, done, truncated, info = self._env.step(action[0])
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
-        vis_obs = self._env.get_obs_render(obs["image"], tile_size=28)  / 255.
+        vis_obs = obs.astype(np.float32) / 255.
 
         # Render the environment in realtime
         if self._realtime_mode:
-            self._env.render(tile_size = 96)
+            self._env.render()
             time.sleep(0.5)
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(self._env.render(tile_size = 96, mode="rgb_array").astype(np.uint8))
+            self._trajectory["vis_obs"].append(self._env.render().astype(np.uint8))
             self._trajectory["vec_obs"].append(None)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
         
+        # Check time limit
+        if len(self._rewards) == self._max_episode_steps:
+            done = True
+
         # Wrap up episode information once completed (i.e. done)
-        if done:
+        if done or truncated:
             success = 1.0 if sum(self._rewards) > 0 else 0.0
             info = {"reward": sum(self._rewards),
                     "length": len(self._rewards),
@@ -239,7 +271,7 @@ class MinigridWrapper(Env):
         else:
             info = None
 
-        return vis_obs, None, reward, done, info
+        return vis_obs, None, reward, done or truncated, info
 
     def close(self):
         """Shuts down the environment."""

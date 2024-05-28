@@ -2,29 +2,34 @@
 
 ## Dependencies
 
-- Python >= 3.7
-- (Optional) CUDA 11.1
+- Python >= 3.9
+- (Optional) CUDA 11.7
 
 ## Install PyTorch
 
 Install PyTorch as described [here](https://pytorch.org/get-started/locally/).
-neroRL is tested with PyTorch version 1.8.1.
+neroRL is tested with PyTorch version 2.0.1
 
-## Install ml-agents-envs
+`pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117`
 
-If you want to train Obstacle Tower, install ml-agents version 0.17.0:
+## Install neroRL
 
-`pip install mlagents-envs==0.17.0`
+`pip3 install neroRL`
 
-For other Unity environments install version 0.27.0:
+## Install neroRL for different environments that have conflicting dependencies
 
-`pip install mlagents-envs==0.27.0`
+`pip3 install neroRL[ml-agents]`
+`pip3 install neroRL[obstacle-tower]`
+`pip3 install neroRL[procgen]`
+`pip3 install neroRL[random-maze]`
 
-## Setting up the python environment
+## Install from source
 
-Use the requirements.txt to install the remaining dependencies:
-
-`pip install -r requirements.txt`
+```
+git clone https://github.com/MarcoMeter/neroRL
+cd neroRL
+pip3 install -e .
+```
 
 ## Obstacle Tower Environment
 

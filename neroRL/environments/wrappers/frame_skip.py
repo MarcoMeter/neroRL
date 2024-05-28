@@ -31,9 +31,24 @@ class FrameSkipEnv(Env):
         return self._env.vector_observation_space
 
     @property
+    def ground_truth_space(self):
+        """Returns the space of the ground truth info space if available."""
+        return self._env.ground_truth_space
+
+    @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
         return self._env.action_space
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return self._max_episode_steps
+
+    @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._env._seed
 
     @property
     def action_names(self):
@@ -48,8 +63,11 @@ class FrameSkipEnv(Env):
 
     def reset(self, reset_params = None):
         """Reset the environment. The provided reset_params is a dictionary featuring reset parameters of the environment such as the seed."""
-        vis_obs, vec_obs = self._env.reset(reset_params = reset_params)
-        return vis_obs, vec_obs
+        vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
+        self._max_episode_steps = self.unwrapped.max_episode_steps // self._skip
+        if self._max_episode_steps % self._skip > 0:
+            self._max_episode_steps += 1
+        return vis_obs, vec_obs, info
 
     def step(self, action):
         """Executes steps of the agent in the environment untill the "skip"-th frame is reached.
