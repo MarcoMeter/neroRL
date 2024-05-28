@@ -19,9 +19,8 @@ Some already trained models can be found inside the `models` directory!
         --video=<path>             Specify a path for saving a video, if video recording is desired. The file's extension will be set automatically. [default: ./video].
         --framerate=<n>            Specifies the frame rate of the to be rendered video. [default: 6]
         --website                  Specifies wether a website shall be generated. [default: False]
-        --visualize-estimated-gt   Specifies wether the estimated ground truth shall be visualized (only works if a website or a video is generated). [default: False]
+        --visualize-estimated-gt   Specifies wether the estimated ground truth shall be visualized(only works if a website or a video is generated). [default: False]
         --decoder-video            Specifies wether the decoder video for the website shall be generated. [default: False]
-        --agent-video              Specifies wether the agent video for the website shall be generated. [default: False]
     """
 ```
 
@@ -61,10 +60,6 @@ If visualizable ground truth information is available, it is rendered onto the w
 
 ## --decoder-video
 If a observation reconstruction decoder head is available, its video can also be rendered for the purpose of the website.
-
-## --agent-video
-The website usually uses the render function as source.
-For the website, another video can be rendered that shows the agent's observations.
 
 ## Example
 

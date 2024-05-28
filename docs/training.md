@@ -23,7 +23,7 @@ The training is launched via the command `ntrain` . Given the source code, runni
 
 ## --config
 In general, training, [evaluating](evaluation.md) and [enjoying](enjoy.md) a model relies on a [config file](configuration.md) that specifies the environment and further necessary parameters.
-Therefore make use of the `--config=./configs/mortar.yaml` argument to specify your configuration file.
+Therefore make use of the `--config=./configs/mortar_mayhem.yaml` argument to specify your configuration file.
 
 ## --worker-id
 Setting a `--worker-id=100` is necessary if you run multiple training sessions using Unity environments (e.g. Obstacle Tower), because these environments communicate with Python using sockets via distinct ports that are offset by `--worker-id`.
@@ -36,11 +36,10 @@ It specifies the path for outputting files such as the tensorboard summary and t
 If not specified, these will be saved in the folder `summaries` and `checkpoints` using the current path.
 
 ## --seed
-Sets the seed for the entire training procedur for reproducibility. This affects all random number generators.
+Sets the seed for the entire training procedure for reproducibility. This affects all random number generators.
 
 ## --compile
-Whether to compile the model before training. As of PyTorch 2.0.0, this feature is extremly unstable.
-It is not available on Windows yet.
+Whether to compile the model before training. As of PyTorch 2.0.0, this feature may be unstable and may not work on Windows out-of-the-box.
 
 ## --low-mem
 Whether to reduce the usage of GPU memory. Given this mode all training data is sampled and stored on the CPU.
@@ -51,7 +50,7 @@ This I/O traffic notably hurts the wall-time.
 This allows you to resume training from a given checkpoint. The needed config is provided by the checkpoint.
 
 ## --num-updates
-When resuming traininng from a checkpoint, you can increase the original number of updates.
+When resuming training from a checkpoint, you can increase the original number of updates.
 
 ## Example A
 
@@ -71,6 +70,6 @@ ntrain --checkpoint ./checkpoints/cartpole/20230805-125535_2/cartpole-209.pt --n
 ```
 
 This command
-- resumes training of an agent that was previously trained on the CartPole environment for 209,
+- resumes training of an agent that was previously trained on the CartPole environment for 209 updates,
 - resumes training with update 210 next,
 - and progresses training untill reaching update 310.
