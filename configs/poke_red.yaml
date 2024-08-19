@@ -41,27 +41,28 @@ evaluation:
   interval: 200
 
 sampler:
-  n_workers: 16
-  worker_steps: 256
+  n_workers: 32
+  worker_steps: 1024
 
 trainer:
   algorithm: "PPO"
   resume_at: 0
-  gamma: 0.99
+  gamma: 0.998
   lamda: 0.95
-  updates: 10000
+  updates: 50000
   epochs: 3
   n_mini_batches: 8
-  value_coefficient: 0.25
+  value_coefficient: 0.5
   max_grad_norm: 0.5
+  advantage_normalization: "minibatch"
   learning_rate_schedule:
     initial: 3.0e-4
     final: 3.0e-4
     power: 1.0
     max_decay_steps: 10000
   beta_schedule:
-    initial: 0.0001
-    final: 0.0001
+    initial: 0.0
+    final: 0.0
     power: 1.0
     max_decay_steps: 10000
   clip_range_schedule:
