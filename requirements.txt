@@ -16,7 +16,7 @@ ruamel.yaml
 scipy
 tensorboard
 tblib
-pyboy
+pyboy==1.6.9
 mediapy
 scikit-image
 hnswlib
