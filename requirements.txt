@@ -16,3 +16,7 @@ ruamel.yaml
 scipy
 tensorboard
 tblib
+pyboy
+mediapy
+scikit-image
+hnswlib
