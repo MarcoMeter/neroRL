@@ -191,6 +191,9 @@ class RedGymEnv(Env):
                     axis=0)
         return game_pixels_render
     
+    def render_single_frame(self):
+        return self.screen.screen_ndarray() # (144, 160, 3)
+    
     def step(self, action):
 
         self.run_action_on_emulator(action)

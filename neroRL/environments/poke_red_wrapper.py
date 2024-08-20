@@ -119,14 +119,10 @@ class PokeRedWrapper(Env):
         # Retrieve the agent's initial observation
         vis_obs, _ = self._env.reset(seed=self._seed)
 
-        # Render environment?
-        if self._realtime_mode:
-            self._env.render()
-
         # Prepare trajectory recording
         if self._record:
             self._trajectory = {
-                "vis_obs": [self._env.render()], "vec_obs": [None],
+                "vis_obs": [self._env.render_single_frame().copy()], "vec_obs": [None],
                 "rewards": [0.0], "actions": [], "frame_rate": 20
             }
 
@@ -151,7 +147,7 @@ class PokeRedWrapper(Env):
 
         # Record trajectory data
         if self._record:
-            self._trajectory["vis_obs"].append(self._env.render())
+            self._trajectory["vis_obs"].append(self._env.render_single_frame().copy())
             self._trajectory["vec_obs"].append(None)
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)

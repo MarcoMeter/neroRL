@@ -226,7 +226,7 @@ def main():
             trajectory_data["estimated_ground_truth"] = est_gt
             trajectory_data["attention_weights"] = attention_weights
             trajectory_data["decoder_frames"] = decoder_frames
-            trajectory_data["vis_obs"] = agent_frames
+            # trajectory_data["vis_obs"] = agent_frames
             
             # if frame_skip > 1:
             #     # remainder = info["length"] % frame_skip
