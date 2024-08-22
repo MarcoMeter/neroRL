@@ -114,6 +114,10 @@ def main():
     # Print results
     logger.info("RESULT: sec={:3}     mean reward={:.2f} std={:.2f}     mean length={:.1f} std={:.2f}".format(
         eval_duration, episode_result["reward_mean"], episode_result["reward_std"], episode_result["length_mean"], episode_result["length_std"]))
+    
+    # print all results from the episode_result dictionary
+    for key, value in episode_result.items():
+        logger.info(f"{key}: {value}")
 
     # Close
     logger.info("Step 5: Closing evaluator . . .")

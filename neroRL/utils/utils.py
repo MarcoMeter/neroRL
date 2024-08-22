@@ -97,10 +97,10 @@ def aggregate_episode_results(episode_infos):
         for key in keys:
             if key == "seed" or key == "ground_truth":
                 continue
-            results[key + "_mean"] = np.mean([info[key] for info in episode_infos])
-            results[key + "_min"] = np.min([info[key] for info in episode_infos])
-            results[key + "_max"] = np.max([info[key] for info in episode_infos])
-            results[key + "_std"] = np.std([info[key] for info in episode_infos])
+            results[key + "_mean"] = np.nanmean([info[key] for info in episode_infos])
+            results[key + "_min"] = np.nanmin([info[key] for info in episode_infos])
+            results[key + "_max"] = np.nanmax([info[key] for info in episode_infos])
+            results[key + "_std"] = np.nanstd([info[key] for info in episode_infos])
     return results
 
 def load_and_apply_state_dict(model, state_dict):

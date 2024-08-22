@@ -35,7 +35,7 @@ class PokeRedWrapper(Env):
         Path("./poke").mkdir(parents=True, exist_ok=True)
         sess_path = Path(f'./poke/session_{sess_id}')
         config = {
-                        'headless': False, 'save_final_state': True, 'early_stop': False,
+                        'headless': True, 'save_final_state': True, 'early_stop': False,
                         'action_freq': 24, 'init_state': reset_params["initial-state"], 'max_steps': reset_params["max-steps"], 
                         'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                         'gb_path': env_name, 'debug': False, 'sim_frame_dist': 2_000_000.0, 
@@ -123,7 +123,7 @@ class PokeRedWrapper(Env):
         if self._record:
             self._trajectory = {
                 "vis_obs": [self._env.render_single_frame().copy()], "vec_obs": [None],
-                "rewards": [0.0], "actions": [], "frame_rate": 20
+                "rewards": [0.0], "actions": [], "frame_rate": 100
             }
 
         return vis_obs / 255.0, None, {}
@@ -154,8 +154,9 @@ class PokeRedWrapper(Env):
 
         # Wrap up episode information once completed (i.e. done)
         if done or truncation:
-            info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards)}
+            # append reward and length to info
+            info["reward"] = sum(self._rewards)
+            info["length"] = len(self._rewards)
         else:
             info = None
 

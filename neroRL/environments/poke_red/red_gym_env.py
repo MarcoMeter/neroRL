@@ -2,6 +2,7 @@
 import sys
 import uuid 
 import os
+import math
 from math import floor, sqrt
 import json
 from pathlib import Path
@@ -158,6 +159,11 @@ class RedGymEnv(Env):
         self.progress_reward = self.get_game_state_reward()
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
+        self.badge_steps = [np.nan for i in range(2)]
+        self.num_badges = 0
+        self.visited_mt_moon = 0
+        self.visited_cerulean = 0
+
         return self.render(), {}
     
     def init_knn(self):
@@ -231,7 +237,33 @@ class RedGymEnv(Env):
 
         self.step_count += 1
 
-        return obs_memory, new_reward*0.1, False, step_limit_reached, {}
+        if self.get_badges() > self.num_badges:
+            self.num_badges = self.get_badges()
+            self.badge_steps[self.num_badges-1] = self.step_count
+
+        # check if mt moon is reached
+        if self.read_m(MAP_N_ADDRESS) == 59 and self.visited_mt_moon == 0:
+            self.visited_mt_moon = 1
+        # check if cerulean city is reached
+        if self.read_m(MAP_N_ADDRESS) == 3 and self.visited_cerulean == 0:
+            self.visited_cerulean = 1
+
+        info = {
+            "deaths": self.died_count,
+            "max_foe_level": self.max_opponent_level,
+            "max_event_rew": self.max_event_rew,
+            "party_size": self.party_size,
+            "levels_sum": self.get_levels_sum(),
+            "mt_moon": self.visited_mt_moon,
+            "cerulean": self.visited_cerulean,
+        }
+
+        # Append badges and steps to info
+        for i in range(2):
+            info[f"badge_{i+1}_steps"] = self.badge_steps[i]
+            info[f"badge_{i+1}"] = int(not math.isnan(self.badge_steps[i]))
+
+        return obs_memory, new_reward*0.1, False, step_limit_reached, info
 
     def run_action_on_emulator(self, action):
         # press button then release after some steps
@@ -325,9 +357,9 @@ class RedGymEnv(Env):
         new_prog = self.group_rewards()
         new_total = sum([val for _, val in self.progress_reward.items()]) #sqrt(self.explore_reward * self.progress_reward)
         new_step = new_total - self.total_reward
-        if new_step < 0 and self.read_hp_fraction() > 0:
-            #print(f'\n\nreward went down! {self.progress_reward}\n\n')
-            self.save_screenshot('neg_reward')
+        # if new_step < 0 and self.read_hp_fraction() > 0:
+        #     #print(f'\n\nreward went down! {self.progress_reward}\n\n')
+        #     self.save_screenshot('neg_reward')
     
         self.total_reward = new_total
         return (new_step, 
@@ -475,9 +507,9 @@ class RedGymEnv(Env):
                 self.read_m(PARTY_SIZE_ADDRESS) == self.party_size):
             if self.last_health > 0:
                 heal_amount = cur_health - self.last_health
-                if heal_amount > 0.5:
-                    print(f'healed: {heal_amount}')
-                    self.save_screenshot('healing')
+                # if heal_amount > 0.5:
+                #     print(f'healed: {heal_amount}')
+                #     self.save_screenshot('healing')
                 self.total_healing_rew += heal_amount * 4
             else:
                 self.died_count += 1
