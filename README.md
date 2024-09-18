@@ -12,8 +12,6 @@ This is a research framework.
   - [Procgen](https://github.com/openai/procgen)
   - [Minigrid](https://github.com/Farama-Foundation/Minigrid) (Vector (one-hot) or Visual Observations (84x84x3))
   - [Gym CartPole](https://github.com/openai/gym) using masked velocity
-  - [DM Ballet](https://github.com/deepmind/deepmind-research/tree/master/hierarchical_transformer_memory/pycolab_ballet)
-  - [RandomMaze](https://github.com/zuoxingdong/mazelab)
 - Proximal Policy Optimization (PPO)
   - Discrete and Multi-Discrete Action Spaces
   - Vector and Visual Observation Spaces (either alone or simultaneously)

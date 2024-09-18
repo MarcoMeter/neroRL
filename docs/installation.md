@@ -21,7 +21,6 @@ neroRL is tested with PyTorch version 2.0.1
 `pip3 install neroRL[ml-agents]`
 `pip3 install neroRL[obstacle-tower]`
 `pip3 install neroRL[procgen]`
-`pip3 install neroRL[random-maze]`
 
 ## Install from source
 

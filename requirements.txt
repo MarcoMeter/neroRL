@@ -1,9 +1,7 @@
 einops
 gymnasium==0.29.0
-minigrid==2.1.0
+minigrid==2.3.1
 memory-gym
-dm-env==1.5
-pycolab==1.2
 docopt
 jinja2
 matplotlib
