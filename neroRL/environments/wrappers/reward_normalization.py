@@ -1,5 +1,3 @@
-import numpy as np
-from gymnasium import spaces
 from neroRL.environments.env import Env
 
 class RewardNormalizer(Env):
@@ -19,19 +17,9 @@ class RewardNormalizer(Env):
         return self._env.unwrapped
 
     @property
-    def visual_observation_space(self):
-        """Returns the shape of the visual component of the observation space as a tuple."""
-        if self._env.visual_observation_space is not None:
-            return self._env.visual_observation_space
-        else:
-            return None
-
-    @property
-    def vector_observation_space(self):
-        """Returns the shape of the vector component of the observation space as a tuple."""
-        if self._env.vector_observation_space is not None:
-            return self._env.vector_observation_space
-        return None
+    def observation_space(self):
+        """Returns the observation space of the unwrapped environment."""
+        return self._env.observation_space
 
     @property
     def ground_truth_space(self):
@@ -66,9 +54,8 @@ class RewardNormalizer(Env):
 
     def reset(self, reset_params = None):
         """Reset the environment. The provided reset_params is a dictionary featuring reset parameters of the environment such as the seed."""
-        vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
-
-        return vis_obs, vec_obs, info
+        obs, info = self._env.reset(reset_params = reset_params)
+        return obs, info
 
     def step(self, action):
         """Executes steps of the agent in the environment and normalizes the reward by dividing through its maximum reward.
@@ -77,17 +64,14 @@ class RewardNormalizer(Env):
             action {List} -- A list of at least one discrete action to be executed by the agent
         
         Returns:
-                {numpy.ndarray} -- Visual observation
-                {numpy.ndarray} -- Vector observation
-                {float} -- (Total) Scalar reward signaled by the environment
+                {dict} -- Observation
+                {float} -- Reward signaled by the environment
                 {bool} -- Whether the episode of the environment terminated
                 {dict} -- Further episode information retrieved from the environment
         """
-        vis_obs, vec_obs, reward, done, info = self._env.step(action)
-        # Normalize reward
+        obs, reward, done, info = self._env.step(action)
         reward /= self._max_reward
-
-        return vis_obs, vec_obs, reward, done, info
+        return obs, reward, done, info
 
     def close(self):
         """Shuts down the environment."""

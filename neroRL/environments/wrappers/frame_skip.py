@@ -1,4 +1,4 @@
-from collections import deque
+import math
 from neroRL.environments.env import Env
 
 class FrameSkipEnv(Env):
@@ -12,8 +12,16 @@ class FrameSkipEnv(Env):
         """
         self._env = env
         self._skip = skip
-        # Store skipped frames in the case of video recording (what if the environment does not provide visual obs?)
-        self.skipped_frames = deque(maxlen = self._skip)
+        self._max_episode_steps = None  # Initialize to None to calculate later
+
+        # Reset the environment once to initialize and get the max episode steps
+        _, _ = self._env.reset()
+
+        # Set max_episode_steps based on the reset environment state
+        if hasattr(self.unwrapped, "max_episode_steps"):
+            self._max_episode_steps = math.ceil(self.unwrapped.max_episode_steps / self._skip)
+        else:
+            raise AttributeError("The environment does not have 'max_episode_steps' set after reset.")
 
     @property
     def unwrapped(self):
@@ -21,14 +29,9 @@ class FrameSkipEnv(Env):
         return self._env.unwrapped
 
     @property
-    def visual_observation_space(self):
-        """Returns the shape of the visual component of the observation space as a tuple."""
-        return self._env.visual_observation_space
-
-    @property
-    def vector_observation_space(self):
-        """Returns the shape of the vector component of the observation space as a tuple."""
-        return self._env.vector_observation_space
+    def observation_space(self):
+        """Returns the observation space of the environment."""
+        return self._env.observation_space
 
     @property
     def ground_truth_space(self):
@@ -48,7 +51,7 @@ class FrameSkipEnv(Env):
     @property
     def seed(self):
         """Returns the seed of the current episode."""
-        return self._env._seed
+        return self._env.seed
 
     @property
     def action_names(self):
@@ -57,17 +60,14 @@ class FrameSkipEnv(Env):
 
     @property
     def get_episode_trajectory(self):
-        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
-        """
+        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions)."""
         return self._env.get_episode_trajectory
 
     def reset(self, reset_params = None):
         """Reset the environment. The provided reset_params is a dictionary featuring reset parameters of the environment such as the seed."""
-        vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
-        self._max_episode_steps = self.unwrapped.max_episode_steps // self._skip
-        if self._max_episode_steps % self._skip > 0:
-            self._max_episode_steps += 1
-        return vis_obs, vec_obs, info
+        obs, info = self._env.reset(reset_params = reset_params)
+        self._max_episode_steps = math.ceil(self.unwrapped.max_episode_steps / self._skip)
+        return obs, info
 
     def step(self, action):
         """Executes steps of the agent in the environment untill the "skip"-th frame is reached.
@@ -76,9 +76,8 @@ class FrameSkipEnv(Env):
             action {List} -- A list of at least one discrete action to be executed by the agent
         
         Returns:
-                {numpy.ndarray} -- Visual observation
-                {numpy.ndarray} -- Vector observation
-                {float} -- (Total) Scalar reward signaled by the environment
+                {dict} -- Observation
+                {float} -- Reward signaled by the environment
                 {bool} -- Whether the episode of the environment terminated
                 {dict} -- Further episode information retrieved from the environment
         """
@@ -86,14 +85,13 @@ class FrameSkipEnv(Env):
 
         # Repeat the same action for the to be skipped frames
         for _ in range(self._skip):
-            vis_obs, vec_obs, reward, done, info = self._env.step(action)
+            obs, reward, done, info = self._env.step(action)
             total_reward += reward
-            self.skipped_frames.append(vis_obs)
             if done:
-                info["length"] = info["length"] // self._skip
+                info["length"] = math.ceil(info["length"] / self._skip)
                 break
 
-        return vis_obs, vec_obs, total_reward, done, info
+        return obs, total_reward, done, info
 
     def close(self):
         """Shuts down the environment."""

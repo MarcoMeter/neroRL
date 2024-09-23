@@ -3,55 +3,56 @@ from gymnasium import spaces
 from neroRL.environments.env import Env
 
 class PyTorchEnv(Env):
-    """This wrapper reshapes the visual observation to the needs of PyTorch. (W x H x C -> C x W x H)"""
+    """This wrapper reshapes visual observations in the observation dictionary to match PyTorch's channels-first format."""
 
     def __init__(self, env):
-        """Defines the shape of the new visual observation.
-        
+        """Initializes the wrapper and modifies the observation space to reflect the changes in observation shapes.
+
         Arguments:
-            env {Env} -- The to be wrapped environment that needs visual observations.
+            env {Env} -- The environment to be wrapped.
         """
         self._env = env
 
-        # Modify visual observation space
-        if self._env.visual_observation_space is not None:
-            old_shape = self._env.visual_observation_space.shape
-            self._visual_observation_space = spaces.Box(
-                    low = 0,
-                    high = 1.0,
-                    shape = (old_shape[2], old_shape[1], old_shape[0]),
-                    dtype = np.float32)
-        else:
-            self._visual_observation_space = None
+        # Whenever the observation space is an image, swap the axes to pytorch format: (H, W, C) -> (C, H, W)
+        original_observation_space = self._env.observation_space
+        new_spaces = {}
+        for key, space in original_observation_space.spaces.items():
+            if isinstance(space, spaces.Box) and len(space.shape) == 3:
+                old_shape = space.shape
+                new_shape = (old_shape[2], old_shape[0], old_shape[1])
+                new_spaces[key] = spaces.Box(
+                    low=space.low.min(),
+                    high=space.high.max(),
+                    shape=new_shape,
+                    dtype=space.dtype
+                )
+            else:
+                new_spaces[key] = space
+        self._observation_space = spaces.Dict(new_spaces)
 
     @property
     def unwrapped(self):
-        """Return this environment in its vanilla (i.e. unwrapped) state."""
+        """Returns the unwrapped environment."""
         return self._env.unwrapped
 
     @property
-    def visual_observation_space(self):
-        """Returns the shape of the visual component of the observation space as a tuple."""
-        return self._visual_observation_space
-
-    @property
-    def vector_observation_space(self):
-        """Returns the shape of the vector component of the observation space as a tuple."""
-        return self._env.vector_observation_space
+    def observation_space(self):
+        """Returns the modified observation space of the environment."""
+        return self._observation_space
 
     @property
     def ground_truth_space(self):
-        """Returns the space of the ground truth info space if available."""
+        """Returns the ground truth space if available."""
         return self._env.ground_truth_space
 
     @property
     def action_space(self):
-        """Returns the shape of the action space of the agent."""
+        """Returns the action space of the agent."""
         return self._env.action_space
 
     @property
     def max_episode_steps(self):
-        """Returns the maximum number of steps that an episode can last."""
+        """Returns the maximum number of steps in an episode."""
         return self._env.max_episode_steps
 
     @property
@@ -61,44 +62,58 @@ class PyTorchEnv(Env):
 
     @property
     def action_names(self):
-        """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
+        """Returns a list of action names."""
         return self._env.action_names
 
     @property
     def get_episode_trajectory(self):
-        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
-        """
+        """Returns the trajectory of an entire episode as a dictionary."""
         return self._env.get_episode_trajectory
 
-    def reset(self, reset_params = None):
-        """Reset the environment. The provided reset_params is a dictionary featuring reset parameters of the environment such as the seed."""
-        vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
-        # Swap axes to start with the images' channels, this is required by PyTorch
-        if vis_obs is not None:
-            vis_obs = np.swapaxes(vis_obs, 0, 2)
-            vis_obs = np.swapaxes(vis_obs, 2, 1)
-        return vis_obs, vec_obs, info
+    def reset(self, reset_params=None):
+        """Resets the environment.
+
+        Arguments:
+            reset_params {dict} -- Reset parameters of the environment such as the seed.
+
+        Returns:
+            obs {dict} -- Processed observation dictionary.
+            info {dict} -- Additional information.
+        """
+        obs, info = self._env.reset(reset_params=reset_params)
+        return self._process_observation(obs), info
 
     def step(self, action):
-        """Executes one step of the agent.
-        
+        """Executes one step in the environment.
+
         Arguments:
-            action {List} -- A list of at least one discrete action to be executed by the agent
-        
+            action {List} -- Actions to be executed by the agent.
+
         Returns:
-            {numpy.ndarray} -- Stacked visual observation
-            {numpy.ndarray} -- Stacked vector observation
-            {float} -- Scalar reward signaled by the environment
-            {bool} -- Whether the episode of the environment terminated
-            {dict} -- Further episode information retrieved from the environment
+            obs {dict} -- Processed observation dictionary.
+            reward {float} -- Scalar reward from the environment.
+            done {bool} -- Whether the episode has terminated.
+            info {dict} -- Additional information.
         """
-        vis_obs, vec_obs, reward, done, info = self._env.step(action)
-        # Swap axes to start with the images' channels, this is required by PyTorch
-        if vis_obs is not None:
-            vis_obs = np.swapaxes(vis_obs, 0, 2)
-            vis_obs = np.swapaxes(vis_obs, 2, 1)
-        return vis_obs, vec_obs, reward, done, info
+        obs, reward, done, info = self._env.step(action)
+        return self._process_observation(obs), reward, done, info
+
+    def _process_observation(self, obs):
+        """Processes the observation dictionary to swap axes for image data.
+
+        Arguments:
+            obs {dict} -- The observation returned by the environment.
+
+        Returns:
+            obs {dict} -- The processed observation.
+        """
+        new_obs = {}
+        for key, value in obs.items():
+            if isinstance(value, np.ndarray) and value.ndim == 3:
+                value = np.transpose(value, (2, 0, 1)) # Swap axes to make channels first
+            new_obs[key] = value
+        return new_obs
 
     def close(self):
-        """Shuts down the environment."""
+        """Closes the environment."""
         self._env.close()

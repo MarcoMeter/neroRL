@@ -50,6 +50,21 @@ class ObstacleTowerWrapper(Env):
         # Whether to record the trajectory of an entire episode
         self._record = record_trajectory
 
+        # Set dict observation space
+        if self._retro_vis_obs:
+            self._observation_space = spaces.Dict({"vis_obs": self._env.observation_space[0]})
+        else:
+            self._observation_space = spaces.Dict({
+                "vis_obs": self._env.observation_space[0],
+                "vec_obs": self._env.observation_space[1] # maybe hard code to 2
+            })
+
+        # Setup actions space
+        if self._flat_action_space:
+            self._action_space = spaces.Discrete(10)
+        else:
+            self._action_space = spaces.MultiDiscrete((2,3,2))
+
         # Flattened actions for a singular discrete action space
         self.flat_actions = [
             [0, 0, 0, 0],
@@ -69,25 +84,14 @@ class ObstacleTowerWrapper(Env):
         return self
 
     @property
-    def visual_observation_space(self):
-        """Returns the shape of the visual component of the observation space as a tuple."""
-        return self._env.observation_space[0]
-
-    @property
-    def vector_observation_space(self):
-        """Returns the shape of the vector component of the observation space as a tuple."""
-        if self._retro_vis_obs:
-            return None
-        else:
-            return (2,)
+    def observation_space(self):
+        """Returns the observation space of the environment."""
+        return self._observation_space
 
     @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
-        if self._flat_action_space:
-            return spaces.Discrete(10)
-        else:
-            return spaces.MultiDiscrete((2,3,2))
+        return self._action_space
 
     @property
     def seed(self):
@@ -123,8 +127,8 @@ class ObstacleTowerWrapper(Env):
             reset_params {dict} -- Provides parameters, like a seed, to configure the environment. (default: {None})
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
+            {dict} -- Observation of the environment
+            {dict} -- Empty info
         """
         # Process reset parameters
         # Changing other parameters cannot be done at this moment (you have to initialize a new environment)
@@ -157,10 +161,11 @@ class ObstacleTowerWrapper(Env):
             "rewards": [0.0], "actions": []
         }
 
+        # Return observation
         if self._retro_vis_obs:
-            return vis_obs, None, {}
+            return vis_obs, {}
         else:
-            return vis_obs, vec_obs, {}
+            return {"vis_obs": vis_obs, "vec_obs": vec_obs}, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -169,9 +174,8 @@ class ObstacleTowerWrapper(Env):
             action {list} -- The to be executed multi-discrete action as a list of indices
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
-            {float} -- (Total) Scalar reward signaled by the environment
+            {dict} -- Observation of the environment
+            {float} -- Reward signaled by the environment
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. reached floor) retrieved from the environment once an episode completed
         """
@@ -210,10 +214,11 @@ class ObstacleTowerWrapper(Env):
         else:
             info = None
 
+        # Return observation, reward, done flag and episode information
         if self._retro_vis_obs:
-            return vis_obs, None, reward, done, info
+            return vis_obs, reward, done, info
         else:
-            return vis_obs, vec_obs, reward, done, info
+            return {"vis_obs": vis_obs, "vec_obs": vec_obs}, reward, done, info
 
     def close(self):
         """Shuts down the environment."""

@@ -16,7 +16,7 @@ class UnityWrapper(Env):
         - Only one visual observation
         - Only discrete and multi-discrete action spaces (no continuous action space)"""
 
-    def __init__(self, env_path, reset_params, worker_id = 1, no_graphis = False, realtime_mode = False,  record_trajectory = False):
+    def __init__(self, env_path, reset_params = None, worker_id = 1, no_graphis = False, realtime_mode = False,  record_trajectory = False):
         """Instantiates the Unity Environment from a specified executable.
         
         Arguments:
@@ -99,9 +99,16 @@ class UnityWrapper(Env):
         if self._num_vec_obs > 0:
             # Determine the length of vec obs by summing the length of each distinct one
             vec_obs_length = sum([self._behavior_spec.observation_specs[i][0][0] for i in self._vec_obs_indices])
-            self._vector_observatoin_space = (vec_obs_length, )
+            self._vector_observation_shape = (vec_obs_length, )
         else:
-            self._vector_observatoin_space = None
+            self._vector_observation_shape = None
+
+        # Prepare dict observation
+        self._observation_space = {}
+        if self._visual_observation_space is not None:
+            self._observation_space["vis_obs"] = self._visual_observation_space
+        if self._vector_observation_shape is not None:
+            self._observation_space["vec_obs"] = spaces.Box(low = 0, high = 1, shape = self._vector_observation_shape, dtype = np.float32)
 
         # Videos can only be recorded if the environment provides visual observations
         if self._record and self._visual_observation_space is None:
@@ -114,7 +121,7 @@ class UnityWrapper(Env):
             {UnityWrapper} -- Environment in its vanilla (i.e. unwrapped) state
         """
         return self
-    
+
     @property
     def action_space(self):
         """Returns the shape of the action space of the agent."""
@@ -136,18 +143,14 @@ class UnityWrapper(Env):
 
     @property
     def get_episode_trajectory(self):
-        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
-        """
+        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions)."""
         self._trajectory["action_names"] = self.action_names
         return self._trajectory if self._trajectory else None
 
     @property
-    def visual_observation_space(self):
-        return self._visual_observation_space
-
-    @property
-    def vector_observation_space(self):
-        return self._vector_observatoin_space
+    def observation_space(self):
+        """Returns the observation space of the environment."""
+        return self._observation_space
 
     def reset(self, reset_params = None):
         """Resets the environment based on a global or just specified config.
@@ -156,8 +159,8 @@ class UnityWrapper(Env):
             config {dict} -- Reset parameters to configure the environment (default: {None})
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
+            {dict} -- Observation of the environment
+            {dict} -- Empty info
         """
         # Track rewards of an entire episode
         self._rewards = []
@@ -197,7 +200,13 @@ class UnityWrapper(Env):
             "rewards": [0.0], "actions": []
         }
 
-        return vis_obs, vec_obs, {}
+        obs = {}
+        if vis_obs is not None:
+            obs["vis_obs"] = vis_obs
+        if vec_obs is not None:
+            obs["vec_obs"] = vec_obs
+
+        return obs, {}
 
     def step(self, action):
         """Runs one timestep of the environment"s dynamics.
@@ -207,9 +216,8 @@ class UnityWrapper(Env):
             action {List} -- A list of at least one discrete action to be executed by the agent
 
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
-            {float} -- (Total) Scalar reward signaled by the environment
+            {dict} -- Observation of the environment
+            {float} -- Reward signaled by the environment
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
@@ -241,7 +249,13 @@ class UnityWrapper(Env):
         else:
             info = None
 
-        return vis_obs, vec_obs, reward, done, info
+        obs = {}
+        if vis_obs is not None:
+            obs["vis_obs"] = vis_obs
+        if vec_obs is not None:
+            obs["vec_obs"] = vec_obs
+
+        return obs, reward, done, info
 
     def close(self):
         """Shut down the environment."""
@@ -269,7 +283,7 @@ class UnityWrapper(Env):
             use_info = terminal_info
 
         # Process visual observations
-        if self.visual_observation_space is not None:
+        if self.observation_space is not None:
             vis_obs = use_info.obs[self._vis_obs_index][0]
         else:
             vis_obs = None
@@ -311,7 +325,7 @@ class UnityWrapper(Env):
         # Verify number of visual observations
         if num_vis_obs > 1:
             raise UnityEnvironmentException("The unity environment contains more than one visual observation.")
-        
+
 class UnityEnvironmentException(error.Error):
     """Any error related to running the Unity environment."""
     pass

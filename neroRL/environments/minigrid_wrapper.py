@@ -123,7 +123,7 @@ class MinigridWrapper(Env):
         render_mode = None
         if realtime_mode:
             render_mode = "human"
-        if record_trajectory:
+        else:
             render_mode = "rgb_array"
 
         # Instantiate the environment and apply various wrappers
@@ -135,11 +135,12 @@ class MinigridWrapper(Env):
         self._record = record_trajectory
 
         # Prepare observation space
-        self._visual_observation_space = spaces.Box(
-                low = 0,
-                high = 1.0,
-                shape = (84, 84, 3),
-                dtype = np.float32)
+        self._observation_space = spaces.Dict({"vis_obs": 
+                                    spaces.Box(
+                                        low = 0,
+                                        high = 1.0,
+                                        shape = (84, 84, 3),
+                                        dtype = np.float32)})
 
         # Set action space
         if "Memory" in env_name:
@@ -155,14 +156,9 @@ class MinigridWrapper(Env):
         return self
 
     @property
-    def visual_observation_space(self):
-        """Returns the shape of the visual component of the observation space as a tuple."""
-        return self._visual_observation_space
-
-    @property
-    def vector_observation_space(self):
-        """Returns the shape of the vector component of the observation space as a tuple."""
-        return None
+    def observation_space(self):
+        """Returns the observation space of the environment."""
+        return self._observation_space
 
     @property
     def action_space(self):
@@ -197,8 +193,8 @@ class MinigridWrapper(Env):
             reset_params {dict} -- Provides parameters, like a seed, to configure the environment. (default: {None})
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
+            {dict} -- Observation
+            {dict} -- Info
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
@@ -213,8 +209,9 @@ class MinigridWrapper(Env):
         self._rewards = []
         # Reset the environment and retrieve the initial observation
         obs, _ = self._env.reset(seed=self._seed)
-        # Retrieve the RGB frame of the agent's vision
-        vis_obs = obs.astype(np.float32) / 255.
+        obs = {
+            "vis_obs": obs.astype(np.float32) / 255.
+        }
 
         # Render environment?
         if self._realtime_mode:
@@ -226,7 +223,7 @@ class MinigridWrapper(Env):
             "rewards": [0.0], "actions": []
         } if self._record else None # The render function seems to be very very costly, so don't use this even once during training or evaluation
 
-        return vis_obs, None, {}
+        return obs, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -235,16 +232,16 @@ class MinigridWrapper(Env):
             action {int} -- The to be executed action
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
-            {float} -- (Total) Scalar reward signaled by the environment
+            {dict} -- Observation
+            {float} -- Reward signaled by the environment
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
-        obs, reward, done, truncated, info = self._env.step(action[0])
+        obs, reward, done, truncated, info = self._env.step(action)
+        obs = {
+            "vis_obs": obs.astype(np.float32) / 255.
+        }
         self._rewards.append(reward)
-        # Retrieve the RGB frame of the agent's vision
-        vis_obs = obs.astype(np.float32) / 255.
 
         # Render the environment in realtime
         if self._realtime_mode:
@@ -271,7 +268,7 @@ class MinigridWrapper(Env):
         else:
             info = None
 
-        return vis_obs, None, reward, done or truncated, info
+        return obs, reward, done or truncated, info
 
     def close(self):
         """Shuts down the environment."""

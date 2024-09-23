@@ -4,42 +4,42 @@ from gymnasium import spaces
 from neroRL.environments.env import Env
 
 class LastActionToObs(Env):
-    """This wrapper adds the last taken action (one-hot) to the agent's vector observation space."""
+    """This wrapper adds the last taken action (one-hot) to the agent's observation space as a separate entry."""
 
     def __init__(self, env):
         """        
         Arguments:
-            env {Env} -- The to be wrapped environment, which is derived from the Env class
+            env {Env} -- The environment to be wrapped, which is derived from the Env class.
         """
         self._env = env
 
-        # Retrieve the environment's action space
-        if isinstance(self._env.action_space, spaces.Discrete):
-            self._action_space_shape = (self._env.action_space.n,)
-        elif isinstance(self._env.action_space, spaces.MultiDiscrete):
-            self._action_space_shape = tuple(self._env.action_space.nvec)
+        # Calculate the total number of actions for one-hot encoding
+        self._action_space = self._env.action_space
+        if isinstance(self._action_space, spaces.Discrete):
+            self._action_space_shape = (self._action_space.n,)
+        elif isinstance(self._action_space, spaces.MultiDiscrete):
+            self._action_space_shape = tuple(self._action_space.nvec)
+        else:
+            raise TypeError("Unsupported action space type")
         self._num_actions = sum(self._action_space_shape)
 
-        # Derive the new vector observation space shape
-        if self._env.vector_observation_space is None:
-            self._vector_observation_space = (self._num_actions,)
-        else:
-            self._vector_observation_space = (self._env.vector_observation_space[0] + self._num_actions,)
+        # Add the "last_action" observation space
+        self._last_action_space = spaces.Box(
+            low=0.0, high=1.0, shape=(self._num_actions,), dtype=np.float32
+        )
+        new_spaces = self._env.observation_space.spaces.copy()
+        new_spaces["last_action"] = self._last_action_space
+        self._observation_space = spaces.Dict(new_spaces)
 
     @property
     def unwrapped(self):
-        """Return this environment in its vanilla (i.e. unwrapped) state."""
+        """Return this environment in its vanilla (i.e., unwrapped) state."""
         return self._env.unwrapped
 
     @property
-    def visual_observation_space(self):
-        """Returns the shape of the visual component of the observation space as a tuple."""
-        return self._env.visual_observation_space
-
-    @property
-    def vector_observation_space(self):
-        """Returns the shape of the vector component of the observation space as a tuple."""
-        return self._vector_observation_space
+    def observation_space(self):
+        """Returns the updated observation space of the wrapped environment."""
+        return self._observation_space
 
     @property
     def ground_truth_space(self):
@@ -48,7 +48,7 @@ class LastActionToObs(Env):
 
     @property
     def action_space(self):
-        """Returns the shape of the action space of the agent."""
+        """Returns the action space of the agent."""
         return self._env.action_space
 
     @property
@@ -59,63 +59,49 @@ class LastActionToObs(Env):
     @property
     def seed(self):
         """Returns the seed of the current episode."""
-        return self._env._seed
+        return self._env.seed
 
     @property
     def action_names(self):
-        """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
+        """Returns a list of action names."""
         return self._env.action_names
 
     @property
     def get_episode_trajectory(self):
-        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
-        """
+        """Returns the trajectory of an entire episode as a dictionary."""
         return self._env.get_episode_trajectory
 
-    def reset(self, reset_params = None):
-        """Reset the environment. The provided reset_params is a dictionary featuring reset parameters of the environment such as the seed."""
-        vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
-
-        # Use only zeros on the initial obsveration
-        one_hot_action = np.zeros(self._num_actions, dtype=np.float32)
-
-        # Concatenate the one-hot action to the vector observation space
-        if vec_obs is None:
-            vec_obs = one_hot_action
-        else:
-            vec_obs = np.concatenate((vec_obs, one_hot_action), axis=0)
-
-        return vis_obs, vec_obs, info
+    def reset(self, reset_params=None):
+        """Reset the environment and initialize "last_action" to zeros."""
+        obs, info = self._env.reset(reset_params=reset_params)
+        obs["last_action"] = np.zeros(self._num_actions, dtype=np.float32)
+        return obs, info
 
     def step(self, action):
-        """Executes steps of the agent in the environment untill the "skip"-th frame is reached.
+        """Execute a step in the environment and update "last_action"."""
+        obs, reward, done, info = self._env.step(action)
+        one_hot_action = self._action_to_one_hot(action)
+        obs["last_action"] = one_hot_action
+        return obs, reward, done, info
+
+    def _action_to_one_hot(self, action):
+        """Converts the action to a one-hot encoded vector.
         
         Arguments:
-            action {List} -- A list of at least one discrete action to be executed by the agent
-        
+            action {int or list} -- The action to be converted.
+            
         Returns:
-                {numpy.ndarray} -- Visual observation
-                {numpy.ndarray} -- Vector observation
-                {float} -- (Total) Scalar reward signaled by the environment
-                {bool} -- Whether the episode of the environment terminated
-                {dict} -- Further episode information retrieved from the environment
+            np.ndarray -- The one-hot encoded action.
         """
-        vis_obs, vec_obs, reward, done, info = self._env.step(action)
-
-        # Convert action to one-hot
         one_hot_action = np.zeros(self._num_actions, dtype=np.float32)
-        index = 0
-        for i, action_size in enumerate(self._action_space_shape):
-            one_hot_action[index + action[i]] = 1.0
-            index = index + action_size
-
-        # Concatenate the one-hot action to the vector observation space
-        if vec_obs is None:
-            vec_obs = one_hot_action
-        else:
-            vec_obs = np.concatenate((vec_obs, one_hot_action), axis=0)
-
-        return vis_obs, vec_obs, reward, done, info
+        if isinstance(self._action_space, spaces.Discrete):
+            one_hot_action[action] = 1.0
+        elif isinstance(self._action_space, spaces.MultiDiscrete):
+            index = 0
+            for i, action_size in enumerate(self._action_space_shape):
+                one_hot_action[index + action[i]] = 1.0
+                index += action_size
+        return one_hot_action
 
     def close(self):
         """Shuts down the environment."""

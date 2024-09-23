@@ -1,5 +1,6 @@
 import numpy as np
 import gymnasium as gym
+from gymnasium import spaces
 import time
 from random import randint
 from neroRL.environments.env import Env
@@ -38,9 +39,8 @@ class CartPoleWrapper(Env):
         # Initialize environment
         self._env_name = env_name
         self._env = gym.make(self._env_name, render_mode = render_mode)
+        self._observation_space = spaces.Dict({"vec_obs": self._env.observation_space})
 
-        # Prepare observation space
-        self._vector_observation_space = self._env.observation_space.shape
         # Create mask to hide the velocity of the cart and the pole if requested by the reset params
         self._obs_mask = np.ones(4, dtype=np.float32) if not self._default_reset_params["mask-velocity"] else np.asarray([1,0,1,0], dtype=np.float32)
 
@@ -50,18 +50,13 @@ class CartPoleWrapper(Env):
         return self
 
     @property
-    def visual_observation_space(self):
-        """Returns the shape of the visual component of the observation space as a tuple."""
-        return None
-
-    @property
-    def vector_observation_space(self):
-        """Returns the shape of the vector component of the observation space as a tuple."""
-        return self._vector_observation_space
+    def observation_space(self):
+        """Returns the observation space of the environment."""
+        return self._observation_space
 
     @property
     def action_space(self):
-        """Returns the shape of the action space of the agent."""
+        """Returns the action space of the agent."""
         return self._env.action_space
 
     @property
@@ -81,8 +76,7 @@ class CartPoleWrapper(Env):
 
     @property
     def get_episode_trajectory(self):
-        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
-        """
+        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions)."""
         self._trajectory["action_names"] = self.action_names
         return self._trajectory if self._trajectory else None
 
@@ -93,8 +87,8 @@ class CartPoleWrapper(Env):
             reset_params {dict} -- Provides parameters, like if the observed velocity should be masked. (default: {None})
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
+            {dict} -- Observation of the environment
+            {dict} -- Empty info
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
@@ -110,8 +104,8 @@ class CartPoleWrapper(Env):
         self._rewards = []
 
         # Retrieve the agent's initial observation
-        vis_obs = None
         vec_obs, _ = self._env.reset(seed=self._seed)
+        obs = {"vec_obs": vec_obs * self._obs_mask}
 
         # Render environment?
         if self._realtime_mode:
@@ -124,7 +118,7 @@ class CartPoleWrapper(Env):
                 "rewards": [0.0], "actions": [], "frame_rate": 20
             }
 
-        return vis_obs, vec_obs * self._obs_mask, {}
+        return obs, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -133,18 +127,15 @@ class CartPoleWrapper(Env):
             action {int} -- The to be executed action
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
-            {float} -- (Total) Scalar reward signaled by the environment
+            {dict} -- Observation of the environment
+            {float} -- Scalar reward signaled by the environment
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further information (e.g. episode length) retrieved from the environment once an episode completed
         """
         # Execute action
-        obs, reward, done, truncation, info = self._env.step(action[0])
+        vec_obs, reward, done, truncation, info = self._env.step(action[0])
+        obs = {"vec_obs": vec_obs * self._obs_mask}
         self._rewards.append(reward)
-        # Retrieve the agent's current observation
-        vis_obs = None
-        vec_obs = obs
 
         # Render environment?
         if self._realtime_mode:
@@ -165,7 +156,7 @@ class CartPoleWrapper(Env):
         else:
             info = None
 
-        return vis_obs, vec_obs * self._obs_mask, reward / 100.0, done or truncation, info
+        return obs, reward / 100.0, done or truncation, info
 
     def close(self):
         """Shuts down the environment."""

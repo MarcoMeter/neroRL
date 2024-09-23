@@ -10,10 +10,6 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
-    global: False
-    step_size: 0.2
-    freeze: True
-    max_episode_steps: 32
 
 model:
   load_model: False

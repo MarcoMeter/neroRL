@@ -1,9 +1,8 @@
 from gymnasium import spaces
-import numpy as np
-import time
-import os
-from reprint import output
+import gymnasium as gym
+from random import randint
 from neroRL.environments.env import Env
+from neroRL.environments.pom_env import PoMEnv
 
 class PocMemoryEnvWrapper(Env):
     """
@@ -25,39 +24,19 @@ class PocMemoryEnvWrapper(Env):
             glob {bool} -- Whether to sample starting positions across the entire space. Defaults to False.
             freeze_agent {bool} -- Whether to freeze the agent's position until goal positions are hidden. Defaults to False.
         """
-        self.freeze = reset_params["freeze"]
-        self._step_size = reset_params["step_size"]
-        self._max_episode_steps = reset_params["max_episode_steps"]
-        self._min_steps = int(1.0 / self._step_size) + 1
-        self._time_penalty = 0.1    
-        self._num_show_steps = 2    # this should determine for how many steps the goal is visible
-        glob = reset_params["global"]
-        
-        # Create an array with possible positions
-        # Valid local positions are one tick away from 0.0 or between -0.4 and 0.4
-        # Valid global positions are between -1 + step_size and 1 - step_size
-        # Clipping has to be applied because step_size is a variable now
-        num_steps = int( 0.4 / self._step_size)
-        lower = min(- 2.0 * self._step_size, -num_steps * self._step_size) if not glob else -1  + self._step_size
-        upper = max( 3.0 * self._step_size, self._step_size, (num_steps + 1) * self._step_size) if not glob else 1
+        if reset_params is None:
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 1000}
+            reset_params = self._default_reset_params
+        else:
+            self._default_reset_params = reset_params
 
-        self.possible_positions = np.arange(lower, upper, self._step_size).clip(-1 + self._step_size, 1 - self._step_size)
-        self.possible_positions = list(map(lambda x: round(x, 2), self.possible_positions)) # fix floating point errors
-
-        self.op = None
-
-
-    def reset(self, reset_params = None):
-        """Resets the agent to a random start position and spawns the two possible goals randomly."""
-        # Sample a random start position
-        self._position = np.random.choice(self.possible_positions)
-        self._rewards = []
-        self._step_count = 0
-        goals = np.asarray([-1.0, 1.0])
-        # Determine the goal
-        self._goals = goals[np.random.permutation(2)]
-        obs = np.asarray([self._goals[0], self._position, self._goals[1]], dtype=np.float32)
-        return None, obs, {}
+        self._realtime_mode = realtime_mode
+        self._record = record_trajectory
+        if realtime_mode:
+            self._env = gym.make("ProofofMemory-v0", render_mode = "human")
+        else:
+            self._env = gym.make("ProofofMemory-v0", render_mode = "rgb_array")
+        self._observation_space = spaces.Dict({"vec_obs": self._env.observation_space})
 
     @property
     def unwrapped(self):
@@ -65,16 +44,9 @@ class PocMemoryEnvWrapper(Env):
         return self
 
     @property
-    def visual_observation_space(self):
-        return None
-
-    @property
-    def vector_observation_space(self):
-        """
-        Returns:
-            {spaces.Box}: The agent observes its current position and the goal locations, which are masked eventually.
-        """
-        return spaces.Box(low = 0, high = 1.0, shape = (3,), dtype = np.float32).shape
+    def observation_space(self):
+        """Returns the observation space of the environment."""
+        return self._observation_space
 
     @property
     def action_space(self):
@@ -82,7 +54,57 @@ class PocMemoryEnvWrapper(Env):
         Returns:
             {spaces.Discrete}: The agent has two actions: going left or going right
         """
-        return spaces.Discrete(2)
+        return self._env.action_space
+
+    @property
+    def get_episode_trajectory(self):
+        self._trajectory["action_names"] = self.action_names
+        return self._trajectory if self._trajectory else None
+    
+    @property
+    def action_names(self):
+        return ["left", "right"]
+
+    @property
+    def seed(self):
+        """Returns the seed of the current episode."""
+        return self._seed
+
+    @property
+    def max_episode_steps(self):
+        """Returns the maximum number of steps that an episode can last."""
+        return 16
+    
+    def reset(self, reset_params = None):
+        """Resets the environment.
+        
+        Keyword Arguments:
+            reset_params {dict} -- Provides parameters, like if the observed velocity should be masked. (default: {None})
+        
+        Returns:
+            {dict} -- Observation of the environment
+            {dict} -- Empty info
+        """
+        # Process reset parameters
+        if reset_params is None:
+            reset_params = self._default_reset_params
+        else:
+            reset_params = reset_params
+
+        # Sample seed
+        self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
+
+        # Reset environment
+        obs, _ = self._env.reset(seed = self._seed)
+        obs = {"vec_obs": obs}
+
+        # Prepare trajectory recording
+        self._trajectory = {
+            "vis_obs": [self._env.render()], "vec_obs": [obs["vec_obs"]],
+            "rewards": [0.0], "actions": []
+        } if self._record else None
+
+        return obs, {}
 
     def step(self, action):
         """
@@ -92,125 +114,27 @@ class PocMemoryEnvWrapper(Env):
             action {list} -- The agent action which should be executed.
 
         Returns:
-            {numpy.ndarray} -- Observation of the agent.
+            {dict} -- Observation of the environment.
             {float} -- Reward for the agent.
             {bool} -- Done flag whether the episode has terminated.
-            {dict} -- Information about episode reward, length and agents success reaching the goal position
+            {dict} -- Information about episode reward, length and agents success reaching the goal position
         """
-        reward = 0.0
-        done = False
-        info = None
-        success = False
-        action = action[0]
-        
-        if self.max_episode_steps > 0 and self._step_count >= self.max_episode_steps - 1:
-            done = True
+        obs, reward, done, truncation, info = self._env.step(action)
+        obs = {"vec_obs": obs}
+        done = done or truncation
 
-        if self._num_show_steps > self._step_count:
-            # Execute the agent action if agent is allowed to move
-            self._position += self._step_size * (1 - self.freeze) if action == 1 else -self._step_size * (1 - self.freeze)
-            self._position = np.round(self._position, 2)
+        if self._realtime_mode or self._record:
+            img = self._env.render()
 
-            obs = np.asarray([self._goals[0], self._position, self._goals[1]], dtype=np.float32)
+        # Record trajectory data
+        if self._record:
+            self._trajectory["vis_obs"].append(img)
+            self._trajectory["vec_obs"].append(obs["vec_obs"])
+            self._trajectory["rewards"].append(reward)
+            self._trajectory["actions"].append(action)
 
-            if self.freeze: # Check if agent is allowed to move
-                self._step_count += 1
-                self._rewards.append(reward)
-                return None, obs, reward, done, info
-
-        else:
-            self._position += self._step_size if action == 1 else -self._step_size
-            self._position = np.round(self._position, 2)
-            obs = np.asarray([0.0, self._position, 0.0], dtype=np.float32) # mask out goal information
-
-        # Determine the reward function and episode termination
-        if self._position == -1.0:
-            if self._goals[0] == 1.0:
-                reward += 1.0 + self._min_steps * self._time_penalty
-                success = True
-            else:
-                reward -= 1.0 + self._min_steps * self._time_penalty
-            done = True
-        elif self._position == 1.0:
-            if self._goals[1] == 1.0:
-                reward += 1.0 + self._min_steps * self._time_penalty
-                success = True
-            else:
-                reward -= 1.0 + self._min_steps * self._time_penalty
-            done = True
-        else:
-            reward -= self._time_penalty
-        self._rewards.append(reward)
-
-        # Wrap up episode information
-        if done:
-            info = {"success": success,
-                    "reward": sum(self._rewards),
-                    "length": len(self._rewards)}
-        else:
-            info = None
-
-        # Increase step count
-        self._step_count += 1
-
-        return None, obs, reward, done, info
-
-    def render(self):
-        """
-        A simple console render method for the environment.
-        """
-        if self.op is None:
-            self.init_render = False
-            self.op = output()
-            self.op = self.op.warped_obj
-            os.system('cls||clear')
-
-            for _ in range(6):
-                self.op.append("#")
-
-
-        num_grids = 2 * int(1 / self._step_size) + 1
-        agent_grid = int(num_grids / 2 + self._position / self._step_size) + 1
-
-        self.op[1] = ('######' * num_grids +  "#")
-        self.op[2] = ('#     ' * num_grids + "#")
-        field = [*('#     ' * agent_grid)[:-3], *"a  ", *('#     ' * (num_grids - agent_grid)), "#"]
-
-        if field[3] != "a":
-            field[3] = "+" if self._goals[0] > 0 else "-"
-        if field[-4] != "a":
-            field[-4] = "+" if self._goals[1] > 0 else "-"
-
-        self.op[3] = ("".join(field))
-        self.op[4] = ('#     ' * num_grids + "#")
-        self.op[5] = ('######' * num_grids + "#")
-        
-        self.op[6] = ("Goals are shown: " + str(self._num_show_steps > self._step_count))
-
-        time.sleep(1.0) 
-
-    @property
-    def get_episode_trajectory(self):
-        return None
-    
-    @property
-    def action_names(self):
-        return ["left", "right"]
-    
-    @property
-    def seed(self):
-        """Returns the seed of the current episode."""
-        return 0
-    
-    @property
-    def max_episode_steps(self):
-        """Returns the maximum number of steps that an episode can last."""
-        return self._max_episode_steps
+        return obs, reward, done, info
 
     def close(self):
-        """
-        Clears the used resources properly.
-        """
-        if self.op is not None:
-            self.op.clear()
-            self.op = None
+        """Clears the used resources properly."""
+        self._env.close()

@@ -4,50 +4,48 @@ from gymnasium import spaces
 from neroRL.environments.env import Env
 
 class ScaledVisualObsEnv(Env):
-    """This wrapper resizes visual observations."""
+    """This wrapper resizes all visual observations within a spaces.Dict to the specified width and height."""
 
     def __init__(self, env, width, height):
-        """Initializes the wrapper by defining the new shape of the visual observation space.
-        
+        """Initializes the wrapper by identifying image modalities and updating the observation space.
+
         Arguments:
-            env {Env} -- The to be wrapped environment, which is derived from the Env class
-            width {int} -- The width of the resized visual observation
-            height {int} -- The height of the resized visual observation
+            env {Env} -- The environment to be wrapped, derived from the Env class.
+            width {int} -- The target width for resized visual observations.
+            height {int} -- The target height for resized visual observations.
         """
         self._env = env
         self._width = width
         self._height = height
 
-        # Check if visual observations are available
-        assert (self._env.visual_observation_space is not None), "Visual observations of the environment have to be available."
-        # Check inputs
-        assert (self._width > 0 and self._height > 0), "Image dimensions have to be greater than 0."
+        # Identify keys that are images (3D with channels >=1)
+        self._image_keys = []
+        new_spaces = {}
+        for key, space in self._env.observation_space.spaces.items():
+            if isinstance(space, spaces.Box):
+                if len(space.shape) == 3 and space.shape[2] >= 1:
+                    self._image_keys.append(key)
+                    new_shape = (self._height, self._width, space.shape[2])
+                    new_spaces[key] = spaces.Box(
+                        low=0.0, high=1.0, shape=new_shape, dtype=np.float32
+                    )
+                else:
+                    new_spaces[key] = space
+            else:
+                new_spaces[key] = space
 
-        # Modify visual observation space
-        if self._env.visual_observation_space is not None:
-            old_shape = self._env.visual_observation_space.shape
-            self._visual_observation_space = spaces.Box(
-                    low = 0,
-                    high = 1.0,
-                    shape = (self._width, self._height, old_shape[2]),
-                    dtype = np.float32)
-        else:
-            self._visual_observation_space = None
+        # Update the observation space
+        self._observation_space = spaces.Dict(new_spaces)
 
     @property
     def unwrapped(self):
-        """Return this environment in its vanilla (i.e. unwrapped) state."""
+        """Return the unwrapped environment."""
         return self._env.unwrapped
 
     @property
-    def visual_observation_space(self):
-        """Returns the shape of the visual component of the observation space as a tuple."""
-        return self._visual_observation_space
-
-    @property
-    def vector_observation_space(self):
-        """Returns the shape of the vector component of the observation space as a tuple."""
-        return self._env.vector_observation_space
+    def observation_space(self):
+        """Returns the updated observation space of the environment."""
+        return self._observation_space
 
     @property
     def ground_truth_space(self):
@@ -56,7 +54,7 @@ class ScaledVisualObsEnv(Env):
 
     @property
     def action_space(self):
-        """Returns the shape of the action space of the agent."""
+        """Returns the action space of the agent."""
         return self._env.action_space
 
     @property
@@ -67,71 +65,69 @@ class ScaledVisualObsEnv(Env):
     @property
     def seed(self):
         """Returns the seed of the current episode."""
-        return self._env._seed
+        return self._env.seed
 
     @property
     def action_names(self):
-        """Returns a list of action names. It has to be noted that only the names of action branches are provided and not the actions themselves!"""
+        """Returns a list of action names."""
         return self._env.action_names
 
     @property
     def get_episode_trajectory(self):
-        """Returns the trajectory of an entire episode as dictionary (vis_obs, vec_obs, rewards, actions). 
-        """
+        """Returns the trajectory of an entire episode as a dictionary (vis_obs, vec_obs, rewards, actions)."""
         return self._env.get_episode_trajectory
 
-    def reset(self, reset_params = None):
-        """Reset the environment. The provided config is a dictionary featuring reset parameters of the environment such as the seed.
-        
-        Keyword Arguments:
+    def reset(self, reset_params=None):
+        """Resets the environment and resizes visual observations.
+
+        Arguments:
             reset_params {dict} -- Reset parameters to configure the environment (default: {None})
-        
+
         Returns:
-            {numpy.ndarray} -- Resized visual observation
-            {numpy.ndarray} -- Vector observation
+            obs {dict} -- The updated observation dictionary with resized images.
+            info {dict} -- Additional information from the environment.
         """
-        vis_obs, vec_obs, info = self._env.reset(reset_params = reset_params)
-
-        # Process visual observation
-        vis_obs = self._resize_vis_obs(vis_obs)
-
-        return vis_obs, vec_obs, info
+        obs, info = self._env.reset(reset_params=reset_params)
+        for key in self._image_keys:
+            if key in obs:
+                obs[key] = self._resize_vis_obs(obs[key])
+        return obs, info
 
     def step(self, action):
-        """Executes one step of the agent.
-        
-        Arguments:
-            action {List} -- A list of at least one discrete action to be executed by the agent
-        
-        Returns:
-            {numpy.ndarray} -- Stacked visual observation
-            {numpy.ndarray} -- Stacked vector observation
-            {float} -- Scalar reward signaled by the environment
-            {bool} -- Whether the episode of the environment terminated
-            {dict} -- Further episode information retrieved from the environment
-        """
-        vis_obs, vec_obs, reward, done, info = self._env.step(action)
-        
-        # Process visual observation
-        vis_obs = self._resize_vis_obs(vis_obs)
+        """Executes one step in the environment and resizes visual observations.
 
-        return vis_obs, vec_obs, reward, done, info
+        Arguments:
+            action -- The action to be executed by the agent.
+
+        Returns:
+            obs {dict} -- The updated observation dictionary with resized images.
+            reward {float} -- The reward received from the environment.
+            done {bool} -- Whether the episode has terminated.
+            info {dict} -- Additional information from the environment.
+        """
+        obs, reward, done, info = self._env.step(action)
+        for key in self._image_keys:
+            if key in obs:
+                obs[key] = self._resize_vis_obs(obs[key])
+        return obs, reward, done, info
+
+    def _resize_vis_obs(self, vis_obs):
+        """Resizes a visual observation to the specified width and height.
+
+        Arguments:
+            vis_obs {numpy.ndarray} -- The visual observation to be resized.
+
+        Returns:
+            {numpy.ndarray} -- The resized visual observation.
+        """
+        vis_obs = vis_obs.astype(np.float32)
+        vis_obs = cv2.resize(
+            vis_obs, (self._width, self._height), interpolation=cv2.INTER_AREA
+        )
+        if len(vis_obs.shape) == 2:
+            vis_obs = np.expand_dims(vis_obs, axis=2)
+        return vis_obs
 
     def close(self):
-        """Shuts down the environment."""
+        """Closes the environment."""
         self._env.close()
-
-    def _resize_vis_obs(self, visual_observation):
-        """Resizes the visual observation based on member vairables.
-        
-        Arguments:
-            visual_observation {numpy.ndarray} -- The to be resized visual observation
-        
-        Returns:
-            {numpy.ndarray} -- The resized visual observation
-        """
-        visual_observation = cv2.resize(visual_observation, (self._width, self._height), interpolation=cv2.INTER_AREA)
-        # Ensure that the visual observation has a channel dimension
-        if len(visual_observation.shape) == 2:
-            visual_observation = np.expand_dims(visual_observation, axis = 2)
-        return visual_observation 

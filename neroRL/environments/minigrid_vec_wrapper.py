@@ -43,7 +43,7 @@ class MinigridVecWrapper(Env):
         self._record = record_trajectory
 
         # Prepare observation space
-        self._vector_observation_space = (self._view_size**2*6,)
+        self._observation_space = spaces.Dict({"vec_obs": spaces.Box(low=0, high=1, shape=(self._view_size**2*6,))})
 
         # Set action space
         if "Memory" in env_name:
@@ -59,14 +59,9 @@ class MinigridVecWrapper(Env):
         return self
 
     @property
-    def visual_observation_space(self):
+    def observation_space(self):
         """Returns the shape of the visual component of the observation space as a tuple."""
-        return None
-
-    @property
-    def vector_observation_space(self):
-        """Returns the shape of the vector component of the observation space as a tuple."""
-        return self._vector_observation_space
+        return self._observation_space
 
     @property
     def action_space(self):
@@ -102,8 +97,8 @@ class MinigridVecWrapper(Env):
             reset_params {dict} -- Provides parameters, like a seed, to configure the environment. (default: {None})
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
+            {dict} -- Observation
+            {dict} -- Info
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
@@ -116,9 +111,10 @@ class MinigridVecWrapper(Env):
         self._rewards = []
         # Reset the environment and retrieve the initial observation
         obs, _ = self._env.reset(seed=self._seed)
-
-        # Vector observation
-        vec_obs = self.process_obs(obs["image"])
+        # To vector observation
+        obs = {
+            "vec_obs": self.process_obs(obs["image"])
+        }
 
         # Render environment?
         if self._realtime_mode:
@@ -126,10 +122,10 @@ class MinigridVecWrapper(Env):
 
         # Prepare trajectory recording
         self._trajectory = {
-            "vis_obs": [self._env.render(tile_size = 96).astype(np.uint8)], "vec_obs": [None],
+            "vis_obs": [self._env.render(tile_size = 96).astype(np.uint8)], "vec_obs": [obs["vec_obs"]],
             "rewards": [0.0], "actions": []
         } if self._record else None # The render function seems to be very very costly, so don't use this even once during training or evaluation
-        return None, vec_obs, {}
+        return obs, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -138,18 +134,20 @@ class MinigridVecWrapper(Env):
             action {int} -- The to be executed action
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
-            {float} -- (Total) Scalar reward signaled by the environment
+            {dict} -- Observation
+            {float} -- Reward signaled by the environment
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
-        obs, reward, done, truncated, info = self._env.step(action[0])
+        obs, reward, done, truncated, info = self._env.step(action)
+        # To vector observation
+        obs = {
+            "vec_obs": self.process_obs(obs["image"])
+        }
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
         # vis_obs = self._env.get_obs_render(obs["image"], tile_size=12)  / 255.
         # Vector observation
-        vec_obs = self.process_obs(obs["image"])
 
         # Render the environment in realtime
         if self._realtime_mode:
@@ -159,7 +157,7 @@ class MinigridVecWrapper(Env):
         # Record trajectory data
         if self._record:
             self._trajectory["vis_obs"].append(self._env.render().astype(np.uint8))
-            self._trajectory["vec_obs"].append(None)
+            self._trajectory["vec_obs"].append(obs["vec_obs"])
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
         
@@ -176,7 +174,7 @@ class MinigridVecWrapper(Env):
         else:
             info = None
 
-        return None, vec_obs, reward, done or truncated, info
+        return obs, reward, done or truncated, info
 
     def close(self):
         """Shuts down the environment."""

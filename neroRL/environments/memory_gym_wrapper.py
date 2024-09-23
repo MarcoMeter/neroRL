@@ -21,6 +21,7 @@ class MemoryGymWrapper(Env):
         MysteryPath-v0
         MysteryPath-Grid-v0
     """
+    
     def __init__(self, env_name, reset_params = None, realtime_mode = False, record_trajectory = False) -> None:
         """Instantiates the memory-gym environment.
         
@@ -39,15 +40,25 @@ class MemoryGymWrapper(Env):
         self._env_name = env_name
         self._env = gym.make(env_name, disable_env_checker = True, render_mode = render_mode)
 
+        # Update the visual observation space to low=0.0 and high=1.0
+        env_obs_space = self._env.observation_space
+        if isinstance(env_obs_space, spaces.Dict):
+            new_spaces = {}
+            for key, space in env_obs_space.spaces.items():
+                if key == "visual_observation":
+                    new_spaces[key] = spaces.Box(low=0.0, high=1.0, shape=space.shape, dtype=space.dtype)
+                else:
+                    new_spaces[key] = space
+            self._observation_space = spaces.Dict(new_spaces)
+        else:
+            new_box = spaces.Box(low=0.0, high=1.0, shape=env_obs_space.shape, dtype=env_obs_space.dtype)
+            self._observation_space = spaces.Dict({"visual_observation": new_box})
+
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
 
-        if type(self._env.observation_space) is spaces.Dict:
-            self._visual_observation_space = self._env.observation_space["visual_observation"]
-            self._vector_observation_space = self._env.observation_space["vector_observation"].shape
-        else:
-            self._visual_observation_space = self._env.observation_space
-            self._vector_observation_space = None
+        # Ensure the environment is reset once to calculate max_episode_steps correctly
+        _, _ = self.reset(reset_params)
 
     @property
     def unwrapped(self):
@@ -55,15 +66,10 @@ class MemoryGymWrapper(Env):
         return self
 
     @property
-    def visual_observation_space(self):
-        """Returns the shape of the visual component of the observation space as a tuple."""
-        return self._visual_observation_space
+    def observation_space(self):
+        """Returns the observation space of the environment."""
+        return self._observation_space
 
-    @property
-    def vector_observation_space(self):
-        """Returns the shape of the vector component of the observation space as a tuple."""
-        return self._vector_observation_space
-    
     @property
     def ground_truth_space(self):
         """Returns the space of the ground truth info space if available."""
@@ -74,7 +80,7 @@ class MemoryGymWrapper(Env):
 
     @property
     def action_space(self):
-        """Returns the shape of the action space of the agent."""
+        """Returns the action space of the agent."""
         return self._env.action_space
 
     @property
@@ -110,8 +116,8 @@ class MemoryGymWrapper(Env):
             reset_params {dict} -- Provides parameters, like a seed, to configure the environment. (default: {None})
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
+            {dict} -- Observation of the environment
+            {dict} -- Empty info
         """
         # Process reset parameters
         if reset_params is None:
@@ -130,14 +136,13 @@ class MemoryGymWrapper(Env):
 
         # Reset the environment to retrieve the initial observation
         obs, info = self._env.reset(seed=self._seed, options=options)
-        if type(self._env.observation_space) is spaces.Dict:
-            vis_obs = obs["visual_observation"]
+        if isinstance(obs, dict):
+            obs["visual_observation"] = obs["visual_observation"] / 255.0
             vec_obs = obs["vector_observation"]
         else:
-            vis_obs = obs
+            obs = {"visual_observation": obs / 255.0}
             vec_obs = None
-
-
+    
         if self._realtime_mode:
             self._env.render()
 
@@ -147,7 +152,7 @@ class MemoryGymWrapper(Env):
             "rewards": [0.0], "actions": []
         } if self._record else None
 
-        return vis_obs / 255.0, vec_obs, info
+        return obs, info
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -156,9 +161,8 @@ class MemoryGymWrapper(Env):
             action {int} -- The to be executed action
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
-            {float} -- (Total) Scalar reward signaled by the environment
+            {dict} -- Observation of the environment
+            {float} -- Reward signaled by the environment
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
@@ -169,13 +173,11 @@ class MemoryGymWrapper(Env):
         
         # Step the environment
         obs, reward, done, truncation, info = self._env.step(action)
-
-        # Process visual and vector observation if applicable
-        if type(self._env.observation_space) is spaces.Dict:
-            vis_obs = obs["visual_observation"]
+        if isinstance(obs, dict):
+            obs["visual_observation"] = obs["visual_observation"] / 255.0
             vec_obs = obs["vector_observation"]
         else:
-            vis_obs = obs
+            obs = {"visual_observation": obs / 255.0}
             vec_obs = None
 
         if self._realtime_mode or self._record:
@@ -188,7 +190,7 @@ class MemoryGymWrapper(Env):
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
 
-        return vis_obs / 255.0, vec_obs, reward, done, info
+        return obs, reward, done, info
 
     def close(self):
         """Shuts down the environment."""

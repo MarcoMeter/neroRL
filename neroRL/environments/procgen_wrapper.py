@@ -69,9 +69,8 @@ class ProcgenWrapper(Env):
                             use_backgrounds = reset_params["use_backgrounds"],
                             restrict_themes = reset_params["restrict_themes"],
                             use_monochrome_assets = reset_params["use_monochrome_assets"])
+        self._observation_space = spaces.Dict({"vis_obs": self._env.observation_space})
 
-        # Prepare observation space
-        self._visual_observation_space = self._env.observation_space
 
     @property
     def unwrapped(self):
@@ -79,14 +78,9 @@ class ProcgenWrapper(Env):
         return self
 
     @property
-    def visual_observation_space(self):
-        """Returns the shape of the visual component of the observation space as a tuple."""
-        return self._visual_observation_space
-
-    @property
-    def vector_observation_space(self):
-        """Returns the shape of the vector component of the observation space as a tuple."""
-        return None
+    def observation_space(self):
+        """Returns the observation space of the environment."""
+        return self._observation_space
 
     @property
     def action_space(self):
@@ -122,8 +116,8 @@ class ProcgenWrapper(Env):
             reset_params {dict} -- Provides parameters, like a seed, to configure the environment. (default: {None})
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
+            {dict} -- Observation of the environment
+            {dict} -- Empty info
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
@@ -160,7 +154,7 @@ class ProcgenWrapper(Env):
             "rewards": [0.0], "actions": []
         }
 
-        return vis_obs, None, {}
+        return {"vis_obs": vis_obs}, {}
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -169,9 +163,8 @@ class ProcgenWrapper(Env):
             action {int} -- The to be executed action
         
         Returns:
-            {numpy.ndarray} -- Visual observation
-            {numpy.ndarray} -- Vector observation
-            {float} -- (Total) Scalar reward signaled by the environment
+            {dict} -- Observation of the environment
+            {float} -- Reward signaled by the environment
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. episode length) retrieved from the environment once an episode completed
         """
@@ -199,7 +192,7 @@ class ProcgenWrapper(Env):
         else:
             info = None
 
-        return vis_obs, None, reward / 13.0, done, info
+        return {"vis_obs": vis_obs}, reward, done, info
 
     def close(self):
         """Shuts down the environment."""

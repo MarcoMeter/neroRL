@@ -2,7 +2,6 @@ from neroRL.environments.wrappers.frame_skip import FrameSkipEnv
 from neroRL.environments.wrappers.stacked_observation import StackedObservationEnv
 from neroRL.environments.wrappers.scaled_visual_observation import ScaledVisualObsEnv
 from neroRL.environments.wrappers.grayscale_visual_observation import GrayscaleVisualObsEnv
-from neroRL.environments.wrappers.spotlights import SpotlightsEnv
 from neroRL.environments.wrappers.positional_encoding import PositionalEncodingEnv
 from neroRL.environments.wrappers.pytorch_shape import PyTorchEnv
 from neroRL.environments.wrappers.last_action_to_obs import LastActionToObs
@@ -43,17 +42,10 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
     elif config["type"] == "CartPole":
         from neroRL.environments.cartpole_wrapper import CartPoleWrapper
         env = CartPoleWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
-    elif config["type"] == "Ballet":
-        from neroRL.environments.ballet_wrapper import BalletWrapper
-        env = BalletWrapper(config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
-    elif config["type"] == "RandomMaze":
-        from neroRL.environments.maze_wrapper import MazeWrapper
-        env = MazeWrapper(config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
     elif config["type"] == "PoCMemoryEnv":
         from neroRL.environments.poc_memory_env_wrapper import PocMemoryEnvWrapper
         return PocMemoryEnvWrapper(config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
         
-
     # Wrap environment
     # Frame Skip
     if config["frame_skip"] > 1:
@@ -65,20 +57,25 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
     if config["last_reward_to_obs"]:
         env = LastRewardToObs(env)
     # Grayscale
-    if config["grayscale"] and env.visual_observation_space is not None:
+    if config["grayscale"] and env.observation_space is not None:
         env = GrayscaleVisualObsEnv(env)
-    # Spotlight perturbation
-    if "spotlight_perturbation" in config:
-        env = SpotlightsEnv(env, config["spotlight_perturbation"])
     # Rescale Visual Observation
-    if env.visual_observation_space is not None:
-        env = ScaledVisualObsEnv(env, config["resize_vis_obs"][0], config["resize_vis_obs"][1])
-    # Positional Encoding
-    if config["positional_encoding"]:
-        env = PositionalEncodingEnv(env)
+    is_vis_obs = "vis_obs" in env.observation_space.spaces
+    is_visual_observation = "visual_observation" in env.observation_space.spaces
+    if is_vis_obs or is_visual_observation:
+        if is_vis_obs:
+            shape = env.observation_space.spaces["vis_obs"].shape
+        elif is_visual_observation:
+            shape = env.observation_space.spaces["visual_observation"].shape
+        if shape[0] != config["resize_vis_obs"][0] or shape[1] != config["resize_vis_obs"][1]:
+            env = ScaledVisualObsEnv(env, config["resize_vis_obs"][0], config["resize_vis_obs"][1])
     # Stack Observation
     if config["obs_stacks"] > 1:
         env = StackedObservationEnv(env, config["obs_stacks"])
+    # Positional Encoding
+    if config["positional_encoding"]:
+        env = PositionalEncodingEnv(env)
+    # Normalize reward
     if config["reward_normalization"] > 1:
         env = RewardNormalizer(env, config["reward_normalization"])
         
