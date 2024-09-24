@@ -166,9 +166,10 @@ class TrajectorySampler():
         Returns:
             {torch.tensor} -- Last value
         """
-        _, last_value, _ = self.model(torch.tensor(self.vis_obs) if self.vis_obs is not None else None,
-                                        torch.tensor(self.vec_obs) if self.vec_obs is not None else None,
-                                        None)
+        obs = {}
+        for key, value in self.current_obs.items():
+            obs[key] = torch.tensor(value)
+        _, last_value, _ = self.model(obs, None)
         return last_value
 
     def close(self) -> None:
