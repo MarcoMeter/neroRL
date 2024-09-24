@@ -44,7 +44,7 @@ class BaseTrainer():
         self.seed = seed
 
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
-        self.vis_obs_space, self.vec_obs_space, self.ground_truth_space, self.action_space_shape, self.max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1)
+        self.obs_space, self.ground_truth_space, self.action_space_shape, self.max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1)
         if self.transformer is not None:
             # Add max episode steps to the transformer config
             configs["model"]["transformer"]["max_episode_steps"] = self.max_episode_steps
@@ -68,15 +68,15 @@ class BaseTrainer():
         # Setup Sampler
         # Instantiate sampler for memory-less / markvoivan policies
         if self.recurrence is None and self.transformer is None:
-            self.sampler = TrajectorySampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space, self.ground_truth_space,
+            self.sampler = TrajectorySampler(configs, worker_id, self.obs_space, self.ground_truth_space,
                                         self.action_space_shape, self.model, self.sample_device, self.train_device)
         # Instantiate sampler for recurrent policies
         elif self.recurrence is not None:
-            self.sampler = RecurrentSampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space, self.ground_truth_space,
+            self.sampler = RecurrentSampler(configs, worker_id, self.obs_space, self.ground_truth_space,
                                         self.action_space_shape, self.model, self.sample_device, self.train_device)
         # Instantiate sampler for transformer policoes
         elif self.transformer is not None:
-            self.sampler = TransformerSampler(configs, worker_id, self.vis_obs_space, self.vec_obs_space, self.ground_truth_space,
+            self.sampler = TransformerSampler(configs, worker_id, self.obs_space, self.ground_truth_space,
                     self.action_space_shape, self.max_episode_steps, self.model, self.sample_device, self.train_device)
 
         # List that stores the most recent episodes for training statistics
@@ -168,8 +168,7 @@ class BaseTrainer():
         checkpoint_data["update"] = update
         checkpoint_data["hxs"] = self.model.mean_hxs if self.recurrence is not None else None
         checkpoint_data["cxs"] = self.model.mean_cxs if self.recurrence is not None else None
-        checkpoint_data["visual_observation_space"] = self.vis_obs_space
-        checkpoint_data["vector_observation_space"] = self.vec_obs_space
+        checkpoint_data["observation_space"] = self.obs_space
         checkpoint_data["action_space_shape"] = self.action_space_shape
         checkpoint_data["version"] = neroRL.__version__
         checkpoint_data["run_id"] = self.run_id

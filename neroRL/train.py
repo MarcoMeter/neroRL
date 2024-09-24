@@ -83,8 +83,7 @@ class Training():
             assert(False), "Unsupported algorithm specified"
 
         self.monitor.log("Environment specs:")
-        self.monitor.log("\t" + "Visual Observation Space: " + str(self.trainer.vis_obs_space))
-        self.monitor.log("\t" + "Vector Observation Space: " + str(self.trainer.vec_obs_space))
+        self.monitor.log("\t" + "Observation Space: " + str(self.trainer.obs_space))
         self.monitor.log("\t" + "Ground Truth Space: " + str(self.trainer.ground_truth_space))
         self.monitor.log("\t" + "Action Space Shape: " + str(self.trainer.action_space_shape))
         self.monitor.log("\t" + "Max Episode Steps: " + str(self.trainer.max_episode_steps))

@@ -7,7 +7,7 @@ class TransformerSampler(TrajectorySampler):
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones. The TransformerSampler takes care of
     resetting and adding the agents' episodic memroies and memory masks to the buffer."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps, model, sample_device, train_device) -> None:
+    def __init__(self, configs, worker_id, observation_space, ground_truth_space, action_space_shape, max_episode_steps, model, sample_device, train_device) -> None:
         """Initializes the TrajectorSampler and launches its environment workers.
 
         Arguments:
@@ -22,7 +22,7 @@ class TransformerSampler(TrajectorySampler):
             sample_device {torch.device} -- The device that is used for retrieving the data from the model
             train_device {torch.device} -- The device that is used for training the model
         """
-        super().__init__(configs, worker_id, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, model, sample_device, train_device)
+        super().__init__(configs, worker_id, observation_space, ground_truth_space, action_space_shape, model, sample_device, train_device)
         # Set member variables
         self.max_episode_steps = max_episode_steps
         self.memory_length = configs["model"]["transformer"]["memory_length"]
@@ -81,12 +81,12 @@ class TransformerSampler(TrajectorySampler):
         self.buffer.memory_mask[:, t] = self.memory_mask[torch.clip(self.worker_current_episode_step, 0, self.memory_length - 1)]
         self.buffer.memory_indices[:,t] = self.memory_indices[self.worker_current_episode_step]
 
-    def forward_model(self, vis_obs, vec_obs, t):
+    def forward_model(self, obs_batch, t):
         """Forwards the model to retrieve the policy and the value of the to be fed observations and memory window."""
         # Retrieve the memory window from the entire episode
         sliced_memory = batched_index_select(self.memory, 1, self.buffer.memory_indices[:,t])
         # Forward
-        policy, value, memory = self.model(vis_obs, vec_obs, memory = sliced_memory, mask = self.buffer.memory_mask[:, t],
+        policy, value, memory = self.model(obs_batch, memory = sliced_memory, mask = self.buffer.memory_mask[:, t],
                                                 memory_indices = self.buffer.memory_indices[:,t])
         # Write the new memory item to the placeholder
         self.memory[self.worker_ids, self.worker_current_episode_step] = memory

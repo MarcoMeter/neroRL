@@ -5,13 +5,12 @@ from neroRL.utils.utils import batched_index_select
 
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent and transformer policies."""
-    def __init__(self, configs, visual_observation_space, vector_observation_space, ground_truth_space,
+    def __init__(self, configs, observation_space, ground_truth_space,
                     action_space_shape, train_device, sampler):
         """
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. model, training, environment, ... configs)
-            visual_observation_space {Box} -- Visual observation if available, else None
-            vector_observation_space {tuple} -- Vector observation space if available, else None
+            observation_space {spaces.Dict} -- Visual observation if available, else None
             ground_truth_space {Box} -- Ground truth space if available, else None
             action_space_shape {tuple} -- Shape of the action space
             train_device {torch.device} -- Single mini batches will be moved to this device for model optimization
@@ -25,21 +24,15 @@ class Buffer():
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.batch_size = self.num_workers * self.worker_steps
         self.action_space_shape = action_space_shape
-        self.visual_observation_space = visual_observation_space
-        self.vector_observation_space = vector_observation_space
+        self.observation_space = observation_space
         self.ground_truth_space = ground_truth_space
         self.init_default_buffer_fields()
 
     def init_default_buffer_fields(self):
         """Initializes buffer fields that every training run depends on."""
-        if self.visual_observation_space is not None:
-            self.vis_obs = torch.zeros((self.num_workers, self.worker_steps) + self.visual_observation_space.shape)
-        else:
-            self.vis_obs = None
-        if self.vector_observation_space is not None:
-            self.vec_obs = torch.zeros((self.num_workers, self.worker_steps,) + self.vector_observation_space)
-        else:
-            self.vec_obs = None
+        self.obs = {}
+        for key, value in self.observation_space.spaces.items():
+            self.obs[key] = torch.zeros((self.num_workers, self.worker_steps,) + value.shape)
         if self.ground_truth_space is not None:
             self.ground_truth = torch.zeros((self.num_workers, self.worker_steps) + self.ground_truth_space.shape)
         self.rewards = np.zeros((self.num_workers, self.worker_steps), dtype=np.float32)
@@ -112,10 +105,7 @@ class Buffer():
 
         # OBSERVATION SAMPLES
     	# Add available observations to the dictionary
-        if self.vis_obs is not None:
-            samples["vis_obs"] = self.vis_obs
-        if self.vec_obs is not None:
-            samples["vec_obs"] = self.vec_obs
+        samples["obs"] = self.obs
         if self.ground_truth_space is not None:
             samples["ground_truth"] = self.ground_truth
 
@@ -158,40 +148,22 @@ class Buffer():
                     episode_done_indices[w].append(self.worker_steps - 1)
 
             # Retrieve unpadded sequence indices
-            self.flat_sequence_indices = np.asarray(self._arange_sequences(
-                        np.arange(0, self.num_workers * self.worker_steps).reshape(
-                            (self.num_workers, self.worker_steps)), episode_done_indices)[0], dtype=object)
+            sequences, max_sequence_length = self._arange_sequences(np.arange(0, self.num_workers * self.worker_steps).reshape(
+                            (self.num_workers, self.worker_steps)), episode_done_indices)
+            self.flat_sequence_indices = np.asarray(sequences, dtype=object)
             
-            # Split vis_obs, vec_obs, recurrent cell states and actions into episodes and then into sequences
+            # Split obs, recurrent cell states and actions into episodes and then into sequences
             for key, value in samples.items():
-                # Split data into episodes or sequences
-                sequences, max_sequence_length = self._arange_sequences(value, episode_done_indices)
-
-                # Apply zero-padding to ensure that each episode has the same length
-                # Therfore we can train batches of episodes in parallel instead of one episode at a time
-                for i, sequence in enumerate(sequences):
-                    sequences[i] = self._pad_sequence(sequence, max_sequence_length)
-
-                # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
-                try:
-                    samples[key] = torch.stack(sequences, axis=0)
-                except RuntimeError:
-                    self.out_of_memory = True
-                    print("OUT OF MEMORY - Stack Recurrence Sequences - Data Key: " + str(key) + " - Shape: " + str(sequences[0].shape), flush=True)
-                
-                if self.out_of_memory:
-                    # Send sequences to CPU
-                    sequences = [seq.cpu() for seq in sequences]
-                    # Stack sequences as tensor and send to GPU
-                    samples[key] = torch.stack(sequences, axis=0).to(self.train_device)
-                    self.out_of_memory = False
-
-                if (key == "hxs" or key == "cxs"):
-                    # Select the very first recurrent cell state of a sequence and add it to the samples
-                    samples[key] = samples[key][:, 0]
+                    if key == "obs":
+                        samples["obs"] = {sub_key: self._sample_field_to_sequences(sub_value, episode_done_indices) for sub_key, sub_value in value.items()}
+                    else:
+                        samples[key] = self._sample_field_to_sequences(value, episode_done_indices)
+                        if (key == "hxs" or key == "cxs"):
+                            # Select the very first recurrent cell state of a sequence and add it to the samples
+                            samples[key] = samples[key][:, 0]
 
             # Store important information
-            self.num_sequences = len(sequences)
+            self.num_sequences = len(samples["loss_mask"])
             
         self.actual_sequence_length = max_sequence_length
         
@@ -201,11 +173,22 @@ class Buffer():
         samples["advantages"] = self.advantages
 
         # Flatten samples
+        exclude_keys = {"hxs", "cxs", "obs"}
         self.samples_flat = {}
         for key, value in samples.items():
-            if not key == "hxs" and not key == "cxs":
-                value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
-            self.samples_flat[key] = value
+            if key in exclude_keys:
+                if key == "obs":
+                    # Flatten each sub-array within 'obs'
+                    self.samples_flat[key] = {
+                        sub_key: sub_value.reshape(-1, *sub_value.shape[2:])
+                        for sub_key, sub_value in value.items()
+                    }
+                else:
+                    # Directly assign values for 'hxs' and 'cxs' without reshaping
+                    self.samples_flat[key] = value
+            else:
+                # Flatten by merging the first two dimensions
+                self.samples_flat[key] = value.reshape(-1, *value.shape[2:])
 
     def _arange_sequences(self, data, episode_done_indices):
         """Splits the povided data into episodes and then into sequences.
@@ -263,6 +246,30 @@ class Buffer():
             # padding = torch.full(delta_length, sequence[0], dtype=sequence.dtype) # experimental
         # Concatenate the zeros to the sequence
         return torch.cat((sequence, padding), axis=0)
+
+    def _sample_field_to_sequences(self, tensor_field, episode_done_indices):
+        # Split data into episodes or sequences
+        sequences, max_sequence_length = self._arange_sequences(tensor_field, episode_done_indices)
+
+        # Apply zero-padding to ensure that each episode has the same length
+        # Therfore we can train batches of episodes in parallel instead of one episode at a time
+        for i, sequence in enumerate(sequences):
+            sequences[i] = self._pad_sequence(sequence, max_sequence_length)
+
+        # Stack sequences (target shape: (Sequence, Step, Data ...) & apply data to the samples dict
+        try:
+            stacked_sequences = torch.stack(sequences, axis=0)
+        except RuntimeError:
+            self.out_of_memory = True
+            print("OUT OF MEMORY - Stack Recurrence Sequences", flush=True)
+        
+        if self.out_of_memory:
+            # Send sequences to CPU
+            sequences = [seq.cpu() for seq in sequences]
+            # Stack sequences as tensor and send to GPU
+            stacked_sequences = torch.stack(sequences, axis=0).to(self.train_device)
+            self.out_of_memory = False
+        return stacked_sequences
 
     def _gather_memory_windows_loop(self, mini_batch_size, mini_batch_indices):
         """Gathers the memory windows for the concerned mini batch.
@@ -350,7 +357,10 @@ class Buffer():
             mini_batch_indices = indices[start: end]
             mini_batch = {}
             for key, value in self.samples_flat.items():
-                mini_batch[key] = value[mini_batch_indices].to(self.train_device)
+                if key == "obs":
+                    mini_batch[key] = {sub_key: sub_value[mini_batch_indices].to(self.train_device) for sub_key, sub_value in value.items()}
+                else:
+                    mini_batch[key] = value[mini_batch_indices].to(self.train_device)
             # Retrieve memory windows for the concerned mini batch, if TrXL is used
             if self.transformer_memory is not None:
                 mini_batch["memory_window"] = self._gather_memory_windows_batched(mini_batch_size, mini_batch_indices)
@@ -394,7 +404,10 @@ class Buffer():
                     mini_batch[key] = value[mini_batch_unpadded_indices].to(self.train_device)
                 else:
                     # Select padded data
-                    mini_batch[key] = value[mini_batch_padded_indices].to(self.train_device)
+                    if key == "obs":
+                        mini_batch[key] = {sub_key: sub_value[mini_batch_padded_indices].to(self.train_device) for sub_key, sub_value in value.items()}
+                    else:
+                        mini_batch[key] = value[mini_batch_padded_indices].to(self.train_device)
             start = end
             yield mini_batch
 

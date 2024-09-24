@@ -7,14 +7,13 @@ from neroRL.utils.worker import Worker
 class TrajectorySampler():
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, model, sample_device, train_device) -> None:
+    def __init__(self, configs, worker_id, observation_space, ground_truth_space, action_space_shape, model, sample_device, train_device) -> None:
         """Initializes the TrajectorSampler and launches its environment workers.
 
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. training and environment configs)
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments.
-            visual_observation_space {box} -- Dimensions of the visual observation space (None if not available
-            vector_observation_space {tuple} -- Dimensions of the vector observation space (None if not available)
+            observation_space {spaces.Dict} -- Observation space of the environment
             ground_truth_space {box} -- Dimensions of the ground truth space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
             model {nn.Module} -- The model to retrieve the policy and value from
@@ -22,8 +21,7 @@ class TrajectorySampler():
             train_device {torch.device} -- The device that is used for training the model
         """
         # Set member variables
-        self.visual_observation_space = visual_observation_space
-        self.vector_observation_space = vector_observation_space
+        self.observation_space = observation_space
         self.ground_truth_space = ground_truth_space
         self.model = model
         self.n_workers = configs["sampler"]["n_workers"]
@@ -32,8 +30,7 @@ class TrajectorySampler():
         self.train_device = train_device
 
         # Create Buffer
-        self.buffer = Buffer(configs, visual_observation_space, vector_observation_space, ground_truth_space,
-                        action_space_shape, self.train_device, self)
+        self.buffer = Buffer(configs, observation_space, ground_truth_space, action_space_shape, self.train_device, self)
 
         # Launch workers
         self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
@@ -41,14 +38,10 @@ class TrajectorySampler():
         self.worker_current_episode_step = torch.zeros((self.n_workers, ), dtype=torch.long)
         
         # Setup initial observations and ground truth information
-        if visual_observation_space is not None:
-            self.vis_obs = np.zeros((self.n_workers,) + visual_observation_space.shape, dtype=np.float32)
-        else:
-            self.vis_obs = None
-        if vector_observation_space is not None:
-            self.vec_obs = np.zeros((self.n_workers,) + vector_observation_space, dtype=np.float32)
-        else:
-            self.vec_obs = None
+        self.current_obs = {}
+        for key, value in observation_space.spaces.items():
+            self.current_obs[key] = np.zeros((self.n_workers,) + value.shape, dtype=np.float32)
+
         if ground_truth_space is not None:
             self.ground_truth = np.zeros((self.n_workers,) + ground_truth_space.shape, dtype=np.float32)
         else:
@@ -59,11 +52,9 @@ class TrajectorySampler():
             worker.child.send(("reset", None))
         # Grab initial observations and ground truth information
         for i, worker in enumerate(self.workers):
-            vis_obs, vec_obs, info = worker.child.recv()
-            if self.vis_obs is not None:
-                self.vis_obs[i] = vis_obs
-            if self.vec_obs is not None:
-                self.vec_obs[i] = vec_obs
+            obs, info = worker.child.recv()
+            for key, value in obs.items():
+                self.current_obs[key][i] = value
             if self.ground_truth is not None:
                 self.ground_truth[i] = info["ground_truth"]
 
@@ -85,9 +76,10 @@ class TrajectorySampler():
 
                 # Forward the model to retrieve the policy (making decisions), 
                 # the states' value of the value function and the recurrent hidden states (if available)
-                vis_obs_batch = torch.tensor(self.vis_obs) if self.vis_obs is not None else None
-                vec_obs_batch = torch.tensor(self.vec_obs) if self.vec_obs is not None else None
-                policy, value = self.forward_model(vis_obs_batch, vec_obs_batch, t)      
+                obs_batch = {}
+                for key, item in self.current_obs.items():
+                    obs_batch[key] = torch.tensor(item)
+                policy, value = self.forward_model(obs_batch, t)      
 
                 # Sample actions from each individual policy branch
                 actions = []
@@ -108,11 +100,9 @@ class TrajectorySampler():
 
             # Retrieve results
             for w, worker in enumerate(self.workers):
-                vis_obs, vec_obs, self.buffer.rewards[w, t], self.buffer.dones[w, t], info = worker.child.recv()
-                if self.vis_obs is not None:
-                    self.vis_obs[w] = vis_obs
-                if self.vec_obs is not None:
-                    self.vec_obs[w] = vec_obs
+                obs, self.buffer.rewards[w, t], self.buffer.dones[w, t], info = worker.child.recv()
+                for key, value in obs.items():
+                    self.current_obs[key][w] = value
                 if self.ground_truth is not None:
                     self.ground_truth[w] = info["ground_truth"]
                 if self.buffer.dones[w, t]:
@@ -132,26 +122,23 @@ class TrajectorySampler():
         Arguments:
             t {int} -- Current step of sampling
         """
-        if self.vis_obs is not None:
-            self.buffer.vis_obs[:, t] = torch.tensor(self.vis_obs)
-        if self.vec_obs is not None:
-            self.buffer.vec_obs[:, t] = torch.tensor(self.vec_obs)
+        for key, item in self.current_obs.items():
+            self.buffer.obs[key][:, t] = torch.tensor(item)
         # The ground truth information is not used as model input, but is used as label to an auxiliary loss during optimization
         if self.ground_truth is not None:
             self.buffer.ground_truth[:, t] = torch.tensor(self.ground_truth)
 
-    def forward_model(self, vis_obs, vec_obs, t):
+    def forward_model(self, obs_batch, t):
         """Forwards the model to retrieve the policy and the value of the to be fed observations.
 
         Arguments:
-            vis_obs {torch.tensor} -- Visual observations batched across workers
-            vec_obs {torch.tensor} -- Vector observations batched across workers
+            vis_obs {dict} -- Dict observations batched across workers
             t {int} -- Current step of sampling
 
         Returns:
             {tuple} -- policy {list of categorical distributions}, value {torch.tensor}
         """
-        policy, value, _ = self.model(vis_obs, vec_obs)
+        policy, value, _ = self.model(obs_batch)
         return policy, value
 
     def reset_worker(self, worker, id, t):
@@ -167,11 +154,9 @@ class TrajectorySampler():
         # Reset agent (potential interface for providing reset parameters)
         worker.child.send(("reset", None))
         # Get data from reset
-        vis_obs, vec_obs, info = worker.child.recv()
-        if self.vis_obs is not None:
-            self.vis_obs[id] = vis_obs
-        if self.vec_obs is not None:
-            self.vec_obs[id] = vec_obs
+        obs, info = worker.child.recv()
+        for key, value in obs.items():
+            self.current_obs[key][id] = value
         if self.ground_truth is not None:
             self.ground_truth[id] = info["ground_truth"]
 
