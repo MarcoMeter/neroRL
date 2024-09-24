@@ -169,7 +169,7 @@ class ProcgenWrapper(Env):
             {dict} -- Further episode information (e.g. episode length) retrieved from the environment once an episode completed
         """
         # Execute action
-        obs, reward, done, info = self._env.step(action[0])
+        obs, reward, done, info = self._env.step(action)
         self._rewards.append(reward)
         # Retrieve the RGB frame of the agent's vision
         vis_obs = obs.astype(np.float32)  / 255.

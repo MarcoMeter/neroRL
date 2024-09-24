@@ -166,11 +166,6 @@ class MemoryGymWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
-        # Flatten action in single discrete action space
-        if isinstance(action, list):
-            if len(action) == 1:
-                action = action[0]
-        
         # Step the environment
         obs, reward, done, truncation, info = self._env.step(action)
         if isinstance(obs, dict):

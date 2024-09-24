@@ -84,7 +84,8 @@ class PyTorchEnv(Env):
         return self._process_observation(obs), info
 
     def step(self, action):
-        """Executes one step in the environment.
+        """Executes one step in the environment. Ensures that image observations come in the right shape.
+        If the action is a list of length 1, it is unpacked to allow for compatibility with environments that expect a single action.
 
         Arguments:
             action {List} -- Actions to be executed by the agent.
@@ -95,6 +96,9 @@ class PyTorchEnv(Env):
             done {bool} -- Whether the episode has terminated.
             info {dict} -- Additional information.
         """
+        if isinstance(action, list):
+            if len(action) == 1:
+                action = action[0]
         obs, reward, done, info = self._env.step(action)
         return self._process_observation(obs), reward, done, info
 

@@ -133,7 +133,7 @@ class CartPoleWrapper(Env):
             {dict} -- Further information (e.g. episode length) retrieved from the environment once an episode completed
         """
         # Execute action
-        vec_obs, reward, done, truncation, info = self._env.step(action[0])
+        vec_obs, reward, done, truncation, info = self._env.step(action)
         obs = {"vec_obs": vec_obs * self._obs_mask}
         self._rewards.append(reward)
 

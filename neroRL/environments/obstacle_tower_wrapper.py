@@ -181,7 +181,7 @@ class ObstacleTowerWrapper(Env):
         """
         if self._flat_action_space:
             # Execute action that is selected from the flattened singular action space
-            obs, reward, done, info = self._env.step(np.array(self.flat_actions[action[0]]))
+            obs, reward, done, info = self._env.step(np.array(self.flat_actions[action]))
         else:
             # Add dummy action, because we are not using the last action dimension that lets the agent stride left or right
             action = np.append(action, 0)
