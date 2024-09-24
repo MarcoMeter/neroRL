@@ -187,4 +187,5 @@ class PokeRedV2Wrapper(Env):
 
     def close(self):
         """Shuts down the environment."""
-        self._env.close()
+        # self._env.close()
+        pass
