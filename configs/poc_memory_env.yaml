@@ -13,7 +13,7 @@ environment:
 
 model:
   load_model: False
-  model_path: "./checkpoints/poc_memory_env/20210722-103713_2/poc_memory_env-199.pt"
+  model_path: ""
   checkpoint_interval: 25
   activation: "relu"
   vis_encoder: "cnn"
@@ -26,7 +26,7 @@ model:
     num_blocks: 3
     embed_dim: 384
     num_heads: 4
-    memory_length: 32
+    memory_length: 16
     positional_encoding: "" # options: "" "absolute" "learned"
     add_positional_encoding_to_query: False # Only supported for absolute positional encoding
     layer_norm: "pre" # options: "" "pre" "post"

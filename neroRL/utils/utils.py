@@ -68,7 +68,7 @@ def get_environment_specs(env_config, worker_id, realtime_mode = False):
         {tuple} -- Returns visual observation space, vector observations space, ground_truth_space, action space and max episode steps
     """
     dummy = wrap_environment(env_config, worker_id, realtime_mode)
-    vis_obs, vec_obs, info = dummy.reset(env_config["reset_params"])
+    obs, info = dummy.reset(env_config["reset_params"])
     if isinstance(dummy.action_space, spaces.Discrete):
         action_space_shape = (dummy.action_space.n,)
     else:

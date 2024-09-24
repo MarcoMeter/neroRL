@@ -110,15 +110,14 @@ def main():
     configs["environment"]["reset_params"]["start-seed"] = seed
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
-    visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
+    observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
     env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or website)
 
     # Build or load model
     logger.info("Step 2: Creating model")
     if "transformer" in model_config:
         model_config["transformer"]["max_episode_steps"] = max_episode_steps
-    model = create_actor_critic_model(model_config, visual_observation_space,
-                            vector_observation_space, ground_truth_space, action_space_shape, device)
+    model = create_actor_critic_model(model_config, observation_space, ground_truth_space, action_space_shape, device)
     if not untrained:
         if not checkpoint:
             # If a checkpoint is not provided as an argument, it shall be retrieved from the config
@@ -136,7 +135,7 @@ def main():
         t = 0
         logger.info("Step 3: Resetting the environment")
         logger.info("Step 3: Using seed " + str(seed))
-        vis_obs, vec_obs, info = env.reset(configs["environment"]["reset_params"])
+        obs, info = env.reset(configs["environment"]["reset_params"])
         done = False
         
         # Init memory if applicable
@@ -159,8 +158,8 @@ def main():
         with torch.no_grad():
             while True:
                 # Forward the neural net
-                vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
-                vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
+                for key, value in obs.items():
+                    obs[key] = torch.tensor(np.expand_dims(value, 0), dtype=torch.float32, device=device)
                 # Prepare transformer memory
                 if "transformer" in model_config:
                     in_memory = memory[0, memory_indices[t].unsqueeze(0)]
@@ -170,7 +169,7 @@ def main():
                 else:
                     in_memory = memory
 
-                policy, value, new_memory = model(vis_obs, vec_obs, in_memory, mask, indices)
+                policy, value, new_memory = model(obs, in_memory, mask, indices)
                 
                 # Set memory if used
                 if "recurrence" in model_config:
@@ -201,13 +200,13 @@ def main():
                 if decoder_video:
                     decoder_frames.append(model.reconstruct_observation().squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
                 # Collect agent video if needed
-                agent_frames.append(vis_obs.squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
+                # agent_frames.append(vis_obs.squeeze(0).cpu().numpy().transpose(2, 1, 0) * 255.0)
                 # Break the loop if done
                 if done:
                     break
                 
                 # Step environment
-                vis_obs, vec_obs, _, done, info = env.step(_actions)
+                obs, _, done, info = env.step(_actions)
                 t += 1
 
         logger.info("Episode Reward: " + str(info["reward"]))

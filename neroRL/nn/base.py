@@ -43,11 +43,10 @@ class ActorCriticBase(Module):
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
-    def create_base_model(self, config, vis_obs_space, vec_obs_shape):
+    def create_base_model(self, config, obs_space):
         """
         Creates and returns the components of a base model, which consists of:
-            - a visual encoder,
-            - a vector encoder
+            - dict of observation encoder(s)
             - a recurrent layer (optional)
             - a transformer architecture (optional)
             - a body
@@ -56,47 +55,37 @@ class ActorCriticBase(Module):
 
         Arguments:
             config {dict} -- Model config
-            vis_obs_space {box} -- Dimensions of the visual observation space
-            vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
+            obs_space {box} -- Dictionary of observation spaces
             use_decoder {bool} -- Whether to use a decoder for observation reconstruction or not (default: {False})
         
         Returns:
             {tuple} -- visual encoder, vector encoder, recurrent layer, transformer, body, vis_decoder
         """
-        vis_encoder, vec_encoder, recurrent_layer, transformer, body, vis_decoder = None, None, None, None, None, None
+        obs_encoders, obs_encoder_out = nn.ModuleDict(), {}
+        recurrent_layer, transformer, body, vis_decoder = None, None, None, None
+        in_features_next_layer = 0
 
-        # Observation encoder
-        if vis_obs_space is not None:
-            vis_encoder = self.create_vis_encoder(config, vis_obs_space)
-
-            # Case: visual observation available
-            vis_obs_shape = vis_obs_space.shape
-            # Compute output size of the encoder
-            conv_out_size = self.get_vis_enc_output(vis_encoder, vis_obs_shape)
-            in_features_next_layer = conv_out_size
-
-            # Observation decoder when using observation reconstruction
-            if self.decoder_config is not None:
-                decoder_input_dim = conv_out_size
-                if config["obs_decoder"]["attach_to"] == "memory":
-                    if self.recurrence_config is not None:
-                        decoder_input_dim = self.recurrence_config["hidden_state_size"]
-                    elif self.transformer_config is not None:
-                        decoder_input_dim = self.transformer_config["embed_dim"]
-                vis_decoder = CNNDecoder(decoder_input_dim, vis_obs_shape, "memory" == config["obs_decoder"]["attach_to"])
-
-            # Determine number of features for the next layer's input
-            if vec_obs_shape is not None:
-                # Case: vector observation is also available
-                out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
-                vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
-                in_features_next_layer = in_features_next_layer + out_features
-        else:
-            # Case: only vector observation is available
-            # Vector observation encoder
-            out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
-            vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
-            in_features_next_layer = out_features
+        # Create observation encoders
+        for key, space in obs_space.spaces.items():
+            # check shape, if image create cnn encoder
+            if len(space.shape) == 3:
+                obs_encoders[key] = self.create_vis_encoder(config, space)
+                obs_encoder_out[key] = self.get_vis_enc_output(obs_encoders[key], space.shape)
+                # Decoder head
+                if self.decoder_config is not None and key in ["visual_observation", "vis_obs"]:
+                    decoder_input_dim = obs_encoder_out[key]
+                    if config["obs_decoder"]["attach_to"] == "memory":
+                        if self.recurrence_config is not None:
+                            decoder_input_dim = self.recurrence_config["hidden_state_size"]
+                        elif self.transformer_config is not None:
+                            decoder_input_dim = self.transformer_config["embed_dim"]
+                    vis_decoder = CNNDecoder(decoder_input_dim, space.shape, "memory" == config["obs_decoder"]["attach_to"])
+            elif len(space.shape) == 1:
+                obs_encoders[key] = self.create_vec_encoder(config, space.shape[0], config["num_vec_encoder_units"])
+                obs_encoder_out[key] = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else space.shape[0]
+            else:
+                raise ValueError(f"Observation space shape {space.shape} not supported")
+            in_features_next_layer += obs_encoder_out[key]
 
         # Recurrent layer (GRU or LSTM)
         if self.recurrence_config is not None:
@@ -118,7 +107,7 @@ class ActorCriticBase(Module):
         out_features = config["num_hidden_units"]
         body = self.create_body(config, in_features_next_layer, out_features)
 
-        return vis_encoder, vec_encoder, recurrent_layer, transformer, body, vis_decoder
+        return obs_encoders, recurrent_layer, transformer, body, vis_decoder
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.

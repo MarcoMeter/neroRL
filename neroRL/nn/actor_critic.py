@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn as nn
 
 from neroRL.nn.base import ActorCriticBase
 from neroRL.nn.heads import MultiDiscreteActionPolicy, ValueEstimator, GroundTruthEstimator
@@ -7,19 +8,18 @@ from neroRL.nn.heads import MultiDiscreteActionPolicy, ValueEstimator, GroundTru
 class ActorCriticSharedWeights(ActorCriticBase):
     """A flexible shared weights actor-critic model that supports:
             - Multi-discrete action spaces
-            - Visual & vector observation spaces
+            - Dict observation spaces
             - Recurrent polices (either GRU or LSTM)
             - TransformerXL-based episodic memory
             - Ground truth estimation
             - Observation reconstruction
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, ground_truth_space, action_space_shape):
+    def __init__(self, config, obs_space, ground_truth_space, action_space_shape):
         """Model setup
 
         Arguments:
             config {dict} -- Model config
-            vis_obs_space {box} -- Dimensions of the visual observation space (None if not available)
-            vec_obs_shape {tuple} -- Dimensions of the vector observation space (None if not available)
+            obs_space {spaces.Dict} -- Dimensions of the visual observation space
             ground_truth_space {box} -- Dimensions of the ground truth space (None if not available)
             action_space_shape {tuple} -- Dimensions of the action space
             use_decoder {bool} -- Whether to use a decoder for observation reconstruction or not (default: {False})
@@ -27,7 +27,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         ActorCriticBase.__init__(self, config)
 
         # Create the base model
-        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.transformer, self.body, self.vis_decoder = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.obs_encoders, self.recurrent_layer, self.transformer, self.body, self.vis_decoder = self.create_base_model(config, obs_space)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(self.out_features_body, action_space_shape, self.activ_fn)
@@ -42,14 +42,14 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         # Organize all modules inside a dictionary
         # This will be used for collecting gradient statistics inside the trainer
-        self.actor_critic_modules = {
-            "vis_encoder": self.vis_encoder,
-            "vec_encoder": self.vec_encoder,
-            "recurrent_layer": self.recurrent_layer,
+        self.actor_critic_modules = nn.ModuleDict({
             "body": self.body,
             "actor_head": self.actor_policy,
             "critic_head": self.critic
-        }
+        })
+        
+        for key, value in self.obs_encoders.items():
+            self.actor_critic_modules["encoder_" + key] = value
 
         if self.vis_decoder is not None:
             self.actor_critic_modules["vis_decoder"] = self.vis_decoder
@@ -60,12 +60,14 @@ class ActorCriticSharedWeights(ActorCriticBase):
         if self.transformer is not None:
             for b, block in enumerate(self.transformer.transformer_blocks):
                 self.actor_critic_modules["transformer_" + str(b)] = block
+        
+        if self.recurrence_config is not None:
+            self.actor_critic_modules["recurrent_layer"] = self.recurrent_layer
 
-    def forward(self, vis_obs, vec_obs, memory = None, mask = None, memory_indices = None, sequence_length = 1):
+    def forward(self, obs, memory = None, mask = None, memory_indices = None, sequence_length = 1):
         """Forward pass of the model
 
-            vis_obs {numpy.ndarray/torch.tensor} -- Visual observation (None if not available)
-            vec_obs {numpy.ndarray/torch.tensor} -- Vector observation (None if not available)
+            obs {dict} -- Observations as dict
             memory {torch.tensor} -- Reucrrent cell state or episodic memory (None if not available)
             mask {torch.tensor} -- Memory mask (None if the model is not transformer-based)
             memory_indices {torch.tesnor} -- Indices to select the positional encoding that mathes the memory window (None of the model is not transformer-based)
@@ -77,18 +79,16 @@ class ActorCriticSharedWeights(ActorCriticBase):
             {torch.tensor or tuple} -- Current memory representation or recurrent cell state (None if memory is not used)
         """
         # Forward observation encoder
-        if vis_obs is not None:
-            h = self.vis_encoder(vis_obs)
-            # Store extracted features for observation reconstruction
-            if self.decoder_config is not None:
-                if self.decoder_config["attach_to"] == "cnn":
-                    self.decoder_h = h
-            if vec_obs is not None:
-                h_vec = self.vec_encoder(vec_obs)
-                # Add vector observation to the flattened output of the visual encoder if available
-                h = torch.cat((h, h_vec), 1)
+        encoded_features = [encoder(obs[key]) for key, encoder in self.obs_encoders.items()]
+
+        # Concatenate if multiple encoders
+        if len(encoded_features) > 1:
+            h = torch.cat(encoded_features, dim=1)
+            attach_to_cnn = self.decoder_config.get("attach_to") == "cnn"
+            if attach_to_cnn and any(k in ["vis_obs", "visual_observation"] for k in obs.keys()):
+                self.decoder_h = h
         else:
-            h = self.vec_encoder(vec_obs)
+            h = encoded_features[0]
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence_config is not None:
@@ -139,13 +139,12 @@ class ActorCriticSharedWeights(ActorCriticBase):
         y = self.ground_truth_estimator(self.ground_truth_estimator_h)
         return y
 
-def create_actor_critic_model(model_config, visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, device):
+def create_actor_critic_model(model_config, observation_space, ground_truth_space, action_space_shape, device):
     """Creates a shared weights actor critic model.
 
     Arguments:
         model_config {dict} -- Model config
-        visual_observation_space {box} -- Dimensions of the visual observation space (None if not available)
-        vector_observation_space {tuple} -- Dimensions of the vector observation space (None if not available)
+        observation_space {spaces.Dict} -- Observation space dictionary
         action_space_shape {tuple} -- Dimensions of the action space
         device {torch.device} -- Current device
         use_decoder {bool} -- Whether to use a decoder for observation reconstruction or not (default: {False})
@@ -153,5 +152,4 @@ def create_actor_critic_model(model_config, visual_observation_space, vector_obs
     Returns:
         {ActorCriticBase} -- The created actor critic model
     """
-    return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
-                                    ground_truth_space, action_space_shape).to(device)
+    return ActorCriticSharedWeights(model_config, observation_space,ground_truth_space, action_space_shape).to(device)
