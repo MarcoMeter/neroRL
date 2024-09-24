@@ -84,7 +84,9 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Concatenate if multiple encoders
         if len(encoded_features) > 1:
             h = torch.cat(encoded_features, dim=1)
-            attach_to_cnn = self.decoder_config.get("attach_to") == "cnn"
+            attach_to_cnn = False
+            if self.decoder_config is not None:
+                attach_to_cnn = self.decoder_config.get("attach_to") == "cnn"
             if attach_to_cnn and any(k in ["vis_obs", "visual_observation"] for k in obs.keys()):
                 self.decoder_h = h
         else:

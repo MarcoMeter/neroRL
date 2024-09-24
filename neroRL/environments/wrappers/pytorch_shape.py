@@ -97,7 +97,10 @@ class PyTorchEnv(Env):
             info {dict} -- Additional information.
         """
         if isinstance(action, (list, np.ndarray, tuple)):
-            if len(action) == 1:
+            if isinstance(action, np.ndarray):
+                if action.ndim == 0:
+                    action = int(action)
+            elif len(action) == 1:
                 action = action[0]
         obs, reward, done, info = self._env.step(action)
         return self._process_observation(obs), reward, done, info

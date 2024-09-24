@@ -45,7 +45,12 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
     elif config["type"] == "PoCMemoryEnv":
         from neroRL.environments.poc_memory_env_wrapper import PocMemoryEnvWrapper
         return PocMemoryEnvWrapper(config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
-        
+    elif config["type"] == "PokeRedV2":
+        from neroRL.environments.poke_red_wrapper import PokeRedV2Wrapper
+        env = PokeRedV2Wrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
+    else:
+        raise ValueError(f"Environment type {config['type']} not supported.")
+    
     # Wrap environment
     # Frame Skip
     if config["frame_skip"] > 1:
