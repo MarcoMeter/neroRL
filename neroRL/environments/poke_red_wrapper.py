@@ -1,5 +1,6 @@
 import uuid
 import numpy as np
+import os
 from random import randint
 from gymnasium import spaces
 from pathlib import Path
@@ -29,7 +30,8 @@ class PokeRedV2Wrapper(Env):
         # Setup
         self._max_episode_steps = reset_params["max-steps"]
         sess_id = str(uuid.uuid4())[:8]
-        sess_path = Path(f'session_{sess_id}')
+        os.makedirs("./session", exist_ok=True)
+        sess_path = Path(f'session/{sess_id}')
         env_config = {
                 'headless': not realtime_mode, 'save_final_state': False, 'early_stop': False,
                 'action_freq': 24, 'init_state': reset_params["initial-state"], 'max_steps': self._max_episode_steps, 
@@ -128,6 +130,8 @@ class PokeRedV2Wrapper(Env):
         options.pop("num-seeds", None)
         options.pop("seed", None)
 
+        self._rewards = []
+
         # Reset the environment to retrieve the initial observation
         obs, info = self._env.reset(seed=self._seed, options=options)
         # Prepare observations so that the keys health, level, badges, and recent_actions are concatenated
@@ -145,7 +149,7 @@ class PokeRedV2Wrapper(Env):
         # Prepare trajectory recording
         self._trajectory = {
             "vis_obs": [self._env.render()], "vec_obs": [None],
-            "rewards": [0.0], "actions": []
+            "rewards": [0.0], "actions": [], "frame_rate": 100
         } if self._record else None
 
         return obs, info
@@ -172,6 +176,12 @@ class PokeRedV2Wrapper(Env):
             "events": obs["events"],
             "game_state": vec_obs
         }
+        self._rewards.append(reward)
+
+        if done or truncation:
+            info["reward"] = sum(self._rewards)
+            info["length"] = len(self._rewards)
+            info["events_sum"] = sum(obs["events"])
 
         if self._realtime_mode:
             self._env.render()
@@ -183,7 +193,7 @@ class PokeRedV2Wrapper(Env):
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
 
-        return obs, reward, done, info
+        return obs, reward, done or truncation, info
 
     def close(self):
         """Shuts down the environment."""

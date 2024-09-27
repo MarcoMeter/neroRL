@@ -6,7 +6,7 @@ environment:
   last_reward_to_obs: False
   obs_stacks: 1
   grayscale: False
-  resize_vis_obs: [128, 40]
+  resize_vis_obs: [72, 80]
   reset_params:
     start-seed: 0
     num-seeds: 1
@@ -22,6 +22,23 @@ model:
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
+  modalities:
+    screens:
+      type: "atari_cnn"
+      dtype: "float32"
+    map:
+      type: "atari_cnn"
+      dtype: "float32"
+    events:
+      type: "fc"
+      dtype: "float32"
+      dims: [128]
+      activation: "relu"
+    game_state:
+      type: "fc"
+      dtype: "float32"
+      dims: [128]
+      activation: "relu"
   # recurrence:
   #   layer_type: "gru"
   #   num_layers: 1
@@ -59,14 +76,14 @@ trainer:
     initial: 3.0e-4
     final: 3.0e-4
     power: 1.0
-    max_decay_steps: 10000
+    max_decay_steps: 50000
   beta_schedule:
-    initial: 0.0
+    initial: 0.01
     final: 0.0
     power: 1.0
-    max_decay_steps: 10000
+    max_decay_steps: 50000
   clip_range_schedule:
     initial: 0.2
     final: 0.2
     power: 1.0
-    max_decay_steps: 10000
+    max_decay_steps: 50000

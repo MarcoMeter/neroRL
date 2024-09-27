@@ -1,3 +1,4 @@
+import numpy as np
 from enum import Enum
 
 class Tag(Enum):
@@ -119,7 +120,8 @@ class TrainingMonitor():
         if episode_result:
             for key in episode_result:
                 if "std" not in key:
-                    self.writer.add_scalar("episode/" + key, episode_result[key], update)
+                    if not np.isnan(episode_result[key]):
+                        self.writer.add_scalar("episode/" + key, episode_result[key], update)
 
         for key, (tag, value) in training_stats.items():
             self.writer.add_scalar(tag.value + "/" + key, value, update)

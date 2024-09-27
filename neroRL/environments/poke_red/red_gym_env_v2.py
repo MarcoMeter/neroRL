@@ -1,5 +1,6 @@
 import uuid
 import json
+import math
 from pathlib import Path
 
 import numpy as np
@@ -16,6 +17,8 @@ from pyboy.utils import WindowEvent
 event_flags_start = 0xD747
 event_flags_end = 0xD7F6 # 0xD761 # 0xD886 temporarily lower event flag range for obs input
 museum_ticket = (0xD754, 0)
+
+MAP_N_ADDRESS = 0xD35E
 
 class RedGymEnv(Env):
     def __init__(self, config=None):
@@ -145,6 +148,10 @@ class RedGymEnv(Env):
         self.died_count = 0
         self.party_size = 0
         self.step_count = 0
+        self.badge_steps = [np.nan for i in range(2)]
+        self.num_badges = 0
+        self.visited_mt_moon = 0
+        self.visited_cerulean = 0
 
         self.base_event_flags = sum([
                 self.bit_count(self.read_m(i))
@@ -240,9 +247,34 @@ class RedGymEnv(Env):
                         else:
                             print(f"could not find key: {key}")
 
+        if self.get_badges() > self.num_badges:
+            self.num_badges = self.get_badges()
+            self.badge_steps[self.num_badges-1] = self.step_count
+
+        # check if mt moon is reached
+        if self.read_m(MAP_N_ADDRESS) == 59 and self.visited_mt_moon == 0:
+            self.visited_mt_moon = 1
+        # check if cerulean city is reached
+        if self.read_m(MAP_N_ADDRESS) == 3 and self.visited_cerulean == 0:
+            self.visited_cerulean = 1
+
+        info = {
+            "deaths": self.died_count,
+            "max_foe_level": self.max_opponent_level,
+            "max_event_rew": self.max_event_rew,
+            "party_size": self.party_size,
+            "levels_sum": self.get_levels_sum(),
+            "mt_moon": self.visited_mt_moon,
+            "cerulean": self.visited_cerulean,
+        }
+        # Append badges and steps to info
+        for i in range(2):
+            info[f"badge_{i+1}_steps"] = self.badge_steps[i]
+            info[f"badge_{i+1}"] = int(not math.isnan(self.badge_steps[i]))
+
         self.step_count += 1
 
-        return obs, new_reward, False, step_limit_reached, {}
+        return obs, new_reward, False, step_limit_reached, info
     
     def run_action_on_emulator(self, action):
         # press button then release after some steps
