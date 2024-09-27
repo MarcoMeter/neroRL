@@ -245,6 +245,28 @@ class YamlParser:
                 if "detach_gradient" not in self._config["model"]["ground_truth_estimator"]:
                     self._config["model"]["ground_truth_estimator"]["detach_gradient"] = False
 
+            # Check if the model dict contains the key "modalities"
+            if not "modalities" in self._config["model"]:
+                raise Exception("No modalities specified in model config.")
+            else:
+                # every modality sub dict needs to have at least the keys "type" and "dtype"
+                # if the type is "fc", check if the subdict has the keys "dims" and "activation"
+                # dims must be of type list and the activation must be a string
+                for modality in self._config["model"]["modalities"]:
+                    if not "type" in self._config["model"]["modalities"][modality]:
+                        raise Exception("No type specified in modality.")
+                    if not "dtype" in self._config["model"]["modalities"][modality]:
+                        raise Exception("No dtype specified in modality.")
+                    if self._config["model"]["modalities"][modality]["type"] == "fc":
+                        if not "dims" in self._config["model"]["modalities"][modality]:
+                            raise Exception("No dims specified in fc modality.")
+                        if not "activation" in self._config["model"]["modalities"][modality]:
+                            raise Exception("No activation specified in fc modality.")
+                        if not isinstance(self._config["model"]["modalities"][modality]["dims"], list):
+                            raise Exception("Dims must be of type list.")
+                        if not isinstance(self._config["model"]["modalities"][modality]["activation"], str):
+                            raise Exception("Activation must be of type string.")
+
     def get_config(self):
         """ 
         Returns:
