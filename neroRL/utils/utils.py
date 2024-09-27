@@ -114,3 +114,17 @@ def load_and_apply_state_dict(model, state_dict):
         new_state_dict[key] = value
     model.load_state_dict(new_state_dict)
     return model
+
+def check_config_and_env_modalities(config_modality_keys, env_modality_keys):
+    """Compares the modalities of the environment and the yaml config. If they do not match, an exception is raised.
+
+    Arguments:
+        config_modality_keys {list} -- List of the modalities of the configuration
+        env_modality_keys {list} -- List of the modalities of the environment
+
+    Raises:
+        ValueError: If the modalities do not match, an exception is raised
+    """
+    for modality in env_modality_keys:
+        if modality not in config_modality_keys:
+            raise ValueError(f"The envrionment's modality '{modality}' is not available in the configured modalities: {config_modality_keys}.")

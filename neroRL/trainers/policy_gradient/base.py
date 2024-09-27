@@ -9,7 +9,7 @@ from neroRL.sampler.trajectory_sampler import TrajectorySampler
 from neroRL.sampler.recurrent_sampler import RecurrentSampler
 from neroRL.sampler.transformer_sampler import TransformerSampler
 from neroRL.utils.monitor import Tag
-from neroRL.utils.utils import get_environment_specs
+from neroRL.utils.utils import get_environment_specs, check_config_and_env_modalities
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
@@ -45,6 +45,8 @@ class BaseTrainer():
 
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
         self.obs_space, self.ground_truth_space, self.action_space_shape, self.max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1)
+        # Check if modalities are configured correctly
+        check_config_and_env_modalities(list(configs["model"]["modalities"].keys()), self.obs_space.spaces.keys())
         if self.transformer is not None:
             # Add max episode steps to the transformer config
             configs["model"]["transformer"]["max_episode_steps"] = self.max_episode_steps

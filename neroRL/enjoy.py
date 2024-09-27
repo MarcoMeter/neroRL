@@ -16,7 +16,7 @@ from docopt import docopt
 from gymnasium import spaces
 
 from neroRL.utils.yaml_parser import YamlParser
-from neroRL.utils.utils import get_environment_specs, load_and_apply_state_dict
+from neroRL.utils.utils import get_environment_specs, load_and_apply_state_dict, check_config_and_env_modalities
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.video_recorder import VideoRecorder
 from neroRL.nn.actor_critic import create_actor_critic_model
@@ -112,6 +112,8 @@ def main():
     configs["environment"]["reset_params"]["seed"] = seed
     observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
     env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or website)
+    # Check if modalities are configured correctly
+    check_config_and_env_modalities(list(model_config["modalities"].keys()), env.observation_space.spaces.keys())
 
     # Build or load model
     logger.info("Step 2: Creating model")
