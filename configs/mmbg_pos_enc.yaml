@@ -26,12 +26,28 @@ model:
   model_path: ""
   checkpoint_interval: 200
   activation: "relu"
-  vis_encoder: "cnn"
-  vec_encoder: "linear"
-  num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
+  modalities:
+    visual_observation:
+      type: "atari_cnn"
+      dtype: "float32"
+    vector_observation:
+      type: "fc"
+      dtype: "float32"
+      dims: [128]
+      activation: "relu"
+    last_action_last_reward:
+      type: "fc"
+      dtype: "float32"
+      dims: [32]
+      activation: "relu"
+    positional_encoding:
+      type: "fc"
+      dtype: "float32"
+      dims: [64]
+      activation: "relu"
 
 evaluation:
   evaluate: False

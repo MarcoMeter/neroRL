@@ -3,36 +3,39 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from neroRL.nn.activation_map import get_activation
 from neroRL.nn.module import Module
 
-class CNNEncoder(Module):
+def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
+    torch.nn.init.orthogonal_(layer.weight, std)
+    torch.nn.init.constant_(layer.bias, bias_const)
+    return layer
+
+class AtariCNN(Module):
     """
     A simple three layer CNN which serves as a visual encoder. Also known as Atari CNN.
     """
-    def __init__(self, vis_obs_space, config, activ_fn):
+    def __init__(self, vis_obs_space, config):
         """Initializes a three layer convolutional neural network.
 
         Arguments:
             config {dict} -- Model config
             vis_obs_space {box} -- Dimensions of the visual observation space
-            activ_fn {activation} -- activation function
         """
         super().__init__()
 
-        # Set the activation function
-        self.activ_fn = activ_fn
-
-        vis_obs_shape = vis_obs_space.shape
-        # Visual Encoder made of 3 convolutional layers
-        self.conv1 = nn.Conv2d(vis_obs_shape[0], 32, kernel_size=8, stride=4, padding=0)
-        nn.init.orthogonal_(self.conv1.weight, np.sqrt(2))
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=0)
-        nn.init.orthogonal_(self.conv2.weight, np.sqrt(2))
-        self.conv3 = nn.Conv2d(64, out_channels=64, kernel_size=3, stride=1, padding=0)
-        nn.init.orthogonal_(self.conv3.weight, np.sqrt(2))
+        self.cnn = nn.Sequential(
+            layer_init(nn.Conv2d(vis_obs_space.shape[0], 32, 8, stride=4)),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(32, 64, 4, stride=2)),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(64, 64, 3, stride=1)),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
 
         # Compute the output size of the encoder
-        self.conv_enc_size = self.get_enc_output(vis_obs_shape)
+        self.conv_enc_size = self.get_enc_output(vis_obs_space.shape)
 
     def forward(self, vis_obs):
         """Forward pass of the model
@@ -43,16 +46,7 @@ class CNNEncoder(Module):
         Returns:
             {torch.tensor} -- Feature tensor
         """
-        # Forward observation encoder
-        # Propagate input through the visual encoder
-        h = self.activ_fn(self.conv1(vis_obs))
-        h = self.activ_fn(self.conv2(h))
-        h = self.activ_fn(self.conv3(h))
-        self.h = h
-        # Flatten the output of the convolutional layers
-        h = h.reshape((-1, self.conv_enc_size))
-
-        return h
+        return self.cnn(vis_obs)
 
     def get_enc_output(self, shape):
         """Computes the output size of the encoder by feeding a dummy tensor.
@@ -63,10 +57,8 @@ class CNNEncoder(Module):
         Returns:
             {int} -- Number of output features returned by the utilized encoder
         """
-        o = self.conv1(torch.zeros(1, *shape))
-        o = self.conv2(o)
-        o = self.conv3(o)
-        return int(np.prod(o.size()))
+        h = self.cnn(torch.zeros(1, *shape))
+        return int(np.prod(h.size()))
 
 class ResCNN(Module):
     """
@@ -170,7 +162,7 @@ class ResCNN(Module):
 
 class SmallImpalaCNN(Module):
     """https://github.com/ml-jku/helm/blob/main/model.py#L42"""
-    def __init__(self, vis_obs_space, config, activ_fn, channel_scale=1, hidden_dim=256):
+    def __init__(self, vis_obs_space, config, channel_scale=1, hidden_dim=256):
         super(SmallImpalaCNN, self).__init__()
         vis_obs_shape = vis_obs_space.shape
         self.obs_size = vis_obs_shape
@@ -251,31 +243,40 @@ class BasicConvBlock(Module):
         h = h + h_identity
         return h
 
-class LinVecEncoder(Module):
+class LinearEncoder(Module):
     """
-    A simple one linear layer vector encoder.
+    A multi-layer linear vector encoder using nn.Sequential.
     """
-    def __init__(self, in_features, out_features, activ_fn):
-        """Initializes a  one layer linear neural network.
+    def __init__(self, config, space):
+        """Initializes a multi-layer linear neural network.
 
         Arguments:
-            in_features {int} -- Size of input
-            out_features {int} -- Size of output
-            activ_fn {activation} -- activation function
+            config {dict} -- Modality config
+            space {int} -- Input size
         """
         super().__init__()
 
-        self.lin_layer = nn.Linear(in_features, out_features)
-        nn.init.orthogonal_(self.lin_layer.weight, np.sqrt(2))
-        self.activ_fn = activ_fn
+        activ_fn = get_activation(config["activation"])
+
+        layers = []
+        input_dim = space.shape[0]
+        
+        # Add linear layers followed by activation function based on config["dims"]
+        for output_dim in config["dims"]:
+            layers.append(layer_init(nn.Linear(input_dim, output_dim)))
+            layers.append(activ_fn)
+            input_dim = output_dim
+        
+        # Use nn.Sequential to create the network
+        self.network = nn.Sequential(*layers)
 
     def forward(self, h):
         """Forward pass of the model
 
         Arguments:
-            h {torch.tensor} -- Feature tensor
+            h {torch.Tensor} -- Feature tensor
             
         Returns:
-            {torch.tensor} -- Feature tensor
+            {torch.Tensor} -- Feature tensor
         """
-        return self.activ_fn(self.lin_layer(h))
+        return self.network(h)

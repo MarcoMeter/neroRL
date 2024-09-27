@@ -11,7 +11,7 @@ environment:
     start-seed: 0
     num-seeds: 1
     initial-state: "./neroRL/environments/poke_red/has_pokedex_nballs.state"
-    max-steps: 20480
+    max-steps: 20
 
 model:
   load_model: False
@@ -32,12 +32,12 @@ model:
     events:
       type: "fc"
       dtype: "float32"
-      dims: [128]
+      dims: [256, 64]
       activation: "relu"
     game_state:
       type: "fc"
       dtype: "float32"
-      dims: [128]
+      dims: [64]
       activation: "relu"
   # recurrence:
   #   layer_type: "gru"
@@ -58,13 +58,13 @@ evaluation:
   interval: 200
 
 sampler:
-  n_workers: 32
-  worker_steps: 1024
+  n_workers: 4
+  worker_steps: 128
 
 trainer:
   algorithm: "PPO"
   resume_at: 0
-  gamma: 0.998
+  gamma: 0.997
   lamda: 0.95
   updates: 50000
   epochs: 3

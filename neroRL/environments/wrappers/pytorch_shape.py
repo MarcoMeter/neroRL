@@ -100,7 +100,7 @@ class PyTorchEnv(Env):
             if isinstance(action, np.ndarray):
                 if action.ndim == 0:
                     action = int(action)
-                elif action.ndim == 1:
+                elif action.ndim == 1 and len(action) == 1:
                     action = action[0]
             elif len(action) == 1:
                 action = action[0]

@@ -181,7 +181,7 @@ class PPOTrainer(BaseTrainer):
         if self.use_obs_reconstruction:
             # Forward decoder
             decoder_output = self.model.reconstruct_observation()
-            vis_obs = samples["vis_obs"]
+            vis_obs = samples["obs"]["visual_observation"]
             # Remove paddings if recurrence is used
             if self.recurrence is not None:
                 decoder_output = decoder_output[samples["loss_mask"]]

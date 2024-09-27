@@ -18,12 +18,15 @@ model:
   model_path: "./checkpoints/cartpole/20210722-103713_2/cartpole-199.pt"
   checkpoint_interval: 25
   activation: "relu"
-  vis_encoder: "cnn"
-  vec_encoder: "linear"
-  num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
+  modalities:
+    vec_obs:
+      type: "fc"
+      dtype: "float32"
+      dims: [128]
+      activation: "relu"
   recurrence:
     layer_type: "gru"
     num_layers: 1

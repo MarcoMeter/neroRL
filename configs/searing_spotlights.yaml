@@ -55,6 +55,15 @@ model:
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 384
+  modalities:
+    visual_observation:
+      type: "atari_cnn"
+      dtype: "float32"
+    last_action_last_reward:
+      type: "fc"
+      dtype: "float32"
+      dims: [32]
+      activation: "relu"
   recurrence:
     layer_type: "gru"
     sequence_length: -1

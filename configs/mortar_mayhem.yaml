@@ -19,7 +19,7 @@ environment:
     command_show_delay: [1]
     explosion_duration: [6]
     explosion_delay: [18]
-    reward_command_failure: -0.1
+    reward_command_failure: 0.0
     reward_command_success: 0.1
     reward_episode_success: 0.0
 
@@ -28,12 +28,13 @@ model:
   model_path: ""
   checkpoint_interval: 200
   activation: "relu"
-  vis_encoder: "cnn"
-  vec_encoder: "linear"
-  num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
+  modalities:
+    visual_observation:
+      type: "atari_cnn"
+      dtype: "float32"
   recurrence:
     layer_type: "gru"
     num_layers: 1

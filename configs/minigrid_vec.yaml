@@ -2,41 +2,42 @@
 
 environment:
   type: "MinigridVec"
-  name: "MiniGrid-MemoryS7-v0"
+  name: "MiniGrid-MemoryS13-v0"
   frame_skip: 1
   last_action_to_obs: False
   last_reward_to_obs: False
   obs_stacks: 1
-  # grayscale: False
-  # resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
-    num-seeds: 100
+    num-seeds: 1000
     # The view size of the agent, which has to be an odd number
     # The default value in minigrid is 7, which is not a good challenge in terms of agent memory
     view-size: 3
-    max-episode-steps: 64
+    max-episode-steps: 96
 
 model:
   load_model: False
   model_path: "./models/good_minigrid-900.pt"
   checkpoint_interval: 100
   activation: "relu"
-  vis_encoder: "cnn"
-  vec_encoder: "linear"
-  num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
-  num_hidden_units: 512
+  num_hidden_units: 256
+  modalities:
+    vec_obs:
+      type: "fc"
+      dtype: "float32"
+      dims: [256]
+      activation: "relu"
   recurrence:
     layer_type: "gru"
     num_layers: 1
-    sequence_length: 16
-    hidden_state_size: 32
+    sequence_length: 32
+    hidden_state_size: 256
     hidden_state_init: "zero"
     reset_hidden_state: False
     residual: False
-    embed: True
+    embed: False
 
 evaluation:
   evaluate: False

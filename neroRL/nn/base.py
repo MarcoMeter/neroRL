@@ -2,7 +2,8 @@ import numpy as np
 import torch
 from torch import nn
 
-from neroRL.nn.encoder import CNNEncoder, ResCNN, SmallImpalaCNN, LinVecEncoder
+from neroRL.nn.activation_map import get_activation
+from neroRL.nn.encoder import AtariCNN, ResCNN, SmallImpalaCNN, LinearEncoder
 from neroRL.nn.decoder import CNNDecoder
 from neroRL.nn.recurrent import GRU, LSTM
 from neroRL.nn.transformer import Transformer
@@ -41,7 +42,7 @@ class ActorCriticBase(Module):
         self.ground_truth_estimator_config = config["ground_truth_estimator"] if "ground_truth_estimator" in config else None
 
         # Set activation function
-        self.activ_fn = self.get_activation_function(config)
+        self.activ_fn = get_activation(config["activation"])
 
     def create_base_model(self, config, obs_space):
         """
@@ -67,9 +68,9 @@ class ActorCriticBase(Module):
 
         # Create observation encoders
         for key, space in obs_space.spaces.items():
-            # check shape, if image create cnn encoder
+            # check shape, if image create vis encoder
             if len(space.shape) == 3:
-                obs_encoders[key] = self.create_vis_encoder(config, space)
+                obs_encoders[key] = self.create_vis_encoder(config["modalities"][key], space)
                 obs_encoder_out[key] = self.get_vis_enc_output(obs_encoders[key], space.shape)
                 # Decoder head
                 if self.decoder_config is not None and key in ["visual_observation", "vis_obs"]:
@@ -81,8 +82,8 @@ class ActorCriticBase(Module):
                             decoder_input_dim = self.transformer_config["embed_dim"]
                     vis_decoder = CNNDecoder(decoder_input_dim, space.shape, "memory" == config["obs_decoder"]["attach_to"])
             elif len(space.shape) == 1:
-                obs_encoders[key] = self.create_vec_encoder(config, space.shape[0], config["num_vec_encoder_units"])
-                obs_encoder_out[key] = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else space.shape[0]
+                obs_encoders[key], out_dim = self.create_vec_encoder(config["modalities"][key], space)
+                obs_encoder_out[key] = out_dim
             else:
                 raise ValueError(f"Observation space shape {space.shape} not supported")
             in_features_next_layer += obs_encoder_out[key]
@@ -171,57 +172,37 @@ class ActorCriticBase(Module):
         self.mean_hxs = mean_hxs
         self.mean_cxs = mean_cxs
 
-    def get_activation_function(self, config):
-        """Returns the chosen activation function based on the model config.
-
-        Arguments:
-            config {dict} -- Model config
-
-        Returns:
-            {torch.nn.modules.activation} -- Activation function
-        """
-        if config["activation"] == "elu":
-            return nn.ELU()
-        elif config["activation"] == "leaky_relu":
-            return nn.LeakyReLU()
-        elif config["activation"] == "relu":
-            return nn.ReLU()
-        elif config["activation"] == "swish":
-            return nn.SiLU()
-        elif config["activation"] == "gelu":
-            return nn.GELU()
-
     def create_vis_encoder(self, config, vis_obs_space):
         """Creates and returns a new instance of the visual encoder based on the model config.
 
         Arguments:
-            config {dict} -- Model config
+            config {dict} -- Modality config
             vis_obs_space {box} -- Dimensions of the visual observation space
 
         Returns:
             {Module} -- The created visual encoder
         """
-        if config["vis_encoder"] == "cnn":
-            return CNNEncoder(vis_obs_space, config, self.activ_fn)
-        elif config["vis_encoder"] == "rescnn":
+        if config["type"] == "atari_cnn":
+            return AtariCNN(vis_obs_space, config)
+        elif config["type"] == "rescnn":
             return ResCNN(vis_obs_space, config, self.activ_fn)
-        elif config["vis_encoder"] == "smallimpala":
-            return SmallImpalaCNN(vis_obs_space, config, self.activ_fn)
+        elif config["type"] == "smallimpala":
+            return SmallImpalaCNN(vis_obs_space, config)
 
-    def create_vec_encoder(self, config, in_features, out_features):
+    def create_vec_encoder(self, config, space):
         """Creates and returns a new instance of the vector encoder based on the model config.
 
         Arguments:
-            config {dict} -- Model config
-            in_features {int} -- Size of input
-            out_features {int} -- Size of output
+            config {dict} -- Modality config
+            space {box} -- Dimensions of the vector observation space
 
         Returns:
             {Module} -- The created vector encoder
+            {int} -- Number of output features
         """
-        if config["vec_encoder"] == "linear":
-            return LinVecEncoder(in_features, out_features, self.activ_fn)
-        elif config["vec_encoder"] == "none":
+        if config["type"] == "fc":
+            return LinearEncoder(config, space), config["dims"][-1]
+        elif config["type"] == "none":
             return Sequential()
 
     def create_body(self, config, in_features, out_features):

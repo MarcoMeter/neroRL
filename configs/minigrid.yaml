@@ -22,12 +22,13 @@ model:
   model_path: "./checkpoints/mg_17r/20220112-065616_2/mg_17r-208.pt"
   checkpoint_interval: 100
   activation: "relu"
-  vis_encoder: "cnn"
-  vec_encoder_layer: "linear"
-  num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
+  modalities:
+    vis_obs:
+      type: "atari_cnn"
+      dtype: "float32"
   recurrence:
     layer_type: "gru"
     num_layers: 1

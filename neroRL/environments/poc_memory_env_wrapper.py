@@ -95,6 +95,7 @@ class PocMemoryEnvWrapper(Env):
         self._seed = randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1)
 
         # Reset environment
+        self._rewards = []
         obs, _ = self._env.reset(seed = self._seed)
         obs = {"vec_obs": obs}
 
@@ -122,6 +123,11 @@ class PocMemoryEnvWrapper(Env):
         obs, reward, done, truncation, info = self._env.step(action)
         obs = {"vec_obs": obs}
         done = done or truncation
+
+        self._rewards.append(reward)
+        if done:
+            info["reward"] = sum(self._rewards)
+            info["length"] = len(self._rewards)
 
         if self._realtime_mode or self._record:
             img = self._env.render()
