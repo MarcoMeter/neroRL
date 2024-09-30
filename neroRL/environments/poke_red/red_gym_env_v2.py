@@ -181,9 +181,7 @@ class RedGymEnv(Env):
         return game_pixels_render
     
     def _get_obs(self):
-        
         screen = self.render()
-
         self.update_recent_screens(screen)
         
         # normalize to approx 0-1
@@ -200,6 +198,13 @@ class RedGymEnv(Env):
             "map": self.get_explore_map()[:, :, None],
             "recent_actions": self.recent_actions
         }
+
+        if observation["map"].shape != self.observation_space["map"].shape:
+            print(f"map shape: {observation['map'].shape}")
+            x_pos, y_pos, map_n = self.get_game_coords()
+            map = self.get_map_location(map_n)
+            print("Unexpected map shape at: ", map)
+            observation["map"] = np.zeros((self.coords_pad*4, self.coords_pad*4), dtype=np.uint8)
 
         return observation
 
