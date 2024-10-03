@@ -23,20 +23,52 @@ class PokeRedV2Wrapper(Env):
             record_trajectory {bool} -- Whether to record the trajectory of an entire episode. This can be used for video recording. (default: {False})
         """
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
+            self._default_reset_params = {
+                "start-seed": 0,
+                "num-seeds": 100,
+                "initial-state": "./neroRL/environments/poke_red/has_pokedex_nballs.state",
+                "max_steps": 2048 * 40,
+                "reward_scale": 0.5,
+                "event_weight": 4.0,
+                "level_weight": 1.0,
+                "heal_weight": 5.0,
+                "op_lvl_weight": 0.2,
+                "dead_weight": -0.1,
+                "badge_weight": 0.5,
+                "explore_weight": 1.0,
+                "use_explore_map_obs": True
+                }
+            reset_params = self._default_reset_params
         else:
             self._default_reset_params = reset_params
 
         # Setup
-        self._max_episode_steps = reset_params["max-steps"]
+        self._max_episode_steps = reset_params["max_steps"]
         sess_id = str(uuid.uuid4())[:8]
         os.makedirs("./session", exist_ok=True)
         sess_path = Path(f'session/{sess_id}')
         env_config = {
-                'headless': not realtime_mode, 'save_final_state': False, 'early_stop': False,
-                'action_freq': 24, 'init_state': reset_params["initial-state"], 'max_steps': self._max_episode_steps, 
-                'print_rewards': False, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': env_name, 'debug': False, 'reward_scale': 0.5, 'explore_weight': 1
+                'headless': not realtime_mode,
+                'save_final_state': False,
+                'early_stop': False,
+                'action_freq': 24,
+                'init_state': reset_params["init-state"],
+                'max_steps': self._max_episode_steps, 
+                'print_rewards': False,
+                'save_video': False,
+                'fast_video': True,
+                'session_path': sess_path,
+                'gb_path': env_name,
+                'debug': False,
+                'reward_scale': reset_params["reward_scale"],
+                "event_weight": reset_params["event_weight"],
+                "level_weight": reset_params["level_weight"],
+                "heal_weight": reset_params["heal_weight"],
+                "op_lvl_weight": reset_params["op_lvl_weight"],
+                "dead_weight": reset_params["dead_weight"],
+                "badge_weight": reset_params["badge_weight"],
+                'explore_weight': reset_params["explore_weight"],
+                "use_explore_map_obs": reset_params["use_explore_map_obs"]
             }
         
         # Instantiate env
@@ -47,8 +79,9 @@ class PokeRedV2Wrapper(Env):
         # Totaling to 4 modalities: screens, map, events, and game_state
         shape = self._env.observation_space.spaces['screens'].shape
         screen_space = spaces.Box(low=0.0, high=1.0, shape=shape, dtype=np.float32)
-        shape = self._env.observation_space.spaces['map'].shape
-        map_space = spaces.Box(low=0.0, high=1.0, shape=shape, dtype=np.float32)
+        if reset_params["use_explore_map_obs"]:
+            shape = self._env.observation_space.spaces['map'].shape
+            map_space = spaces.Box(low=0.0, high=1.0, shape=shape, dtype=np.float32)
         shape = self._env.observation_space.spaces['events'].shape
         event_space = spaces.Box(low=0.0, high=1.0, shape=shape, dtype=np.float32)
         num_game_state_obs = self._env.observation_space.spaces['health'].shape[0]
@@ -57,9 +90,12 @@ class PokeRedV2Wrapper(Env):
         num_game_state_obs += self._env.observation_space.spaces['recent_actions'].shape[0]
         shape = (num_game_state_obs,)
         game_state_space = spaces.Box(low=-1.0, high=1.0, shape=shape, dtype=np.float32)
-        self._observation_space = spaces.Dict({
-            'screens': screen_space, 'map': map_space, 'events': event_space, 'game_state': game_state_space
-        })
+        obs_spaces = {
+            'screens': screen_space, 'events': event_space, 'game_state': game_state_space
+        }
+        if reset_params["use_explore_map_obs"]:
+            obs_spaces["map"] = map_space
+        self._observation_space = spaces.Dict(obs_spaces)
 
         self._realtime_mode = realtime_mode
         self._record = record_trajectory
@@ -138,10 +174,11 @@ class PokeRedV2Wrapper(Env):
         vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"], obs["recent_actions"]])
         obs = {
             "screens": obs["screens"] / 255.0,
-            "map": obs["map"] / 255.0,
             "events": obs["events"],
             "game_state": vec_obs
         }
+        if "map" in obs:
+            obs["map"] = obs["map"] / 255.0
     
         if self._realtime_mode:
             self._env.render()
@@ -172,10 +209,11 @@ class PokeRedV2Wrapper(Env):
         vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"], obs["recent_actions"]])
         obs = {
             "screens": obs["screens"] / 255.0,
-            "map": obs["map"] / 255.0,
             "events": obs["events"],
             "game_state": vec_obs
         }
+        if "map" in obs:
+            obs["map"] = obs["map"] / 255.0
         self._rewards.append(reward)
 
         if done or truncation:

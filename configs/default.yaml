@@ -42,8 +42,6 @@ model:
   checkpoint_interval: 50
   # Set the to be used activation function (elu, leaky_relu, relu, swish, gelu)
   activation: "relu"
-  # Set the to be used visual encoder
-  vis_encoder: "cnn"
   # recurrence:
   #   # Supported recurrent layers: gru, lstm
   #   layer_type: "lstm"
@@ -62,9 +60,6 @@ model:
   #   residual: False
   #   # Whether to embed the input before feeding it to the recurrent layer (the embedding dimension is the same as the hidden state size)
   #   embed: True
-  # Set the to be used vector encoder
-  vec_encoder: "linear" # "linear", "none"
-  num_vec_encoder_units: 128
   # Set the to be used hidden layer
   hidden_layer: "default"
   # Number of hidden layers

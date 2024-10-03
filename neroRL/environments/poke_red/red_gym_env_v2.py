@@ -32,12 +32,15 @@ class RedGymEnv(Env):
         self.save_video = config["save_video"]
         self.fast_video = config["fast_video"]
         self.frame_stacks = 3
-        self.explore_weight = (
-            1 if "explore_weight" not in config else config["explore_weight"]
-        )
-        self.reward_scale = (
-            1 if "reward_scale" not in config else config["reward_scale"]
-        )
+        self.event_weight = config["event_weight"]
+        self.level_weight = config["level_weight"]
+        self.heal_weight = config["heal_weight"]
+        self.op_lvl_weight = config["op_lvl_weight"]
+        self.dead_weight = config["dead_weight"]
+        self.badge_weight = config["badge_weight"]
+        self.explore_weight = config["explore_weight"]
+        self.reward_scale = config["reward_scale"]
+        self.use_explore_map_obs = config["use_explore_map_obs"]
         self.instance_id = (
             str(uuid.uuid4())[:8]
             if "instance_id" not in config
@@ -93,18 +96,19 @@ class RedGymEnv(Env):
         
         self.enc_freqs = 8
 
-        self.observation_space = spaces.Dict(
-            {
+        obs_spaces = {
                 "screens": spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8),
                 "health": spaces.Box(low=0, high=1),
                 "level": spaces.Box(low=-1, high=1, shape=(self.enc_freqs,)),
                 "badges": spaces.MultiBinary(8),
                 "events": spaces.MultiBinary((event_flags_end - event_flags_start) * 8),
-                "map": spaces.Box(low=0, high=255, shape=(
-                    self.coords_pad*4,self.coords_pad*4, 1), dtype=np.uint8),
                 "recent_actions": spaces.MultiDiscrete([len(self.valid_actions)] * self.frame_stacks)
             }
-        )
+        
+        if self.use_explore_map_obs:
+            obs_spaces["map"] = spaces.Box(low=0, high=255, shape=(self.coords_pad*4,self.coords_pad*4, 1), dtype=np.uint8)
+
+        self.observation_space = spaces.Dict(obs_spaces)
 
         head = "headless" if config["headless"] else "SDL2"
 
@@ -124,8 +128,9 @@ class RedGymEnv(Env):
     def reset(self, seed=None, options={}):
         self.seed = seed
         # restart game, skipping credits
-        with open(self.init_state, "rb") as f:
-            self.pyboy.load_state(f)
+        if self.init_state is not None:
+            with open(self.init_state, "rb") as f:
+                self.pyboy.load_state(f)
 
         self.init_map_mem()
 
@@ -195,16 +200,16 @@ class RedGymEnv(Env):
             "level": self.fourier_encode(level_sum),
             "badges": np.array([int(bit) for bit in f"{self.read_m(0xD356):08b}"], dtype=np.int8),
             "events": np.array(self.read_event_bits(), dtype=np.int8),
-            "map": self.get_explore_map()[:, :, None],
             "recent_actions": self.recent_actions
         }
-
-        if observation["map"].shape != self.observation_space["map"].shape:
-            print(f"map shape: {observation['map'].shape}")
-            x_pos, y_pos, map_n = self.get_game_coords()
-            map = self.get_map_location(map_n)
-            print("Unexpected map shape at: ", map)
-            observation["map"] = np.zeros((self.coords_pad*4, self.coords_pad*4), dtype=np.uint8)
+        if self.use_explore_map_obs:
+            observation["map"] = self.get_explore_map()[:, :, None]
+            if observation["map"].shape != self.observation_space["map"].shape:
+                print(f"map shape: {observation['map'].shape}")
+                x_pos, y_pos, map_n = self.get_game_coords()
+                map = self.get_map_location(map_n)
+                print("Unexpected map shape at: ", map)
+                observation["map"] = np.zeros((self.coords_pad*4, self.coords_pad*4), dtype=np.uint8)
 
         return observation
 
@@ -268,9 +273,13 @@ class RedGymEnv(Env):
             "max_foe_level": self.max_opponent_level,
             "max_event_rew": self.max_event_rew,
             "party_size": self.party_size,
-            "levels_sum": self.get_levels_sum(),
+            "levels_sum": self.agent_stats[-1]["levels_sum"],
             "mt_moon": self.visited_mt_moon,
             "cerulean": self.visited_cerulean,
+            "event_reward": self.progress_reward["event"],
+            "healr": self.total_healing_rew,
+            "coord_count": len(self.seen_coords),
+            "max_map_progress": self.max_map_progress
         }
         # Append badges and steps to info
         for i in range(2):
@@ -559,12 +568,12 @@ class RedGymEnv(Env):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
         # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
         state_scores = {
-            "event": self.reward_scale * self.update_max_event_rew() * 4,
-            "level": self.reward_scale * self.get_levels_reward(),
-            "heal": self.reward_scale * self.total_healing_rew * 5,
-            "op_lvl": self.reward_scale * self.update_max_op_level() * 0.2,
-            "dead": self.reward_scale * self.died_count * -0.1,
-            "badge": self.reward_scale * self.get_badges() * 5,
+            "event": self.reward_scale * self.event_weight * self.update_max_event_rew(),
+            "level": self.reward_scale * self.level_weight * self.get_levels_reward(),
+            "heal": self.reward_scale * self.heal_weight * self.total_healing_rew,
+            "op_lvl": self.reward_scale * self.op_lvl_weight * self.update_max_op_level(),
+            "dead": self.reward_scale * self.dead_weight * self.died_count,
+            "badge": self.reward_scale * self.badge_weight * self.get_badges(),
             "explore": self.reward_scale * self.explore_weight * len(self.seen_coords) * 0.1,
         }
 
