@@ -36,8 +36,10 @@ class PokeRedV2Wrapper(Env):
                 "dead_weight": -0.1,
                 "badge_weight": 0.5,
                 "explore_weight": 1.0,
-                "use_explore_map_obs": True
-                }
+                "use_explore_map_obs": True,
+                "use_recent_actions_obs": True,
+                "zero_recent_actions": False
+            }
             reset_params = self._default_reset_params
         else:
             self._default_reset_params = reset_params
@@ -60,15 +62,7 @@ class PokeRedV2Wrapper(Env):
                 'session_path': sess_path,
                 'gb_path': env_name,
                 'debug': False,
-                'reward_scale': reset_params["reward_scale"],
-                "event_weight": reset_params["event_weight"],
-                "level_weight": reset_params["level_weight"],
-                "heal_weight": reset_params["heal_weight"],
-                "op_lvl_weight": reset_params["op_lvl_weight"],
-                "dead_weight": reset_params["dead_weight"],
-                "badge_weight": reset_params["badge_weight"],
-                'explore_weight': reset_params["explore_weight"],
-                "use_explore_map_obs": reset_params["use_explore_map_obs"]
+                'reset_params': reset_params,
             }
         
         # Instantiate env
@@ -87,7 +81,9 @@ class PokeRedV2Wrapper(Env):
         num_game_state_obs = self._env.observation_space.spaces['health'].shape[0]
         num_game_state_obs += self._env.observation_space.spaces['level'].shape[0]
         num_game_state_obs += self._env.observation_space.spaces['badges'].shape[0]
-        num_game_state_obs += self._env.observation_space.spaces['recent_actions'].shape[0]
+        self.use_recent_actions_obs = reset_params["use_recent_actions_obs"]
+        if self.use_recent_actions_obs:
+            num_game_state_obs += self._env.observation_space.spaces['recent_actions'].shape[0]
         shape = (num_game_state_obs,)
         game_state_space = spaces.Box(low=-1.0, high=1.0, shape=shape, dtype=np.float32)
         obs_spaces = {
@@ -171,7 +167,10 @@ class PokeRedV2Wrapper(Env):
         # Reset the environment to retrieve the initial observation
         obs, info = self._env.reset(seed=self._seed, options=options)
         # Prepare observations so that the keys health, level, badges, and recent_actions are concatenated
-        vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"], obs["recent_actions"]])
+        if self.use_recent_actions_obs:
+            vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"], obs["recent_actions"]])
+        else:
+            vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"]])
         obs = {
             "screens": obs["screens"] / 255.0,
             "events": obs["events"],
@@ -206,7 +205,10 @@ class PokeRedV2Wrapper(Env):
         # Step the environment
         obs, reward, done, truncation, info = self._env.step(action)
         # Prepare observations so that the keys health, level, badges, and recent_actions are concatenated
-        vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"], obs["recent_actions"]])
+        if self.use_recent_actions_obs:
+            vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"], obs["recent_actions"]])
+        else:
+            vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"]])
         obs = {
             "screens": obs["screens"] / 255.0,
             "events": obs["events"],

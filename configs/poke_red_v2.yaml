@@ -21,6 +21,8 @@ environment:
     badge_weight: 5.0
     explore_weight: 1.0
     use_explore_map_obs: True
+    use_recent_actions_obs: True
+    zero_recent_actions: False
 
 model:
   load_model: False

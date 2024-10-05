@@ -32,15 +32,20 @@ class RedGymEnv(Env):
         self.save_video = config["save_video"]
         self.fast_video = config["fast_video"]
         self.frame_stacks = 3
-        self.event_weight = config["event_weight"]
-        self.level_weight = config["level_weight"]
-        self.heal_weight = config["heal_weight"]
-        self.op_lvl_weight = config["op_lvl_weight"]
-        self.dead_weight = config["dead_weight"]
-        self.badge_weight = config["badge_weight"]
-        self.explore_weight = config["explore_weight"]
-        self.reward_scale = config["reward_scale"]
-        self.use_explore_map_obs = config["use_explore_map_obs"]
+
+        # reset parameters (except init state and max steps)
+        self.event_weight = config["reset_params"]["event_weight"]
+        self.level_weight = config["reset_params"]["level_weight"]
+        self.heal_weight = config["reset_params"]["heal_weight"]
+        self.op_lvl_weight = config["reset_params"]["op_lvl_weight"]
+        self.dead_weight = config["reset_params"]["dead_weight"]
+        self.badge_weight = config["reset_params"]["badge_weight"]
+        self.explore_weight = config["reset_params"]["explore_weight"]
+        self.reward_scale = config["reset_params"]["reward_scale"]
+        self.use_explore_map_obs = config["reset_params"]["use_explore_map_obs"]
+        self.use_recent_actions_obs = config["reset_params"]["use_recent_actions_obs"]
+        self.zero_recent_actions = config["reset_params"]["zero_recent_actions"]
+
         self.instance_id = (
             str(uuid.uuid4())[:8]
             if "instance_id" not in config
@@ -88,26 +93,24 @@ class RedGymEnv(Env):
             event_names = json.load(f)
         self.event_names = event_names
 
+        # Setup action space
+        self.action_space = spaces.Discrete(len(self.valid_actions))
+
+        # Setup observation space
+        self.enc_freqs = 8
         self.output_shape = (72, 80, self.frame_stacks)
         self.coords_pad = 12
-
-        # Set these in ALL subclasses
-        self.action_space = spaces.Discrete(len(self.valid_actions))
-        
-        self.enc_freqs = 8
-
         obs_spaces = {
                 "screens": spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8),
                 "health": spaces.Box(low=0, high=1),
                 "level": spaces.Box(low=-1, high=1, shape=(self.enc_freqs,)),
                 "badges": spaces.MultiBinary(8),
                 "events": spaces.MultiBinary((event_flags_end - event_flags_start) * 8),
-                "recent_actions": spaces.MultiDiscrete([len(self.valid_actions)] * self.frame_stacks)
             }
-        
         if self.use_explore_map_obs:
             obs_spaces["map"] = spaces.Box(low=0, high=255, shape=(self.coords_pad*4,self.coords_pad*4, 1), dtype=np.uint8)
-
+        if self.use_recent_actions_obs:
+            obs_spaces["recent_actions"] = spaces.Box(low=0, high=1, shape=(len(self.valid_actions) * self.frame_stacks,), dtype=np.uint8)
         self.observation_space = spaces.Dict(obs_spaces)
 
         head = "headless" if config["headless"] else "SDL2"
@@ -139,9 +142,9 @@ class RedGymEnv(Env):
         self.explore_map_dim = 384
         self.explore_map = np.zeros((self.explore_map_dim,self.explore_map_dim), dtype=np.uint8)
 
-        self.recent_screens = np.zeros( self.output_shape, dtype=np.uint8)
+        self.recent_screens = np.zeros(self.output_shape, dtype=np.uint8)
         
-        self.recent_actions = np.zeros((self.frame_stacks,), dtype=np.uint8)
+        self.recent_actions = np.zeros((len(self.valid_actions), self.frame_stacks,), dtype=np.uint8)
 
         self.levels_satisfied = False
         self.base_explore = 0
@@ -200,8 +203,9 @@ class RedGymEnv(Env):
             "level": self.fourier_encode(level_sum),
             "badges": np.array([int(bit) for bit in f"{self.read_m(0xD356):08b}"], dtype=np.int8),
             "events": np.array(self.read_event_bits(), dtype=np.int8),
-            "recent_actions": self.recent_actions
         }
+
+        # Append explore map to observation and check if it is the correct shape
         if self.use_explore_map_obs:
             observation["map"] = self.get_explore_map()[:, :, None]
             if observation["map"].shape != self.observation_space["map"].shape:
@@ -211,10 +215,17 @@ class RedGymEnv(Env):
                 print("Unexpected map shape at: ", map)
                 observation["map"] = np.zeros((self.coords_pad*4, self.coords_pad*4), dtype=np.uint8)
 
+        # Append recent actions to observation
+        if self.use_recent_actions_obs:
+            if self.zero_recent_actions:
+                observation["recent_actions"] = np.zeros((len(self.valid_actions) * self.frame_stacks,), dtype=np.uint8)
+            else:
+                # flatten recent actions and add to observation
+                observation["recent_actions"] = self.recent_actions.flatten()
+
         return observation
 
     def step(self, action):
-
         if self.save_video and self.step_count == 0:
             self.start_video()
 
@@ -422,8 +433,9 @@ class RedGymEnv(Env):
         self.recent_screens[:, :, 0] = cur_screen[:,:, 0]
 
     def update_recent_actions(self, action):
-        self.recent_actions = np.roll(self.recent_actions, 1)
-        self.recent_actions[0] = action
+        self.recent_actions = np.roll(self.recent_actions, 1, axis=1)
+        self.recent_actions[:, 0] = 0
+        self.recent_actions[action, 0] = 1
 
     def update_reward(self):
         # compute reward
