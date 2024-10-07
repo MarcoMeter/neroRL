@@ -171,13 +171,13 @@ class PokeRedV2Wrapper(Env):
             vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"], obs["recent_actions"]])
         else:
             vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"]])
-        obs = {
+        obs_out = {
             "screens": obs["screens"] / 255.0,
             "events": obs["events"],
             "game_state": vec_obs
         }
         if "map" in obs:
-            obs["map"] = obs["map"] / 255.0
+            obs_out["map"] = obs["map"] / 255.0
     
         if self._realtime_mode:
             self._env.render()
@@ -188,7 +188,7 @@ class PokeRedV2Wrapper(Env):
             "rewards": [0.0], "actions": [], "frame_rate": 100
         } if self._record else None
 
-        return obs, info
+        return obs_out, info
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -209,14 +209,13 @@ class PokeRedV2Wrapper(Env):
             vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"], obs["recent_actions"]])
         else:
             vec_obs = np.concatenate([obs["health"], obs["level"], obs["badges"]])
-        obs = {
+        obs_out = {
             "screens": obs["screens"] / 255.0,
             "events": obs["events"],
             "game_state": vec_obs
         }
         if "map" in obs:
-            obs["map"] = obs["map"] / 255.0
-        self._rewards.append(reward)
+            obs_out["map"] = obs["map"] / 255.0
 
         if done or truncation:
             info["reward"] = sum(self._rewards)
@@ -233,7 +232,7 @@ class PokeRedV2Wrapper(Env):
             self._trajectory["rewards"].append(reward)
             self._trajectory["actions"].append(action)
 
-        return obs, reward, done or truncation, info
+        return obs_out, reward, done or truncation, info
 
     def close(self):
         """Shuts down the environment."""
