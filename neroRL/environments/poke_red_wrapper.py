@@ -217,6 +217,8 @@ class PokeRedV2Wrapper(Env):
         if "map" in obs:
             obs_out["map"] = obs["map"] / 255.0
 
+        self._rewards.append(reward)
+
         if done or truncation:
             info["reward"] = sum(self._rewards)
             info["length"] = len(self._rewards)
