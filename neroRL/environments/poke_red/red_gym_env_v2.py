@@ -32,7 +32,7 @@ class RedGymEnv(Env):
         self.save_video = config["save_video"]
         self.fast_video = config["fast_video"]
         self.frame_stacks = 3
-
+        
         # reset parameters (except init state and max steps)
         self.event_weight = config["reset_params"]["event_weight"]
         self.level_weight = config["reset_params"]["level_weight"]
@@ -51,7 +51,7 @@ class RedGymEnv(Env):
             if "instance_id" not in config
             else config["instance_id"]
         )
-        self.s_path.mkdir(exist_ok=True)
+        
         self.full_frame_writer = None
         self.model_frame_writer = None
         self.map_frame_writer = None
@@ -67,7 +67,7 @@ class RedGymEnv(Env):
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
         self.reward_range = (0, 15000)
-
+        
         self.valid_actions = [
             WindowEvent.PRESS_ARROW_DOWN,
             WindowEvent.PRESS_ARROW_LEFT,
@@ -252,8 +252,6 @@ class RedGymEnv(Env):
 
         obs = self._get_obs()
 
-        # self.save_and_print_info(step_limit_reached, obs)
-
         # create a map of all event flags set, with names where possible
         #if step_limit_reached:
         if self.step_count % 100 == 0:
@@ -349,7 +347,6 @@ class RedGymEnv(Env):
         )
 
     def start_video(self):
-
         if self.full_frame_writer is not None:
             self.full_frame_writer.close()
         if self.model_frame_writer is not None:
@@ -357,6 +354,7 @@ class RedGymEnv(Env):
         if self.map_frame_writer is not None:
             self.map_frame_writer.close()
 
+        self.s_path.mkdir(exist_ok=True)
         base_dir = self.s_path / Path("rollouts")
         base_dir.mkdir(exist_ok=True)
         full_name = Path(
@@ -461,66 +459,6 @@ class RedGymEnv(Env):
         done = self.step_count >= self.max_steps - 1
         # done = self.read_hp_fraction() == 0 # end game on loss
         return done
-
-    def save_and_print_info(self, done, obs):
-        if self.print_rewards:
-            prog_string = f"step: {self.step_count:6d}"
-            for key, val in self.progress_reward.items():
-                prog_string += f" {key}: {val:5.2f}"
-            prog_string += f" sum: {self.total_reward:5.2f}"
-            print(f"\r{prog_string}", end="", flush=True)
-
-        if self.step_count % 50 == 0:
-            plt.imsave(
-                self.s_path / Path(f"curframe_{self.instance_id}.jpeg"),
-                self.render(reduce_res=False)[:,:, 0],
-            )
-
-        if self.print_rewards and done:
-            print("", flush=True)
-            if self.save_final_state:
-                fs_path = self.s_path / Path("final_states")
-                fs_path.mkdir(exist_ok=True)
-                plt.imsave(
-                    fs_path
-                    / Path(
-                        f"frame_r{self.total_reward:.4f}_{self.reset_count}_explore_map.jpeg"
-                    ),
-                    obs["map"][:,:, 0],
-                )
-                plt.imsave(
-                    fs_path
-                    / Path(
-                        f"frame_r{self.total_reward:.4f}_{self.reset_count}_full_explore_map.jpeg"
-                    ),
-                    self.explore_map,
-                )
-                plt.imsave(
-                    fs_path
-                    / Path(
-                        f"frame_r{self.total_reward:.4f}_{self.reset_count}_full.jpeg"
-                    ),
-                    self.render(reduce_res=False)[:,:, 0],
-                )
-
-        if self.save_video and done:
-            self.full_frame_writer.close()
-            self.model_frame_writer.close()
-            self.map_frame_writer.close()
-
-        """
-        if done:
-            self.all_runs.append(self.progress_reward)
-            with open(
-                self.s_path / Path(f"all_runs_{self.instance_id}.json"), "w"
-            ) as f:
-                json.dump(self.all_runs, f)
-            pd.DataFrame(self.agent_stats).to_csv(
-                self.s_path / Path(f"agent_stats_{self.instance_id}.csv.gz"),
-                compression="gzip",
-                mode="a",
-            )
-        """
 
     def read_m(self, addr):
         return self.pyboy.get_memory_value(addr)

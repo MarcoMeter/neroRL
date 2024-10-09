@@ -14,3 +14,6 @@ ruamel.yaml
 scipy
 tensorboard
 tblib
+scikit-image
+pyboy==1.6.9
+mediapy
