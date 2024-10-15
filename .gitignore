@@ -3,7 +3,6 @@ __pycache__
 .DS_STORE
 /UnityBuilds/
 logs
-events*
 .vscode/settings.json
 /summaries/
 /checkpoints/

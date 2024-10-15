@@ -1,4 +1,4 @@
-{
+map_data = {
     "regions": [
         {
             "id": "-1",
@@ -2448,7 +2448,7 @@
                 36
             ]
         },
-		{
+        {
             "id": "219",
             "name": "Safari West",
             "coordinates": [

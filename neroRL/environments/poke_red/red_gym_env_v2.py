@@ -14,6 +14,7 @@ from einops import repeat
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 from neroRL.environments.poke_red.global_map import local_to_global, GLOBAL_MAP_SHAPE
+from neroRL.environments.poke_red.events import events
 
 event_flags_start = 0xD747
 event_flags_end = 0xD7F6 # 0xD761 # 0xD886 temporarily lower event flag range for obs input
@@ -90,9 +91,7 @@ class RedGymEnv(Env):
         ]
 
         # load event names (parsed from https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm)
-        with open("./neroRL/environments/poke_red/events.json") as f:
-            event_names = json.load(f)
-        self.event_names = event_names
+        self.event_names = events
 
         # Setup action space
         self.action_space = spaces.Discrete(len(self.valid_actions))
