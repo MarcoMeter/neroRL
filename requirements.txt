@@ -15,5 +15,5 @@ scipy
 tensorboard
 tblib
 scikit-image
-pyboy==1.6.9
+pyboy==2.4.0
 mediapy

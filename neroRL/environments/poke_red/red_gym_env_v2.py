@@ -118,12 +118,8 @@ class RedGymEnv(Env):
         #log_level("ERROR")
         self.pyboy = PyBoy(
             config["gb_path"],
-            debugging=False,
-            disable_input=False,
             window_type=head,
         )
-
-        self.screen = self.pyboy.botsupport_manager().screen()
 
         if not config["headless"]:
             self.pyboy.set_emulation_speed(6)
@@ -180,7 +176,7 @@ class RedGymEnv(Env):
         self.seen_coords = {}
 
     def render(self, reduce_res=True):
-        game_pixels_render = self.screen.screen_ndarray()[:,:,0:1]  # (144, 160, 3)
+        game_pixels_render = self.pyboy.screen.ndarray[:,:,0:1]  # (144, 160, 3)
         if reduce_res:
             game_pixels_render = (
                 downscale_local_mean(game_pixels_render, (2,2,1))
@@ -299,19 +295,12 @@ class RedGymEnv(Env):
         # press button then release after some steps
         self.pyboy.send_input(self.valid_actions[action])
         # disable rendering when we don't need it
-        if not self.save_video and self.headless:
-            self.pyboy._rendering(False)
-        for i in range(self.act_freq):
-            # release action, so they are stateless
-            if i == 8:
-                # release button
-                self.pyboy.send_input(self.release_actions[action])
-            if self.save_video and not self.fast_video:
-                self.add_video_frame()
-            if i == self.act_freq - 1:
-                # rendering must be enabled on the tick before frame is needed
-                self.pyboy._rendering(True)
-            self.pyboy.tick()
+        render_screen = self.save_video or not self.headless
+        press_step = 8
+        self.pyboy.tick(press_step, render_screen)
+        self.pyboy.send_input(self.release_actions[action])
+        self.pyboy.tick(self.act_freq - press_step - 1, render_screen)
+        self.pyboy.tick(1, True)
         if self.save_video and self.fast_video:
             self.add_video_frame()
 
@@ -454,7 +443,7 @@ class RedGymEnv(Env):
         return done
 
     def read_m(self, addr):
-        return self.pyboy.get_memory_value(addr)
+        return self.pyboy.memory[addr]
 
     def read_bit(self, addr, bit: int) -> bool:
         # add padding so zero will read '0b100000000' instead of '0b0'
