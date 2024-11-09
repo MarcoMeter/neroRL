@@ -41,7 +41,6 @@ class RedGymEnv(Env):
         self.heal_weight = config["reset_params"]["heal_weight"]
         self.op_lvl_weight = config["reset_params"]["op_lvl_weight"]
         self.dead_weight = config["reset_params"]["dead_weight"]
-        self.badge_weight = config["reset_params"]["badge_weight"]
         self.explore_weight = config["reset_params"]["explore_weight"]
         self.reward_scale = config["reset_params"]["reward_scale"]
         self.use_explore_map_obs = config["reset_params"]["use_explore_map_obs"]
@@ -104,7 +103,6 @@ class RedGymEnv(Env):
                 "screens": spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8),
                 "health": spaces.Box(low=0, high=1),
                 "level": spaces.Box(low=-1, high=1, shape=(self.enc_freqs,)),
-                "badges": spaces.MultiBinary(8),
                 "events": spaces.MultiBinary((event_flags_end - event_flags_start) * 8),
             }
         if self.use_explore_map_obs:
@@ -196,7 +194,6 @@ class RedGymEnv(Env):
             "screens": self.recent_screens,
             "health": np.array([self.read_hp_fraction()]),
             "level": self.fourier_encode(level_sum),
-            "badges": np.array([int(bit) for bit in f"{self.read_m(0xD356):08b}"], dtype=np.int8),
             "events": np.array(self.read_event_bits(), dtype=np.int8),
         }
 
@@ -505,7 +502,6 @@ class RedGymEnv(Env):
             "heal": self.reward_scale * self.heal_weight * self.total_healing_rew,
             "op_lvl": self.reward_scale * self.op_lvl_weight * self.update_max_op_level(),
             "dead": self.reward_scale * self.dead_weight * self.died_count,
-            "badge": self.reward_scale * self.badge_weight * self.get_badges(),
             "explore": self.reward_scale * self.explore_weight * len(self.seen_coords) * 0.1,
         }
 

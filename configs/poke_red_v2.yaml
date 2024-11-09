@@ -18,7 +18,6 @@ environment:
     heal_weight: 5.0
     op_lvl_weight: 0.2
     dead_weight: -0.1
-    badge_weight: 5.0
     explore_weight: 1.0
     use_explore_map_obs: True
     use_recent_actions_obs: True
@@ -69,8 +68,8 @@ evaluation:
   interval: 200
 
 sampler:
-  n_workers: 32
-  worker_steps: 2048
+  n_workers: 8
+  worker_steps: 64
 
 trainer:
   algorithm: "PPO"
