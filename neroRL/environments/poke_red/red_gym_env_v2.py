@@ -40,7 +40,6 @@ class RedGymEnv(Env):
         self.level_weight = config["reset_params"]["level_weight"]
         self.heal_weight = config["reset_params"]["heal_weight"]
         self.op_lvl_weight = config["reset_params"]["op_lvl_weight"]
-        self.dead_weight = config["reset_params"]["dead_weight"]
         self.explore_weight = config["reset_params"]["explore_weight"]
         self.reward_scale = config["reset_params"]["reward_scale"]
         self.use_explore_map_obs = config["reset_params"]["use_explore_map_obs"]
@@ -102,7 +101,7 @@ class RedGymEnv(Env):
         obs_spaces = {
                 "screens": spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8),
                 "health": spaces.Box(low=0, high=1),
-                "level": spaces.Box(low=-1, high=1, shape=(self.enc_freqs,)),
+                "level": spaces.Box(low=-1, high=1, shape=(6,)),
                 "events": spaces.MultiBinary((event_flags_end - event_flags_start) * 8),
             }
         if self.use_explore_map_obs:
@@ -186,14 +185,14 @@ class RedGymEnv(Env):
         self.update_recent_screens(screen)
         
         # normalize to approx 0-1
-        level_sum = 0.02 * sum([
+        levels =  np.asarray([
             self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]
         ])
 
         observation = {
             "screens": self.recent_screens,
             "health": np.array([self.read_hp_fraction()]),
-            "level": self.fourier_encode(level_sum),
+            "level": levels * 0.01,
             "events": np.array(self.read_event_bits(), dtype=np.int8),
         }
 
@@ -501,7 +500,6 @@ class RedGymEnv(Env):
             "level": self.reward_scale * self.level_weight * self.get_levels_reward(),
             "heal": self.reward_scale * self.heal_weight * self.total_healing_rew,
             "op_lvl": self.reward_scale * self.op_lvl_weight * self.update_max_op_level(),
-            "dead": self.reward_scale * self.dead_weight * self.died_count,
             "explore": self.reward_scale * self.explore_weight * len(self.seen_coords) * 0.1,
         }
 
@@ -552,9 +550,6 @@ class RedGymEnv(Env):
     # built-in since python 3.10
     def bit_count(self, bits):
         return bin(bits).count("1")
-    
-    def fourier_encode(self, val):
-        return np.sin(val * 2 ** np.arange(self.enc_freqs))
     
     def update_map_progress(self):
         map_idx = self.read_m(0xD35E)

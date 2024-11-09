@@ -14,10 +14,9 @@ environment:
     max_steps: 81920
     reward_scale: 0.5
     event_weight: 4.0
-    level_weight: 1.0
-    heal_weight: 5.0
-    op_lvl_weight: 0.2
-    dead_weight: -0.1
+    level_weight: 0.0
+    heal_weight: 0.0
+    op_lvl_weight: 0.0
     explore_weight: 1.0
     use_explore_map_obs: True
     use_recent_actions_obs: True
