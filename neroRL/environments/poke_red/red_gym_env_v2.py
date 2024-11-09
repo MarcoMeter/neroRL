@@ -1,11 +1,9 @@
 import uuid
-import json
 import math
 from pathlib import Path
 
 import numpy as np
 from skimage.transform import downscale_local_mean
-import matplotlib.pyplot as plt
 from pyboy import PyBoy
 #from pyboy.logger import log_level
 import mediapy as media
@@ -100,7 +98,7 @@ class RedGymEnv(Env):
         self.coords_pad = 12
         obs_spaces = {
                 "screens": spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8),
-                "health": spaces.Box(low=0, high=1),
+                "health": spaces.Box(low=0, high=1, shape=(6,)),
                 "level": spaces.Box(low=-1, high=1, shape=(6,)),
                 "events": spaces.MultiBinary((event_flags_end - event_flags_start) * 8),
             }
@@ -191,7 +189,7 @@ class RedGymEnv(Env):
 
         observation = {
             "screens": self.recent_screens,
-            "health": np.array([self.read_hp_fraction()]),
+            "health": self.read_hp_fractions(),
             "level": levels * 0.01,
             "events": np.array(self.read_event_bits(), dtype=np.int8),
         }
@@ -543,6 +541,20 @@ class RedGymEnv(Env):
         ])
         max_hp_sum = max(max_hp_sum, 1)
         return hp_sum / max_hp_sum
+    
+    def read_hp_fractions(self):
+        hp = np.asarray([
+            self.read_hp(add)
+            for add in [0xD16C, 0xD198, 0xD1C4, 0xD1F0, 0xD21C, 0xD248]
+        ])
+        max_hp = np.asarray([
+            self.read_hp(add)
+            for add in [0xD18D, 0xD1B9, 0xD1E5, 0xD211, 0xD23D, 0xD269]
+        ])
+        normalized_hp = hp / max_hp
+        # nan to 0
+        normalized_hp[np.isnan(normalized_hp)] = 0
+        return normalized_hp
 
     def read_hp(self, start):
         return 256 * self.read_m(start) + self.read_m(start + 1)
