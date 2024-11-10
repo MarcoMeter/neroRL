@@ -108,12 +108,12 @@ class RedGymEnv(Env):
             obs_spaces["recent_actions"] = spaces.Box(low=0, high=1, shape=(len(self.valid_actions) * self.frame_stacks,), dtype=np.uint8)
         self.observation_space = spaces.Dict(obs_spaces)
 
-        head = "headless" if config["headless"] else "SDL2"
+        head = "null" if config["headless"] else "SDL2"
 
         #log_level("ERROR")
         self.pyboy = PyBoy(
             config["gb_path"],
-            window_type=head,
+            window=head,
         )
 
         if not config["headless"]:
