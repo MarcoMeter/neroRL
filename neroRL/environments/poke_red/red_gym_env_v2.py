@@ -551,7 +551,7 @@ class RedGymEnv(Env):
             self.read_hp(add)
             for add in [0xD18D, 0xD1B9, 0xD1E5, 0xD211, 0xD23D, 0xD269]
         ])
-        normalized_hp = hp / max_hp
+        normalized_hp = hp / np.maximum(max_hp, 1)
         # nan to 0
         normalized_hp[np.isnan(normalized_hp)] = 0
         return normalized_hp
