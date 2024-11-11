@@ -36,9 +36,9 @@ class Evaluator():
 
         # Launch environments
         self.workers = []
-        for i in range(self.n_workers):
-            id = worker_id + i + 200 - self.n_workers
-            self.workers.append(Worker(configs["environment"], id, record_video = record_video))
+        for rank in range(self.n_workers):
+            worker_id = worker_id + rank + 200 - self.n_workers
+            self.workers.append(Worker(configs["environment"], rank, worker_id, record_video = record_video))
 
         # Check for recurrent policy
         self.recurrence_config = model_config["recurrence"] if "recurrence" in model_config else None

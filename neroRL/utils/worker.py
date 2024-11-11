@@ -1,19 +1,38 @@
 import multiprocessing
 import multiprocessing.connection
-
+import psutil
 from random import randint
 
 from neroRL.environments.wrapper import wrap_environment
 
-def worker_process(remote: multiprocessing.connection.Connection, env_seed, env_config, worker_id: int, record_video = False):
+def set_cpu_affinity_and_priority(rank):
+    p = psutil.Process()
+    available_cores = p.cpu_affinity()
+    cpu_to_use = available_cores[rank % len(available_cores)]
+    p.cpu_affinity([cpu_to_use])
+    try:
+        p.nice(psutil.HIGH_PRIORITY_CLASS)
+    except AttributeError:
+        try:
+            p.nice(-10)
+        except PermissionError:
+            pass
+
+def worker_process(remote: multiprocessing.connection.Connection, env_seed, env_config, rank: int, worker_id: int, record_video = False):
     """Initializes the environment and executes its interface.
 
     Arguments:
         remote {multiprocessing.connection.Connection} -- Parent thread
         env_seed {int} -- Sampled seed for the environment worker to use
         env_config {dict} -- The configuration data of the desired environment
+        rank {int} -- The rank of the worker's process
         worker_id {int} -- Id for the environment's process. This is necessary for Unity ML-Agents environments, because these operate on different ports.
+        record_video {bool} -- Whether the worker should record video data
     """
+    # Set CPU affinity and priority
+    set_cpu_affinity_and_priority(rank)
+
+    # Set seed for this thread
     import numpy as np
     np.random.seed(env_seed)
     import random
@@ -50,11 +69,13 @@ class Worker:
     child: multiprocessing.connection.Connection
     process: multiprocessing.Process
     
-    def __init__(self, env_config, worker_id: int, record_video = False):
+    def __init__(self, env_config, rank:int, worker_id: int, record_video = False):
         """
         Arguments:
             env_config {dict -- The configuration data of the desired environment
-            worker_id {int} -- worker_id {int} -- Id for the environment's process. This is necessary for Unity ML-Agents environments, because these operate on different ports.
+            rank {int} -- The rank of the worker's process
+            worker_id {int} -- worker_id {int} -- This id is necessary for Unity ML-Agents environments, because these add an offset to the communication port.
+            record_video {bool} -- Whether the worker should record video data
         """
         env_seed = randint(0, 2 ** 32 - 1)
         self.child, parent = multiprocessing.Pipe()

@@ -33,7 +33,7 @@ class TrajectorySampler():
         self.buffer = Buffer(configs, observation_space, ground_truth_space, action_space_shape, self.train_device, self)
 
         # Launch workers
-        self.workers = [Worker(configs["environment"], worker_id + 200 + w) for w in range(self.n_workers)]
+        self.workers = [Worker(configs["environment"], rank, worker_id + 200 + rank) for rank in range(self.n_workers)]
         # Setup timestep placeholder
         self.worker_current_episode_step = torch.zeros((self.n_workers, ), dtype=torch.long)
         

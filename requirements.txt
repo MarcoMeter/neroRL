@@ -17,3 +17,4 @@ tblib
 scikit-image
 pyboy==2.4.0
 mediapy
+psutil
