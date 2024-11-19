@@ -27,7 +27,7 @@ class PokeRedV2Wrapper(Env):
                 "start-seed": 0,
                 "num-seeds": 100,
                 "initial-state": "./neroRL/environments/poke_red/has_pokedex_nballs.state",
-                "max_steps": 2048 * 40,
+                "max_steps": [2048 * 20, 2048 * 40, 2048],
                 "reward_scale": 0.5,
                 "event_weight": 4.0,
                 "level_weight": 0.0,
@@ -43,7 +43,7 @@ class PokeRedV2Wrapper(Env):
             self._default_reset_params = reset_params
 
         # Setup
-        self._max_episode_steps = reset_params["max_steps"]
+        self._max_episode_steps = max(reset_params["max_steps"])
         sess_id = str(uuid.uuid4())[:8]
         os.makedirs("./session", exist_ok=True)
         sess_path = Path(f'session/{sess_id}')

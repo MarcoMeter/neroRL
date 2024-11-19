@@ -11,7 +11,7 @@ environment:
     start-seed: 0
     num-seeds: 1
     init-state: "./neroRL/environments/poke_red/has_pokedex_nballs.state"
-    max_steps: 81920
+    max_steps: [40960, 81920, 2048] # sample max steps from this range
     reward_scale: 0.5
     event_weight: 4.0
     level_weight: 0.0

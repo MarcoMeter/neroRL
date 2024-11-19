@@ -8,6 +8,7 @@ from pyboy import PyBoy
 #from pyboy.logger import log_level
 import mediapy as media
 from einops import repeat
+import random
 
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
@@ -28,7 +29,8 @@ class RedGymEnv(Env):
         self.headless = config["headless"]
         self.init_state = config["init_state"]
         self.act_freq = config["action_freq"]
-        self.max_steps = config["max_steps"]
+        self.max_steps_config = config["max_steps"]
+        self.max_steps = max(self.max_steps_config) if isinstance(self.max_steps_config, list) else self.max_steps_config
         self.save_video = config["save_video"]
         self.fast_video = config["fast_video"]
         self.frame_stacks = 3
@@ -160,8 +162,14 @@ class RedGymEnv(Env):
 
         self.current_event_flags_set = {}
 
-        # experiment! 
-        # self.max_steps += 128
+        # Set or sample max episode steps
+        if isinstance(self.max_steps_config, int):
+            self.max_steps = self.max_steps_config
+        elif isinstance(self.max_steps_config, list):
+            possible_max_steps = list(range(self.max_steps_config[0], self.max_steps_config[1] + 1, self.max_steps_config[2]))
+            self.max_steps = random.choice(possible_max_steps)
+        else:
+            raise ValueError("max_steps_config must be an int or list")
 
         self.max_map_progress = 0
         self.progress_reward = self.get_game_state_reward()
