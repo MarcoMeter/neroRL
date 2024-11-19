@@ -12,10 +12,10 @@ from einops import repeat
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 from neroRL.environments.poke_red.global_map import local_to_global, GLOBAL_MAP_SHAPE
-from neroRL.environments.poke_red.events import events
+from neroRL.environments.poke_red.events import events, create_event_flag_mask
 
 event_flags_start = 0xD747
-event_flags_end = 0xD7F6 # 0xD761 # 0xD886 temporarily lower event flag range for obs input
+event_flags_end = 0xD887
 museum_ticket = (0xD754, 0)
 
 MAP_N_ADDRESS = 0xD35E
@@ -96,11 +96,13 @@ class RedGymEnv(Env):
         self.enc_freqs = 8
         self.output_shape = (72, 80, self.frame_stacks)
         self.coords_pad = 12
+        # Setup events
+        self.events_mask = create_event_flag_mask(events)
         obs_spaces = {
                 "screens": spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8),
                 "health": spaces.Box(low=0, high=1, shape=(6,)),
                 "level": spaces.Box(low=-1, high=1, shape=(6,)),
-                "events": spaces.MultiBinary((event_flags_end - event_flags_start) * 8),
+                "events": spaces.Box(low=0, high=1, shape=(sum(self.events_mask),), dtype=np.uint8),
             }
         if self.use_explore_map_obs:
             obs_spaces["map"] = spaces.Box(low=0, high=255, shape=(self.coords_pad*4,self.coords_pad*4, 1), dtype=np.uint8)
@@ -187,11 +189,14 @@ class RedGymEnv(Env):
             self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]
         ])
 
+        unmasked_events = np.array(self.read_event_bits(), dtype=np.int8)
+        masked_events = unmasked_events[self.events_mask]
+
         observation = {
             "screens": self.recent_screens,
             "health": self.read_hp_fractions(),
             "level": levels * 0.01,
-            "events": np.array(self.read_event_bits(), dtype=np.int8),
+            "events": masked_events,
         }
 
         # Append explore map to observation and check if it is the correct shape
@@ -446,7 +451,7 @@ class RedGymEnv(Env):
     def read_event_bits(self):
         return [
             int(bit) for i in range(event_flags_start, event_flags_end) 
-            for bit in f"{self.read_m(i):08b}"
+            for bit in f"{self.read_m(i):08b}"[::-1]
         ]
 
     def get_levels_sum(self):

@@ -1,3 +1,29 @@
+import re
+import numpy as np
+
+def create_event_flag_mask(events):
+    # Initialize an empty list to store the mask
+    mask = []
+
+    # Regular expression patterns for unused flags
+    unused_patterns = [
+        re.compile(r'\b[0-9A-F]{3}\b')
+    ]
+
+    for key, value in events.items():
+        # Assume flag is used unless it matches one of the unused patterns
+        is_used = True
+        for pattern in unused_patterns:
+            if pattern.fullmatch(value):
+                is_used = False
+                break
+        
+        # Append 1 to the mask if used, otherwise 0
+        mask.append(True if is_used else False)
+
+    # Convert the mask list to a numpy array
+    return np.array(mask)
+
 events = {
     "0xD747-0": "Followed Oak Into Lab",
     "0xD747-1": "Event 001",
@@ -2271,6 +2297,7 @@ events = {
     "0xD862-5": "8Dd",
     "0xD862-6": "8De",
     "0xD862-7": "8Df",
+    "0xD863-0": "8E0",
     "0xD863-1": "Beat Loreleis Room Trainer 0",
     "0xD863-2": "8E2",
     "0xD863-3": "8E3",
@@ -2309,6 +2336,7 @@ events = {
     "0xD867-4": "904",
     "0xD867-5": "905",
     "0xD867-6": "906",
+    "0xD867-7": "907",
     "0xD868-0": "908",
     "0xD868-1": "909",
     "0xD868-2": "90A",
