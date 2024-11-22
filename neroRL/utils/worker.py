@@ -10,13 +10,13 @@ def set_cpu_affinity_and_priority(rank):
     available_cores = p.cpu_affinity()
     cpu_to_use = available_cores[rank % len(available_cores)]
     p.cpu_affinity([cpu_to_use])
-    try:
-        p.nice(psutil.HIGH_PRIORITY_CLASS)
-    except AttributeError:
-        try:
-            p.nice(-10)
-        except PermissionError:
-            pass
+    # try:
+    #     p.nice(psutil.HIGH_PRIORITY_CLASS)
+    # except AttributeError:
+    #     try:
+    #         p.nice(-10)
+    #     except PermissionError:
+    #         pass
 
 def worker_process(remote: multiprocessing.connection.Connection, env_seed, env_config, rank: int, worker_id: int, record_video = False):
     """Initializes the environment and executes its interface.

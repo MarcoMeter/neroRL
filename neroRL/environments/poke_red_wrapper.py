@@ -43,7 +43,7 @@ class PokeRedV2Wrapper(Env):
             self._default_reset_params = reset_params
 
         # Setup
-        self._max_episode_steps = max(reset_params["max_steps"])
+        self._max_episode_steps = max(reset_params["max_steps"]) if isinstance(reset_params["max_steps"], list) else reset_params["max_steps"]
         sess_id = str(uuid.uuid4())[:8]
         os.makedirs("./session", exist_ok=True)
         sess_path = Path(f'session/{sess_id}')
