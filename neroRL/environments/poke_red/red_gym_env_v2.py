@@ -175,7 +175,6 @@ class RedGymEnv(Env):
             self.max_steps = random.choice(possible_max_steps)
         else:
             raise ValueError("max_steps_config must be an int or list")
-        self.max_steps = 4096
 
         self.max_map_progress = 0
         self.progress_reward = self.get_game_state_reward()
