@@ -104,6 +104,8 @@ class VideoRecorder:
                         cv2.circle(env_frame, position, point_radius, point_color, -1)
 
             # Concatenate environment and debug frames
+            if len(env_frame.shape) == 2:
+                env_frame = cv2.cvtColor(env_frame, cv2.COLOR_GRAY2BGR)
             output_image = np.hstack((env_frame, debug_frame))
             output_image = np.vstack((info_frame, output_image))
 

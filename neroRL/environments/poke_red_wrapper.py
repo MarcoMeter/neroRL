@@ -78,6 +78,7 @@ class PokeRedV2Wrapper(Env):
         event_space = spaces.Box(low=0.0, high=1.0, shape=shape, dtype=np.float32)
         num_game_state_obs = self._env.observation_space.spaces['health'].shape[0]
         num_game_state_obs += self._env.observation_space.spaces['level'].shape[0]
+        num_game_state_obs += self._env.observation_space.spaces['left_steps'].shape[0]
         self.use_recent_actions_obs = reset_params["use_recent_actions_obs"]
         if self.use_recent_actions_obs:
             num_game_state_obs += self._env.observation_space.spaces['recent_actions'].shape[0]
@@ -165,9 +166,9 @@ class PokeRedV2Wrapper(Env):
         obs, info = self._env.reset(seed=self._seed, options=options)
         # Prepare observations so that the keys health, level, and recent_actions are concatenated
         if self.use_recent_actions_obs:
-            vec_obs = np.concatenate([obs["health"], obs["level"], obs["recent_actions"]])
+            vec_obs = np.concatenate([obs["health"], obs["level"], obs["left_steps"], obs["recent_actions"]])
         else:
-            vec_obs = np.concatenate([obs["health"], obs["level"]])
+            vec_obs = np.concatenate([obs["health"], obs["level"], obs["left_steps"]])
         obs_out = {
             "screens": obs["screens"] / 255.0,
             "events": obs["events"],
@@ -203,9 +204,9 @@ class PokeRedV2Wrapper(Env):
         obs, reward, done, truncation, info = self._env.step(action)
         # Prepare observations so that the keys health, level, and recent_actions are concatenated
         if self.use_recent_actions_obs:
-            vec_obs = np.concatenate([obs["health"], obs["level"], obs["recent_actions"]])
+            vec_obs = np.concatenate([obs["health"], obs["level"], obs["left_steps"], obs["recent_actions"]])
         else:
-            vec_obs = np.concatenate([obs["health"], obs["level"]])
+            vec_obs = np.concatenate([obs["health"], obs["level"], obs["left_steps"]])
         obs_out = {
             "screens": obs["screens"] / 255.0,
             "events": obs["events"],

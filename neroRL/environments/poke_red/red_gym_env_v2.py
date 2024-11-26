@@ -98,6 +98,10 @@ class RedGymEnv(Env):
         self.enc_freqs = 8
         self.output_shape = (72, 80, self.frame_stacks)
         self.coords_pad = 12
+        # Setup left steps buckets
+        self.bucket_cap = 20480
+        self.num_buckets = self.bucket_cap // 2048
+        self.bucket_size = self.bucket_cap // self.num_buckets
         # Setup events
         self.events_mask = create_event_flag_mask(events)
         obs_spaces = {
@@ -105,6 +109,7 @@ class RedGymEnv(Env):
                 "health": spaces.Box(low=0, high=1, shape=(6,)),
                 "level": spaces.Box(low=-1, high=1, shape=(6,)),
                 "events": spaces.Box(low=0, high=1, shape=(sum(self.events_mask),), dtype=np.uint8),
+                "left_steps": spaces.Box(low=0, high=1, shape=(self.num_buckets,)),
             }
         if self.use_explore_map_obs:
             obs_spaces["map"] = spaces.Box(low=0, high=255, shape=(self.coords_pad*4,self.coords_pad*4, 1), dtype=np.uint8)
@@ -170,6 +175,7 @@ class RedGymEnv(Env):
             self.max_steps = random.choice(possible_max_steps)
         else:
             raise ValueError("max_steps_config must be an int or list")
+        self.max_steps = 4096
 
         self.max_map_progress = 0
         self.progress_reward = self.get_game_state_reward()
@@ -205,6 +211,7 @@ class RedGymEnv(Env):
             "health": self.read_hp_fractions(),
             "level": levels * 0.01,
             "events": masked_events,
+            "left_steps": self.get_left_steps_buckets(),
         }
 
         # Append explore map to observation and check if it is the correct shape
@@ -384,6 +391,16 @@ class RedGymEnv(Env):
             self.get_explore_map()
         )
 
+    def get_left_steps_buckets(self):
+        remaining_steps = self.max_steps - self.step_count
+        if remaining_steps >= self.bucket_cap:
+            return np.ones(self.num_buckets)
+        buckets = np.zeros(self.num_buckets)
+        current_bucket = int(remaining_steps // self.bucket_size)
+        buckets[:current_bucket] = self.bucket_size
+        buckets[current_bucket] = remaining_steps % self.bucket_size
+        return buckets / self.bucket_size
+
     def get_game_coords(self):
         return (self.read_m(0xD362), self.read_m(0xD361), self.read_m(0xD35E))
 
@@ -530,6 +547,8 @@ class RedGymEnv(Env):
 
     def update_max_event_rew(self):
         cur_rew = self.get_all_events_reward()
+        if cur_rew > self.max_event_rew:
+            self.max_steps += 2048
         self.max_event_rew = max(cur_rew, self.max_event_rew)
         return self.max_event_rew
 

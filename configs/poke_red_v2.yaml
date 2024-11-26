@@ -19,7 +19,7 @@ environment:
     op_lvl_weight: 0.0
     explore_weight: 1.0
     use_explore_map_obs: True
-    use_recent_actions_obs: True
+    use_recent_actions_obs: False
     zero_recent_actions: False
 
 model:
