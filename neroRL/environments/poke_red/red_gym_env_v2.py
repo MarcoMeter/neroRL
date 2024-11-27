@@ -485,7 +485,8 @@ class RedGymEnv(Env):
             max(self.read_m(a) - min_poke_level, 0)
             for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]
         ]
-        return max(sum(poke_levels) - starter_additional_levels, 0)
+        self.last_level_max_sum = max(sum(poke_levels) - starter_additional_levels, 0)
+        return self.last_level_max_sum
 
     def get_levels_reward(self):
         explore_thresh = 22
@@ -556,8 +557,10 @@ class RedGymEnv(Env):
         # if health increased and party size did not change
         if cur_health > self.last_health and self.read_m(0xD163) == self.party_size:
             if self.last_health > 0:
-                heal_amount = cur_health - self.last_health
-                self.total_healing_rew += heal_amount
+                if self.last_level_max_sum == self.get_levels_sum(): # dont trigger heal on lvl up
+                    print("heal triggered")
+                    heal_amount = cur_health - self.last_health
+                    self.total_healing_rew += heal_amount
             else:
                 self.died_count += 1
 
