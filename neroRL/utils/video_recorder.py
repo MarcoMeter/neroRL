@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ruamel
 from jinja2 import Environment, FileSystemLoader
+from multiprocessing import Pool, cpu_count
+from tqdm import tqdm
 
 class VideoRecorder:
     """The VideoRecorder can be used to capture videos of the agent's behavior using enjoy.py or eval.py.
@@ -32,86 +34,63 @@ class VideoRecorder:
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')   # Video codec
         self.frame_rate = int(frame_rate)
 
-    def render_video(self, trajectory_data):
-        """Triggers the process of rendering the trajectory data to a video.
-        The rendering is done with the help of OpenCV.
+    def process_frame(self, frame_info):
+        i, trajectory_data, width, height, info_height = frame_info
+        env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8)
+        env_frame = cv2.resize(env_frame, (width, height), interpolation=cv2.INTER_AREA)
+        info_frame = np.zeros((info_height, width * 2, 3), dtype=np.uint8)
         
-        Arguments:
-            trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
-        """
-        # Init VideoWriter, the frame rate is defined by each environment individually
-        out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
-                                self.fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
-        # Aggregate entropy, if it is desired for rendering
-        entropy = np.asarray(trajectory_data["entropies"]).mean(axis=1)
-        for i in range(len(trajectory_data["vis_obs"])):
-            # Setup environment frame
-            env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
-            env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
+        self.draw_text_overlay(info_frame, 8, 20, trajectory_data["seed"], "seed")
+        self.draw_text_overlay(info_frame, 108, 20, i, "step")
+        self.draw_text_overlay(info_frame, 208, 20, round(sum(trajectory_data["rewards"][0:i]), 3), "total reward")
 
-            # Setup info frame
-            info_frame = np.zeros((self.info_height, self.width * 2, 3), dtype=np.uint8)
-            # Seed
-            self.draw_text_overlay(info_frame, 8, 20, trajectory_data["seed"], "seed")
-            # Current step
-            self.draw_text_overlay(info_frame, 108, 20, i, "step")
-            # Collected rewards so far
-            self.draw_text_overlay(info_frame, 208, 20, round(sum(trajectory_data["rewards"][0:i]), 3), "total reward")
-
-            # Setup debug frame
-            debug_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
-            if not i == len(trajectory_data["vis_obs"]) - 1:
-                # Action probabilities
-                next_y = 20
-                for x, probs in enumerate(trajectory_data["probs"][i]):
-                    self.draw_text_overlay(debug_frame, 5 , next_y, round(trajectory_data["entropies"][i][x], 5), "entropy dimension " + str(x))
+        debug_frame = np.zeros((height, width, 3), dtype=np.uint8)
+        if i < len(trajectory_data["vis_obs"]) - 1:
+            next_y = 20
+            for x, probs in enumerate(trajectory_data["probs"][i]):
+                self.draw_text_overlay(debug_frame, 5, next_y, round(trajectory_data["entropies"][i][x], 5), "entropy dimension " + str(x))
+                next_y += 20
+                for y, prob in enumerate(probs.squeeze(dim=0)):
+                    label = str(trajectory_data["action_names"][x][y]) if trajectory_data["action_names"] is not None else str(y)
+                    self.draw_bar(debug_frame, 0, next_y, round(prob.item(), 10), label, y == trajectory_data["actions"][i][x])
                     next_y += 20
-                    for y, prob in enumerate(probs.squeeze(dim=0)):
-                        if trajectory_data["action_names"] is not None:
-                            label = str(trajectory_data["action_names"][x][y])
-                        else:
-                            label = str(y)
-                        self.draw_bar(debug_frame, 0, next_y, round(prob.item(), 10), label, y == trajectory_data["actions"][i][x])
-                        next_y += 20
-                    next_y += 10
+                next_y += 10
+            next_y = 230
+            fig = self.line_plot(trajectory_data["values"], "value", marker_pos=i)
+            img = self.fig_to_ndarray(fig)[:, :, 0:3]
+            img = self.image_resize(img, width=width)
+            debug_frame[next_y: next_y + img.shape[0], 0: img.shape[1], :] = img
+        else:
+            self.draw_text_overlay(debug_frame, 5, 60, "True", "episode done")
 
-                # Plot value
-                # hard-coded next_y because if too many actions are available, this plot does not fit
-                next_y = 230
-                fig = VideoRecorder.line_plot(trajectory_data["values"], "value", marker_pos=i)
-                # fig = VideoRecorder.line_plot(entropy, "entropy", marker_pos=i)
-                img = VideoRecorder.fig_to_ndarray(fig)[:,:,0:3] # Drop Alpha
-                img = VideoRecorder.image_resize(img, width=self.width, height=None)
-                debug_frame[next_y : next_y + img.shape[0], 0 : img.shape[1], :] = img
-            else:
-                self.draw_text_overlay(debug_frame, 5, 60, "True", "episode done")
+        if "estimated_ground_truth" in trajectory_data and len(trajectory_data["estimated_ground_truth"]) > 0:
+            point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
+            for j in range(0, len(trajectory_data["estimated_ground_truth"][i]), 2):
+                x, y = trajectory_data["estimated_ground_truth"][i][j].clip(0, 1), trajectory_data["estimated_ground_truth"][i][j + 1].clip(0, 1)
+                position = (int(x * width), int(y * height))
+                point_color = point_colors[j // 2]
+                point_radius = 8
+                cv2.circle(env_frame, position, point_radius, point_color, -1)
 
-            # Plot estimated ground truth
-            if "estimated_ground_truth" in trajectory_data:
-                if len(trajectory_data["estimated_ground_truth"]) > 0:
-                    # Point colors
-                    point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
-                    # Iterate over all points
-                    for j in range(0, len(trajectory_data["estimated_ground_truth"][i]), 2):
-                        # Get the position of the point
-                        x, y = trajectory_data["estimated_ground_truth"][i][j].clip(0, 1), trajectory_data["estimated_ground_truth"][i][j + 1].clip(0, 1)
-                        position = (int(x * self.width), int(y * self.height))
-                        # Set the color of the point (in BGR format, here we use red color)
-                        point_color = point_colors[j // 2]
-                        # Set the radius of the point (in pixels)
-                        point_radius = 8
-                        # Draw the point on the image/frame
-                        cv2.circle(env_frame, position, point_radius, point_color, -1)
+        if len(env_frame.shape) == 2:
+            env_frame = cv2.cvtColor(env_frame, cv2.COLOR_GRAY2BGR)
+        output_image = np.hstack((env_frame, debug_frame))
+        output_image = np.vstack((info_frame, output_image))
+        
+        return output_image
 
-            # Concatenate environment and debug frames
-            if len(env_frame.shape) == 2:
-                env_frame = cv2.cvtColor(env_frame, cv2.COLOR_GRAY2BGR)
-            output_image = np.hstack((env_frame, debug_frame))
-            output_image = np.vstack((info_frame, output_image))
+    def render_video(self, trajectory_data):
+        out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
+                              self.fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
 
-            # Write frame
-            out.write(output_image)
-        # Finish up the video
+        num_processes = max(1, cpu_count() - 1)
+        frame_info_list = [(i, trajectory_data, self.width, self.height, self.info_height) for i in range(len(trajectory_data["vis_obs"]))]
+        
+        with Pool(num_processes) as pool:
+            frames = list(tqdm(pool.imap(self.process_frame, frame_info_list), total=len(frame_info_list), desc="Processing frames"))
+        
+        for frame in frames:
+            out.write(frame)
         out.release()
 
     def _config_to_html(self, config, prfx = ""):

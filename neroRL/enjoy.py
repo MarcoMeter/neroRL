@@ -240,7 +240,9 @@ def main():
             video_recorder = VideoRecorder(video_path, frame_rate)
             # Render and serialize video
             if record_video:
+                logger.info("Step 5: Rendering video")
                 video_recorder.render_video(trajectory_data)
+                logger.info("Step 6: Saved video to " + video_path + ".mp4")
             # Generate website
             if website:
                 video_recorder.generate_website(trajectory_data, configs)
