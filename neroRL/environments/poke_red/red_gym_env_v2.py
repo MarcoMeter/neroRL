@@ -558,7 +558,6 @@ class RedGymEnv(Env):
         if cur_health > self.last_health and self.read_m(0xD163) == self.party_size:
             if self.last_health > 0:
                 if self.last_level_max_sum == self.get_levels_sum(): # dont trigger heal on lvl up
-                    print("heal triggered")
                     heal_amount = cur_health - self.last_health
                     self.total_healing_rew += heal_amount
             else:
