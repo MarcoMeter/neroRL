@@ -109,7 +109,7 @@ class RedGymEnv(Env):
                 "health": spaces.Box(low=0, high=1, shape=(6,)),
                 "level": spaces.Box(low=-1, high=1, shape=(6,)),
                 "events": spaces.Box(low=0, high=1, shape=(sum(self.events_mask),), dtype=np.uint8),
-                "left_steps": spaces.Box(low=0, high=1, shape=(self.num_buckets,)),
+                # "left_steps": spaces.Box(low=0, high=1, shape=(self.num_buckets,)),
             }
         if self.use_explore_map_obs:
             obs_spaces["map"] = spaces.Box(low=0, high=255, shape=(self.coords_pad*4,self.coords_pad*4, 1), dtype=np.uint8)
@@ -210,7 +210,7 @@ class RedGymEnv(Env):
             "health": self.read_hp_fractions(),
             "level": levels * 0.01,
             "events": masked_events,
-            "left_steps": self.get_left_steps_buckets(),
+            # "left_steps": self.get_left_steps_buckets(),
         }
 
         # Append explore map to observation and check if it is the correct shape
