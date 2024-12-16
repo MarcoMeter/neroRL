@@ -7,7 +7,7 @@ from neroRL.utils.video_recorder import VideoRecorder
 
 class Evaluator():
     """Evaluates a model based on the initially provided config."""
-    def __init__(self, configs, model_config, worker_id, visual_observation_space, vector_observation_space,
+    def __init__(self, configs, model_config, worker_id, observation_space,
                 max_episode_steps, video_path = "video", record_video = False, frame_rate = 1, generate_website = False):
         """Initializes the evaluator and its environments
         
@@ -15,7 +15,7 @@ class Evaluator():
             eval_config {dict} -- The config of the evaluation
             env_config {dict} -- The config of the environment
             worker_id {int} -- The offset of the port to communicate with the environment
-            visual_observation_space {box} -- Visual observation space of the environment
+            observation_space {dict} -- Observation space of the environment
             vector_observation_space {tuple} -- Vector observation space of the environment
         """
         # Set members
@@ -26,8 +26,7 @@ class Evaluator():
         else:
             start = configs["evaluation"]["seeds"]["start-seed"]
             self.seeds = list(range(start, start + configs["evaluation"]["seeds"]["num-seeds"]))
-        self.visual_observation_space = visual_observation_space
-        self.vector_observation_space = vector_observation_space
+        self.observation_space = observation_space
         self.max_episode_steps = max_episode_steps
         self.video_path = video_path
         self.record_video = record_video
@@ -85,14 +84,9 @@ class Evaluator():
         # Loop over all seeds
         for seed in self.seeds:
             # Initialize observations
-            if self.visual_observation_space is not None:
-                vis_obs = np.zeros((self.n_workers,) + self.visual_observation_space.shape, dtype=np.float32)
-            else:
-                vis_obs = None
-            if self.vector_observation_space is not None:
-                vec_obs = np.zeros((self.n_workers,) + self.vector_observation_space, dtype=np.float32)
-            else:
-                vec_obs = None
+            self.current_obs = {}
+            for key, value in self.observation_space.spaces.items():
+                self.current_obs[key] = np.zeros((self.n_workers,) + value.shape, dtype=np.float32)
 
             # Init memory if applicable
             memory = [None for _ in range(self.n_workers)]
@@ -112,11 +106,9 @@ class Evaluator():
                 worker.child.send(("reset", reset_params))
             # Grab initial observations
             for w, worker in enumerate(self.workers):
-                vis, vec, info = worker.child.recv()
-                if vis_obs is not None:
-                    vis_obs[w] = vis
-                if vec_obs is not None:
-                    vec_obs[w] = vec
+                obs, info = worker.child.recv()
+                for key, value in obs.items():
+                    self.current_obs[key][w] = value
             
             # Every worker plays its episode
             dones = np.zeros(self.n_workers, dtype=bool)
@@ -135,8 +127,9 @@ class Evaluator():
                         if not dones[w]:
                             # While sampling data for training we feed batches containing all workers,
                             # but as we evaluate entire episodes, we feed one worker at a time
-                            vis_obs_batch = torch.tensor(np.expand_dims(vis_obs[w], 0), dtype=torch.float32, device=device) if vis_obs is not None else None
-                            vec_obs_batch = torch.tensor(np.expand_dims(vec_obs[w], 0), dtype=torch.float32, device=device) if vec_obs is not None else None
+                            obs_batch = {}
+                            for key in self.current_obs.keys():
+                                obs_batch[key] = torch.tensor(np.expand_dims(self.current_obs[key][w], 0), dtype=torch.float32, device=device)
 
                             # Prepare transformer memory
                             in_memory, mask, indices = None, None, None
@@ -149,7 +142,7 @@ class Evaluator():
                                 in_memory = memory[w]
 
                             # Forward model
-                            policy, value, new_memory = model(vis_obs_batch, vec_obs_batch, in_memory, mask, indices)
+                            policy, value, new_memory = model(obs_batch, in_memory, mask, indices)
 
                             # Set memory if used
                             if self.recurrence_config is not None:
@@ -180,13 +173,15 @@ class Evaluator():
                     # Receive and process step result if not done
                     for w, worker in enumerate(self.workers):
                         if not dones[w]:
-                            vis, vec, _, dones[w], info = worker.child.recv()
-                            if vis_obs is not None:
-                                vis_obs[w] = vis
-                            if vec_obs is not None:
-                                vec_obs[w] = vec
+                            obs, _, dones[w], info = worker.child.recv()
+                            for key, value in obs.items():
+                                self.current_obs[key][w] = value
                             if dones[w]:
                                 info["seed"] = seed
+                                info["actions"] = actions[w]
+                                info["probs"] = probs[w]
+                                info["entropies"] = entropies[w]
+                                info["values"] = values[w]
                                 episode_infos.append(info)
                                 # record video for this particular worker
                                 if self.record_video or self.generate_website:

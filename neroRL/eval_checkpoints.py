@@ -83,7 +83,7 @@ def main():
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     print("Step 2: Creating dummy environment of type " + configs["environment"]["type"])
-    visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
+    observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
     
     # Init evaluator
     print("Step 2: Environment Config")
@@ -93,12 +93,11 @@ def main():
     for k, v in configs["evaluation"].items():
         print("Step 3: " + str(k) + ": " + str(v))
     print("Step 3: Init Evaluator")
-    evaluator = Evaluator(configs, model_config, worker_id, visual_observation_space, vector_observation_space, max_episode_steps)
+    evaluator = Evaluator(configs, model_config, worker_id, observation_space, max_episode_steps)
 
     # Init model
     print("Step 3: Initialize model")
-    model = create_actor_critic_model(model_config, visual_observation_space,
-                            vector_observation_space, ground_truth_space, action_space_shape, device)
+    model = create_actor_critic_model(model_config, observation_space, ground_truth_space, action_space_shape, device)
     model.eval()
 
     if torch.cuda.is_available():

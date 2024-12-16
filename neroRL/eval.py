@@ -82,12 +82,12 @@ def main():
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
-    visual_observation_space, vector_observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
+    observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
 
     # Build or load model
     logger.info("Step 2: Creating model")
-    model = create_actor_critic_model(model_config, visual_observation_space,
-                            vector_observation_space, ground_truth_space, action_space_shape, device)
+    model = create_actor_critic_model(model_config, observation_space,
+                            ground_truth_space, action_space_shape, device)
     if not untrained:
         if not checkpoint:
             # If a checkpoint is not provided as an argument, it shall be retrieved from the config
@@ -103,7 +103,7 @@ def main():
     logger.info("Step 3: Number of Workers: " + str(configs["evaluation"]["n_workers"]))
     logger.info("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
     logger.info("Step 3: Number of episodes: " + str(configs["evaluation"]["seeds"]["num-seeds"] * configs["evaluation"]["n_workers"]))
-    evaluator = Evaluator(configs, model_config, worker_id, visual_observation_space, vector_observation_space,
+    evaluator = Evaluator(configs, model_config, worker_id, observation_space,
                             max_episode_steps, video_path, record_video)
 
     # Evaluate
