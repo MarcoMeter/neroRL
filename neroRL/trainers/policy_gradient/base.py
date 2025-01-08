@@ -3,6 +3,7 @@ import platform
 import time
 import torch
 from collections import deque
+from gymnasium import spaces
 
 import neroRL
 from neroRL.sampler.trajectory_sampler import TrajectorySampler
@@ -44,7 +45,13 @@ class BaseTrainer():
         self.seed = seed
 
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
-        self.obs_space, self.ground_truth_space, self.action_space_shape, self.max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1)
+        self.obs_space, self.ground_truth_space, self.action_space, self.max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1)
+        if isinstance(self.action_space, spaces.Discrete):
+            self.action_space_shape = (self.action_space.n,)
+        elif isinstance(self.action_space, spaces.MultiDiscrete):
+            self.action_space_shape = tuple(self.action_space.nvec)
+        else:
+            self.action_space_shape = self.action_space.shape
         # Check if modalities are configured correctly
         check_config_and_env_modalities(list(configs["model"]["modalities"].keys()), self.obs_space.spaces.keys())
         if self.transformer is not None:
@@ -71,15 +78,15 @@ class BaseTrainer():
         # Instantiate sampler for memory-less / markvoivan policies
         if self.recurrence is None and self.transformer is None:
             self.sampler = TrajectorySampler(configs, worker_id, self.obs_space, self.ground_truth_space,
-                                        self.action_space_shape, self.model, self.sample_device, self.train_device)
+                                        self.action_space, self.model, self.sample_device, self.train_device)
         # Instantiate sampler for recurrent policies
         elif self.recurrence is not None:
             self.sampler = RecurrentSampler(configs, worker_id, self.obs_space, self.ground_truth_space,
-                                        self.action_space_shape, self.model, self.sample_device, self.train_device)
+                                        self.action_space, self.model, self.sample_device, self.train_device)
         # Instantiate sampler for transformer policoes
         elif self.transformer is not None:
             self.sampler = TransformerSampler(configs, worker_id, self.obs_space, self.ground_truth_space,
-                    self.action_space_shape, self.max_episode_steps, self.model, self.sample_device, self.train_device)
+                    self.action_space, self.max_episode_steps, self.model, self.sample_device, self.train_device)
 
         # List that stores the most recent episodes for training statistics
         self.episode_info = deque(maxlen=100)
@@ -171,7 +178,7 @@ class BaseTrainer():
         checkpoint_data["hxs"] = self.model.mean_hxs if self.recurrence is not None else None
         checkpoint_data["cxs"] = self.model.mean_cxs if self.recurrence is not None else None
         checkpoint_data["observation_space"] = self.obs_space
-        checkpoint_data["action_space_shape"] = self.action_space_shape
+        checkpoint_data["action_space"] = self.action_space
         checkpoint_data["version"] = neroRL.__version__
         checkpoint_data["run_id"] = self.run_id
         checkpoint_data["seed"] = self.seed

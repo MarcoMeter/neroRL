@@ -3,8 +3,6 @@ import os
 import torch
 import random
 
-from gymnasium import spaces
-
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.monitor import Tag
 
@@ -69,12 +67,8 @@ def get_environment_specs(env_config, worker_id, realtime_mode = False):
     """
     dummy = wrap_environment(env_config, worker_id, realtime_mode)
     obs, info = dummy.reset(env_config["reset_params"])
-    if isinstance(dummy.action_space, spaces.Discrete):
-        action_space_shape = (dummy.action_space.n,)
-    else:
-        action_space_shape = tuple(dummy.action_space.nvec)
     dummy.close()
-    return dummy.observation_space, dummy.ground_truth_space, action_space_shape, dummy.max_episode_steps
+    return dummy.observation_space, dummy.ground_truth_space, dummy.action_space, dummy.max_episode_steps
 
 def aggregate_episode_results(episode_infos):
     """Takes in a list of episode info dictionaries. All episode results (episode reward, length, success, ...) are

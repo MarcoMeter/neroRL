@@ -110,7 +110,7 @@ def main():
     configs["environment"]["reset_params"]["start-seed"] = seed
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
-    observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
+    observation_space, ground_truth_space, action_space, max_episode_steps = get_environment_specs(configs["environment"], worker_id + 1, True)
     env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or website)
     # Check if modalities are configured correctly
     check_config_and_env_modalities(list(model_config["modalities"].keys()), env.observation_space.spaces.keys())
@@ -119,7 +119,7 @@ def main():
     logger.info("Step 2: Creating model")
     if "transformer" in model_config:
         model_config["transformer"]["max_episode_steps"] = max_episode_steps
-    model = create_actor_critic_model(model_config, observation_space, ground_truth_space, action_space_shape, device)
+    model = create_actor_critic_model(model_config, observation_space, ground_truth_space, action_space, device)
     if not untrained:
         if not checkpoint:
             # If a checkpoint is not provided as an argument, it shall be retrieved from the config
@@ -184,11 +184,17 @@ def main():
                 _probs = []
                 entropy = []
                 # Sample action
-                for action_branch in policy:
-                    action = action_branch.sample()
-                    _actions.append(action.item())
-                    _probs.append(action_branch.probs)
-                    entropy.append(action_branch.entropy().item())
+                if isinstance(action_space, spaces.Discrete) or isinstance(action_space, spaces.MultiDiscrete):
+                    for action_branch in policy:
+                        action = action_branch.sample()
+                        _actions.append(action.item())
+                        _probs.append(action_branch.probs)
+                        entropy.append(action_branch.entropy().item())
+                elif isinstance(action_space, spaces.Box):
+                    action = policy.sample()
+                    _actions.append(action.cpu().numpy())
+                    _probs.append(policy.log_prob(action).sum(1).cpu().numpy())
+                    entropy.append(policy.entropy().sum(1).item())
 
                 # Store data for video recording
                 actions.append(_actions)

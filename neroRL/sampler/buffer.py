@@ -1,18 +1,20 @@
 import torch
 import numpy as np
 
+from gymnasium import spaces
+
 from neroRL.utils.utils import batched_index_select
 
 class Buffer():
     """The buffer stores and prepares the training data. It supports recurrent and transformer policies."""
     def __init__(self, configs, observation_space, ground_truth_space,
-                    action_space_shape, train_device, sampler):
+                    action_space, train_device, sampler):
         """
         Arguments:
             configs {dict} -- The whole set of configurations (e.g. model, training, environment, ... configs)
             observation_space {spaces.Dict} -- Visual observation if available, else None
             ground_truth_space {Box} -- Ground truth space if available, else None
-            action_space_shape {tuple} -- Shape of the action space
+            action_space {spaces} -- Action space of the agent
             train_device {torch.device} -- Single mini batches will be moved to this device for model optimization
             sampler {TrajectorySampler} -- The used sampler
         """
@@ -23,7 +25,13 @@ class Buffer():
         self.num_workers = configs["sampler"]["n_workers"]
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.batch_size = self.num_workers * self.worker_steps
-        self.action_space_shape = action_space_shape
+        if isinstance(action_space, spaces.Discrete):
+            self.action_space_shape = (action_space.n,)
+        elif isinstance(action_space, spaces.MultiDiscrete):
+            self.action_space_shape = tuple(action_space.nvec)
+        else:
+            self.action_space_shape = action_space.shape
+        self.action_space = action_space
         self.observation_space = observation_space
         self.ground_truth_space = ground_truth_space
         self.init_default_buffer_fields()
@@ -36,7 +44,10 @@ class Buffer():
         if self.ground_truth_space is not None:
             self.ground_truth = torch.zeros((self.num_workers, self.worker_steps) + self.ground_truth_space.shape)
         self.rewards = np.zeros((self.num_workers, self.worker_steps), dtype=np.float32)
-        self.actions = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)), dtype=torch.long)
+        if isinstance(self.action_space, spaces.Discrete) or isinstance(self.action_space, spaces.MultiDiscrete):
+            self.actions = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)), dtype=torch.long)
+        else:
+            self.actions = torch.zeros((self.num_workers, self.worker_steps,) + self.action_space_shape)
         self.dones = np.zeros((self.num_workers, self.worker_steps), dtype=bool)
         self.log_probs = torch.zeros((self.num_workers, self.worker_steps, len(self.action_space_shape)))
         self.values = torch.zeros((self.num_workers, self.worker_steps))

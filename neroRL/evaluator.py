@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import time
+from gymnasium import spaces
 
 from neroRL.utils.worker import Worker
 from neroRL.utils.video_recorder import VideoRecorder
@@ -78,9 +79,11 @@ class Evaluator():
         Returns:
             eval_duration {float} -- The duration of the completed evaluation
             episode_infos {dict} -- The raw results of each evaluated episode
+            model_outputs {dict} -- The model's output data of each evaluated episode
         """
         time_start = time.time()
         episode_infos = []
+        model_outputs = []
         # Loop over all seeds
         for seed in self.seeds:
             # Initialize observations
@@ -154,11 +157,17 @@ class Evaluator():
                             _probs = []
                             entropy = []
                             # Sample action
-                            for action_branch in policy:
-                                action = action_branch.sample()
-                                _actions.append(action.cpu().data.item())
-                                _probs.append(action_branch.probs)
-                                entropy.append(action_branch.entropy().item())
+                            if isinstance(model.action_space, spaces.Discrete) or isinstance(model.action_space, spaces.MultiDiscrete):
+                                for action_branch in policy:
+                                    action = action_branch.sample()
+                                    _actions.append(action.cpu().data.numpy())
+                                    _probs.append(action_branch.probs)
+                                    entropy.append(action_branch.entropy().item())
+                            elif isinstance(model.action_space, spaces.Box):
+                                action = policy.sample()
+                                _actions.append(action.cpu().data.numpy())
+                                _probs.append(policy.log_prob(action).sum(1))
+                                entropy.append(policy.entropy().sum(1).item())
 
                             # Store data for video recording
                             actions[w].append(_actions)
@@ -178,11 +187,15 @@ class Evaluator():
                                 self.current_obs[key][w] = value
                             if dones[w]:
                                 info["seed"] = seed
-                                info["actions"] = actions[w]
-                                info["probs"] = probs[w]
-                                info["entropies"] = entropies[w]
-                                info["values"] = values[w]
                                 episode_infos.append(info)
+                                model_outputs.append(
+                                    {
+                                        "actions": actions[w],
+                                        "probs": probs[w],
+                                        "entropies": entropies[w],
+                                        "values": values[w]
+                                    }
+                                )
                                 # record video for this particular worker
                                 if self.record_video or self.generate_website:
                                     worker.child.send(("video", None))
@@ -207,7 +220,7 @@ class Evaluator():
             eval_duration = int(time_end - time_start)
 
         # Return the duration of the evaluation and the raw episode results
-        return eval_duration, episode_infos
+        return eval_duration, episode_infos, model_outputs
 
     def close(self):
         """Closes the Evaluator and destroys all worker."""

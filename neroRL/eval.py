@@ -82,12 +82,12 @@ def main():
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
-    observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
+    observation_space, ground_truth_space, action_space, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
 
     # Build or load model
     logger.info("Step 2: Creating model")
     model = create_actor_critic_model(model_config, observation_space,
-                            ground_truth_space, action_space_shape, device)
+                            ground_truth_space, action_space, device)
     if not untrained:
         if not checkpoint:
             # If a checkpoint is not provided as an argument, it shall be retrieved from the config
@@ -108,7 +108,7 @@ def main():
 
     # Evaluate
     logger.info("Step 4: Run evaluation . . .")
-    eval_duration, raw_episode_results = evaluator.evaluate(model, device)
+    eval_duration, raw_episode_results, model_outputs = evaluator.evaluate(model, device)
     episode_result = aggregate_episode_results(raw_episode_results)
 
     # Print results

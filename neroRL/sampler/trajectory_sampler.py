@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from gymnasium import spaces
 
 from neroRL.sampler.buffer import Buffer
 from neroRL.utils.worker import Worker
@@ -7,7 +8,7 @@ from neroRL.utils.worker import Worker
 class TrajectorySampler():
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones."""
-    def __init__(self, configs, worker_id, observation_space, ground_truth_space, action_space_shape, model, sample_device, train_device) -> None:
+    def __init__(self, configs, worker_id, observation_space, ground_truth_space, action_space, model, sample_device, train_device) -> None:
         """Initializes the TrajectorSampler and launches its environment workers.
 
         Arguments:
@@ -15,13 +16,14 @@ class TrajectorySampler():
             worker_id {int} -- Specifies the offset for the port to communicate with the environment, which is needed for Unity ML-Agents environments.
             observation_space {spaces.Dict} -- Observation space of the environment
             ground_truth_space {box} -- Dimensions of the ground truth space (None if not available)
-            action_space_shape {tuple} -- Dimensions of the action space
+            action_space {spaces} -- Action space of the agent
             model {nn.Module} -- The model to retrieve the policy and value from
             sample_device {torch.device} -- The device that is used for retrieving the data from the model
             train_device {torch.device} -- The device that is used for training the model
         """
         # Set member variables
         self.observation_space = observation_space
+        self.action_space = action_space
         self.ground_truth_space = ground_truth_space
         self.model = model
         self.n_workers = configs["sampler"]["n_workers"]
@@ -30,7 +32,7 @@ class TrajectorySampler():
         self.train_device = train_device
 
         # Create Buffer
-        self.buffer = Buffer(configs, observation_space, ground_truth_space, action_space_shape, self.train_device, self)
+        self.buffer = Buffer(configs, observation_space, ground_truth_space, action_space, self.train_device, self)
 
         # Launch workers
         self.workers = [Worker(configs["environment"], rank, worker_id + 200 + rank) for rank in range(self.n_workers)]
@@ -84,13 +86,19 @@ class TrajectorySampler():
                 # Sample actions from each individual policy branch
                 actions = []
                 log_probs = []
-                for action_branch in policy:
-                    action = action_branch.sample()
-                    actions.append(action)
-                    log_probs.append(action_branch.log_prob(action))
+                if isinstance(self.action_space, spaces.Discrete) or isinstance(self.action_space, spaces.MultiDiscrete):
+                    for action_branch in policy:
+                        action = action_branch.sample()
+                        actions.append(action)
+                        log_probs.append(action_branch.log_prob(action))
+                    actions = torch.stack(actions, dim=1)
+                    log_probs = torch.stack(log_probs, dim=1)
+                elif isinstance(self.action_space, spaces.Box):
+                        actions = policy.sample()
+                        log_probs = policy.log_prob(actions).sum(1).unsqueeze(1)
                 # Write actions, log_probs, and values to buffer
-                self.buffer.actions[:, t] = torch.stack(actions, dim=1)
-                self.buffer.log_probs[:, t] = torch.stack(log_probs, dim=1)
+                self.buffer.actions[:, t] = actions
+                self.buffer.log_probs[:, t] = log_probs
                 self.buffer.values[:, t] = value.data
 
             # Execute actions

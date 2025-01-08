@@ -85,7 +85,7 @@ class Training():
         self.monitor.log("Environment specs:")
         self.monitor.log("\t" + "Observation Space: " + str(self.trainer.obs_space))
         self.monitor.log("\t" + "Ground Truth Space: " + str(self.trainer.ground_truth_space))
-        self.monitor.log("\t" + "Action Space Shape: " + str(self.trainer.action_space_shape))
+        self.monitor.log("\t" + "Action Space Shape: " + str(self.trainer.action_space))
         self.monitor.log("\t" + "Max Episode Steps: " + str(self.trainer.max_episode_steps))
 
         # Init evaluator if configured

@@ -143,7 +143,7 @@ def main():
         monitor.log("Environment specs:")
         monitor.log("\t" + "Visual Observation Space: " + str(trainer.vis_obs_space))
         monitor.log("\t" + "Vector Observation Space: " + str(trainer.vec_obs_space))
-        monitor.log("\t" + "Action Space Shape: " + str(trainer.action_space_shape))
+        monitor.log("\t" + "Action Space Shape: " + str(trainer.action_space))
         monitor.log("\t" + "Max Episode Steps: " + str(trainer.max_episode_steps))
 
         # Init evaluator

@@ -33,7 +33,7 @@ class GroundTruthTrainer(BaseTrainer):
 
     def create_model(self) -> None:
         return create_actor_critic_model(self.configs["model"], self.vis_obs_space, self.vec_obs_space,
-                                         self.ground_truth_space, self.action_space_shape, self.sample_device)
+                                         self.ground_truth_space, self.action_space, self.sample_device)
 
     def train(self):
         train_info = {}

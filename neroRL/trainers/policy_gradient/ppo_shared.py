@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from torch import nn, optim
+from gymnasium import spaces
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
@@ -62,7 +63,7 @@ class PPOTrainer(BaseTrainer):
         self.use_obs_reconstruction = self.configs["trainer"]["obs_reconstruction_schedule"]["initial"] > 0.0
         self.use_ground_truth_estimation = self.configs["trainer"]["ground_truth_estimator_schedule"]["initial"] > 0.0
         return create_actor_critic_model(self.configs["model"], self.obs_space, self.ground_truth_space,
-                                         self.action_space_shape, self.sample_device)
+                                         self.action_space, self.sample_device)
 
     def train(self):
         train_info = {}
@@ -135,12 +136,16 @@ class PPOTrainer(BaseTrainer):
         
         # Policy Loss
         # Retrieve and process log_probs from each policy branch
-        log_probs, entropies = [], []
-        for i, policy_branch in enumerate(policy):
-            log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
-            entropies.append(policy_branch.entropy())
-        log_probs = torch.stack(log_probs, dim=1)
-        entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)
+        if isinstance(self.action_space, spaces.Discrete) or isinstance(self.action_space, spaces.MultiDiscrete):
+            log_probs, entropies = [], []
+            for i, policy_branch in enumerate(policy):
+                log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
+                entropies.append(policy_branch.entropy())
+            log_probs = torch.stack(log_probs, dim=1)
+            entropies = torch.stack(entropies, dim=1).sum(1).reshape(-1)
+        elif isinstance(self.action_space, spaces.Box):
+            log_probs = policy.log_prob(samples["actions"])
+            entropies = policy.entropy().sum(1)
         
         # Remove paddings if recurrence is used
         if self.recurrence is not None:

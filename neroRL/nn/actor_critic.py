@@ -2,8 +2,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from gymnasium import spaces
+
 from neroRL.nn.base import ActorCriticBase
-from neroRL.nn.heads import MultiDiscreteActionPolicy, ValueEstimator, GroundTruthEstimator
+from neroRL.nn.heads import MultiDiscreteActionPolicy, ContinuousActionPolicy, ValueEstimator, GroundTruthEstimator
 
 class ActorCriticSharedWeights(ActorCriticBase):
     """A flexible shared weights actor-critic model that supports:
@@ -14,14 +16,14 @@ class ActorCriticSharedWeights(ActorCriticBase):
             - Ground truth estimation
             - Observation reconstruction
     """
-    def __init__(self, config, obs_space, ground_truth_space, action_space_shape):
+    def __init__(self, config, obs_space, ground_truth_space, action_space):
         """Model setup
 
         Arguments:
             config {dict} -- Model config
             obs_space {spaces.Dict} -- Dimensions of the visual observation space
             ground_truth_space {box} -- Dimensions of the ground truth space (None if not available)
-            action_space_shape {tuple} -- Dimensions of the action space
+            action_space_shape {spaces} -- Action space of the agent
             use_decoder {bool} -- Whether to use a decoder for observation reconstruction or not (default: {False})
         """
         ActorCriticBase.__init__(self, config)
@@ -30,7 +32,11 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.obs_encoders, self.recurrent_layer, self.transformer, self.body, self.vis_decoder = self.create_base_model(config, obs_space)
 
         # Policy head/output
-        self.actor_policy = MultiDiscreteActionPolicy(self.out_features_body, action_space_shape, self.activ_fn)
+        self.action_space = action_space
+        if isinstance(action_space, spaces.MultiDiscrete) or isinstance(action_space, spaces.Discrete):
+            self.actor_policy = MultiDiscreteActionPolicy(self.out_features_body, action_space, self.activ_fn)
+        elif isinstance(action_space, spaces.Box):
+            self.actor_policy = ContinuousActionPolicy(self.out_features_body, action_space, self.activ_fn)
 
         # Value function head/output
         self.critic = ValueEstimator(self.out_features_body, self.activ_fn)
@@ -141,17 +147,17 @@ class ActorCriticSharedWeights(ActorCriticBase):
         y = self.ground_truth_estimator(self.ground_truth_estimator_h)
         return y
 
-def create_actor_critic_model(model_config, observation_space, ground_truth_space, action_space_shape, device):
+def create_actor_critic_model(model_config, observation_space, ground_truth_space, action_space, device):
     """Creates a shared weights actor critic model.
 
     Arguments:
         model_config {dict} -- Model config
         observation_space {spaces.Dict} -- Observation space dictionary
-        action_space_shape {tuple} -- Dimensions of the action space
+        action_space_shape {spaces} -- Action space of the agent
         device {torch.device} -- Current device
         use_decoder {bool} -- Whether to use a decoder for observation reconstruction or not (default: {False})
 
     Returns:
         {ActorCriticBase} -- The created actor critic model
     """
-    return ActorCriticSharedWeights(model_config, observation_space,ground_truth_space, action_space_shape).to(device)
+    return ActorCriticSharedWeights(model_config, observation_space,ground_truth_space, action_space).to(device)

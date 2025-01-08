@@ -83,7 +83,7 @@ def main():
 
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     print("Step 2: Creating dummy environment of type " + configs["environment"]["type"])
-    observation_space, ground_truth_space, action_space_shape, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
+    observation_space, ground_truth_space, action_space, max_episode_steps = get_environment_specs(configs["environment"], worker_id - 1)
     
     # Init evaluator
     print("Step 2: Environment Config")
@@ -97,7 +97,7 @@ def main():
 
     # Init model
     print("Step 3: Initialize model")
-    model = create_actor_critic_model(model_config, observation_space, ground_truth_space, action_space_shape, device)
+    model = create_actor_critic_model(model_config, observation_space, ground_truth_space, action_space, device)
     model.eval()
 
     if torch.cuda.is_available():
@@ -117,7 +117,7 @@ def main():
         model = load_and_apply_state_dict(model, loaded_checkpoint["model"])
         if "recurrence" in model_config:
             model.set_mean_recurrent_cell_states(loaded_checkpoint["hxs"], loaded_checkpoint["cxs"])
-        _, res = evaluator.evaluate(model, device)
+        _, res, mod = evaluator.evaluate(model, device)
         results.append(res)
         current_checkpoint = current_checkpoint + 1
         prog = current_checkpoint / len(checkpoints)
