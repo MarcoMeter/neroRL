@@ -62,7 +62,7 @@ class StatsWrapper(Env):
             None, "TryRunningFromBattle.canEscape", self.escaped_battle_hook, None
         )
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         obs, info = self.env.reset()
         self.init_stats_fields(obs["events"])
         return obs, info

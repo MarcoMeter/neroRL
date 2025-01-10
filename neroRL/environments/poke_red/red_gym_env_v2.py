@@ -10,6 +10,7 @@ import mediapy as media
 from einops import repeat
 import random
 
+from pathlib import Path
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 from neroRL.environments.poke_red.global_map import local_to_global, GLOBAL_MAP_SHAPE
@@ -120,10 +121,12 @@ class RedGymEnv(Env):
         head = "null" if config["headless"] else "SDL2"
 
         #log_level("ERROR")
+        current_dir = Path(__file__).resolve().parent
+        sym_path = current_dir / "pokered.sym"
         self.pyboy = PyBoy(
             config["gb_path"],
             window=head,
-            symbols="./neroRL/environments/poke_red/pokered.sym",
+            symbols=sym_path,
         )
 
         if not config["headless"]:
