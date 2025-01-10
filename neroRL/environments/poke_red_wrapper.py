@@ -6,6 +6,7 @@ from gymnasium import spaces
 from pathlib import Path
 
 from neroRL.environments.poke_red.red_gym_env_v2 import RedGymEnv
+from neroRL.environments.poke_red.stats_wrapper import StatsWrapper
 from neroRL.environments.env import Env
 
 class PokeRedV2Wrapper(Env):
@@ -36,10 +37,13 @@ class PokeRedV2Wrapper(Env):
                 "explore_weight": 1.0,
                 "use_explore_map_obs": True,
                 "use_recent_actions_obs": True,
-                "zero_recent_actions": False
+                "zero_recent_actions": False,
+                "monitor_more_stats": False
             }
             reset_params = self._default_reset_params
         else:
+            if not "monitor_more_stats" in reset_params:
+                reset_params["monitor_more_stats"] = False
             self._default_reset_params = reset_params
 
         # Setup
@@ -64,7 +68,10 @@ class PokeRedV2Wrapper(Env):
             }
         
         # Instantiate env
-        self._env = RedGymEnv(env_config)
+        if reset_params["monitor_more_stats"]:
+            self._env = StatsWrapper(RedGymEnv(env_config))
+        else:
+            self._env = RedGymEnv(env_config)
 
         # Prepare observation space:
         # health, level, and recent_actions shall be concatenated into a single vector observation
@@ -201,6 +208,8 @@ class PokeRedV2Wrapper(Env):
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
         # Step the environment
+        if isinstance(action, (list, np.ndarray)):
+            action = action[0]
         obs, reward, done, truncation, info = self._env.step(action)
         # Prepare observations so that the keys health, level, and recent_actions are concatenated
         if self.use_recent_actions_obs:

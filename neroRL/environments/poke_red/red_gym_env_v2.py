@@ -123,10 +123,11 @@ class RedGymEnv(Env):
         self.pyboy = PyBoy(
             config["gb_path"],
             window=head,
+            symbols="./neroRL/environments/poke_red/pokered.sym",
         )
 
         if not config["headless"]:
-            self.pyboy.set_emulation_speed(6)
+            self.pyboy.set_emulation_speed(12)
 
     def reset(self, seed=None, options={}):
         self.seed = seed
@@ -152,6 +153,7 @@ class RedGymEnv(Env):
         self.max_level_rew = 0
         self.last_health = 1
         self.total_healing_rew = 0
+        self.num_heals = 0
         self.died_count = 0
         self.party_size = 0
         self.step_count = 0
@@ -533,8 +535,7 @@ class RedGymEnv(Env):
 
         return state_scores
 
-    def update_max_op_level(self):
-        opp_base_level = 5
+    def update_max_op_level(self, opp_base_level = 5):
         opponent_level = (
             max([
                 self.read_m(a)
@@ -560,6 +561,7 @@ class RedGymEnv(Env):
                 if self.last_level_max_sum == self.get_levels_sum(): # dont trigger heal on lvl up
                     heal_amount = cur_health - self.last_health
                     self.total_healing_rew += heal_amount
+                    self.num_heals += 1
             else:
                 self.died_count += 1
 
