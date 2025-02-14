@@ -51,6 +51,9 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
     elif config["type"] == "PokeRedV2":
         from neroRL.environments.poke_red_wrapper import PokeRedV2Wrapper
         env = PokeRedV2Wrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
+    elif config["type"] == "MarioOdyssey":
+        from neroRL.environments.mario_odyssey_wrapper import MarioOdysseyWrapper
+        env = MarioOdysseyWrapper(worker_id, config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
     else:
         raise ValueError(f"Environment type {config['type']} not supported.")
     

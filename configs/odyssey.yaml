@@ -1,0 +1,108 @@
+environment:
+  type: "MarioOdyssey"
+  # How many frames to skip (probably do not touch this for Odyssey. because of num_action_repeat)
+  frame_skip: 1
+  # Whether to add the last action to the observation space (one-hot encoding)
+  last_action_to_obs: False
+  # Whether to add the last reward to the observation space
+  last_reward_to_obs: False
+  # Number of frames to stack in the observation space (1 is only the current frames)
+  obs_stacks: 1
+  reset_params:
+    # Random seed for the environment (might not be used by Odyssey?)
+    start-seed: 0
+    num-seeds: 200
+    # Maximum length of an episode
+    max_steps: 2048
+    stage: "SandWorldMeganeExStageMap"
+    scenario: 0
+    # Relative or absolute path to the Odyssey ROM
+    rom_path: "/scratch/odyssey/romfs"
+    # Granularity of the sticks (discretizing continuous actions)
+    # Cite: https://ieeexplore.ieee.org/document/8848080/
+    action_bucket: [-1, -0.5, -0.25, 0, 0.25, 0.5, 1]
+    # Length of the raycasts, if the measured distance is greater than this value, it is set to a clippingg value of -1
+    raycast_length: 40
+    # Number of frames that the selected is repeated
+    num_action_repeat: 5
+
+model:
+  # Whether to load weights of an existing model
+  load_model: False
+  model_path: "./models/procgen_coinrun.pt"
+  # Save the model after every n-th PPO update
+  checkpoint_interval: 200
+  # Setup fc layers after the vec_obs encoder
+  activation: "relu"
+  hidden_layer: "default"
+  num_hidden_layers: 1
+  num_hidden_units: 512
+  modalities:
+    vec_obs:
+      type: "fc"
+      dtype: "float32"
+      # A list to specify the dimensions of n hidden layers
+      dims: [512]
+      activation: "relu"
+
+# Evaluation workers can be setup to evaluate the model on a set of seeds for every n-th PPO update
+# Using this does not make sense for Odyssey
+# We want to run the evaluations post training to work on raw results
+# This adds evaluation data to the tensorboard summaries
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds:
+    start-seed: 100000
+    num-seeds: 10
+  interval: 50
+
+# The sampler is in charge of collecting training data
+# These hyperparameters determine the amount of data and the sampler's behavior
+sampler:
+  # Number of environments that are used for sampling data
+  n_workers: 16
+  # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
+  worker_steps: 512
+
+trainer:
+  algorithm: "PPO"
+  # On which step to resume the training. This affects the hyperparameter schedules only.
+  resume_at: 0
+  # Discount factor
+  gamma: 0.99
+  # Regularization parameter used when calculating the Generalized Advantage Estimation (GAE)
+  lamda: 0.95
+  # Number of PPO update cycles that shall be done (one whole cycle comprises n epochs of m mini_batch updates)
+  updates: 500
+  # Number of times that the whole batch of data is used for optimization using PPO
+  # Each epoch trains on a random permutation of the sampled training batch
+  epochs: 3
+  # Number of mini batches that are trained throughout one epoch
+  # In case of using a recurrent net, this has to be a multiple of n_workers.
+  n_mini_batches: 4
+  # Wether to normalize the advantages on "minibatch" level, "batch" level or not at all ("no").
+  advantage_normalization: "minibatch"
+  # Coefficient of the loss of the value function (i.e. critic)
+  value_coefficient: 0.25
+  # Strength of clipping the loss gradients
+  max_grad_norm: 0.5
+  # Polynomial Decay Schedules
+  # Learning Rate
+  learning_rate_schedule:
+    initial: 3.0e-4
+    final: 1.0e-4
+    power: 1.0
+    max_decay_steps: 500
+  # Beta represents the entropy bonus coefficient
+  beta_schedule:
+    initial: 0.001
+    final: 0.0005
+    power: 1.0
+    max_decay_steps: 500
+  # Strength of clipping optimizations done by the PPO algorithm
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 500
