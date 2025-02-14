@@ -1,29 +1,6 @@
 import re
 import numpy as np
 
-def create_event_flag_mask(events):
-    # Initialize an empty list to store the mask
-    mask = []
-
-    # Regular expression patterns for unused flags
-    unused_patterns = [
-        re.compile(r'\b[0-9A-F]{3}\b')
-    ]
-
-    for key, value in events.items():
-        # Assume flag is used unless it matches one of the unused patterns
-        is_used = True
-        for pattern in unused_patterns:
-            if pattern.fullmatch(value):
-                is_used = False
-                break
-        
-        # Append 1 to the mask if used, otherwise 0
-        mask.append(True if is_used else False)
-
-    # Convert the mask list to a numpy array
-    return np.array(mask)
-
 events = {
     "0xD747-0": "Followed Oak Into Lab",
     "0xD747-1": "Event 001",
@@ -2586,3 +2563,51 @@ events = {
     "0xD886-6": "9Fe",
     "0xD886-7": "9Ff"
 }
+
+def create_event_flag_mask(events):
+    # Initialize an empty list to store the mask
+    mask = []
+
+    # Regular expression patterns for unused flags
+    unused_patterns = [
+        re.compile(r'\b[0-9A-F]{3}\b')
+    ]
+
+    for key, value in events.items():
+        # Assume flag is used unless it matches one of the unused patterns
+        is_used = True
+        for pattern in unused_patterns:
+            if pattern.fullmatch(value):
+                is_used = False
+                break
+        
+        # Append 1 to the mask if used, otherwise 0
+        mask.append(True if is_used else False)
+
+    # Convert the mask list to a numpy array
+    return np.array(mask)
+
+# Define a function to filter out placeholders
+def filter_event_names(events):
+    event_names = []
+    # Regular expression patterns for unused flags
+    unused_patterns = [
+        re.compile(r'\b[0-9A-F]{3}\b')
+    ]
+
+    for key, value in events.items():
+        # Assume flag is used unless it matches one of the unused patterns
+        is_used = True
+        for pattern in unused_patterns:
+            if pattern.fullmatch(value):
+                is_used = False
+                break
+        
+        # Append the event name to the list if used
+        if is_used:
+            event_names.append(value)
+
+    return event_names
+
+# Get the filtered list of event names
+filtered_event_names = filter_event_names(events)

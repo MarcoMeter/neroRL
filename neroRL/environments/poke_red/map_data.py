@@ -2714,3 +2714,13 @@ map_data = {
         }
     ]
 }
+
+# Initialize an empty dictionary for map_locations
+map_locations = {}
+# Iterate through the regions in map_data
+for region in map_data["regions"]:
+    # Get the region's id and name
+    region_id = int(region["id"])  # Convert id to integer
+    region_name = region["name"]
+    # Add to map_locations
+    map_locations[region_id] = region_name

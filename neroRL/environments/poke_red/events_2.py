@@ -2610,6 +2610,3 @@ def filter_event_names(events):
             event_names.append(value)
 
     return event_names
-
-# Get the filtered list of event names
-filtered_event_names = filter_event_names(events)

@@ -5,9 +5,9 @@ from enum import Enum
 import numpy as np
 from gymnasium import Env
 
-from neroRL.environments.poke_red.events_2 import filtered_event_names
+from neroRL.environments.poke_red.events import filtered_event_names
 from neroRL.environments.poke_red.items import Items
-from neroRL.environments.poke_red.map_data_2 import map_locations
+from neroRL.environments.poke_red.map_data import map_locations
 from neroRL.environments.poke_red.moves import Moves
 from neroRL.environments.poke_red.red_gym_env_v2 import RedGymEnv
 from neroRL.environments.poke_red.pokedex import Pokedex, PokedexOrder
@@ -113,9 +113,9 @@ class StatsWrapper(Env):
         self.update_time_played()
 
     def update_party_levels(self):
-        for i in range(
-            self.env.pyboy.memory[self.env.pyboy.symbol_lookup("wPartyCount")[1]]
-        ):
+        party_count = self.env.pyboy.memory[self.env.pyboy.symbol_lookup("wPartyCount")[1]]
+        party_count = min(party_count, 6)
+        for i in range(party_count):
             self.party_levels[i] = self.env.pyboy.memory[
                 self.env.pyboy.symbol_lookup(f"wPartyMon{i+1}Level")[1]
             ]
