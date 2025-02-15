@@ -149,7 +149,14 @@ class OdysseyEnv(gym.Env):
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
 
-        self.conn.send(struct.pack("=c", self.COMMAND_OUT_RESET))
+        is_override_position = False
+        startPos = [0, 1000, 0]
+        if options is not None:
+            is_override_position = "startPos" in options
+            if is_override_position:
+                startPos = options["startPos"]
+
+        self.conn.send(struct.pack("=c?fff", self.COMMAND_OUT_RESET, is_override_position, startPos[0], startPos[1], startPos[2]))
 
         state = self.readState()
 
@@ -169,3 +176,4 @@ class OdysseyEnv(gym.Env):
             raise Exception("OdysseyPhysics did not send enough data for render! Instead: "+str(len(render_data))+" bytes")
         # shape into nd.array with (x, y, 3) representing RGB values
         return np.flip(np.frombuffer(render_data, dtype=np.dtype('B')).reshape((1080, 1920, 3)), axis=0)
+

@@ -29,6 +29,7 @@ class MarioOdysseyWrapper(Env):
                                           "action_bucket": [-1, -0.5, -0.25, 0, 0.25, 0.5, 1],
                                           "raycast_length": 40,
                                           "num_action_repeat": 5,
+                                          "start_position": [0, 1000, 0]
                                           }
         else:
             self._default_reset_params = reset_params
@@ -131,7 +132,7 @@ class MarioOdysseyWrapper(Env):
                     vec_obs.append([value / self._env.observation_space[space].n])
         return np.concatenate(vec_obs)
     
-    def _get_distnace_to_moon(self, obs):
+    def _get_distance_to_moon(self, obs):
         position = obs["playerPos"]
         moon_position = np.array([-6650, 150, 500])
         distance = np.linalg.norm(position - moon_position)
@@ -169,8 +170,8 @@ class MarioOdysseyWrapper(Env):
         self._max_steps = reset_params["max_steps"]
 
         # Retrieve the agent's initial observation
-        obs, _ = self._env.reset(seed=self._seed)
-        self.moon_distance = self._get_distnace_to_moon(obs)
+        obs, _ = self._env.reset(seed=self._seed, options={"startPos": reset_params["start_position"]})
+        self.moon_distance = self._get_distance_to_moon(obs)
         self.best_distance = self.moon_distance
         vec_obs = self._process_obs(obs)
 
@@ -220,7 +221,7 @@ class MarioOdysseyWrapper(Env):
             reward = 0.0
         if reward > 0.9:
             success = 1.0
-        moon_current_distance = self._get_distnace_to_moon(obs)
+        moon_current_distance = self._get_distance_to_moon(obs)
         if moon_current_distance < self.moon_distance:
             if moon_current_distance < self.best_distance:
                 reward += self._reward_distance(obs)

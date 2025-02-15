@@ -13,7 +13,7 @@ environment:
     start-seed: 0
     num-seeds: 200
     # Maximum length of an episode
-    max_steps: 2048
+    max_steps: 1536
     stage: "SandWorldMeganeExStageMap"
     scenario: 0
     # Relative or absolute path to the Odyssey ROM
@@ -25,6 +25,8 @@ environment:
     raycast_length: 40
     # Number of frames that the selected is repeated
     num_action_repeat: 5
+    # Start position of the agent
+    start_position: [0, 1000, 0]
 
 model:
   # Whether to load weights of an existing model
