@@ -117,7 +117,7 @@ class OdysseyEnv(gym.Env):
         }
     
     def step(self, action):
-        buttons_arr = np.asarray(action["buttons"]).astype(bool)
+        buttons_arr = action["buttons"].astype(bool)
         buttons = 0
         buttons |= buttons_arr[0] << 1  # B
         buttons |= buttons_arr[1] << 4  # Y

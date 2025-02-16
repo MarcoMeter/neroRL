@@ -1,6 +1,6 @@
 environment:
   type: "MarioOdyssey"
-  # How many frames to skip (probably do not touch this for Odyssey. because of num_action_repeat)
+  # How many frames to skip (probably do not touch this for Odyssey because of num_action_repeat)
   frame_skip: 1
   # Whether to add the last action to the observation space (one-hot encoding)
   last_action_to_obs: False
@@ -21,12 +21,22 @@ environment:
     # Granularity of the sticks (discretizing continuous actions)
     # Cite: https://ieeexplore.ieee.org/document/8848080/
     action_bucket: [-1, -0.5, -0.25, 0, 0.25, 0.5, 1]
-    # Length of the raycasts, if the measured distance is greater than this value, it is set to a clippingg value of -1
+    # Length of the raycasts, if the measured distance is greater than this value, it is set to a clipping value of -1
     raycast_length: 40
-    # Number of frames that the selected is repeated
+    # Number of frames that the selected action is repeated
     num_action_repeat: 5
     # Start position of the agent
     start_position: [0, 1000, 0]
+    # Waypoints for guiding/rewarding the agent through the maze (reward + 1 / no. waypoints)
+    waypoints:
+      - [130, 150, 900]      # Obere Ecke vom L
+      - [-3900, 150, 900]    # Linker Rand im nächsten Raum
+      - [-3900, 150, 1700]   # Durchgang zum dritten Raum
+      - [-5000, 50, 1700]    # Nach dem Durchgang
+      - [-5000, 150, 500]    # Obere rechte Ecke dritter Raum
+      - [-5850, 150, 500]    # Plattform vor dem Mond
+    # Range in which a waypoint is considered "reached"
+    waypoint_range: 200
 
 model:
   # Whether to load weights of an existing model
