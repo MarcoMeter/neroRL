@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 class VideoRecorder:
     """The VideoRecorder can be used to capture videos of the agent's behavior using enjoy.py or eval.py.
-    Along with the agent's behavior a debug frame is rendered that shows information such as the action probabilities and the state's value."""
+    The debug frame has been removed in this version so that only the environment and basic info are rendered."""
     def __init__(self, video_path, frame_rate):
         """Instantiates the VideoRecorder and initializes some members that affect the rendering of the video.
         
@@ -29,71 +29,56 @@ class VideoRecorder:
         self.info_height = 40
         self.video_path = video_path
         self.cwd = os.path.dirname(os.path.abspath(__file__))
-        self.cwd = self.cwd[:self.cwd.rfind("neroRL") -1] # Fixed relative path
+        self.cwd = self.cwd[:self.cwd.rfind("neroRL") - 1]  # Fixed relative path
         self.website_path = self.cwd + "/result/"
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')   # Video codec
         self.frame_rate = int(frame_rate)
 
     def process_frame(self, frame_info):
         i, trajectory_data, width, height, info_height = frame_info
-        env_frame = trajectory_data["vis_obs"][i][...,::-1].astype(np.uint8)
+        # Process the environment frame
+        env_frame = trajectory_data["vis_obs"][i][..., ::-1].astype(np.uint8)
         env_frame = cv2.resize(env_frame, (width, height), interpolation=cv2.INTER_AREA)
-        info_frame = np.zeros((info_height, width * 2, 3), dtype=np.uint8)
         
+        # Create the info frame (same width as env_frame now)
+        info_frame = np.zeros((info_height, width, 3), dtype=np.uint8)
         self.draw_text_overlay(info_frame, 8, 20, trajectory_data["seed"], "seed")
         self.draw_text_overlay(info_frame, 108, 20, i, "step")
         self.draw_text_overlay(info_frame, 208, 20, round(sum(trajectory_data["rewards"][0:i]), 3), "total reward")
-
-        debug_frame = np.zeros((height, width, 3), dtype=np.uint8)
-        if i < len(trajectory_data["vis_obs"]) - 1:
-            next_y = 20
-            for x, probs in enumerate(trajectory_data["probs"][i]):
-                self.draw_text_overlay(debug_frame, 5, next_y, round(trajectory_data["entropies"][i][x], 5), "entropy dimension " + str(x))
-                next_y += 20
-                for y, prob in enumerate(probs.squeeze(dim=0)):
-                    label = str(trajectory_data["action_names"][x][y]) if trajectory_data["action_names"] is not None else str(y)
-                    self.draw_bar(debug_frame, 0, next_y, round(prob.item(), 10), label, y == trajectory_data["actions"][i][x])
-                    next_y += 20
-                next_y += 10
-            next_y = 230
-            fig = self.line_plot(trajectory_data["values"], "value", marker_pos=i)
-            img = self.fig_to_ndarray(fig)[:, :, 0:3]
-            img = self.image_resize(img, width=width)
-            debug_frame[next_y: next_y + img.shape[0], 0: img.shape[1], :] = img
-        else:
-            self.draw_text_overlay(debug_frame, 5, 60, "True", "episode done")
-
+        
+        # Optionally overlay ground truth on the env_frame if available
         if "estimated_ground_truth" in trajectory_data and len(trajectory_data["estimated_ground_truth"]) > 0:
             point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
             for j in range(0, len(trajectory_data["estimated_ground_truth"][i]), 2):
-                x, y = trajectory_data["estimated_ground_truth"][i][j].clip(0, 1), trajectory_data["estimated_ground_truth"][i][j + 1].clip(0, 1)
+                x = trajectory_data["estimated_ground_truth"][i][j].clip(0, 1)
+                y = trajectory_data["estimated_ground_truth"][i][j + 1].clip(0, 1)
                 position = (int(x * width), int(y * height))
                 point_color = point_colors[j // 2]
                 point_radius = 8
                 cv2.circle(env_frame, position, point_radius, point_color, -1)
-
+                
         if len(env_frame.shape) == 2:
             env_frame = cv2.cvtColor(env_frame, cv2.COLOR_GRAY2BGR)
-        output_image = np.hstack((env_frame, debug_frame))
-        output_image = np.vstack((info_frame, output_image))
-        
+            
+        # Stack info frame on top of the environment frame
+        output_image = np.vstack((info_frame, env_frame))
         return output_image
 
     def render_video(self, trajectory_data):
-        out = cv2.VideoWriter(self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
-                              self.fourcc, self.frame_rate, (self.width * 2, self.height + self.info_height))
+        # Adjust the video writer size: now width is self.width (not self.width*2)
+        out = cv2.VideoWriter(
+            self.video_path + "_seed_" + str(trajectory_data["seed"]) + ".mp4",
+            self.fourcc, self.frame_rate, (self.width, self.height + self.info_height)
+        )
 
-        num_processes = max(1, cpu_count() - 1)
-        frame_info_list = [(i, trajectory_data, self.width, self.height, self.info_height) for i in range(len(trajectory_data["vis_obs"]))]
-        
-        with Pool(num_processes) as pool:
-            frames = list(tqdm(pool.imap(self.process_frame, frame_info_list), total=len(frame_info_list), desc="Processing frames"))
-        
-        for frame in frames:
+        total_frames = len(trajectory_data["vis_obs"])
+        for i in tqdm(range(total_frames), desc="Processing frames"):
+            frame_info = (i, trajectory_data, self.width, self.height, self.info_height)
+            frame = self.process_frame(frame_info)
             out.write(frame)
         out.release()
 
-    def _config_to_html(self, config, prfx = ""):
+    def _config_to_html(self, config, prfx=""):
         """Returns a html string that contains the configuration of the key
         
         Arguments:
@@ -146,19 +131,21 @@ class VideoRecorder:
         template = template_env.get_template("./template/result_website.html")  
         
         # Render the template
-        with open(self.website_path + 'result_website_' + str(id) + '.html' , 'w') as output_file:
-            output_file.write(template.render(envInfo=env_info,
-                                            hyperInfo=hyper_info,
-                                            modelInfo=model_info,
-                                            samplerInfo=sampler_info,
-                                            videoPath = str(video_paths),
-                                            yValues=str(values),
-                                            yEntropy=str(entropies),
-                                            yAttentionWeights=str(trajectory_data["attention_weights"]),
-                                            yAction=str(action_probs),
-                                            action=str(actions),
-                                            actionNames=str(action_names) if action_names is not None else "null",
-                                            frameRate=str(self.frame_rate)))
+        with open(self.website_path + 'result_website_' + str(id) + '.html', 'w') as output_file:
+            output_file.write(template.render(
+                envInfo=env_info,
+                hyperInfo=hyper_info,
+                modelInfo=model_info,
+                samplerInfo=sampler_info,
+                videoPath=str(video_paths),
+                yValues=str(values),
+                yEntropy=str(entropies),
+                yAttentionWeights=str(trajectory_data["attention_weights"]),
+                yAction=str(action_probs),
+                action=str(actions),
+                actionNames=str(action_names) if action_names is not None else "null",
+                frameRate=str(self.frame_rate)
+            ))
             
     def _generate_website_videos(self, trajectory_data, video_path):
         """Generates the videos for the website.
@@ -210,25 +197,26 @@ class VideoRecorder:
         id = max(ids) + 1
         return str(id)
     
-    def _render_environment_episode(self, key, trajectory_data, path, video_id, gt = False):
+    def _render_environment_episode(self, key, trajectory_data, path, video_id, gt=False):
         """Renders an episode of an agent behaving in its environment.
         
         Arguments:
-            trajectory_data {dift} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
+            trajectory_data {dict} -- This dictionary provides all the necessary information to render one episode of an agent behaving in its environment.
             video_id {string} -- The id of the video.
             gt {bool} -- If true the estimated ground truth is rendered.
         """
-            
         # Set fourcc s.t. the video is saved as webm
         webm_fourcc = cv2.VideoWriter_fourcc(*'VP09')
         
         # Init VideoWriter, the frame rate is defined by each environment individually
-        out = cv2.VideoWriter(path + "video_seed_" + str(trajectory_data["seed"]) + "_" + video_id + ".webm",
-                                webm_fourcc, 1, (self.width, self.height + self.info_height))
+        out = cv2.VideoWriter(
+            path + "video_seed_" + str(trajectory_data["seed"]) + "_" + video_id + ".webm",
+            webm_fourcc, 1, (self.width, self.height + self.info_height)
+        )
         
         for i in range(len(trajectory_data[key])):
             # Setup environment frame
-            env_frame = trajectory_data[key][i][...,::-1].astype(np.uint8) # Convert RGB to BGR, OpenCV expects BGR
+            env_frame = trajectory_data[key][i][..., ::-1].astype(np.uint8)  # Convert RGB to BGR
             env_frame = cv2.resize(env_frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
 
             # Setup info frame
@@ -245,28 +233,20 @@ class VideoRecorder:
             else:
                 self.draw_text_overlay(info_frame, 368, 20, "False", "episode done")
                 
-            # Plot estimated ground truth
+            # Plot estimated ground truth if requested
             if gt:
-                # Point colors
                 point_colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
-                # Iterate over all points
                 for j in range(0, len(trajectory_data["estimated_ground_truth"][i]), 2):
-                    # Get the position of the point
-                    x, y = trajectory_data["estimated_ground_truth"][i][j].clip(0, 1), trajectory_data["estimated_ground_truth"][i][j + 1].clip(0, 1)
+                    x = trajectory_data["estimated_ground_truth"][i][j].clip(0, 1)
+                    y = trajectory_data["estimated_ground_truth"][i][j + 1].clip(0, 1)
                     position = (int(x * self.width), int(y * self.height))
-                    # Set the color of the point (in BGR format, here we use red color)
                     point_color = point_colors[j // 2]
-                    # Set the radius of the point (in pixels)
                     point_radius = 8
-                    # Draw the point on the image/frame
                     cv2.circle(env_frame, position, point_radius, point_color, -1)
             
-            # Concatenate environment and debug frames
+            # Concatenate info and environment frames
             output_image = np.vstack((info_frame, env_frame))
-
-            # Write frame
             out.write(output_image)
-        # Finish up the video
         out.release()
         
     def draw_text_overlay(self, frame, x, y, value, label):
@@ -316,89 +296,46 @@ class VideoRecorder:
         cv2.putText(frame, text, (x + 5, y), self.font_face, self.scale, self.text_color, 1, cv2.LINE_AA)
 
     @staticmethod
-    def line_plot(data: np.ndarray, label: str, marker_pos = 10) -> np.ndarray:
+    def line_plot(data: np.ndarray, label: str, marker_pos=10) -> np.ndarray:
         matplotlib.use('Agg')
-        font = {"weight" : "bold", "size" : 22}
+        font = {"weight": "bold", "size": 22}
         matplotlib.rc('font', **font)
-        # Setup figure
         plt.style.use("dark_background")
         fig = plt.figure(dpi=180)
         fig.set_size_inches(14, 6)
         ax = fig.subplots()
-
-        # Plot marker
         ax.plot([marker_pos], data[marker_pos], fillstyle="full", markersize=12, marker="o", color="r")
-        x = [i for i in range(0, len(data))]
-
-        # Line plot
+        x = list(range(len(data)))
         ax.plot(x, data)
-
-        # Annotate marker
-        # ax.annotate(str(data[marker_pos]), (x[marker_pos] + .011 ,data[marker_pos] + .011), color = "r")
         ax.set_title("Value: " + str(data[marker_pos]))
-
-        # X and Y axis
-        ax.set_xlim([0,len(data)])
+        ax.set_xlim([0, len(data)])
         ax.set_xlabel("Episode Steps")
         ax.set_ylabel(label)
-
-        # Remove borders
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-
-        # Text color
-        # ax.tick_params(color='gray', labelcolor='gray')
-        # for spine in ax.spines.values():
-        #     spine.set_edgecolor('gray')
         return fig
     
     @staticmethod
     def fig_to_ndarray(fig) -> np.ndarray:
         from matplotlib.backends.backend_agg import FigureCanvasAgg
-        from matplotlib.figure import Figure
-
-        # Attach figure to canvas
         fig.tight_layout(pad=0)
         canvas = FigureCanvasAgg(fig)
-
-        # Retrieve a view on the renderer buffer
         canvas.draw()
-
         buf = canvas.buffer_rgba()
-
         plt.close(fig)
-
-        # Convert to a NumPy array
         return np.asarray(buf)
 
     @staticmethod
-    def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
-        # initialize the dimensions of the image to be resized and
-        # grab the image size
+    def image_resize(image, width=None, height=None, inter=cv2.INTER_AREA):
         dim = None
         (h, w) = image.shape[:2]
-
-        # if both the width and height are None, then return the
-        # original image
         if width is None and height is None:
             return image
-
-        # check to see if the width is None
         if width is None:
-            # calculate the ratio of the height and construct the
-            # dimensions
             r = height / float(h)
             dim = (int(w * r), int(height))
-
-        # otherwise, the height is None
         else:
-            # calculate the ratio of the width and construct the
-            # dimensions
             r = width / float(w)
             dim = (int(width), int(h * r))
-
-        # resize the image
-        resized = cv2.resize(image, dim, interpolation = inter)
-
-        # return the resized image
+        resized = cv2.resize(image, dim, interpolation=inter)
         return resized
