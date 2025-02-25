@@ -188,14 +188,14 @@ class Evaluator():
                             if dones[w]:
                                 info["seed"] = seed
                                 episode_infos.append(info)
-                                model_outputs.append(
-                                    {
-                                        "actions": actions[w],
-                                        "probs": probs[w],
-                                        "entropies": entropies[w],
-                                        "values": values[w]
-                                    }
-                                )
+                                # model_outputs.append(
+                                #     {
+                                #         "actions": actions[w],
+                                #         "probs": probs[w],
+                                #         "entropies": entropies[w],
+                                #         "values": values[w]
+                                #     }
+                                # )
                                 # record video for this particular worker
                                 if self.record_video or self.generate_website:
                                     worker.child.send(("video", None))

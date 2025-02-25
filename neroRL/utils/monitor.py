@@ -16,6 +16,7 @@ import logging
 import os
 import re
 import time
+import torch
 import sys
 import random
 from torch.utils.tensorboard import SummaryWriter
@@ -126,6 +127,12 @@ class TrainingMonitor():
         for key, (tag, value) in training_stats.items():
             self.writer.add_scalar(tag.value + "/" + key, value, update)
 
+        if torch.cuda.is_available():
+            self.writer.add_scalar("system/memory_allocated", torch.cuda.memory_allocated() / (1024 ** 3), update)
+            self.writer.add_scalar("system/max_memory_allocated", torch.cuda.max_memory_allocated() / (1024 ** 3), update)
+            self.writer.add_scalar("system/memory_reserved", torch.cuda.memory_reserved() / (1024 ** 3), update)
+            self.writer.add_scalar("system/max_memory_reserved", torch.cuda.max_memory_reserved() / (1024 ** 3), update)
+
     def write_hyperparameters(self, configs) -> None:
         """Writes hyperparameters to the tensorboard event summary.
         
@@ -137,7 +144,7 @@ class TrainingMonitor():
                 for k, v in value.items():
                     self.writer.add_text("Hyperparameters", k + " " + str(v))
             else:
-                self.writer.add_text("Hyperparameters", key + " " + str(value))#
+                self.writer.add_text("Hyperparameters", key + " " + str(value))
 
     def close(self) -> None:
         """Closes the monitor and shuts down the Tensorboard Summary Writer.
