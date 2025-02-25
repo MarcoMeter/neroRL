@@ -20,6 +20,7 @@ class OdysseyEnv(gym.Env):
 
 
     def __init__(self, stage: str, scenario: int, instance: str, romfs_path: str = "/scratch/odyssey/romfs", render_mode: str = None):
+        
         self.render_mode = render_mode
         self.socket_file = "/tmp/odyssey-physics-"+instance+".sock"
         if os.path.exists(self.socket_file):
@@ -29,11 +30,14 @@ class OdysseyEnv(gym.Env):
         self.socket.bind(self.socket_file)
 
         display = 2 if render_mode == "human" else 1 if render_mode == "rgb_array" else 0
-        print(["/scratch/odyssey/build/OdysseyPhysics", stage, str(scenario), romfs_path, self.socket_file, str(display)])
-        self.process = subprocess.Popen(["/scratch/odyssey/build/OdysseyPhysics", stage, str(scenario), romfs_path, self.socket_file, str(display)], stdout=sys.stdout, stderr=sys.stderr)
-
+        print(["/scratch/odyssey/build/OdysseyPhysics", stage, str(scenario), romfs_path, self.socket_file, str(display)], flush=True)
+        print(f"Socket listening.. ({instance})", flush=True)
         self.socket.listen(1)
+        
+        self.process = subprocess.Popen(["/scratch/odyssey/build/OdysseyPhysics", stage, str(scenario), romfs_path, self.socket_file, str(display)], stdout=sys.stdout, stderr=sys.stderr)
+        
         self.conn, self.addr = self.socket.accept()
+        print(f"Accepted. ({instance})", flush=True)
 
         self.observation_space = gym.spaces.Dict(
             {
@@ -152,7 +156,7 @@ class OdysseyEnv(gym.Env):
         is_override_position = False
         startPos = [0, 1000, 0]
         if options is not None:
-            is_override_position = "startPos" in options
+            is_override_position = "startPos" in options and not (options["startPos"] is None)
             if is_override_position:
                 startPos = options["startPos"]
 

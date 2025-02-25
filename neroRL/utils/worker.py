@@ -81,6 +81,7 @@ class Worker:
         self.child, parent = multiprocessing.Pipe()
         self.process = multiprocessing.Process(target=worker_process, args=(parent, env_seed, env_config, rank, worker_id, record_video))
         self.process.start()
+        print(f"Worker process started, {self.process}")
 
     def close(self):
         self.child.send(("close", None))
