@@ -72,6 +72,7 @@ def main():
     checkpoint = torch.load(checkpoints[0], map_location=device)
     model_config = checkpoint["configs"]["model"]
     configs = YamlParser(config_path).get_config() if config_path else checkpoint["configs"]
+    configs["environment"]["reset_params"]["monitor_more_stats"] = True
 
     # Override seed configuration if necessary
     if override_seed_config:
@@ -111,6 +112,7 @@ def main():
     print("Step 4: Start Evaluation . . .")
     print("Progress:")
     results = []
+    model_outputs = []
     current_checkpoint = 0
     for checkpoint in checkpoints:
         loaded_checkpoint = torch.load(checkpoint, map_location=device)
@@ -119,6 +121,7 @@ def main():
             model.set_mean_recurrent_cell_states(loaded_checkpoint["hxs"], loaded_checkpoint["cxs"])
         _, res, mod = evaluator.evaluate(model, device)
         results.append(res)
+        model_outputs.append(mod)
         current_checkpoint = current_checkpoint + 1
         prog = current_checkpoint / len(checkpoints)
         mean_reward = 0.0
@@ -138,6 +141,11 @@ def main():
     else:
         num_seeds = configs["evaluation"]["seeds"]["num-seeds"]
     results = np.asarray(results).reshape(len(checkpoints), num_seeds, configs["evaluation"]["n_workers"])
+    # Process model outputs and save them using npz
+    for i in len(checkpoints):
+        for j in range(num_seeds):
+            for k in range(configs["evaluation"]["n_workers"]):
+                model_outputs[i][j][k] = model_outputs[i][j][k].cpu().numpy()
     os.makedirs(os.path.dirname(name), exist_ok=True)
     outfile = open(name, "wb")
     pickle.dump(results, outfile)

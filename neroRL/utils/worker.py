@@ -79,7 +79,7 @@ class Worker:
         """
         env_seed = randint(0, 2 ** 32 - 1)
         self.child, parent = multiprocessing.Pipe()
-        self.process = multiprocessing.Process(target=worker_process, args=(parent, env_seed, env_config, worker_id, record_video))
+        self.process = multiprocessing.Process(target=worker_process, args=(parent, env_seed, env_config, rank, worker_id, record_video))
         self.process.start()
 
     def close(self):
