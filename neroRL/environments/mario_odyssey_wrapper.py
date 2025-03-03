@@ -3,6 +3,9 @@ from gymnasium import spaces
 import numpy as np
 from random import randint
 
+# DEBUG
+import time
+
 from neroRL.environments.odyssey_env import OdysseyEnv
 from neroRL.environments.env import Env
 
@@ -21,23 +24,28 @@ class MarioOdysseyWrapper(Env):
         # Set default reset parameters if none were provided
         if reset_params is None:
             self._default_reset_params = {"start-seed": 0,
-                                          "num-seeds": 100,
-                                          "max_steps": 2048,
+                                          "num-seeds": 200,
+                                          "max_steps": 1536,
                                           "stage": "SandWorldMeganeExStageMap",
                                           "scenario": 0,
                                           "rom_path": "/scratch/odyssey/romfs",
                                           "action_bucket": [-1, -0.5, -0.25, 0, 0.25, 0.5, 1],
-                                          "raycast_length": 40,
+                                          "raycast_length": 900,
                                           "num_action_repeat": 5,
-                                          "start_position": [0, 1000, 0],
+                                          "start_position": None,
+                                          "use_waypoints": True,
                                           "waypoints": [  # Waypoints forming a path through the maze
-                                                            [130, 150, 900],      # Obere Ecke vom L
-                                                            [-3900, 150, 900],    # Linker Rand im naechsten Raum
-                                                            [-3900, 150, 1700],   # Durchgang zum dritten Raum
-                                                            [-5000, 50, 1700],    # Nach dem Durchgang
-                                                            [-5000, 150, 500]     # Obere rechte Ecke dritter Raum
-                                          ],
-                                          "waypoint_range": 50.0  # Distance threshold for reaching a waypoint
+                                                           [130, 150, 900],      # Obere Ecke vom L
+                                                           [-1100, 150, 900],    # Linker Rand vom ersten Raum
+                                                           [-2650, 150, 900],    # Rechter Rand vom zweiten Raum
+                                                           [-3900, 150, 900],   # Linker Rand im zweiten Raum
+                                                           [-3900, 150, 1700],   # Durchgang zum dritten Raum
+                                                           [-5000, 50, 1700],    # Nach dem Durchgang
+                                                           [-5000, 150, 500],    # Obere rechte Ecke dritter Raum
+                                                           [-5850, 150, 500],    # Mittlere Plattform oben im dritten Raum
+                                                           [-6700, 150, 500],    # Plattform vom Mond
+                                                       ],
+                                          "waypoint_range": 250.0  # Distance threshold for reaching a waypoint
                                           }
         else:
             self._default_reset_params = reset_params
@@ -47,6 +55,7 @@ class MarioOdysseyWrapper(Env):
         self._max_steps = self._default_reset_params["max_steps"]
         self._num_action_repeat = self._default_reset_params["num_action_repeat"]
         self._raycast_length = self._default_reset_params["raycast_length"]
+        self._use_waypoints = self._default_reset_params["use_waypoints"]
         self._waypoints = self._default_reset_params["waypoints"]
         self._waypoint_range = self._default_reset_params["waypoint_range"]
         self._visited_waypoints = set()
@@ -58,6 +67,14 @@ class MarioOdysseyWrapper(Env):
             render_mode = "rgb_array"
         else:
             render_mode = None
+        
+        ###### ENABLE DEBUG HERE ##############
+        self.DEBUG_MODE = False
+        #self.DEBUG_MODE = worker_id == 211
+        
+        #if self.DEBUG_MODE:
+        #    render_mode = "human"
+        #######################################
         
         self._env = OdysseyEnv(self._default_reset_params["stage"], self._default_reset_params["scenario"], str(worker_id), self._default_reset_params["rom_path"], render_mode=render_mode)
         # Count number of observations
@@ -78,6 +95,10 @@ class MarioOdysseyWrapper(Env):
         self._bucket_size = len(self._default_reset_params["action_bucket"])
         self._continuous_action_bucket = np.linspace(-1, 1, self._bucket_size)
         self._action_space = spaces.MultiDiscrete([2, 2, 2, self._bucket_size, self._bucket_size, self._bucket_size, self._bucket_size])
+
+    def dbg(self, *args):
+        if self.DEBUG_MODE:
+            print("DEBUG:", *args)#, flush=True)
 
     @property
     def unwrapped(self):
@@ -121,11 +142,13 @@ class MarioOdysseyWrapper(Env):
         for space, value in obs.items():
             if isinstance(self._env.observation_space[space], spaces.Box):
                 if space == "raycastResults":
+                    #self.dbg(value)
                     # Distance measures that are larger than the raycast length are clipped to -1
-                    value[value > self._raycast_length] = -1  # Modify the array in place
                     ray_obs = value  # Assign the updated array to ray_obs
                     ray_obs = ray_obs / self._raycast_length  # Normalize the values
+                    ray_obs[ray_obs > 1] = 1  # Modify the array in place
                     vec_obs.append(ray_obs.flatten())  # Flatten and append to vec_obs
+                    #self.dbg(ray_obs)
                 else:
                     # Normalize Box spaces using low and high bounds
                     low = self._env.observation_space[space].low
@@ -145,21 +168,25 @@ class MarioOdysseyWrapper(Env):
     
     def _get_distance_to_moon(self, obs):
         position = obs["playerPos"]
-        moon_position = np.array([-6650, 150, 500])
-        distance = np.linalg.norm(position - moon_position)
+        distance = np.linalg.norm(position - self.moon_position)
         return distance
 
     def _get_distance(self, pos1, pos2):
         return np.linalg.norm(np.array(pos1) - np.array(pos2))
 
-    def _reward_waypoint(self, position):
+    def _reward_waypoint(self, player_pos):
         if not self._waypoints:
             return 0.0
     
         for i, waypoint in enumerate(self._waypoints):
-            if self._get_distance(position, waypoint) <= self._waypoint_range:
+            waypoint_distance = self._get_distance(player_pos, waypoint)
+            self.dbg("waypoint", i, "distance:", waypoint_distance)
+            if waypoint_distance <= self._waypoint_range:
                 self._waypoints.pop(i)  # Remove the reached waypoint
-                return 1.0 / self._waypoint_count
+                self.dbg("Found waypoint", self._waypoint_count - len(self._waypoints))
+                #return 1.0 / self._waypoint_count
+                #return 1.0 - 0.9 * (self._current_step / self._max_steps)
+                return min(1.0, 1.1 - 0.9 * (self._current_step / self._max_steps))
 
         return 0.0
 
@@ -191,7 +218,9 @@ class MarioOdysseyWrapper(Env):
 
         # Retrieve the agent's initial observation
         obs, _ = self._env.reset(seed=self._seed, options={"startPos": reset_params["start_position"]})
+        self.moon_position = np.array(self._waypoints[-1])
         self.moon_distance = self._get_distance_to_moon(obs)
+        self.start_distance = self.moon_distance
         self.best_distance = self.moon_distance
         vec_obs = self._process_obs(obs)
 
@@ -232,6 +261,9 @@ class MarioOdysseyWrapper(Env):
             obs, reward, done, truncation, info = self._env.step(action)
             if done or truncation:
                 break
+                
+        self.dbg("original reward:", reward)
+        moon_found = reward > 0.0
 
         # Process obs, reward and done
         self._current_step += 1
@@ -241,15 +273,29 @@ class MarioOdysseyWrapper(Env):
             reward = 0.0
         if reward > 0.9:
             success = 1.0
+            
         moon_current_distance = self._get_distance_to_moon(obs)
+        self.dbg("moon_current_distance:", moon_current_distance)
+        
+        self.dbg("Calculate moon distance reward..")        
         if moon_current_distance < self.moon_distance:
             if moon_current_distance < self.best_distance:
                 self.best_distance = moon_current_distance
+                # give moon reward
+                reward += 0.01 #* self.start_distance / moon_current_distance
             self.moon_distance = moon_current_distance
+        self.dbg("best_distance:", self.best_distance)
 
-        position = obs["playerPos"]
-        waypoint_reward = self._reward_waypoint(position)
-        reward += waypoint_reward
+        if self._use_waypoints:
+            self.dbg("Calculate waypoints reward..")
+            player_pos = obs["playerPos"]
+            waypoint_reward = self._reward_waypoint(player_pos)
+            reward += waypoint_reward
+            self.dbg("waypoint_reward:", waypoint_reward)
+            
+        if moon_found:
+            self.dbg("Found moon!")
+            #reward *= 10
 
         vec_obs = self._process_obs(obs)
         self._rewards.append(reward)
@@ -272,8 +318,17 @@ class MarioOdysseyWrapper(Env):
                     "success": success,
                     "best_distance": self.best_distance,
                     "waypoints_visisted": self._waypoint_count - len(self._waypoints)}
+            self.dbg("info:", info)
         else:
             info = None
+            
+        self.dbg("curr. reward:", reward)
+        #self.dbg("rewards:", self._rewards)
+        self.dbg("cum. reward:", sum(self._rewards))
+        if self.DEBUG_MODE:
+            print("--", flush=True)
+            #time.sleep(0.1)
+            
         return {"vec_obs": vec_obs}, reward, done or truncation, info
 
     def close(self):
