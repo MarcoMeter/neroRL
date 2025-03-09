@@ -39,9 +39,22 @@ class OdysseyEnv(gym.Env):
         self.conn, self.addr = self.socket.accept()
         print(f"Accepted. ({instance})", flush=True)
 
+        player_pos_low = [-10000, -10000, -10000]
+        player_pos_high = [10000, 10000, 10000]
+        
+        #if stage == "SandWorldMeganeExStageMap":
+        #    player_pos_low = [-6800, -100, 300]
+        #    player_pos_high = [1400, 1500, 2300]
+        #elif stage == "CloudExStageMap":
+        #    player_pos_low = [-26000, -500, 0]
+        #    player_pos_high = [2300, 2000, 11800]
+        #elif stage == "SenobiTowerExStageMap":
+        #    player_pos_low = [-10000, -1600, -13000]
+        #    player_pos_high = [4200, 9000, 1500]
+
         self.observation_space = gym.spaces.Dict(
             {
-                "playerPos": gym.spaces.Box(low=np.array([-6800, -100, 300]), high=np.array([1400, 1500, 2300]), shape=(3,), dtype=np.float32),
+                "playerPos": gym.spaces.Box(low=np.array(player_pos_low), high=np.array(player_pos_high), shape=(3,), dtype=np.float32),
                 "playerVel": gym.spaces.Box(low=np.array([-100, -100, -100]), high=np.array([100, 100, 100]), shape=(3,), dtype=np.float32),
                 "playerQuat": gym.spaces.Box(low=np.array([-1, -1, -1, -1]), high=np.array([1, 1, 1, 1]), shape=(4,), dtype=np.float32),
                 "states": gym.spaces.MultiBinary(96),
@@ -160,7 +173,11 @@ class OdysseyEnv(gym.Env):
             if is_override_position:
                 startPos = options["startPos"]
 
-        self.conn.send(struct.pack("=c?fff", self.COMMAND_OUT_RESET, is_override_position, startPos[0], startPos[1], startPos[2]))
+        is_export_script = False
+        if options is not None:
+            is_export_script = "exportScript" in options and options["exportScript"]
+            
+        self.conn.send(struct.pack("=c?fff?", self.COMMAND_OUT_RESET, is_override_position, startPos[0], startPos[1], startPos[2], is_export_script))
 
         state = self.readState()
 
