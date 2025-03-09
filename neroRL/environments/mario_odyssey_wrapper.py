@@ -33,6 +33,8 @@ class MarioOdysseyWrapper(Env):
                                           "raycast_length": 900,
                                           "num_action_repeat": 5,
                                           "start_position": None,
+                                          "use_target_distance": True,
+                                          "min_gain": 200.0,
                                           "use_waypoints": True,
                                           "waypoints": [  # Waypoints forming a path through the maze
                                                            [130, 150, 900],      # Obere Ecke vom L
@@ -55,10 +57,14 @@ class MarioOdysseyWrapper(Env):
         self._max_steps = self._default_reset_params["max_steps"]
         self._num_action_repeat = self._default_reset_params["num_action_repeat"]
         self._raycast_length = self._default_reset_params["raycast_length"]
+        self._use_target_distance = self._default_reset_params["use_target_distance"]
+        self._min_gain = self._default_reset_params["min_gain"]
         self._use_waypoints = self._default_reset_params["use_waypoints"]
         self._waypoints = self._default_reset_params["waypoints"]
         self._waypoint_range = self._default_reset_params["waypoint_range"]
         self._visited_waypoints = set()
+        
+        self._export_tas_script = True
 
         # Initialize environment
         if realtime_mode:
@@ -67,10 +73,11 @@ class MarioOdysseyWrapper(Env):
             render_mode = "rgb_array"
         else:
             render_mode = None
+            self._export_tas_script = False
         
         ###### ENABLE DEBUG HERE ##############
         self.DEBUG_MODE = False
-        #self.DEBUG_MODE = worker_id == 211
+        self.DEBUG_MODE = worker_id == 211
         
         #if self.DEBUG_MODE:
         #    render_mode = "human"
@@ -166,9 +173,10 @@ class MarioOdysseyWrapper(Env):
                     vec_obs.append([value / self._env.observation_space[space].n])
         return np.concatenate(vec_obs)
     
-    def _get_distance_to_moon(self, obs):
-        position = obs["playerPos"]
-        distance = np.linalg.norm(position - self.moon_position)
+    def _get_distance_to_moon(self, position):
+        distance = self._get_distance(position, self.moon_position)
+        #self.dbg("WARNING: Distance currently is just y.")
+        #distance = self.moon_position[1] - position[1]
         return distance
 
     def _get_distance(self, pos1, pos2):
@@ -184,9 +192,9 @@ class MarioOdysseyWrapper(Env):
             if waypoint_distance <= self._waypoint_range:
                 self._waypoints.pop(i)  # Remove the reached waypoint
                 self.dbg("Found waypoint", self._waypoint_count - len(self._waypoints))
-                #return 1.0 / self._waypoint_count
+                return 1.0 #/ self._waypoint_count
                 #return 1.0 - 0.9 * (self._current_step / self._max_steps)
-                return min(1.0, 1.1 - 0.9 * (self._current_step / self._max_steps))
+                #return min(1.0, 1.1 - 0.9 * (self._current_step / self._max_steps))
 
         return 0.0
 
@@ -217,9 +225,9 @@ class MarioOdysseyWrapper(Env):
         self._waypoint_count = len(self._waypoints)
 
         # Retrieve the agent's initial observation
-        obs, _ = self._env.reset(seed=self._seed, options={"startPos": reset_params["start_position"]})
+        obs, _ = self._env.reset(seed=self._seed, options={"startPos": reset_params["start_position"], "exportScript": self._export_tas_script})
         self.moon_position = np.array(self._waypoints[-1])
-        self.moon_distance = self._get_distance_to_moon(obs)
+        self.moon_distance = self._get_distance_to_moon(obs["playerPos"])
         self.start_distance = self.moon_distance
         self.best_distance = self.moon_distance
         vec_obs = self._process_obs(obs)
@@ -274,28 +282,45 @@ class MarioOdysseyWrapper(Env):
         if reward > 0.9:
             success = 1.0
             
-        moon_current_distance = self._get_distance_to_moon(obs)
+        player_pos = obs["playerPos"]
+            
+        moon_current_distance = self._get_distance_to_moon(player_pos)
         self.dbg("moon_current_distance:", moon_current_distance)
         
-        self.dbg("Calculate moon distance reward..")        
-        if moon_current_distance < self.moon_distance:
-            if moon_current_distance < self.best_distance:
-                self.best_distance = moon_current_distance
-                # give moon reward
-                reward += 0.01 #* self.start_distance / moon_current_distance
-            self.moon_distance = moon_current_distance
-        self.dbg("best_distance:", self.best_distance)
+        if self._use_target_distance:
+            self.dbg("Calculate distance reward..")
+            if moon_current_distance < self.moon_distance:
+                if moon_current_distance < self.best_distance - self._min_gain:
+                    self.best_distance = moon_current_distance
+                    # give moon reward
+                    reward += 0.01 #* self.start_distance / moon_current_distance
+                self.moon_distance = moon_current_distance
+            self.dbg("best_distance:", self.best_distance)
+        else:
+            self.dbg("Distance reward disabled.")
 
         if self._use_waypoints:
             self.dbg("Calculate waypoints reward..")
-            player_pos = obs["playerPos"]
+            
             waypoint_reward = self._reward_waypoint(player_pos)
             reward += waypoint_reward
             self.dbg("waypoint_reward:", waypoint_reward)
+        else:
+            self.dbg("Waypoint reward disabled.")
             
         if moon_found:
             self.dbg("Found moon!")
-            #reward *= 10
+            reward += (self._current_step / self._max_steps) * self._waypoint_count 
+
+        spinCap_was_used = obs["states"][70]
+        if spinCap_was_used:
+            self.dbg("SpinCap was used (obs['states'][70]=True)")
+            reward = -10.0
+            truncation = True
+            
+        if obs["playerPos"][1] < -2000.0:
+            self.dbg("Player is fallen (y<-2000)")
+            truncation = True
 
         vec_obs = self._process_obs(obs)
         self._rewards.append(reward)
