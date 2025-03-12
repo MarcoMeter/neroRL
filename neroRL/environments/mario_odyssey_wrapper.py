@@ -25,7 +25,7 @@ class MarioOdysseyWrapper(Env):
         if reset_params is None:
             self._default_reset_params = {"start-seed": 0,
                                           "num-seeds": 200,
-                                          "max_steps": 1536,
+                                          "max_steps": 1500,
                                           "stage": "SandWorldMeganeExStageMap",
                                           "scenario": 0,
                                           "rom_path": "/scratch/odyssey/romfs",
@@ -33,9 +33,7 @@ class MarioOdysseyWrapper(Env):
                                           "raycast_length": 900,
                                           "num_action_repeat": 5,
                                           "start_position": None,
-                                          "use_target_distance": True,
-                                          "min_gain": 200.0,
-                                          "use_waypoints": True,
+                                          "min_gain": 50.0,
                                           "waypoints": [  # Waypoints forming a path through the maze
                                                            [130, 150, 900],      # Obere Ecke vom L
                                                            [-1100, 150, 900],    # Linker Rand vom ersten Raum
@@ -57,9 +55,7 @@ class MarioOdysseyWrapper(Env):
         self._max_steps = self._default_reset_params["max_steps"]
         self._num_action_repeat = self._default_reset_params["num_action_repeat"]
         self._raycast_length = self._default_reset_params["raycast_length"]
-        self._use_target_distance = self._default_reset_params["use_target_distance"]
         self._min_gain = self._default_reset_params["min_gain"]
-        self._use_waypoints = self._default_reset_params["use_waypoints"]
         self._waypoints = self._default_reset_params["waypoints"]
         self._waypoint_range = self._default_reset_params["waypoint_range"]
         self._visited_waypoints = set()
@@ -175,9 +171,13 @@ class MarioOdysseyWrapper(Env):
     
     def _get_distance_to_moon(self, position):
         distance = self._get_distance(position, self.moon_position)
-        #self.dbg("WARNING: Distance currently is just y.")
-        #distance = self.moon_position[1] - position[1]
         return distance
+        
+    def _get_waypoint_distance(self, position):
+        if self._waypoints:
+            return self._get_distance(position, self._waypoints[0])
+        else:
+            return self._get_distance_to_moon(position)
 
     def _get_distance(self, pos1, pos2):
         return np.linalg.norm(np.array(pos1) - np.array(pos2))
@@ -186,15 +186,29 @@ class MarioOdysseyWrapper(Env):
         if not self._waypoints:
             return 0.0
     
+        # DEBUG prints
         for i, waypoint in enumerate(self._waypoints):
-            waypoint_distance = self._get_distance(player_pos, waypoint)
-            self.dbg("waypoint", i, "distance:", waypoint_distance)
-            if waypoint_distance <= self._waypoint_range:
-                self._waypoints.pop(i)  # Remove the reached waypoint
-                self.dbg("Found waypoint", self._waypoint_count - len(self._waypoints))
-                return 1.0 #/ self._waypoint_count
-                #return 1.0 - 0.9 * (self._current_step / self._max_steps)
-                #return min(1.0, 1.1 - 0.9 * (self._current_step / self._max_steps))
+            self.dbg("waypoint", i, "distance:", self._get_distance(player_pos, waypoint))
+        self.dbg("best_waypoint_distance:", self.best_waypoint_distance)
+        
+        waypoint_current_distance = self._get_waypoint_distance(player_pos)
+
+        if waypoint_current_distance <= self._waypoint_range:
+            # waypoint found, target next waypoint
+            self._waypoints.pop(0)  # Remove the reached waypoint
+            self.dbg("Found waypoint", self._waypoint_count - len(self._waypoints))
+            # reinitialize reward variables
+            self.waypoint_distance = self._get_waypoint_distance(player_pos)
+            self.best_waypoint_distance = self.waypoint_distance
+            return 0.1
+
+        # calc distance to next waypoint
+        if waypoint_current_distance < self.waypoint_distance:
+            self.waypoint_distance = waypoint_current_distance
+            if waypoint_current_distance < self.best_waypoint_distance - self._min_gain:
+                self.best_waypoint_distance = waypoint_current_distance
+                # give waypoint reward
+                return 0.01 #0.1 / len(self._waypoints)
 
         return 0.0
 
@@ -226,10 +240,14 @@ class MarioOdysseyWrapper(Env):
 
         # Retrieve the agent's initial observation
         obs, _ = self._env.reset(seed=self._seed, options={"startPos": reset_params["start_position"], "exportScript": self._export_tas_script})
+        
+        # get moon position (final target)
         self.moon_position = np.array(self._waypoints[-1])
-        self.moon_distance = self._get_distance_to_moon(obs["playerPos"])
-        self.start_distance = self.moon_distance
-        self.best_distance = self.moon_distance
+        
+        # initialize waypoint reward variables
+        self.waypoint_distance = self._get_waypoint_distance(obs["playerPos"])
+        self.best_waypoint_distance = self.waypoint_distance
+        
         vec_obs = self._process_obs(obs)
 
         # Render environment?
@@ -279,6 +297,8 @@ class MarioOdysseyWrapper(Env):
         success = 0.0
         if reward <= -0.11:
             reward = 0.0
+            # poison was touched
+            truncation = True
         if reward > 0.9:
             success = 1.0
             
@@ -287,30 +307,12 @@ class MarioOdysseyWrapper(Env):
         moon_current_distance = self._get_distance_to_moon(player_pos)
         self.dbg("moon_current_distance:", moon_current_distance)
         
-        if self._use_target_distance:
-            self.dbg("Calculate distance reward..")
-            if moon_current_distance < self.moon_distance:
-                if moon_current_distance < self.best_distance - self._min_gain:
-                    self.best_distance = moon_current_distance
-                    # give moon reward
-                    reward += 0.01 #* self.start_distance / moon_current_distance
-                self.moon_distance = moon_current_distance
-            self.dbg("best_distance:", self.best_distance)
-        else:
-            self.dbg("Distance reward disabled.")
-
-        if self._use_waypoints:
-            self.dbg("Calculate waypoints reward..")
-            
-            waypoint_reward = self._reward_waypoint(player_pos)
-            reward += waypoint_reward
-            self.dbg("waypoint_reward:", waypoint_reward)
-        else:
-            self.dbg("Waypoint reward disabled.")
+        reward += self._reward_waypoint(player_pos)
             
         if moon_found:
-            self.dbg("Found moon!")
-            reward += (self._current_step / self._max_steps) * self._waypoint_count 
+            moon_reward = self._waypoint_count / 10.0 * (self._max_steps / self._current_step)
+            self.dbg("Found moon after", self._current_step, "steps, moon reward:", moon_reward)
+            reward += moon_reward
 
         spinCap_was_used = obs["states"][70]
         if spinCap_was_used:
@@ -341,7 +343,6 @@ class MarioOdysseyWrapper(Env):
             info = {"reward": sum(self._rewards),
                     "length": len(self._rewards),
                     "success": success,
-                    "best_distance": self.best_distance,
                     "waypoints_visisted": self._waypoint_count - len(self._waypoints)}
             self.dbg("info:", info)
         else:
@@ -352,7 +353,7 @@ class MarioOdysseyWrapper(Env):
         self.dbg("cum. reward:", sum(self._rewards))
         if self.DEBUG_MODE:
             print("--", flush=True)
-            #time.sleep(0.1)
+            #.sleep(0.05)
             
         return {"vec_obs": vec_obs}, reward, done or truncation, info
 
